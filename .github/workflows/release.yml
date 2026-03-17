@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,14 +30,20 @@ jobs:
             ./ /tmp/dish-dash/
           cd /tmp
           zip -r dish-dash.zip dish-dash/
+          echo "ZIP size: $(du -sh dish-dash.zip)"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: "Dish Dash v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## Dish Dash v${{ steps.version.outputs.VERSION }}
+
+            ### Installation
+            1. Download `dish-dash.zip` below
+            2. In WordPress go to **Plugins → Updates**
+            3. Click **Check Again** then **Update Now**
           files: /tmp/dish-dash.zip
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
