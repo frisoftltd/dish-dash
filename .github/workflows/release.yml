@@ -11,39 +11,24 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get version from tag
+      - name: Get version
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Create plugin ZIP
+      - name: Create ZIP
         run: |
           mkdir -p /tmp/dish-dash
-          rsync -r \
-            --exclude='.git' \
-            --exclude='.github' \
-            --exclude='node_modules' \
-            ./ /tmp/dish-dash/
-          cd /tmp
-          zip -r dish-dash.zip dish-dash/
-          echo "ZIP size: $(du -sh dish-dash.zip)"
+          rsync -r --exclude='.git' --exclude='.github' ./ /tmp/dish-dash/
+          cd /tmp && zip -r dish-dash.zip dish-dash/
 
-      - name: Create GitHub Release
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
           name: "Dish Dash v${{ steps.version.outputs.VERSION }}"
-          body: |
-            ## Dish Dash v${{ steps.version.outputs.VERSION }}
-
-            ### Installation
-            1. Download `dish-dash.zip` below
-            2. In WordPress go to **Plugins → Updates**
-            3. Click **Check Again** then **Update Now**
           files: /tmp/dish-dash.zip
-          draft: false
-          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
