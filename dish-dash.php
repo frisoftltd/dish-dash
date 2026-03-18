@@ -3,7 +3,7 @@
  * Plugin Name:       Dish Dash
  * Plugin URI:        https://frisoftltd.com/dish-dash
  * Description:       A complete restaurant ordering & management system built on WordPress and WooCommerce.
- * Version:           1.0.0
+ * Version:           2.0.0
  * Author:            Fri Soft Ltd
  * Author URI:        https://frisoftltd.com
  * License:           GPL-2.0+
