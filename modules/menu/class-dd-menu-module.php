@@ -17,11 +17,40 @@ class DD_Menu_Module extends DD_Module {
     }
 
     public function enqueue_frontend_assets(): void {
-        $this->enqueue_style(  'menu', 'menu.css' );
-        $this->enqueue_style(  'cart', 'cart.css' );
-        $this->enqueue_script( 'menu', 'menu.js', [], true );
-        $this->enqueue_script( 'cart', 'cart.js', [], true );
-        wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
+        // Always load on frontend — works on ALL sites without touching functions.php
+        if ( is_admin() ) return;
+
+        wp_enqueue_style(
+            'dish-dash-menu',
+            DD_ASSETS_URL . 'menu.css',
+            [],
+            DD_VERSION
+        );
+        wp_enqueue_style(
+            'dish-dash-cart',
+            DD_ASSETS_URL . 'cart.css',
+            [],
+            DD_VERSION
+        );
+        wp_enqueue_script(
+            'dish-dash-menu',
+            DD_ASSETS_URL . 'js/menu.js',
+            [],
+            DD_VERSION,
+            true
+        );
+        wp_enqueue_script(
+            'dish-dash-cart',
+            DD_ASSETS_URL . 'js/cart.js',
+            [],
+            DD_VERSION,
+            true
+        );
+        wp_localize_script(
+            'dish-dash-cart',
+            'dishDash',
+            DD_Settings::get_public_settings()
+        );
     }
 
     public function shortcode( $atts ): string {
