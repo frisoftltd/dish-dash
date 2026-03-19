@@ -75,3 +75,64 @@
 
 @media (max-width:1024px) { .dd-menu-grid { --dd-cols:2 !important; } }
 @media (max-width:600px)  { .dd-menu-grid { --dd-cols:1 !important; } .dd-filter-btn { font-size:.72rem; padding:.35rem .85rem; } }
+
+/* ── Force override theme styles ────────────────────────── */
+.dd-menu-wrap .dd-menu-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+}
+
+.dd-menu-wrap .dd-menu-card {
+    width: 100% !important;
+    float: none !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.dd-menu-wrap .dd-card-image {
+    width: 100% !important;
+    aspect-ratio: 4/3 !important;
+    overflow: hidden !important;
+}
+
+.dd-menu-wrap .dd-card-image img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+}
+
+.dd-menu-wrap .dd-card-body {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    padding: 1rem 1.1rem 1.2rem !important;
+}
+
+.dd-menu-wrap .dd-card-footer {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: .5rem !important;
+}
+
+.dd-menu-wrap .dd-add-to-cart-btn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+@media (max-width: 768px) {
+    .dd-menu-wrap .dd-menu-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .dd-menu-wrap .dd-menu-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
