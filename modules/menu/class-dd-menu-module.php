@@ -17,31 +17,32 @@ class DD_Menu_Module extends DD_Module {
     }
 
     public function enqueue_frontend_assets(): void {
-        // Always load on frontend — works on ALL sites without touching functions.php
         if ( is_admin() ) return;
+
+        $plugin_url = plugins_url( 'dish-dash' );
 
         wp_enqueue_style(
             'dish-dash-menu',
-            DD_ASSETS_URL . 'menu.css',
+            $plugin_url . '/assets/css/menu.css',
             [],
             DD_VERSION
         );
         wp_enqueue_style(
             'dish-dash-cart',
-            DD_ASSETS_URL . 'cart.css',
+            $plugin_url . '/assets/css/cart.css',
             [],
             DD_VERSION
         );
         wp_enqueue_script(
             'dish-dash-menu',
-            DD_ASSETS_URL . 'js/menu.js',
+            $plugin_url . '/assets/js/menu.js',
             [],
             DD_VERSION,
             true
         );
         wp_enqueue_script(
             'dish-dash-cart',
-            DD_ASSETS_URL . 'js/cart.js',
+            $plugin_url . '/assets/js/cart.js',
             [],
             DD_VERSION,
             true
@@ -62,7 +63,6 @@ class DD_Menu_Module extends DD_Module {
             'items_per_page' => '-1',
         ], $atts, 'dish_dash_menu' );
 
-        // Get uncategorized term ID to exclude it
         $uncategorized = get_term_by( 'slug', 'uncategorized', 'product_cat' );
         $exclude_ids   = $uncategorized ? [ $uncategorized->term_id ] : [];
 
