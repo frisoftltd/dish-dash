@@ -34,8 +34,7 @@ if ( dd_is_enabled( 'reservations' ) ) {
     if ( $reserve_page ) $nav_pages[ get_permalink( $reserve_page ) ] = __( 'Reserve', 'dish-dash' );
 }
 
-// ── Tell template module NOT to inject cart
-// ── because this template handles it directly
+// Tell template module NOT to inject cart — this template handles it directly
 define( 'DD_FULLPAGE_TEMPLATE', true );
 
 ?><!DOCTYPE html>
@@ -51,14 +50,18 @@ define( 'DD_FULLPAGE_TEMPLATE', true );
             --dd-dark:    <?php echo esc_attr( $dark_color ); ?>;
         }
         body.dd-fullpage { margin:0; padding:0; background:#f8f5f0; }
-        /* Hide theme header/footer — Dish Dash owns the layout */
         body.dd-fullpage .site-header,
         body.dd-fullpage .site-footer,
         body.dd-fullpage #masthead,
         body.dd-fullpage #colophon,
         body.dd-fullpage .ast-above-header,
         body.dd-fullpage .ast-below-header,
-        body.dd-fullpage .ast-primary-header-bar { display:none !important; }
+        body.dd-fullpage .ast-primary-header-bar,
+        body.dd-fullpage header.ast-desktop-header { display:none !important; }
+        body.dd-fullpage #page,
+        body.dd-fullpage #content,
+        body.dd-fullpage #primary,
+        body.dd-fullpage .site-content { padding:0 !important; margin:0 !important; max-width:100% !important; }
     </style>
 </head>
 <body <?php body_class( 'dd-fullpage' ); ?>>
@@ -245,11 +248,37 @@ define( 'DD_FULLPAGE_TEMPLATE', true );
 
 <script>
 (function(){
-    // Sticky header scroll effect
-    var header = document.querySelector('.dd-header');
+    var header  = document.querySelector('.dd-header');
+    var lastY   = 0;
+    var ticking = false;
     if (!header) return;
+
+    function onScroll() {
+        var y = window.scrollY;
+
+        // Add scrolled class for shadow effect
+        if (y > 80) {
+            header.classList.add('dd-header--scrolled');
+        } else {
+            header.classList.remove('dd-header--scrolled');
+        }
+
+        // Hide on scroll down, show on scroll up (smooth)
+        if (y > lastY && y > 200) {
+            header.classList.add('dd-header--hidden');
+        } else {
+            header.classList.remove('dd-header--hidden');
+        }
+
+        lastY   = y;
+        ticking = false;
+    }
+
     window.addEventListener('scroll', function(){
-        header.classList.toggle('dd-header--scrolled', window.scrollY > 20);
+        if (!ticking) {
+            requestAnimationFrame(onScroll);
+            ticking = true;
+        }
     }, { passive: true });
 })();
 </script>
