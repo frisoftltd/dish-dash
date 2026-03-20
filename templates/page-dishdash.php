@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Dish Dash – Full Page Template
@@ -28,10 +27,10 @@ $facebook         = get_option( 'dish_dash_facebook', '' );
 $instagram        = get_option( 'dish_dash_instagram', '' );
 $whatsapp         = get_option( 'dish_dash_whatsapp', '' );
 
-// Nav pages
+// Fallback nav pages
 $nav_pages = [
-    dd_menu_url()     => __( 'Menu', 'dish-dash' ),
-    dd_track_url()    => __( 'Track Order', 'dish-dash' ),
+    dd_menu_url()  => __( 'Menu', 'dish-dash' ),
+    dd_track_url() => __( 'Track Order', 'dish-dash' ),
 ];
 if ( dd_is_enabled( 'reservations' ) ) {
     $reserve_page = get_option( 'dish_dash_reserve_page_id' );
@@ -51,9 +50,6 @@ if ( dd_is_enabled( 'reservations' ) ) {
             --dd-dark:    <?php echo esc_attr( $dark_color ); ?>;
         }
         body.dd-fullpage { margin: 0; padding: 0; background: #f8f5f0; }
-        body.dd-fullpage .wp-block-template-part,
-        body.dd-fullpage > header:not(.dd-header),
-        body.dd-fullpage > footer:not(.dd-footer) { display: none !important; }
     </style>
 </head>
 <body <?php body_class( 'dd-fullpage' ); ?>>
@@ -78,7 +74,20 @@ if ( dd_is_enabled( 'reservations' ) ) {
             <?php endif; ?>
         </a>
 
-        <!-- Navigation -->
+        <!-- Navigation — dynamic WordPress menu or fallback -->
+        <?php if ( has_nav_menu( 'dd-primary' ) ) : ?>
+        <nav class="dd-header__nav" aria-label="Main navigation">
+            <?php wp_nav_menu( [
+                'theme_location' => 'dd-primary',
+                'menu_class'     => 'dd-nav-list',
+                'container'      => false,
+                'depth'          => 1,
+                'fallback_cb'    => false,
+                'items_wrap'     => '%3$s',
+                'walker'         => null,
+            ] ); ?>
+        </nav>
+        <?php else : ?>
         <nav class="dd-header__nav" aria-label="Main navigation">
             <?php foreach ( $nav_pages as $url => $label ) : ?>
             <a href="<?php echo esc_url( $url ); ?>" class="dd-header__nav-link">
@@ -86,6 +95,7 @@ if ( dd_is_enabled( 'reservations' ) ) {
             </a>
             <?php endforeach; ?>
         </nav>
+        <?php endif; ?>
 
         <!-- Right actions -->
         <div class="dd-header__actions">
@@ -104,7 +114,8 @@ if ( dd_is_enabled( 'reservations' ) ) {
         </div>
 
         <!-- Mobile menu toggle -->
-        <button class="dd-header__mobile-toggle" aria-label="Menu" onclick="this.closest('.dd-header').classList.toggle('dd-header--open')">
+        <button class="dd-header__mobile-toggle" aria-label="Menu"
+                onclick="this.closest('.dd-header').classList.toggle('dd-header--open')">
             <span></span><span></span><span></span>
         </button>
 
@@ -112,11 +123,22 @@ if ( dd_is_enabled( 'reservations' ) ) {
 
     <!-- Mobile nav -->
     <div class="dd-header__mobile-nav">
-        <?php foreach ( $nav_pages as $url => $label ) : ?>
-        <a href="<?php echo esc_url( $url ); ?>" class="dd-header__mobile-link">
-            <?php echo esc_html( $label ); ?>
-        </a>
-        <?php endforeach; ?>
+        <?php if ( has_nav_menu( 'dd-primary' ) ) : ?>
+            <?php wp_nav_menu( [
+                'theme_location' => 'dd-primary',
+                'menu_class'     => 'dd-mobile-nav-list',
+                'container'      => false,
+                'depth'          => 1,
+                'fallback_cb'    => false,
+                'items_wrap'     => '%3$s',
+            ] ); ?>
+        <?php else : ?>
+            <?php foreach ( $nav_pages as $url => $label ) : ?>
+            <a href="<?php echo esc_url( $url ); ?>" class="dd-header__mobile-link">
+                <?php echo esc_html( $label ); ?>
+            </a>
+            <?php endforeach; ?>
+        <?php endif; ?>
     </div>
 </header>
 
@@ -130,7 +152,6 @@ if ( dd_is_enabled( 'reservations' ) ) {
             <h1 class="dd-hero__title"><?php echo esc_html( $hero_title ); ?></h1>
             <p class="dd-hero__subtitle"><?php echo esc_html( $hero_subtitle ); ?></p>
 
-            <!-- Hero search -->
             <div class="dd-hero__search">
                 <input type="search"
                        class="dd-search-input dd-hero__search-input"
@@ -157,9 +178,7 @@ if ( dd_is_enabled( 'reservations' ) ) {
 <main class="dd-main">
     <div class="dd-main__inner">
         <?php
-        // Cart sidebar
         echo do_shortcode( '[dish_dash_cart]' );
-        // Menu
         the_content();
         ?>
     </div>
@@ -189,6 +208,15 @@ if ( dd_is_enabled( 'reservations' ) ) {
 
         <div class="dd-footer__col">
             <h4><?php esc_html_e( 'Quick Links', 'dish-dash' ); ?></h4>
+            <?php if ( has_nav_menu( 'dd-footer' ) ) : ?>
+                <?php wp_nav_menu( [
+                    'theme_location' => 'dd-footer',
+                    'container'      => false,
+                    'depth'          => 1,
+                    'fallback_cb'    => false,
+                    'items_wrap'     => '<ul>%3$s</ul>',
+                ] ); ?>
+            <?php else : ?>
             <ul>
                 <li><a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'dish-dash' ); ?></a></li>
                 <li><a href="<?php echo esc_url( dd_menu_url() ); ?>"><?php esc_html_e( 'Our Menu', 'dish-dash' ); ?></a></li>
@@ -197,6 +225,7 @@ if ( dd_is_enabled( 'reservations' ) ) {
                 <li><a href="<?php echo esc_url( get_permalink( get_option( 'dish_dash_reserve_page_id' ) ) ); ?>"><?php esc_html_e( 'Reserve a Table', 'dish-dash' ); ?></a></li>
                 <?php endif; ?>
             </ul>
+            <?php endif; ?>
         </div>
 
         <div class="dd-footer__col">
@@ -215,18 +244,14 @@ if ( dd_is_enabled( 'reservations' ) ) {
         </div>
 
         <div class="dd-footer__col">
-            <div class="dd-footer__logo">
-                <?php echo esc_html( $restaurant_name ); ?>
-            </div>
-            <p class="dd-footer__tagline">
-                <?php esc_html_e( 'Powered by Dish Dash', 'dish-dash' ); ?>
-            </p>
+            <div class="dd-footer__logo"><?php echo esc_html( $restaurant_name ); ?></div>
+            <p class="dd-footer__tagline"><?php esc_html_e( 'Powered by Dish Dash', 'dish-dash' ); ?></p>
         </div>
 
     </div>
 
     <div class="dd-footer__bottom">
-        <p>© <?php echo date( 'Y' ); ?> <?php echo esc_html( $restaurant_name ); ?>. 
+        <p>© <?php echo date( 'Y' ); ?> <?php echo esc_html( $restaurant_name ); ?>.
         <?php esc_html_e( 'All rights reserved.', 'dish-dash' ); ?></p>
     </div>
 </footer>
