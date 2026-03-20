@@ -1,6 +1,9 @@
 <?php
 /**
  * Dish Dash – Admin Module
+ *
+ * Only registers core admin menu items.
+ * Each feature module registers its own submenu.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -15,6 +18,7 @@ class DD_Admin extends DD_Module {
 
     public function register_admin_menus(): void {
 
+        // Top level menu
         add_menu_page(
             __( 'Dish Dash', 'dish-dash' ),
             __( 'Dish Dash', 'dish-dash' ),
@@ -25,6 +29,7 @@ class DD_Admin extends DD_Module {
             25
         );
 
+        // Dashboard
         add_submenu_page( 'dish-dash',
             __( 'Dashboard', 'dish-dash' ),
             __( 'Dashboard', 'dish-dash' ),
@@ -32,6 +37,7 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_dashboard' ]
         );
 
+        // Orders
         add_submenu_page( 'dish-dash',
             __( 'Orders', 'dish-dash' ),
             __( 'Orders', 'dish-dash' ),
@@ -39,6 +45,7 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_orders' ]
         );
 
+        // Menu Items
         add_submenu_page( 'dish-dash',
             __( 'Menu', 'dish-dash' ),
             __( 'Menu Items', 'dish-dash' ),
@@ -46,6 +53,7 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_menu' ]
         );
 
+        // Reservations
         add_submenu_page( 'dish-dash',
             __( 'Reservations', 'dish-dash' ),
             __( 'Reservations', 'dish-dash' ),
@@ -53,6 +61,7 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_reservations' ]
         );
 
+        // Delivery
         add_submenu_page( 'dish-dash',
             __( 'Delivery', 'dish-dash' ),
             __( 'Delivery', 'dish-dash' ),
@@ -60,6 +69,7 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_delivery' ]
         );
 
+        // Branches
         add_submenu_page( 'dish-dash',
             __( 'Branches', 'dish-dash' ),
             __( 'Branches', 'dish-dash' ),
@@ -67,6 +77,7 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_branches' ]
         );
 
+        // POS Terminal
         add_submenu_page( 'dish-dash',
             __( 'POS', 'dish-dash' ),
             __( 'POS Terminal', 'dish-dash' ),
@@ -74,6 +85,7 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_pos' ]
         );
 
+        // Analytics
         add_submenu_page( 'dish-dash',
             __( 'Analytics', 'dish-dash' ),
             __( 'Analytics', 'dish-dash' ),
@@ -81,13 +93,8 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_analytics' ]
         );
 
-        add_submenu_page( 'dish-dash',
-            __( 'Template Settings', 'dish-dash' ),
-            __( '🎨 Template', 'dish-dash' ),
-            'dd_manage_settings', 'dish-dash-template',
-            [ $this, 'render_template_settings' ]
-        );
-
+        // Settings — general plugin settings only
+        // NOTE: Each module registers its OWN submenu page independently
         add_submenu_page( 'dish-dash',
             __( 'Settings', 'dish-dash' ),
             __( 'Settings', 'dish-dash' ),
@@ -99,8 +106,19 @@ class DD_Admin extends DD_Module {
     public function enqueue_admin_assets( string $hook ): void {
         if ( strpos( $hook, 'dish-dash' ) === false ) return;
 
-        wp_enqueue_style( 'dish-dash-admin', DD_ASSETS_URL . 'css/admin.css', [], DD_VERSION );
-        wp_enqueue_script( 'dish-dash-admin', DD_ASSETS_URL . 'js/admin.js', [ 'jquery' ], DD_VERSION, true );
+        wp_enqueue_style(
+            'dish-dash-admin',
+            DD_ASSETS_URL . 'css/admin.css',
+            [],
+            DD_VERSION
+        );
+        wp_enqueue_script(
+            'dish-dash-admin',
+            DD_ASSETS_URL . 'js/admin.js',
+            [ 'jquery' ],
+            DD_VERSION,
+            true
+        );
         wp_localize_script( 'dish-dash-admin', 'dishDashAdmin', [
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'dish_dash_admin' ),
@@ -114,6 +132,9 @@ class DD_Admin extends DD_Module {
         ] );
     }
 
+    // ─────────────────────────────────────────
+    //  PAGE RENDERERS
+    // ─────────────────────────────────────────
     public function render_dashboard(): void {
         include DD_PLUGIN_DIR . 'admin/pages/dashboard.php';
     }
@@ -145,10 +166,6 @@ class DD_Admin extends DD_Module {
 
     public function render_analytics(): void {
         include DD_PLUGIN_DIR . 'admin/pages/coming-soon.php';
-    }
-
-    public function render_template_settings(): void {
-        include DD_PLUGIN_DIR . 'admin/pages/template-settings.php';
     }
 
     public function render_settings(): void {
