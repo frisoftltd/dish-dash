@@ -573,3 +573,42 @@ body.dd-fullpage .site-content {
     .dd-hero__inner { padding: 0 1.25rem; }
     .dd-hero__title { font-size: 1.7rem; }
 }
+/* ── Fix nav items gap ──────────────────────── */
+.dd-header__nav .dd-nav-list,
+.dd-header__nav ul {
+    gap: 2rem !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* ── Fix floating cart position ─────────────── */
+button.dd-cart-trigger,
+.dd-cart-trigger {
+    position: fixed !important;
+    bottom: 2rem !important;
+    right: 2rem !important;
+    top: auto !important;
+    left: auto !important;
+    z-index: 8999 !important;
+}
+
+/* ── Hide WooCommerce cart icon from header ─── */
+body.dd-fullpage .ast-site-header-cart,
+body.dd-fullpage .woocommerce-cart-icon,
+body.dd-fullpage .cart-contents { display: none !important; }
+```
+
+Commit → update `dish-dash.php` to `2.1.4` → release `v2.1.4`:
+
+**Title:** `Dish Dash v2.1.4 — Header Nav Fix`
+**Description:**
+```
+## What's New in v2.1.4
+- Fixed nav menu items squished together
+- Fixed floating cart button position
+- Hidden WooCommerce cart icon from header
