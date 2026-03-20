@@ -259,3 +259,14 @@ if ( dd_is_enabled( 'reservations' ) ) {
 <?php wp_footer(); ?>
 </body>
 </html>
+
+<!-- Sticky header scroll effect (appended before </body>) -->
+<script>
+(function() {
+    var header = document.querySelector('.dd-header');
+    if (!header) return;
+    window.addEventListener('scroll', function() {
+        header.classList.toggle('dd-header--scrolled', window.scrollY > 20);
+    }, { passive: true });
+})();
+</script>
