@@ -410,3 +410,45 @@ body.dd-fullpage img { max-width: 100%; }
     .dd-footer__inner { grid-template-columns: 1fr; }
     .dd-footer__inner { padding: 2.5rem 1.25rem 2rem; }
 }
+
+/* ── Fix WordPress nav menu bullets ────────────────────── */
+.dd-header__nav ul,
+.dd-header__nav li,
+.dd-mobile-nav-list,
+.dd-mobile-nav-list li {
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.dd-header__nav li {
+    display: inline-block !important;
+}
+
+.dd-header__nav li a,
+.dd-header__nav-link {
+    text-decoration: none !important;
+    font-size: .9rem !important;
+    font-weight: 700 !important;
+    color: #555 !important;
+    padding: .4rem .2rem !important;
+    transition: color .2s !important;
+    display: inline-block !important;
+}
+
+.dd-header__nav li a:hover,
+.dd-header__nav-link:hover { color: var(--dd-primary, #E8832A) !important; }
+
+.dd-header__nav li.current-menu-item > a,
+.dd-header__nav li.current_page_item > a { color: var(--dd-primary, #E8832A) !important; }
+
+/* Mobile nav list */
+.dd-mobile-nav-list li a {
+    display: block !important;
+    padding: .6rem 0 !important;
+    border-bottom: 1px solid #f0ece6 !important;
+    font-weight: 700 !important;
+    color: #555 !important;
+    text-decoration: none !important;
+    font-size: .95rem !important;
+}
