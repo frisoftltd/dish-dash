@@ -10,12 +10,23 @@ class DD_Menu_Module extends DD_Module {
     protected string $id = 'menu';
 
     public function init(): void {
+        add_action( 'after_setup_theme',        [ $this, 'register_nav_menus' ] );
         add_action( 'wp_enqueue_scripts',       [ $this, 'enqueue_frontend_assets' ] );
         add_filter( 'theme_page_templates',     [ $this, 'register_page_template' ] );
         add_filter( 'template_include',         [ $this, 'load_page_template' ] );
         add_shortcode( 'dish_dash_menu',        [ $this, 'shortcode' ] );
         add_shortcode( 'dish_dash_cart',        [ $this, 'shortcode_cart' ] );
         add_shortcode( 'dish_dash_checkout',    [ $this, 'shortcode_checkout' ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  REGISTER WORDPRESS MENU LOCATIONS
+    // ─────────────────────────────────────────
+    public function register_nav_menus(): void {
+        register_nav_menus( [
+            'dd-primary' => __( 'Dish Dash Primary Menu', 'dish-dash' ),
+            'dd-footer'  => __( 'Dish Dash Footer Menu', 'dish-dash' ),
+        ] );
     }
 
     // ─────────────────────────────────────────
