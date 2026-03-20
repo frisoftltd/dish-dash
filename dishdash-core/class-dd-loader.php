@@ -2,10 +2,7 @@
 /**
  * Dish Dash – Core Loader
  */
-
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
-}
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 class DD_Loader {
 
@@ -44,9 +41,14 @@ class DD_Loader {
 
     private function register_modules(): void {
         $modules = [
-            'DD_Admin'          => 'admin/class-dd-admin.php',
-            'DD_Menu_Module'    => 'modules/menu/class-dd-menu-module.php',
-            'DD_Orders_Module'  => 'modules/orders/class-dd-orders-module.php',
+            // Admin module
+            'DD_Admin'            => 'admin/class-dd-admin.php',
+            // Template module — handles header, hero, footer, page template
+            'DD_Template_Module'  => 'modules/template/class-dd-template-module.php',
+            // Menu module — only shortcodes
+            'DD_Menu_Module'      => 'modules/menu/class-dd-menu-module.php',
+            // Orders module
+            'DD_Orders_Module'    => 'modules/orders/class-dd-orders-module.php',
             // Coming soon:
             // 'DD_Delivery_Module'     => 'modules/delivery/class-dd-delivery-module.php',
             // 'DD_Reservations_Module' => 'modules/reservations/class-dd-reservations-module.php',
@@ -64,9 +66,11 @@ class DD_Loader {
             }
         }
 
-        // Boot cart AJAX handlers
-        require_once DD_PLUGIN_DIR . 'modules/orders/class-dd-cart.php';
-        DD_Cart::register_ajax();
+        // Boot cart AJAX
+        if ( file_exists( DD_PLUGIN_DIR . 'modules/orders/class-dd-cart.php' ) ) {
+            require_once DD_PLUGIN_DIR . 'modules/orders/class-dd-cart.php';
+            DD_Cart::register_ajax();
+        }
     }
 
     private function init_modules(): void {
