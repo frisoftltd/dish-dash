@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Dish Dash – Template Module
