@@ -4,10 +4,15 @@
  * Override: /your-theme/dish-dash/menu/grid.php
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+// Hide search if we are on the full page template
+// because the hero section already has a search bar
+$is_full_page = is_page() && 'page-dishdash.php' === get_post_meta( get_the_ID(), '_wp_page_template', true );
+$show_search  = ( 'yes' === $atts['show_search'] && ! $is_full_page ) ? 'yes' : 'no';
 ?>
 <div class="dd-menu-wrap" data-columns="<?php echo esc_attr( $atts['columns'] ); ?>">
 
-    <?php if ( 'yes' === $atts['show_search'] ) : ?>
+    <?php if ( 'yes' === $show_search ) : ?>
     <div class="dd-menu-search">
         <input type="search" class="dd-search-input" id="dd-search-input"
                placeholder="<?php esc_attr_e( 'Search your favourite food…', 'dish-dash' ); ?>"
@@ -54,7 +59,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <?php if ( $has_sale ) : ?>
                     <span class="dd-badge dd-badge--on-sale"><?php esc_html_e( 'On Sale', 'dish-dash' ); ?></span>
                 <?php elseif ( $badge ) : ?>
-                    <span class="dd-badge dd-badge--<?php echo esc_attr( $badge ); ?>"><?php echo esc_html( ucfirst( $badge ) ); ?></span>
+                    <span class="dd-badge dd-badge--<?php echo esc_attr( $badge ); ?>">
+                        <?php echo esc_html( ucfirst( $badge ) ); ?>
+                    </span>
                 <?php endif; ?>
             </div>
             <?php endif; ?>
@@ -91,7 +98,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <?php endwhile; wp_reset_postdata(); ?>
     </div>
 
-    <p class="dd-no-results" style="display:none"><?php esc_html_e( 'No items match your search.', 'dish-dash' ); ?></p>
+    <p class="dd-no-results" style="display:none">
+        <?php esc_html_e( 'No items match your search.', 'dish-dash' ); ?>
+    </p>
 
     <?php else : ?>
     <div class="dd-empty-menu">
