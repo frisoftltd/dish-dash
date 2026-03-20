@@ -1,7 +1,8 @@
 <?php
 /**
- * Dish Dash – Menu Module v2.2
- * Registers custom page template + loads theme assets
+ * Dish Dash – Menu Module v2.3
+ * Only handles menu display and shortcodes.
+ * Template/nav handled by DD_Template_Module.
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -10,99 +11,11 @@ class DD_Menu_Module extends DD_Module {
     protected string $id = 'menu';
 
     public function init(): void {
-        add_action( 'after_setup_theme',        [ $this, 'register_nav_menus' ] );
-        add_action( 'wp_enqueue_scripts',       [ $this, 'enqueue_frontend_assets' ] );
-        add_filter( 'theme_page_templates',     [ $this, 'register_page_template' ] );
-        add_filter( 'template_include',         [ $this, 'load_page_template' ] );
-        add_shortcode( 'dish_dash_menu',        [ $this, 'shortcode' ] );
-        add_shortcode( 'dish_dash_cart',        [ $this, 'shortcode_cart' ] );
-        add_shortcode( 'dish_dash_checkout',    [ $this, 'shortcode_checkout' ] );
+        add_shortcode( 'dish_dash_menu',     [ $this, 'shortcode' ] );
+        add_shortcode( 'dish_dash_cart',     [ $this, 'shortcode_cart' ] );
+        add_shortcode( 'dish_dash_checkout', [ $this, 'shortcode_checkout' ] );
     }
 
-    // ─────────────────────────────────────────
-    //  REGISTER WORDPRESS MENU LOCATIONS
-    // ─────────────────────────────────────────
-    public function register_nav_menus(): void {
-        register_nav_menus( [
-            'dd-primary' => __( 'Dish Dash Primary Menu', 'dish-dash' ),
-            'dd-footer'  => __( 'Dish Dash Footer Menu', 'dish-dash' ),
-        ] );
-    }
-
-    // ─────────────────────────────────────────
-    //  REGISTER TEMPLATE IN PAGE ATTRIBUTES
-    // ─────────────────────────────────────────
-    public function register_page_template( array $templates ): array {
-        $templates['page-dishdash.php'] = __( 'Dish Dash Full Page', 'dish-dash' );
-        return $templates;
-    }
-
-    // ─────────────────────────────────────────
-    //  LOAD TEMPLATE FROM PLUGIN
-    // ─────────────────────────────────────────
-    public function load_page_template( string $template ): string {
-        if ( is_page() ) {
-            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
-            if ( 'page-dishdash.php' === $meta ) {
-                $plugin_template = DD_TEMPLATES_DIR . 'page-dishdash.php';
-                if ( file_exists( $plugin_template ) ) {
-                    return $plugin_template;
-                }
-            }
-        }
-        return $template;
-    }
-
-    // ─────────────────────────────────────────
-    //  ASSETS
-    // ─────────────────────────────────────────
-    public function enqueue_frontend_assets(): void {
-        if ( is_admin() ) return;
-
-        $plugin_url = plugins_url( 'dish-dash' );
-
-        wp_enqueue_style(
-            'dish-dash-theme',
-            $plugin_url . '/assets/css/theme.css',
-            [],
-            DD_VERSION
-        );
-        wp_enqueue_style(
-            'dish-dash-menu',
-            $plugin_url . '/assets/css/menu.css',
-            [],
-            DD_VERSION
-        );
-        wp_enqueue_style(
-            'dish-dash-cart',
-            $plugin_url . '/assets/css/cart.css',
-            [],
-            DD_VERSION
-        );
-        wp_enqueue_script(
-            'dish-dash-menu',
-            $plugin_url . '/assets/js/menu.js',
-            [],
-            DD_VERSION,
-            true
-        );
-        wp_enqueue_script(
-            'dish-dash-cart',
-            $plugin_url . '/assets/js/cart.js',
-            [],
-            DD_VERSION,
-            true
-        );
-        wp_localize_script(
-            'dish-dash-cart',
-            'dishDash',
-            DD_Settings::get_public_settings()
-        );
-    }
-
-    // ─────────────────────────────────────────
-    //  SHORTCODES
-    // ─────────────────────────────────────────
     public function shortcode( $atts ): string {
         $atts = shortcode_atts( [
             'category'       => '',
