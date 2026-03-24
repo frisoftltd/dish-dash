@@ -15,6 +15,41 @@ if ( ! function_exists( 'wc_get_products' ) ) {
     wp_die( 'WooCommerce is required for this page template.' );
 }
 
+// ─── Safe WooCommerce URL helpers ─────────────────────────────────────────
+// These exist because wc_get_account_url() was added in WC 2.6 and some
+// installs may have an older version or WC not fully bootstrapped yet.
+function dd_account_url( $endpoint = '' ) {
+    if ( function_exists( 'wc_get_account_url' ) ) {
+        return wc_get_account_url( $endpoint );
+    }
+    $page_id = get_option( 'woocommerce_myaccount_page_id' );
+    $base    = $page_id ? get_permalink( $page_id ) : home_url( '/my-account/' );
+    return $endpoint ? trailingslashit( $base ) . $endpoint . '/' : $base;
+}
+
+function dd_checkout_url() {
+    if ( function_exists( 'wc_get_checkout_url' ) ) {
+        return wc_get_checkout_url();
+    }
+    $page_id = get_option( 'woocommerce_checkout_page_id' );
+    return $page_id ? get_permalink( $page_id ) : home_url( '/checkout/' );
+}
+
+function dd_shop_url() {
+    if ( function_exists( 'wc_get_page_permalink' ) ) {
+        return wc_get_page_permalink( 'shop' );
+    }
+    $page_id = get_option( 'woocommerce_shop_page_id' );
+    return $page_id ? get_permalink( $page_id ) : home_url( '/shop/' );
+}
+
+function dd_placeholder_img( $size = 'medium_large' ) {
+    if ( function_exists( 'wc_placeholder_img_src' ) ) {
+        return wc_placeholder_img_src( $size );
+    }
+    return '';
+}
+
 // ─── Settings ──────────────────────────────────────────────────────────────
 $dd_name    = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
 $dd_logo    = get_option( 'dish_dash_logo_url', '' );
@@ -78,7 +113,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
     function dd_render_dish_card( $product, $tag = '' ) {
         $img_id  = $product->get_image_id();
         $img_url = $img_id ? wp_get_attachment_image_url( $img_id, 'medium_large' ) : '';
-        if ( ! $img_url ) $img_url = wc_placeholder_img_src( 'medium_large' );
+        if ( ! $img_url ) $img_url = dd_placeholder_img( 'medium_large' );
 
         if ( ! $tag ) $tag = $product->is_featured() ? 'Best Seller' : 'Popular';
 
@@ -178,7 +213,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         </nav>
 
         <div class="dd-header__actions">
-            <a href="<?php echo esc_url( wc_get_account_url( 'orders' ) ); ?>"
+            <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
                class="dd-btn dd-btn--light dd-btn--sm">Track Order</a>
             <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                 <span class="dd-cart-top__label">Cart</span>
@@ -200,7 +235,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             <div class="dd-hero__actions">
                 <a href="#menu"    class="dd-btn dd-btn--brand">Order Now</a>
                 <a href="#reserve" class="dd-btn dd-btn--outline">Reserve Table</a>
-                <a href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>"
+                <a href="<?php echo esc_url( dd_shop_url() ); ?>"
                    class="dd-btn dd-btn--soft">View Full Menu</a>
             </div>
             <div class="dd-hero__chips">
@@ -221,7 +256,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                 $img_id       = $hero_product->get_image_id();
                 $hero_img     = $img_id
                     ? wp_get_attachment_image_url( $img_id, 'large' )
-                    : wc_placeholder_img_src( 'large' );
+                    : dd_placeholder_img( 'large' );
             }
             if ( ! $hero_img ) {
                 $hero_img = 'https://images.unsplash.com/photo-1603893662172-99ed0cea2a08?auto=format&fit=crop&w=900&q=80';
@@ -269,7 +304,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                     <span class="dd-search__tag">Fast search</span>
                 </div>
             </div>
-            <a href="<?php echo esc_url( wc_get_page_permalink( 'shop' ) ); ?>"
+            <a href="<?php echo esc_url( dd_shop_url() ); ?>"
                class="dd-btn dd-btn--light" target="_blank">View Full Menu</a>
             <a href="#menu" class="dd-btn dd-btn--gold" id="ddStartOrder">Start Order</a>
         </div>
@@ -393,7 +428,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                     <div class="dd-summary__row"><span>Delivery</span><span id="ddSumDelivery">RWF 2,000</span></div>
                     <div class="dd-summary__row dd-summary__row--main"><span>Total</span><span id="ddSumTotal">RWF 0</span></div>
                 </div>
-                <a href="<?php echo esc_url( wc_get_checkout_url() ); ?>"
+                <a href="<?php echo esc_url( dd_checkout_url() ); ?>"
                    class="dd-btn dd-btn--gold dd-btn--block" style="margin-top:20px;">Proceed to checkout</a>
             </aside>
         </div>
@@ -480,7 +515,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                 <li><a href="#home">Home</a></li>
                 <li><a href="#menu">Menu</a></li>
                 <li><a href="#reserve">Reserve Table</a></li>
-                <li><a href="<?php echo esc_url( wc_get_account_url( 'orders' ) ); ?>">Track Order</a></li>
+                <li><a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>">Track Order</a></li>
             </ul>
         </div>
         <div>
@@ -521,7 +556,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             <div class="dd-cart-drawer__row"><span>Delivery</span><span id="ddDrawerDelivery">RWF 2,000</span></div>
             <div class="dd-cart-drawer__row dd-cart-drawer__row--main"><span>Total</span><span id="ddDrawerTotal">RWF 0</span></div>
         </div>
-        <a href="<?php echo esc_url( wc_get_checkout_url() ); ?>"
+        <a href="<?php echo esc_url( dd_checkout_url() ); ?>"
            class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Checkout now</a>
     </div>
 </aside>
@@ -556,7 +591,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 window.DD = {
     ajaxUrl:     '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
     nonce:       '<?php echo esc_js( wp_create_nonce( 'dd_nonce' ) ); ?>',
-    checkoutUrl: '<?php echo esc_url( wc_get_checkout_url() ); ?>',
+    checkoutUrl: '<?php echo esc_url( dd_checkout_url() ); ?>',
     deliveryFee: <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
     cartCount:   <?php echo (int) $dd_cart_count; ?>,
     firstCat:    '<?php echo ! empty( $dd_cats ) ? esc_js( $dd_cats[0]->slug ) : ''; ?>'
