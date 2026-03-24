@@ -342,15 +342,14 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                     : 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80';
             ?>
                 <button class="dd-cat-card<?php echo $i === 0 ? ' active' : ''; ?>"
-                        data-slug="<?php echo esc_attr( $cat->slug ); ?>"
-                        data-name="<?php echo esc_attr( $cat->name ); ?>">
-                    <img src="<?php echo esc_url( $thumb_url ); ?>"
-                         alt="<?php echo esc_attr( $cat->name ); ?>">
-                    <div class="dd-cat-card__meta">
-                        <span><?php echo esc_html( $cat->name ); ?></span>
-                        <span class="dd-cat-card__count"><?php echo esc_html( $cat->count ); ?>+</span>
-                    </div>
-                </button>
+        data-slug="<?php echo esc_attr( $cat->slug ); ?>"
+        data-name="<?php echo esc_attr( $cat->name ); ?>">
+    <div class="dd-cat-card__circle">
+        <img src="<?php echo esc_url( $thumb_url ); ?>"
+             alt="<?php echo esc_attr( $cat->name ); ?>">
+    </div>
+    <span class="dd-cat-card__name"><?php echo esc_html( $cat->name ); ?></span>
+</button>
             <?php endforeach; ?>
         </div>
     </div>
