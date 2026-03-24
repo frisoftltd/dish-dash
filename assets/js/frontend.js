@@ -298,19 +298,22 @@
        ARROW SCROLL BUTTONS
     ══════════════════════════════════════════════════════════ */
     function setupArrows(prevId, nextId, rowId) {
-        const row  = $(rowId);
-        const prev = $(prevId);
-        const next = $(nextId);
+        var row  = document.getElementById(rowId);
+        var prev = document.getElementById(prevId);
+        var next = document.getElementById(nextId);
         if (!row || !prev || !next) return;
 
-        // Clone to remove old listeners
-        const newPrev = prev.cloneNode(true);
-        const newNext = next.cloneNode(true);
+        var newPrev = prev.cloneNode(true);
+        var newNext = next.cloneNode(true);
         prev.parentNode.replaceChild(newPrev, prev);
         next.parentNode.replaceChild(newNext, next);
 
-        newPrev.addEventListener('click', () => row.scrollBy({ left: -340, behavior: 'smooth' }));
-        newNext.addEventListener('click', () => row.scrollBy({ left:  340, behavior: 'smooth' }));
+        newPrev.addEventListener('click', function() {
+            row.scrollBy({ left: -300, behavior: 'smooth' });
+        });
+        newNext.addEventListener('click', function() {
+            row.scrollBy({ left: 300, behavior: 'smooth' });
+        });
     }
 
     /* ══════════════════════════════════════════════════════════
