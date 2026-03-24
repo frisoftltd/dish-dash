@@ -349,10 +349,6 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
              alt="<?php echo esc_attr( $cat->name ); ?>">
     </div>
     <span class="dd-cat-card__name"><?php echo esc_html( $cat->name ); ?></span>
-</button>
-            <?php endforeach; ?>
-        </div>
-    </div>
 </section>
 <?php endif; ?>
 
