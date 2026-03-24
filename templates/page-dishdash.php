@@ -18,36 +18,44 @@ if ( ! function_exists( 'wc_get_products' ) ) {
 // ─── Safe WooCommerce URL helpers ─────────────────────────────────────────
 // These exist because wc_get_account_url() was added in WC 2.6 and some
 // installs may have an older version or WC not fully bootstrapped yet.
-function dd_account_url( $endpoint = '' ) {
-    if ( function_exists( 'wc_get_account_url' ) ) {
-        return wc_get_account_url( $endpoint );
+if ( ! function_exists( 'dd_account_url' ) ) {
+    function dd_account_url( $endpoint = '' ) {
+        if ( function_exists( 'wc_get_account_url' ) ) {
+            return wc_get_account_url( $endpoint );
+        }
+        $page_id = get_option( 'woocommerce_myaccount_page_id' );
+        $base    = $page_id ? get_permalink( $page_id ) : home_url( '/my-account/' );
+        return $endpoint ? trailingslashit( $base ) . $endpoint . '/' : $base;
     }
-    $page_id = get_option( 'woocommerce_myaccount_page_id' );
-    $base    = $page_id ? get_permalink( $page_id ) : home_url( '/my-account/' );
-    return $endpoint ? trailingslashit( $base ) . $endpoint . '/' : $base;
 }
 
-function dd_checkout_url() {
-    if ( function_exists( 'wc_get_checkout_url' ) ) {
-        return wc_get_checkout_url();
+if ( ! function_exists( 'dd_checkout_url' ) ) {
+    function dd_checkout_url() {
+        if ( function_exists( 'wc_get_checkout_url' ) ) {
+            return wc_get_checkout_url();
+        }
+        $page_id = get_option( 'woocommerce_checkout_page_id' );
+        return $page_id ? get_permalink( $page_id ) : home_url( '/checkout/' );
     }
-    $page_id = get_option( 'woocommerce_checkout_page_id' );
-    return $page_id ? get_permalink( $page_id ) : home_url( '/checkout/' );
 }
 
-function dd_shop_url() {
-    if ( function_exists( 'wc_get_page_permalink' ) ) {
-        return wc_get_page_permalink( 'shop' );
+if ( ! function_exists( 'dd_shop_url' ) ) {
+    function dd_shop_url() {
+        if ( function_exists( 'wc_get_page_permalink' ) ) {
+            return wc_get_page_permalink( 'shop' );
+        }
+        $page_id = get_option( 'woocommerce_shop_page_id' );
+        return $page_id ? get_permalink( $page_id ) : home_url( '/shop/' );
     }
-    $page_id = get_option( 'woocommerce_shop_page_id' );
-    return $page_id ? get_permalink( $page_id ) : home_url( '/shop/' );
 }
 
-function dd_placeholder_img( $size = 'medium_large' ) {
-    if ( function_exists( 'wc_placeholder_img_src' ) ) {
-        return wc_placeholder_img_src( $size );
+if ( ! function_exists( 'dd_placeholder_img' ) ) {
+    function dd_placeholder_img( $size = 'medium_large' ) {
+        if ( function_exists( 'wc_placeholder_img_src' ) ) {
+            return wc_placeholder_img_src( $size );
+        }
+        return '';
     }
-    return '';
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────
