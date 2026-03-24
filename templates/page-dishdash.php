@@ -1,286 +1,598 @@
 <?php
 /**
- * Dish Dash – Full Page Template
+ * Template Name: DishDash
+ * Template Post Type: page
  *
- * Standalone page template with branded header,
- * hero section, menu content, and footer.
+ * Full-page restaurant template for Dish Dash plugin.
+ * Outputs a complete HTML document — bypasses Astra header/footer.
  *
- * Usage: Edit page → Page Attributes → Template
- * → select "Dish Dash Full Page"
+ * @package DishDash
+ * @since   2.2.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// ── Settings ─────────────────────────────────
-$restaurant_name = get_option( 'dish_dash_restaurant_name', get_bloginfo( 'name' ) );
-$restaurant_logo = get_option( 'dish_dash_logo_url', '' );
-$primary_color   = get_option( 'dish_dash_primary_color', '#E8832A' );
-$dark_color      = get_option( 'dish_dash_dark_color', '#1E3A5F' );
-$hero_title      = get_option( 'dish_dash_hero_title', 'Hello Dear,' );
-$hero_subtitle   = get_option( 'dish_dash_hero_subtitle', "Hungry? You're in the right place..." );
-$hero_image      = get_option( 'dish_dash_hero_image', '' );
-$address         = get_option( 'dish_dash_address', '' );
-$phone           = get_option( 'dish_dash_phone', '' );
-$email_contact   = get_option( 'dish_dash_contact_email', get_option( 'admin_email' ) );
-$opening_hours   = get_option( 'dish_dash_opening_hours', '' );
-$facebook        = get_option( 'dish_dash_facebook', '' );
-$instagram       = get_option( 'dish_dash_instagram', '' );
-$whatsapp        = get_option( 'dish_dash_whatsapp', '' );
+// ── Restaurant Settings ────────────────────────────────────────────────────
+$dd_name    = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+$dd_logo    = get_option( 'dish_dash_logo_url', '' );
+$dd_primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+$dd_dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
+$dd_h_title = get_option( 'dish_dash_hero_title', "Elegant food ordering for <span class=\"dd-gold\">Kigali's Indian favorite</span>." );
+$dd_h_sub   = get_option( 'dish_dash_hero_subtitle', 'Discover signature curries, fragrant biryanis, fresh breads, and a seamless online ordering experience designed to feel warm, premium, and irresistibly easy.' );
+$dd_h_img   = get_option( 'dish_dash_hero_image', '' );
+$dd_addr    = get_option( 'dish_dash_address', 'Kigali, Rwanda' );
+$dd_phone   = get_option( 'dish_dash_phone', '' );
+$dd_email   = get_option( 'dish_dash_contact_email', '' );
+$dd_hours   = get_option( 'dish_dash_opening_hours', "Mon – Fri: 10:00 – 22:00\nSat – Sun: 09:00 – 23:00" );
+$dd_fb      = get_option( 'dish_dash_facebook', '' );
+$dd_ig      = get_option( 'dish_dash_instagram', '' );
+$dd_wa      = get_option( 'dish_dash_whatsapp', '' );
 
-// ── Fallback nav pages ────────────────────────
-$nav_pages = [ dd_menu_url() => __( 'Menu', 'dish-dash' ), dd_track_url() => __( 'Track Order', 'dish-dash' ) ];
-if ( dd_is_enabled( 'reservations' ) ) {
-    $reserve_page = get_option( 'dish_dash_reserve_page_id' );
-    if ( $reserve_page ) $nav_pages[ get_permalink( $reserve_page ) ] = __( 'Reserve', 'dish-dash' );
+// ── WooCommerce Data ───────────────────────────────────────────────────────
+$dd_cats = get_terms( [
+    'taxonomy'   => 'product_cat',
+    'hide_empty' => true,
+    'parent'     => 0,
+    'orderby'    => 'menu_order',
+] );
+if ( is_wp_error( $dd_cats ) || empty( $dd_cats ) ) $dd_cats = [];
+$dd_cats = array_values( array_filter( $dd_cats, fn( $c ) => $c->slug !== 'uncategorized' ) );
+
+// Best sellers (featured row)
+$dd_best = wc_get_products( [
+    'limit'   => 8,
+    'orderby' => 'popularity',
+    'order'   => 'DESC',
+    'status'  => 'publish',
+] );
+
+// Products per category (pre-rendered, avoids AJAX)
+$dd_cat_products = [];
+foreach ( $dd_cats as $cat ) {
+    $dd_cat_products[ $cat->slug ] = wc_get_products( [
+        'category' => [ $cat->slug ],
+        'limit'    => 8,
+        'status'   => 'publish',
+    ] );
 }
 
-// Tell template module NOT to inject cart — this template handles it directly
-define( 'DD_FULLPAGE_TEMPLATE', true );
+$dd_hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
+$dd_cart_count  = WC()->cart ? WC()->cart->get_cart_contents_count() : 0;
+$dd_initials    = mb_strtoupper( mb_substr( $dd_name, 0, 2 ) );
 
-?><!DOCTYPE html>
+// ── Helper: Dish Card ──────────────────────────────────────────────────────
+$dd_card = function( $product, $tag = '' ) {
+    $img_id  = $product->get_image_id();
+    $img_url = $img_id
+        ? wp_get_attachment_image_url( $img_id, 'medium_large' )
+        : wc_placeholder_img_src( 'medium_large' );
+    if ( ! $tag ) $tag = $product->is_featured() ? 'Best Seller' : 'Popular';
+    $price = $product->get_price() ? 'RWF ' . number_format( (float) $product->get_price(), 0, '.', ',' ) : '';
+    $desc  = wp_trim_words( strip_tags( $product->get_short_description() ?: $product->get_description() ), 14, '…' );
+    $id    = $product->get_id();
+    ob_start();
+    ?>
+    <article class="dd-dish-card" data-id="<?php echo esc_attr( $id ); ?>">
+        <div class="dd-dish-card__media">
+            <img src="<?php echo esc_url( $img_url ); ?>" alt="<?php echo esc_attr( $product->get_name() ); ?>" loading="lazy">
+            <span class="dd-dish-card__tag"><?php echo esc_html( $tag ); ?></span>
+        </div>
+        <div class="dd-dish-card__body">
+            <h3 class="dd-dish-card__title dd-serif"><?php echo esc_html( $product->get_name() ); ?></h3>
+            <p class="dd-dish-card__desc"><?php echo esc_html( $desc ); ?></p>
+            <div class="dd-dish-card__footer">
+                <span class="dd-price"><?php echo esc_html( $price ); ?></span>
+                <button class="dd-btn dd-btn--brand dd-btn--sm dd-add-btn"
+                        data-id="<?php echo esc_attr( $id ); ?>"
+                        data-nonce="<?php echo esc_attr( wp_create_nonce('dd_add_to_cart') ); ?>">
+                    Add to cart
+                </button>
+            </div>
+        </div>
+    </article>
+    <?php
+    return ob_get_clean();
+};
+?>
+<!DOCTYPE html>
 <html <?php language_attributes(); ?>>
 <head>
-    <meta charset="<?php bloginfo( 'charset' ); ?>">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?php wp_title( '|', true, 'right' ); ?><?php bloginfo( 'name' ); ?></title>
-    <?php wp_head(); ?>
-    <style>
-        :root {
-            --dd-primary: <?php echo esc_attr( $primary_color ); ?>;
-            --dd-dark:    <?php echo esc_attr( $dark_color ); ?>;
-        }
-        body.dd-fullpage { margin:0; padding:0; background:#f8f5f0; }
-        body.dd-fullpage .site-header,
-        body.dd-fullpage .site-footer,
-        body.dd-fullpage #masthead,
-        body.dd-fullpage #colophon,
-        body.dd-fullpage .ast-above-header,
-        body.dd-fullpage .ast-below-header,
-        body.dd-fullpage .ast-primary-header-bar,
-        body.dd-fullpage header.ast-desktop-header { display:none !important; }
-        body.dd-fullpage #page,
-        body.dd-fullpage #content,
-        body.dd-fullpage #primary,
-        body.dd-fullpage .site-content { padding:0 !important; margin:0 !important; max-width:100% !important; }
-    </style>
+<meta charset="<?php bloginfo( 'charset' ); ?>">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><?php the_title(); ?> – <?php bloginfo( 'name' ); ?></title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Dynamic brand colours from plugin settings */
+  :root {
+    --brand: <?php echo esc_attr( $dd_primary ); ?>;
+    --brand-dark: <?php echo esc_attr( $dd_dark ); ?>;
+  }
+</style>
+<?php wp_head(); ?>
 </head>
-<body <?php body_class( 'dd-fullpage' ); ?>>
-<?php wp_body_open(); ?>
+<body class="dd-page" id="home">
 
-<!-- ═══════ HEADER ══════════════════════════ -->
+<?php if ( is_admin_bar_showing() ) : ?>
+<div style="height:32px"></div>
+<?php endif; ?>
+
+<!-- ═══════════════════════════════════
+     HEADER
+═══════════════════════════════════ -->
 <header class="dd-header">
-    <div class="dd-header__inner">
+    <div class="dd-container dd-header__inner">
 
-        <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-header__logo">
-            <?php if ( $restaurant_logo ) : ?>
-                <img src="<?php echo esc_url( $restaurant_logo ); ?>"
-                     alt="<?php echo esc_attr( $restaurant_name ); ?>"
-                     class="dd-header__logo-img">
+        <!-- Brand / Logo -->
+        <a href="<?php echo esc_url( home_url('/') ); ?>" class="dd-brand">
+            <?php if ( $dd_logo ) : ?>
+                <img src="<?php echo esc_url( $dd_logo ); ?>"
+                     alt="<?php echo esc_attr( $dd_name ); ?>"
+                     class="dd-brand__logo">
             <?php else : ?>
-                <span class="dd-header__logo-text"><?php echo esc_html( $restaurant_name ); ?></span>
+                <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
+                <div>
+                    <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
+                    <div class="dd-brand__sub">Restaurant</div>
+                </div>
             <?php endif; ?>
         </a>
 
-        <?php if ( has_nav_menu( 'dd-primary' ) ) : ?>
-        <nav class="dd-header__nav" aria-label="Main navigation">
-            <?php wp_nav_menu( [
+        <!-- Mobile toggle -->
+        <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">☰</button>
+
+        <!-- Primary nav -->
+        <nav class="dd-nav" id="ddMainNav">
+            <?php
+            wp_nav_menu( [
                 'theme_location' => 'dd-primary',
-                'menu_class'     => 'dd-nav-list',
                 'container'      => false,
-                'depth'          => 1,
-                'fallback_cb'    => false,
                 'items_wrap'     => '%3$s',
-            ] ); ?>
+                'fallback_cb'    => function() {
+                    echo '<a href="#home">Home</a>';
+                    echo '<a href="#menu">Menu</a>';
+                    echo '<a href="#reserve">Reserve</a>';
+                    echo '<a href="#reviews">Reviews</a>';
+                },
+            ] );
+            ?>
         </nav>
-        <?php else : ?>
-        <nav class="dd-header__nav" aria-label="Main navigation">
-            <?php foreach ( $nav_pages as $url => $label ) : ?>
-            <a href="<?php echo esc_url( $url ); ?>" class="dd-header__nav-link">
-                <?php echo esc_html( $label ); ?>
-            </a>
-            <?php endforeach; ?>
-        </nav>
-        <?php endif; ?>
 
+        <!-- Header Actions -->
         <div class="dd-header__actions">
-            <?php if ( is_user_logged_in() ) : ?>
-            <a href="<?php echo esc_url( get_permalink( get_option( 'dish_dash_account_page_id' ) ) ); ?>"
-               class="dd-header__account" aria-label="My Account">👤</a>
-            <?php else : ?>
-            <a href="<?php echo esc_url( wp_login_url() ); ?>"
-               class="dd-header__account" aria-label="Login">👤</a>
-            <?php endif; ?>
-
-            <button class="dd-cart-trigger dd-header__cart" aria-label="Cart">
-                🛒 <span class="dd-header__cart-label"><?php esc_html_e( 'Cart', 'dish-dash' ); ?></span>
-                <span class="dd-cart-count" style="display:none">0</span>
+            <a href="<?php echo esc_url( wc_get_account_url('orders') ); ?>"
+               class="dd-btn dd-btn--light dd-btn--sm">Track Order</a>
+            <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
+                <span class="dd-cart-top__label">Cart</span>
+                <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
             </button>
         </div>
 
-        <button class="dd-header__mobile-toggle" aria-label="Menu"
-                onclick="this.closest('.dd-header').classList.toggle('dd-header--open')">
-            <span></span><span></span><span></span>
-        </button>
-    </div>
-
-    <div class="dd-header__mobile-nav">
-        <?php if ( has_nav_menu( 'dd-primary' ) ) : ?>
-            <?php wp_nav_menu( [
-                'theme_location' => 'dd-primary',
-                'menu_class'     => 'dd-mobile-nav-list',
-                'container'      => false,
-                'depth'          => 1,
-                'fallback_cb'    => false,
-                'items_wrap'     => '%3$s',
-            ] ); ?>
-        <?php else : ?>
-            <?php foreach ( $nav_pages as $url => $label ) : ?>
-            <a href="<?php echo esc_url( $url ); ?>" class="dd-header__mobile-link">
-                <?php echo esc_html( $label ); ?>
-            </a>
-            <?php endforeach; ?>
-        <?php endif; ?>
     </div>
 </header>
 
-<!-- ═══════ HERO ════════════════════════════ -->
+<!-- ═══════════════════════════════════
+     HERO
+═══════════════════════════════════ -->
 <section class="dd-hero">
-    <div class="dd-hero__inner">
+    <div class="dd-container dd-hero__grid">
+
+        <!-- Left: Copy -->
         <div class="dd-hero__content">
-            <h1 class="dd-hero__title"><?php echo esc_html( $hero_title ); ?></h1>
-            <p class="dd-hero__subtitle"><?php echo esc_html( $hero_subtitle ); ?></p>
-            <div class="dd-hero__search">
-                <input type="search"
-                       class="dd-hero__search-input"
-                       id="dd-search-input"
-                       placeholder="<?php esc_attr_e( 'Search your favourite food…', 'dish-dash' ); ?>"
-                       autocomplete="off" />
-                <button class="dd-hero__search-btn" aria-label="Search">🔍</button>
+            <span class="dd-pill">Authentic Indian Dining</span>
+            <h1 class="dd-hero__title dd-serif"><?php echo wp_kses_post( $dd_h_title ); ?></h1>
+            <p class="dd-hero__copy"><?php echo esc_html( $dd_h_sub ); ?></p>
+            <div class="dd-hero__actions">
+                <a href="#menu" class="dd-btn dd-btn--brand">Order Now</a>
+                <a href="#reserve" class="dd-btn dd-btn--outline">Reserve Table</a>
+                <a href="<?php echo esc_url( wc_get_page_permalink('shop') ); ?>" class="dd-btn dd-btn--soft">Download Menu</a>
+            </div>
+            <div class="dd-hero__chips">
+                <div class="dd-hero__chip">Authentic Indian Flavors</div>
+                <div class="dd-hero__chip">Delivery &amp; Pickup Available</div>
+                <div class="dd-hero__chip">Elegant Dine-In Experience</div>
+                <div class="dd-hero__chip">Freshly Prepared Daily</div>
             </div>
         </div>
-        <?php if ( $hero_image ) : ?>
-        <div class="dd-hero__image">
-            <img src="<?php echo esc_url( $hero_image ); ?>"
-                 alt="<?php esc_attr_e( 'Food banner', 'dish-dash' ); ?>">
-        </div>
-        <?php endif; ?>
-    </div>
-</section>
 
-<!-- ═══════ CART SIDEBAR (once, here only) ══ -->
-<div class="dd-cart-overlay"></div>
-<aside class="dd-cart-sidebar" aria-label="<?php esc_attr_e( 'Shopping cart', 'dish-dash' ); ?>">
-    <div class="dd-cart-sidebar__header">
-        <h3>🛒 <?php esc_html_e( 'Your Cart', 'dish-dash' ); ?></h3>
-        <button class="dd-cart-close" aria-label="Close">✕</button>
-    </div>
-    <div class="dd-cart-items">
-        <p class="dd-cart-empty"><?php esc_html_e( 'Your cart is empty.', 'dish-dash' ); ?></p>
-    </div>
-    <div class="dd-cart-summary" style="display:none">
-        <div class="dd-cart-summary__row">
-            <span><?php esc_html_e( 'Subtotal', 'dish-dash' ); ?></span>
-            <span class="dd-cart-subtotal">—</span>
-        </div>
-        <div class="dd-cart-summary__row dd-cart-summary__row--total">
-            <span><?php esc_html_e( 'Total', 'dish-dash' ); ?></span>
-            <span class="dd-cart-total">—</span>
-        </div>
-        <button class="dd-cart-checkout-btn">
-            <?php esc_html_e( 'Proceed to Checkout', 'dish-dash' ); ?> →
-        </button>
-    </div>
-</aside>
-
-<!-- ═══════ MAIN CONTENT ════════════════════ -->
-<main class="dd-main">
-    <div class="dd-main__inner">
-        <?php the_content(); ?>
-    </div>
-</main>
-
-<!-- ═══════ FOOTER ══════════════════════════ -->
-<footer class="dd-footer">
-    <div class="dd-footer__inner">
-
-        <div class="dd-footer__col">
-            <h4><?php esc_html_e( 'Contact Us', 'dish-dash' ); ?></h4>
-            <?php if ( $address )       : ?><p>📍 <?php echo esc_html( $address ); ?></p><?php endif; ?>
-            <?php if ( $phone )         : ?><p>📞 <a href="tel:<?php echo esc_attr( $phone ); ?>"><?php echo esc_html( $phone ); ?></a></p><?php endif; ?>
-            <?php if ( $email_contact ) : ?><p>✉️ <a href="mailto:<?php echo esc_attr( $email_contact ); ?>"><?php echo esc_html( $email_contact ); ?></a></p><?php endif; ?>
-            <?php if ( $opening_hours ) : ?><p>🕐 <?php echo esc_html( $opening_hours ); ?></p><?php endif; ?>
-        </div>
-
-        <div class="dd-footer__col">
-            <h4><?php esc_html_e( 'Quick Links', 'dish-dash' ); ?></h4>
-            <?php if ( has_nav_menu( 'dd-footer' ) ) : ?>
-                <?php wp_nav_menu( [ 'theme_location' => 'dd-footer', 'container' => false, 'depth' => 1, 'fallback_cb' => false, 'items_wrap' => '<ul>%3$s</ul>' ] ); ?>
-            <?php else : ?>
-            <ul>
-                <li><a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'dish-dash' ); ?></a></li>
-                <li><a href="<?php echo esc_url( dd_menu_url() ); ?>"><?php esc_html_e( 'Our Menu', 'dish-dash' ); ?></a></li>
-                <li><a href="<?php echo esc_url( dd_track_url() ); ?>"><?php esc_html_e( 'Track Order', 'dish-dash' ); ?></a></li>
-            </ul>
+        <!-- Right: Feature Card -->
+        <div class="dd-hero__card">
+            <?php
+            // Use hero image setting, or fall back to first best-seller image
+            $hero_img = $dd_h_img;
+            $hero_product = null;
+            if ( ! $hero_img && ! empty( $dd_best ) ) {
+                $hero_product = $dd_best[0];
+                $img_id = $hero_product->get_image_id();
+                $hero_img = $img_id
+                    ? wp_get_attachment_image_url( $img_id, 'large' )
+                    : wc_placeholder_img_src( 'large' );
+            }
+            ?>
+            <?php if ( $hero_img ) : ?>
+                <img src="<?php echo esc_url( $hero_img ); ?>"
+                     alt="<?php echo $hero_product ? esc_attr( $hero_product->get_name() ) : esc_attr( $dd_name ); ?>"
+                     class="dd-hero__img">
+                <?php if ( $hero_product ) : ?>
+                    <div class="dd-hero__overlay">
+                        <div class="dd-hero__overlay-top">
+                            <span class="dd-hero__overlay-badge">Chef's Pick</span>
+                            <span>RWF <?php echo number_format( (float) $hero_product->get_price(), 0, '.', ',' ); ?></span>
+                        </div>
+                        <h3 class="dd-serif"><?php echo esc_html( $hero_product->get_name() ); ?></h3>
+                        <p><?php echo esc_html( wp_trim_words( strip_tags( $hero_product->get_short_description() ?: $hero_product->get_description() ), 18, '…' ) ); ?></p>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 
-        <div class="dd-footer__col">
-            <h4><?php esc_html_e( 'Follow Us', 'dish-dash' ); ?></h4>
-            <div class="dd-footer__social">
-                <?php if ( $facebook )  : ?><a href="<?php echo esc_url( $facebook ); ?>" target="_blank" class="dd-social-btn dd-social-btn--fb">f</a><?php endif; ?>
-                <?php if ( $instagram ) : ?><a href="<?php echo esc_url( $instagram ); ?>" target="_blank" class="dd-social-btn dd-social-btn--ig">📷</a><?php endif; ?>
-                <?php if ( $whatsapp )  : ?><a href="https://wa.me/<?php echo esc_attr( $whatsapp ); ?>" target="_blank" class="dd-social-btn dd-social-btn--wa">💬</a><?php endif; ?>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════
+     QUICK ORDER BAR
+═══════════════════════════════════ -->
+<section class="dd-quick">
+    <div class="dd-container">
+        <div class="dd-quick__card">
+
+            <div class="dd-panel">
+                <div class="dd-panel__label">Mode</div>
+                <div class="dd-mode-btns">
+                    <button class="dd-mode-btn active" data-mode="delivery">Delivery</button>
+                    <button class="dd-mode-btn" data-mode="pickup">Pickup</button>
+                </div>
+            </div>
+
+            <div class="dd-panel">
+                <div class="dd-panel__label">Search dishes</div>
+                <div class="dd-search">
+                    <span>🔎</span>
+                    <input type="text" id="ddSearch" placeholder="Search butter chicken, biryani, naan…">
+                    <span class="dd-search__tag">Fast search</span>
+                </div>
+            </div>
+
+            <a href="<?php echo esc_url( wc_get_page_permalink('shop') ); ?>"
+               class="dd-btn dd-btn--light" target="_blank">View Full Menu</a>
+
+            <a href="#menu" class="dd-btn dd-btn--gold" id="ddStartOrder">Start Order ↓</a>
+
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════
+     CATEGORIES
+═══════════════════════════════════ -->
+<?php if ( ! empty( $dd_cats ) ) : ?>
+<section class="dd-section" id="categories">
+    <div class="dd-container">
+        <div class="dd-section__top">
+            <div>
+                <div class="dd-section__label">Browse by category</div>
+                <h2 class="dd-section__title dd-serif">Choose your craving</h2>
+            </div>
+            <div class="dd-arrows">
+                <button class="dd-arrow-btn" id="ddCatPrev" aria-label="Previous">←</button>
+                <button class="dd-arrow-btn" id="ddCatNext" aria-label="Next">→</button>
+            </div>
+        </div>
+        <div class="dd-scroll-row dd-hide-scrollbar" id="ddCatRow">
+            <?php foreach ( $dd_cats as $i => $cat ) :
+                $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
+                $thumb_url = $thumb_id
+                    ? wp_get_attachment_image_url( $thumb_id, 'medium' )
+                    : 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80';
+            ?>
+                <button class="dd-cat-card<?php echo $i === 0 ? ' active' : ''; ?>"
+                        data-slug="<?php echo esc_attr( $cat->slug ); ?>"
+                        data-name="<?php echo esc_attr( $cat->name ); ?>">
+                    <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>">
+                    <div class="dd-cat-card__meta">
+                        <span><?php echo esc_html( $cat->name ); ?></span>
+                        <span class="dd-cat-card__count"><?php echo esc_html( $cat->count ); ?>+</span>
+                    </div>
+                </button>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<!-- ═══════════════════════════════════
+     MENU — Featured + Category Grid
+═══════════════════════════════════ -->
+<section class="dd-section" id="menu">
+    <div class="dd-container">
+
+        <!-- Filter chips -->
+        <div class="dd-chips" id="ddChips">
+            <button class="dd-chip active" data-filter="">All</button>
+            <button class="dd-chip" data-filter="featured">Featured</button>
+            <button class="dd-chip" data-filter="veg">Veg</button>
+            <button class="dd-chip" data-filter="popular">Popular</button>
+        </div>
+
+        <!-- Featured / Best Sellers Row -->
+        <div class="dd-section__top">
+            <div>
+                <div class="dd-section__label">Featured dishes</div>
+                <h2 class="dd-section__title dd-serif">Best sellers today</h2>
+            </div>
+            <div class="dd-arrows">
+                <button class="dd-arrow-btn" id="ddFeatPrev" aria-label="Previous">←</button>
+                <button class="dd-arrow-btn" id="ddFeatNext" aria-label="Next">→</button>
             </div>
         </div>
 
-        <div class="dd-footer__col">
-            <div class="dd-footer__logo"><?php echo esc_html( $restaurant_name ); ?></div>
-            <p class="dd-footer__tagline"><?php esc_html_e( 'Powered by Dish Dash', 'dish-dash' ); ?></p>
+        <div class="dd-scroll-row dd-hide-scrollbar" id="ddFeatRow">
+            <?php foreach ( $dd_best as $product ) :
+                echo $dd_card( $product, $product->is_featured() ? 'Best Seller' : 'Popular' );
+            endforeach; ?>
+            <?php if ( empty( $dd_best ) ) : ?>
+                <p class="dd-empty">No products found. Add products in WooCommerce.</p>
+            <?php endif; ?>
+        </div>
+
+        <!-- Category Row + Order Summary sidebar -->
+        <div class="dd-section__top" style="margin-top:56px;">
+            <div>
+                <div class="dd-section__label">Selected category</div>
+                <h2 class="dd-section__title dd-serif" id="ddCatTitle">
+                    <?php echo ! empty( $dd_cats ) ? esc_html( $dd_cats[0]->name ) : 'Menu'; ?>
+                </h2>
+            </div>
+            <div class="dd-arrows">
+                <button class="dd-arrow-btn" id="ddSelPrev" aria-label="Previous">←</button>
+                <button class="dd-arrow-btn" id="ddSelNext" aria-label="Next">→</button>
+            </div>
+        </div>
+
+        <div class="dd-menu-layout">
+
+            <!-- Category product rows (pre-rendered, switched by JS) -->
+            <div class="dd-cat-rows-wrap">
+                <?php foreach ( $dd_cats as $i => $cat ) : ?>
+                    <div class="dd-cat-row dd-scroll-row dd-hide-scrollbar"
+                         id="ddCatRow-<?php echo esc_attr( $cat->slug ); ?>"
+                         data-slug="<?php echo esc_attr( $cat->slug ); ?>"
+                         <?php echo $i !== 0 ? 'hidden' : ''; ?>>
+                        <?php
+                        if ( ! empty( $dd_cat_products[ $cat->slug ] ) ) {
+                            foreach ( $dd_cat_products[ $cat->slug ] as $product ) {
+                                echo $dd_card( $product );
+                            }
+                        } else {
+                            echo '<p class="dd-empty">No dishes in this category yet.</p>';
+                        }
+                        ?>
+                    </div>
+                <?php endforeach; ?>
+                <?php if ( empty( $dd_cats ) ) : ?>
+                    <p class="dd-empty">Add product categories in WooCommerce to show dishes here.</p>
+                <?php endif; ?>
+            </div>
+
+            <!-- Order Summary Sidebar -->
+            <aside class="dd-summary">
+                <div class="dd-summary__label">Your order</div>
+                <div class="dd-summary__list" id="ddSummaryList">
+                    <div class="dd-summary__empty">Your cart is empty</div>
+                </div>
+                <div class="dd-summary__totals">
+                    <div class="dd-summary__row"><span>Subtotal</span><span id="ddSumSubtotal">RWF 0</span></div>
+                    <div class="dd-summary__row"><span>Delivery</span><span id="ddSumDelivery">RWF 2,000</span></div>
+                    <div class="dd-summary__row dd-summary__row--main"><span>Total</span><span id="ddSumTotal">RWF 0</span></div>
+                </div>
+                <a href="<?php echo esc_url( wc_get_checkout_url() ); ?>"
+                   class="dd-btn dd-btn--gold dd-btn--block">Proceed to checkout</a>
+            </aside>
+
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════
+     RESERVATION
+═══════════════════════════════════ -->
+<section class="dd-reserve" id="reserve">
+    <div class="dd-container dd-reserve__grid">
+        <div>
+            <div class="dd-section__label">Reserve your table</div>
+            <h2 class="dd-section__title dd-serif">A dining experience that feels as rich as the food.</h2>
+            <p class="dd-reserve__copy">Whether you're planning a relaxed dinner, a business lunch, or a family gathering — reserve your table in seconds and enjoy <?php echo esc_html( $dd_name ); ?> with comfort and style.</p>
+        </div>
+        <div class="dd-reserve__card">
+            <div class="dd-reserve__fields">
+                <input type="date" class="dd-field" placeholder="Date">
+                <input type="time" class="dd-field" placeholder="Time">
+                <input type="number" class="dd-field" placeholder="Guests" min="1" max="20">
+                <input type="tel" class="dd-field" placeholder="Phone Number">
+                <textarea class="dd-field dd-field--full" rows="3" placeholder="Special requests…"></textarea>
+            </div>
+            <button class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Reserve now</button>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════
+     REVIEWS
+═══════════════════════════════════ -->
+<section class="dd-section" id="reviews">
+    <div class="dd-container">
+        <div class="dd-section__top" style="margin-bottom:24px;">
+            <div>
+                <div class="dd-section__label">Loved by guests</div>
+                <h2 class="dd-section__title dd-serif">What our customers say</h2>
+            </div>
+        </div>
+        <div class="dd-reviews">
+            <?php
+            $dd_reviews = [
+                [ 'text' => 'The menu feels elegant and very easy to browse. Ordering was fast and smooth.',          'author' => 'Amina K.' ],
+                [ 'text' => 'The categories make it simple to find dishes without feeling overwhelmed by choice.',    'author' => 'David M.' ],
+                [ 'text' => 'Beautiful visuals, premium feel, and the checkout is clear and easy to trust.',          'author' => 'Priya S.' ],
+            ];
+            foreach ( $dd_reviews as $r ) : ?>
+                <div class="dd-review-card">
+                    <div class="dd-review-card__stars">★★★★★</div>
+                    <p><?php echo esc_html( $r['text'] ); ?></p>
+                    <div class="dd-review-card__author"><?php echo esc_html( $r['author'] ); ?></div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+
+<!-- ═══════════════════════════════════
+     FOOTER
+═══════════════════════════════════ -->
+<footer class="dd-footer">
+    <div class="dd-container dd-footer__grid">
+
+        <!-- Brand column -->
+        <div>
+            <div class="dd-brand dd-footer__brand">
+                <?php if ( $dd_logo ) : ?>
+                    <img src="<?php echo esc_url( $dd_logo ); ?>"
+                         alt="<?php echo esc_attr( $dd_name ); ?>"
+                         style="height:48px;object-fit:contain;">
+                <?php else : ?>
+                    <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
+                    <span class="dd-footer__brand-name"><?php echo esc_html( $dd_name ); ?></span>
+                <?php endif; ?>
+            </div>
+            <p class="dd-footer__copy">Premium Indian dining and a refined digital ordering experience designed for smooth discovery, fast checkout, and repeat cravings.</p>
+            <?php if ( $dd_fb || $dd_ig || $dd_wa ) : ?>
+                <div class="dd-footer__social">
+                    <?php if ( $dd_fb ) : ?>
+                        <a href="<?php echo esc_url( $dd_fb ); ?>" target="_blank" rel="noopener noreferrer">Facebook</a>
+                    <?php endif; ?>
+                    <?php if ( $dd_ig ) : ?>
+                        <a href="<?php echo esc_url( $dd_ig ); ?>" target="_blank" rel="noopener noreferrer">Instagram</a>
+                    <?php endif; ?>
+                    <?php if ( $dd_wa ) : ?>
+                        <a href="https://wa.me/<?php echo esc_attr( preg_replace('/\D/', '', $dd_wa) ); ?>" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Explore -->
+        <div>
+            <div class="dd-footer__heading">Explore</div>
+            <ul class="dd-footer__list">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#menu">Menu</a></li>
+                <li><a href="#reserve">Reserve Table</a></li>
+                <li><a href="<?php echo esc_url( wc_get_account_url('orders') ); ?>">Track Order</a></li>
+                <?php if ( wp_nav_menu( [ 'theme_location' => 'dd-footer', 'echo' => false ] ) ) :
+                    wp_nav_menu( [ 'theme_location' => 'dd-footer', 'container' => false, 'items_wrap' => '%3$s' ] );
+                endif; ?>
+            </ul>
+        </div>
+
+        <!-- Contact -->
+        <div>
+            <div class="dd-footer__heading">Contact</div>
+            <ul class="dd-footer__list">
+                <?php if ( $dd_addr )  : ?><li><?php echo esc_html( $dd_addr ); ?></li><?php endif; ?>
+                <?php if ( $dd_phone ) : ?>
+                    <li><a href="tel:<?php echo esc_attr( preg_replace('/\s/', '', $dd_phone) ); ?>"><?php echo esc_html( $dd_phone ); ?></a></li>
+                <?php endif; ?>
+                <?php if ( $dd_email ) : ?>
+                    <li><a href="mailto:<?php echo esc_attr( $dd_email ); ?>"><?php echo esc_html( $dd_email ); ?></a></li>
+                <?php endif; ?>
+            </ul>
+        </div>
+
+        <!-- Hours -->
+        <div>
+            <div class="dd-footer__heading">Opening Hours</div>
+            <ul class="dd-footer__list">
+                <?php foreach ( $dd_hours_lines as $line ) : ?>
+                    <li><?php echo esc_html( $line ); ?></li>
+                <?php endforeach; ?>
+            </ul>
         </div>
 
     </div>
     <div class="dd-footer__bottom">
-        <p>© <?php echo date( 'Y' ); ?> <?php echo esc_html( $restaurant_name ); ?>. <?php esc_html_e( 'All rights reserved.', 'dish-dash' ); ?></p>
+        <div class="dd-container">
+            <p>© <?php echo date('Y'); ?> <?php echo esc_html( $dd_name ); ?>. Powered by <strong>Dish Dash</strong> by Fri Soft Ltd</p>
+        </div>
     </div>
 </footer>
 
-<?php wp_footer(); ?>
+<!-- ═══════════════════════════════════
+     CART DRAWER
+═══════════════════════════════════ -->
+<div class="dd-cart-overlay" id="ddCartOverlay" role="presentation"></div>
+<aside class="dd-cart-drawer" id="ddCartDrawer" aria-label="Shopping cart">
+    <div class="dd-cart-drawer__header">
+        <span class="dd-cart-drawer__title">Your cart</span>
+        <button class="dd-cart-drawer__close" id="ddCloseCart">Close ✕</button>
+    </div>
+    <div class="dd-cart-drawer__body" id="ddDrawerBody">
+        <div class="dd-cart-drawer__empty">Your cart is empty.</div>
+    </div>
+    <div class="dd-cart-drawer__footer">
+        <div class="dd-cart-drawer__totals">
+            <div class="dd-cart-drawer__row"><span>Subtotal</span><span id="ddDrawerSubtotal">RWF 0</span></div>
+            <div class="dd-cart-drawer__row"><span>Delivery</span><span id="ddDrawerDelivery">RWF 2,000</span></div>
+            <div class="dd-cart-drawer__row dd-cart-drawer__row--main"><span>Total</span><span id="ddDrawerTotal">RWF 0</span></div>
+        </div>
+        <a href="<?php echo esc_url( wc_get_checkout_url() ); ?>"
+           class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Checkout now →</a>
+    </div>
+</aside>
 
+<!-- ═══════════════════════════════════
+     FLOATING CART BUTTON
+═══════════════════════════════════ -->
+<button class="dd-floating-cart" id="ddFloatingCart" aria-label="Open cart">
+    <span>🛒</span>
+    <span class="dd-floating-cart__text">Cart</span>
+    <span class="dd-cart-badge" id="ddFloatingCount"><?php echo esc_html( $dd_cart_count ); ?></span>
+</button>
+
+<!-- ═══════════════════════════════════
+     MOBILE BOTTOM NAV
+═══════════════════════════════════ -->
+<nav class="dd-bottom-nav" id="ddBottomNav" aria-label="Mobile navigation">
+    <a href="#home"    class="dd-bottom-link active" data-target="home">
+        <span class="dd-bottom-link__icon">🏠</span><span>Home</span>
+    </a>
+    <a href="#menu"    class="dd-bottom-link" data-target="menu">
+        <span class="dd-bottom-link__icon">🍛</span><span>Menu</span>
+    </a>
+    <a href="#reserve" class="dd-bottom-link" data-target="reserve">
+        <span class="dd-bottom-link__icon">🍽️</span><span>Reserve</span>
+    </a>
+    <button class="dd-bottom-link" id="ddBottomCartBtn" type="button">
+        <span class="dd-bottom-link__icon">🛒</span>
+        <span>Cart</span>
+        <span class="dd-bottom-badge" id="ddBottomBadge"><?php echo esc_html( $dd_cart_count ); ?></span>
+    </button>
+</nav>
+
+<!-- ═══════════════════════════════════
+     JS BRIDGE — PHP → JavaScript
+═══════════════════════════════════ -->
 <script>
-(function(){
-    var header  = document.querySelector('.dd-header');
-    var lastY   = 0;
-    var ticking = false;
-    if (!header) return;
-
-    function onScroll() {
-        var y = window.scrollY;
-
-        // Add scrolled class for shadow effect
-        if (y > 80) {
-            header.classList.add('dd-header--scrolled');
-        } else {
-            header.classList.remove('dd-header--scrolled');
-        }
-
-        // Hide on scroll down, show on scroll up (smooth)
-        if (y > lastY && y > 200) {
-            header.classList.add('dd-header--hidden');
-        } else {
-            header.classList.remove('dd-header--hidden');
-        }
-
-        lastY   = y;
-        ticking = false;
-    }
-
-    window.addEventListener('scroll', function(){
-        if (!ticking) {
-            requestAnimationFrame(onScroll);
-            ticking = true;
-        }
-    }, { passive: true });
-})();
+window.DD = {
+    ajaxUrl:     '<?php echo esc_url( admin_url('admin-ajax.php') ); ?>',
+    nonce:       '<?php echo esc_attr( wp_create_nonce('dd_nonce') ); ?>',
+    cartUrl:     '<?php echo esc_url( wc_get_cart_url() ); ?>',
+    checkoutUrl: '<?php echo esc_url( wc_get_checkout_url() ); ?>',
+    deliveryFee: <?php echo (int) get_option('dish_dash_delivery_fee', 2000); ?>,
+    cartCount:   <?php echo (int) $dd_cart_count; ?>,
+    firstCat:    '<?php echo ! empty( $dd_cats ) ? esc_js( $dd_cats[0]->slug ) : ''; ?>',
+};
 </script>
+
+<?php wp_footer(); ?>
 </body>
 </html>
