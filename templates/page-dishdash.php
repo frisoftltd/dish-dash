@@ -135,8 +135,19 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         $id    = $product->get_id();
         $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
+        // Build filter string from tag + featured status + product tags
+        $filter_parts = array( strtolower( $tag ) );
+        if ( $product->is_featured() ) $filter_parts[] = 'featured';
+        $wc_tags = wp_get_post_terms( $id, 'product_tag', array( 'fields' => 'names' ) );
+        if ( ! is_wp_error( $wc_tags ) && ! empty( $wc_tags ) ) {
+            foreach ( $wc_tags as $wt ) {
+                $filter_parts[] = strtolower( $wt );
+            }
+        }
+        $filter_str = implode( ',', array_unique( $filter_parts ) );
+
         ob_start(); ?>
-        <article class="dd-dish-card" data-id="<?php echo esc_attr( $id ); ?>">
+        <article class="dd-dish-card" data-id="<?php echo esc_attr( $id ); ?>" data-filter="<?php echo esc_attr( $filter_str ); ?>">
             <div class="dd-dish-card__media">
                 <img src="<?php echo esc_url( $img_url ); ?>"
                      alt="<?php echo esc_attr( $product->get_name() ); ?>" loading="lazy">
@@ -202,24 +213,25 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 
         <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">&#9776;</button>
 
-      <nav class="dd-nav" id="ddMainNav">
-    <?php
-    if ( has_nav_menu( 'dd-primary' ) ) {
-        wp_nav_menu( array(
-            'theme_location' => 'dd-primary',
-            'container'      => false,
-            'items_wrap'     => '%3$s',
-            'fallback_cb'    => false,
-            'echo'           => true,
-        ) );
-    } else {
-        echo '<a href="#home">Home</a>';
-        echo '<a href="#menu">Menu</a>';
-        echo '<a href="#reserve">Reserve</a>';
-        echo '<a href="#reviews">Reviews</a>';
-    }
-    ?>
-</nav>
+        <nav class="dd-nav" id="ddMainNav">
+            <?php
+            $nav_html = wp_nav_menu( array(
+                'theme_location' => 'dd-primary',
+                'container'      => false,
+                'items_wrap'     => '%3$s',
+                'fallback_cb'    => false,
+                'echo'           => false,
+            ) );
+            if ( $nav_html ) {
+                echo $nav_html;
+            } else {
+                echo '<a href="#home">Home</a>';
+                echo '<a href="#menu">Menu</a>';
+                echo '<a href="#reserve">Reserve</a>';
+                echo '<a href="#reviews">Reviews</a>';
+            }
+            ?>
+        </nav>
 
         <div class="dd-header__actions">
             <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
@@ -342,13 +354,17 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                     : 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80';
             ?>
                 <button class="dd-cat-card<?php echo $i === 0 ? ' active' : ''; ?>"
-        data-slug="<?php echo esc_attr( $cat->slug ); ?>"
-        data-name="<?php echo esc_attr( $cat->name ); ?>">
-    <div class="dd-cat-card__circle">
-        <img src="<?php echo esc_url( $thumb_url ); ?>"
-             alt="<?php echo esc_attr( $cat->name ); ?>">
+                        data-slug="<?php echo esc_attr( $cat->slug ); ?>"
+                        data-name="<?php echo esc_attr( $cat->name ); ?>">
+                    <div class="dd-cat-card__circle">
+                        <img src="<?php echo esc_url( $thumb_url ); ?>"
+                             alt="<?php echo esc_attr( $cat->name ); ?>">
+                    </div>
+                    <span class="dd-cat-card__name"><?php echo esc_html( $cat->name ); ?></span>
+                </button>
+            <?php endforeach; ?>
+        </div>
     </div>
-    <span class="dd-cat-card__name"><?php echo esc_html( $cat->name ); ?></span>
 </section>
 <?php endif; ?>
 
@@ -423,7 +439,11 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             </div>
 
             <aside class="dd-summary">
-                <div class="dd-summary__label">Your order</div>
+                <div class="dd-summary__header">
+                    <span class="dd-summary__icon">&#128722;</span>
+                    <span class="dd-summary__title">Cart</span>
+                    <span class="dd-cart-badge dd-summary__badge" id="ddSumBadge"><?php echo esc_html( $dd_cart_count ); ?></span>
+                </div>
                 <div class="dd-summary__list" id="ddSummaryList">
                     <div class="dd-summary__empty">Your cart is empty</div>
                 </div>
