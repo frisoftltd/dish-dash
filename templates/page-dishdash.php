@@ -202,23 +202,24 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 
         <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">&#9776;</button>
 
-        <nav class="dd-nav" id="ddMainNav">
-            <?php
-            $nav_ok = wp_nav_menu( array(
-                'theme_location' => 'dd-primary',
-                'container'      => false,
-                'items_wrap'     => '%3$s',
-                'fallback_cb'    => false,
-                'echo'           => true,
-            ) );
-            if ( ! $nav_ok ) {
-                echo '<a href="#home">Home</a>';
-                echo '<a href="#menu">Menu</a>';
-                echo '<a href="#reserve">Reserve</a>';
-                echo '<a href="#reviews">Reviews</a>';
-            }
-            ?>
-        </nav>
+      <nav class="dd-nav" id="ddMainNav">
+    <?php
+    if ( has_nav_menu( 'dd-primary' ) ) {
+        wp_nav_menu( array(
+            'theme_location' => 'dd-primary',
+            'container'      => false,
+            'items_wrap'     => '%3$s',
+            'fallback_cb'    => false,
+            'echo'           => true,
+        ) );
+    } else {
+        echo '<a href="#home">Home</a>';
+        echo '<a href="#menu">Menu</a>';
+        echo '<a href="#reserve">Reserve</a>';
+        echo '<a href="#reviews">Reviews</a>';
+    }
+    ?>
+</nav>
 
         <div class="dd-header__actions">
             <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
