@@ -34,12 +34,13 @@
     ══════════════════════════════════════════════════════════ */
     function updateBadges(count) {
         cartCount = count;
-        const badges = [
+        var badges = [
             $('ddCartCount'),
             $('ddFloatingCount'),
             $('ddBottomBadge'),
+            $('ddSumBadge'),
         ];
-        badges.forEach((el) => { if (el) el.textContent = count; });
+        badges.forEach(function(el) { if (el) el.textContent = count; });
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -342,33 +343,63 @@
     }
 
     /* ══════════════════════════════════════════════════════════
-       MODE BUTTONS (Delivery / Pickup)
-    ══════════════════════════════════════════════════════════ */
-    function setupModeButtons() {
-        $all('.dd-mode-btn').forEach((btn) => {
-            btn.addEventListener('click', () => {
-                $all('.dd-mode-btn').forEach((b) => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
-        });
-    }
-
-    /* ══════════════════════════════════════════════════════════
-       FILTER CHIPS
+       FILTER CHIPS — real filtering on featured row
     ══════════════════════════════════════════════════════════ */
     function setupChips() {
-        $all('.dd-chip').forEach((chip) => {
-            chip.addEventListener('click', () => {
-                $all('.dd-chip').forEach((c) => c.classList.remove('active'));
+        var chips   = $all('.dd-chip');
+        var featRow = $('ddFeatRow');
+
+        chips.forEach( function(chip) {
+            chip.addEventListener('click', function() {
+                chips.forEach( function(c) { c.classList.remove('active'); });
                 chip.classList.add('active');
-                // Basic filtering could be added here
+
+                var filter = chip.dataset.filter || '';
+                if ( ! featRow ) return;
+
+                $all('.dd-dish-card', featRow).forEach( function(card) {
+                    if ( ! filter ) {
+                        card.style.display = '';
+                        return;
+                    }
+                    var cardFilter = (card.dataset.filter || '').toLowerCase();
+                    var tagEl      = $q('.dd-dish-card__tag', card);
+                    var tagText    = tagEl ? tagEl.textContent.toLowerCase() : '';
+                    var matches    = cardFilter.indexOf(filter) !== -1 || tagText.indexOf(filter) !== -1;
+                    card.style.display = matches ? '' : 'none';
+                });
             });
         });
     }
 
     /* ══════════════════════════════════════════════════════════
-       MOBILE NAV TOGGLE
+       MODE BUTTONS (Delivery / Pickup) — store + visual
     ══════════════════════════════════════════════════════════ */
+    function setupModeButtons() {
+        var currentMode = 'delivery';
+        $all('.dd-mode-btn').forEach( function(btn) {
+            btn.addEventListener('click', function() {
+                $all('.dd-mode-btn').forEach( function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode || 'delivery';
+
+                // Update delivery fee display
+                var delRow = $('ddSumDelivery');
+                var drawerDel = $('ddDrawerDelivery');
+                var fee = currentMode === 'pickup' ? 0 : deliveryFee;
+                if ( delRow   ) delRow.textContent   = fee === 0 ? 'Free' : fmt(fee);
+                if ( drawerDel ) drawerDel.textContent = fee === 0 ? 'Free' : fmt(fee);
+
+                // Recalculate totals with new fee
+                var sub  = cartItems.reduce( function(s,i){ return s + i.price * i.qty; }, 0 );
+                var tot  = sub + fee;
+                var subEl = $('ddSumSubtotal');  if (subEl) subEl.textContent = fmt(sub);
+                var totEl = $('ddSumTotal');      if (totEl) totEl.textContent = fmt(tot);
+                var dSub  = $('ddDrawerSubtotal'); if (dSub) dSub.textContent = fmt(sub);
+                var dTot  = $('ddDrawerTotal');    if (dTot) dTot.textContent = fmt(tot);
+            });
+        });
+    }
     function setupMobileNav() {
         const toggle = $('ddMobileToggle');
         const nav    = $('ddMainNav');
@@ -491,7 +522,7 @@
         setupArrows('ddFeatPrev', 'ddFeatNext', 'ddFeatRow');
 
         // Category scroll arrows
-        setupArrows('ddCatPrev', 'ddCatNext', 'ddCatRow');
+        setupArrows('ddCatPrev', 'ddCatNext', 'ddCatScrollRow');
 
         // Other setups
         setupSearch();
