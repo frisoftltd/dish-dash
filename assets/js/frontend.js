@@ -303,15 +303,15 @@
         var next = document.getElementById(nextId);
         if (!row || !prev || !next) return;
 
-        var newPrev = prev.cloneNode(true);
-        var newNext = next.cloneNode(true);
-        prev.parentNode.replaceChild(newPrev, prev);
-        next.parentNode.replaceChild(newNext, next);
+        // Use data attribute to prevent double-binding
+        if (prev.dataset.bound === rowId) return;
+        prev.dataset.bound = rowId;
+        next.dataset.bound = rowId;
 
-        newPrev.addEventListener('click', function() {
+        prev.addEventListener('click', function() {
             row.scrollBy({ left: -300, behavior: 'smooth' });
         });
-        newNext.addEventListener('click', function() {
+        next.addEventListener('click', function() {
             row.scrollBy({ left: 300, behavior: 'smooth' });
         });
     }
