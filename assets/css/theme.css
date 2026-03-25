@@ -822,7 +822,11 @@ body.dd-page .ast-header-woo-cart {
     overflow: hidden;
 }
 
-.dd-cat-row {
+.dd-cat-row[hidden] {
+    display: none !important;
+}
+
+.dd-cat-row:not([hidden]) {
     display: flex !important;
     flex-wrap: nowrap !important;
     overflow-x: auto !important;
