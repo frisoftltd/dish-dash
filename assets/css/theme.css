@@ -212,8 +212,9 @@ body.dd-page .ast-header-woo-cart {
     align-items: center;
     justify-content: space-between;
     gap: 24px;
-    padding: 8px 0;
-    min-height: 56px;
+    padding: 0 0;
+    height: 64px;
+    min-height: 64px;
 }
 
 /* Brand */
@@ -222,62 +223,69 @@ body.dd-page .ast-header-woo-cart {
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
+    height: 100%;
 }
 
 .dd-brand__logo {
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
+    display: block;
 }
 
 .dd-brand__badge {
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: grid;
     place-items: center;
     background: var(--brand);
     color: #F5EFE6;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
     border: 1px solid rgba(201, 162, 74, 0.4);
     box-shadow: var(--dd-shadow-sm);
     flex-shrink: 0;
 }
 
 .dd-brand__name {
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--brand);
     line-height: 1.1;
 }
 .dd-brand__sub {
-    font-size: 11px;
+    font-size: 10px;
     letter-spacing: 0.28em;
     text-transform: uppercase;
     color: var(--dd-muted-2);
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 /* Nav */
 .dd-nav {
     display: flex;
+    align-items: center;
     gap: 32px;
     font-size: 14px;
     font-weight: 500;
+    height: 100%;
 }
 .dd-nav a, .dd-nav li a {
     color: var(--dd-text);
     transition: color 0.2s;
+    display: flex;
+    align-items: center;
+    height: 100%;
 }
 .dd-nav a:hover, .dd-nav li a:hover { color: var(--brand); }
 
 /* Fix wp_nav_menu list output — remove bullet/padding */
-.dd-nav ul { display: flex; gap: 32px; list-style: none; margin: 0; padding: 0; }
-.dd-nav li { display: flex; align-items: center; }
+.dd-nav ul { display: flex; align-items: center; gap: 32px; list-style: none; margin: 0; padding: 0; height: 100%; }
+.dd-nav li { display: flex; align-items: center; height: 100%; }
 
 /* Header actions */
-.dd-header__actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.dd-header__actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; height: 100%; }
 
 .dd-cart-top {
     display: inline-flex;
