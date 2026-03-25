@@ -402,61 +402,6 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             ?>
         </div>
 
-        <div class="dd-section__top" style="margin-top:56px;">
-            <div>
-                <div class="dd-section__label">Selected category</div>
-                <h2 class="dd-section__title dd-serif" id="ddCatTitle">
-                    <?php echo ! empty( $dd_cats ) ? esc_html( $dd_cats[0]->name ) : 'Menu'; ?>
-                </h2>
-            </div>
-            <div class="dd-arrows">
-                <button class="dd-arrow-btn" id="ddSelPrev">&#8592;</button>
-                <button class="dd-arrow-btn" id="ddSelNext">&#8594;</button>
-            </div>
-        </div>
-
-        <div class="dd-menu-layout">
-            <div class="dd-cat-rows-wrap">
-                <?php foreach ( $dd_cats as $i => $cat ) : ?>
-                    <div class="dd-cat-row dd-scroll-row dd-hide-scrollbar"
-                         id="ddCatRow-<?php echo esc_attr( $cat->slug ); ?>"
-                         data-slug="<?php echo esc_attr( $cat->slug ); ?>"
-                         <?php echo $i !== 0 ? 'hidden' : ''; ?>>
-                        <?php
-                        if ( ! empty( $dd_cat_products[ $cat->slug ] ) ) {
-                            foreach ( $dd_cat_products[ $cat->slug ] as $product ) {
-                                echo dd_render_dish_card( $product );
-                            }
-                        } else {
-                            echo '<p class="dd-empty">No dishes in this category yet.</p>';
-                        }
-                        ?>
-                    </div>
-                <?php endforeach; ?>
-                <?php if ( empty( $dd_cats ) ) : ?>
-                    <p class="dd-empty">Add product categories in WooCommerce to show dishes here.</p>
-                <?php endif; ?>
-            </div>
-
-            <aside class="dd-summary">
-                <div class="dd-summary__header">
-                    <span class="dd-summary__icon">&#128722;</span>
-                    <span class="dd-summary__title">Cart</span>
-                    <span class="dd-cart-badge dd-summary__badge" id="ddSumBadge"><?php echo esc_html( $dd_cart_count ); ?></span>
-                </div>
-                <div class="dd-summary__list" id="ddSummaryList">
-                    <div class="dd-summary__empty">Your cart is empty</div>
-                </div>
-                <div class="dd-summary__totals">
-                    <div class="dd-summary__row"><span>Subtotal</span><span id="ddSumSubtotal">RWF 0</span></div>
-                    <div class="dd-summary__row"><span>Delivery</span><span id="ddSumDelivery">RWF 2,000</span></div>
-                    <div class="dd-summary__row dd-summary__row--main"><span>Total</span><span id="ddSumTotal">RWF 0</span></div>
-                </div>
-                <a href="<?php echo esc_url( dd_checkout_url() ); ?>"
-                   class="dd-btn dd-btn--gold dd-btn--block" style="margin-top:20px;">Proceed to checkout</a>
-            </aside>
-        </div>
-
     </div>
 </section>
 
@@ -478,6 +423,45 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                           placeholder="Special requests..."></textarea>
             </div>
             <button class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Reserve now</button>
+        </div>
+    </div>
+</section>
+
+<!-- ══ SELECTED CATEGORY ════════════════════════════════════════════════════ -->
+<section class="dd-section" id="category-dishes">
+    <div class="dd-container">
+        <div class="dd-section__top">
+            <div>
+                <div class="dd-section__label">Selected category</div>
+                <h2 class="dd-section__title dd-serif" id="ddCatTitle">
+                    <?php echo ! empty( $dd_cats ) ? esc_html( $dd_cats[0]->name ) : 'Menu'; ?>
+                </h2>
+            </div>
+            <div class="dd-arrows">
+                <button class="dd-arrow-btn" id="ddSelPrev">&#8592;</button>
+                <button class="dd-arrow-btn" id="ddSelNext">&#8594;</button>
+            </div>
+        </div>
+        <div class="dd-cat-rows-wrap">
+            <?php foreach ( $dd_cats as $i => $cat ) : ?>
+                <div class="dd-cat-row dd-scroll-row dd-hide-scrollbar"
+                     id="ddCatRow-<?php echo esc_attr( $cat->slug ); ?>"
+                     data-slug="<?php echo esc_attr( $cat->slug ); ?>"
+                     <?php echo $i !== 0 ? 'hidden' : ''; ?>>
+                    <?php
+                    if ( ! empty( $dd_cat_products[ $cat->slug ] ) ) {
+                        foreach ( $dd_cat_products[ $cat->slug ] as $product ) {
+                            echo dd_render_dish_card( $product );
+                        }
+                    } else {
+                        echo '<p class="dd-empty">No dishes in this category yet.</p>';
+                    }
+                    ?>
+                </div>
+            <?php endforeach; ?>
+            <?php if ( empty( $dd_cats ) ) : ?>
+                <p class="dd-empty">Add product categories in WooCommerce to show dishes here.</p>
+            <?php endif; ?>
         </div>
     </div>
 </section>
