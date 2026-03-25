@@ -730,8 +730,8 @@ body.dd-page .ast-header-woo-cart {
    DISH CARDS — 6 visible in one row
 ───────────────────────────────────────────────────────────── */
 .dd-dish-card {
-    min-width: 220px;
-    max-width: 220px;
+    min-width: 290px;
+    max-width: 290px;
     border-radius: 24px;
     overflow: hidden;
     border: 1px solid var(--dd-line);
