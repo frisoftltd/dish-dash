@@ -23,6 +23,9 @@ class DD_Template_Module extends DD_Module {
         add_action( 'after_setup_theme',      [ $this, 'register_nav_menus' ] );
         add_action( 'wp_enqueue_scripts',     [ $this, 'enqueue_frontend_assets' ] );
 
+        // ── Remove ALL theme/plugin conflicts on our page ──
+        add_action( 'wp_enqueue_scripts', [ $this, 'remove_theme_conflicts' ], 999 );
+
         // ── Inject cart sidebar on ALL frontend pages ──
         add_action( 'wp_footer', [ $this, 'inject_cart_sidebar' ] );
     }
@@ -378,5 +381,45 @@ class DD_Template_Module extends DD_Module {
         .dd-form-group input:focus{border-color:#E8832A;outline:none;box-shadow:0 0 0 3px rgba(232,131,42,.1);}
         </style>
         <?php
+    }
+
+    // ─────────────────────────────────────────
+    //  REMOVE THEME & PLUGIN CONFLICTS
+    //  Runs only on our DishDash page template
+    // ─────────────────────────────────────────
+    public function remove_theme_conflicts(): void {
+        if ( ! is_page() ) return;
+
+        $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
+        if ( 'page-dishdash.php' !== $meta ) return;
+
+        // ── Remove Astra theme styles ──
+        wp_dequeue_style( 'astra-theme-css' );
+        wp_dequeue_style( 'astra-theme-dynamic-css' );
+        wp_dequeue_style( 'astra-fonts' );
+        wp_dequeue_style( 'astra-google-fonts' );
+        wp_deregister_style( 'astra-theme-css' );
+        wp_deregister_style( 'astra-theme-dynamic-css' );
+
+        // ── Remove Astra scripts ──
+        wp_dequeue_script( 'astra-theme-js' );
+        wp_deregister_script( 'astra-theme-js' );
+
+        // ── Remove WooCommerce styles that conflict ──
+        wp_dequeue_style( 'woocommerce-general' );
+        wp_dequeue_style( 'woocommerce-layout' );
+        wp_dequeue_style( 'woocommerce-smallscreen' );
+        wp_dequeue_style( 'wc-blocks-style' );
+        wp_dequeue_style( 'wc-blocks-vendors-style' );
+
+        // ── Remove WordPress block / global styles ──
+        wp_dequeue_style( 'wp-block-library' );
+        wp_dequeue_style( 'global-styles' );
+        wp_dequeue_style( 'classic-theme-styles' );
+
+        // ── Remove Elementor if active ──
+        wp_dequeue_style( 'elementor-frontend' );
+        wp_dequeue_style( 'elementor-post' );
+        wp_dequeue_script( 'elementor-frontend' );
     }
 }
