@@ -346,9 +346,11 @@ body.dd-page .ast-header-woo-cart {
     display: none;
     background: transparent;
     color: var(--brand);
-    font-size: 24px;
-    padding: 6px;
+    font-size: 30px;
+    padding: 8px;
     border: 0;
+    line-height: 1;
+    cursor: pointer;
 }
 
 /* ─────────────────────────────────────────────────────────────
