@@ -1337,10 +1337,12 @@ body.dd-page .ast-header-woo-cart {
         justify-content: flex-start;
         gap: 0;
         padding: 8px 0;
-        background: #FBF7F1;
-        border-bottom: 1px solid rgba(217,203,184,0.7);
-        box-shadow: 0 8px 24px rgba(107,29,29,0.1);
+        background: #FBF7F1 !important;
+        border-bottom: 2px solid rgba(107,29,29,0.15);
+        box-shadow: 0 8px 24px rgba(107,29,29,0.12);
         z-index: 2000;
+        opacity: 1 !important;
+        visibility: visible !important;
     }
 
     .dd-nav a,
