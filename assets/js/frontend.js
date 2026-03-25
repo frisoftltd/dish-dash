@@ -403,6 +403,38 @@
             });
         });
     }
+    /* ══════════════════════════════════════════════════════════
+       STICKY HEADER SCROLL BEHAVIOR
+    ══════════════════════════════════════════════════════════ */
+    function setupStickyHeader() {
+        var header     = document.querySelector('.dd-header');
+        if ( ! header ) return;
+
+        var lastScroll = 0;
+        var threshold  = 80;
+
+        window.addEventListener('scroll', function() {
+            var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+            // Add scrolled class after 50px
+            if ( currentScroll > 50 ) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+                header.classList.remove('hidden');
+            }
+
+            // Hide on scroll down, show on scroll up
+            if ( currentScroll > lastScroll && currentScroll > threshold ) {
+                header.classList.add('hidden');
+            } else if ( currentScroll < lastScroll ) {
+                header.classList.remove('hidden');
+            }
+
+            lastScroll = currentScroll <= 0 ? 0 : currentScroll;
+        }, { passive: true });
+    }
+
     function setupMobileNav() {
         const toggle = $('ddMobileToggle');
         const nav    = $('ddMainNav');
@@ -535,6 +567,7 @@
         setupBottomNav();
         setupCartControls();
         setupSmoothScroll();
+        setupStickyHeader();
 
         // Initial summary render
         renderSummary();
