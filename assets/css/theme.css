@@ -818,7 +818,31 @@ body.dd-page .ast-header-woo-cart {
 
 .dd-cat-rows-wrap {
     min-width: 0;
+    width: 100%;
     overflow: hidden;
+}
+
+.dd-cat-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 20px !important;
+    padding-bottom: 12px !important;
+    padding-right: 40px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-snap-type: x mandatory !important;
+    scrollbar-width: none !important;
+}
+
+.dd-cat-row::-webkit-scrollbar {
+    display: none !important;
+}
+
+.dd-cat-row .dd-dish-card {
+    min-width: 290px !important;
+    max-width: 290px !important;
+    flex-shrink: 0 !important;
+    scroll-snap-align: start !important;
 }
 
 /* ─────────────────────────────────────────────────────────────
