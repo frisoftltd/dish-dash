@@ -1372,3 +1372,30 @@ body.dd-page .ast-header-woo-cart {
 
     .dd-cart-top__label { display: none; }
 }
+/* ── Remove WordPress/Astra blue hover on category cards ── */
+.dd-page .dd-cat-card:focus,
+.dd-page .dd-cat-card:hover,
+.dd-page .dd-cat-card:active,
+.dd-page .dd-cat-card.active {
+    background: transparent !important;
+    color: #6b1d1d !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.dd-page .dd-cat-card:focus .dd-cat-card__circle,
+.dd-page .dd-cat-card:hover .dd-cat-card__circle,
+.dd-page .dd-cat-card:active .dd-cat-card__circle {
+    border-color: #6b1d1d !important;
+    box-shadow: 0 8px 24px rgba(107,29,29,0.18) !important;
+}
+
+.dd-page .dd-cat-card.active .dd-cat-card__circle {
+    border-color: #6b1d1d !important;
+    border-width: 4px !important;
+    box-shadow: 0 0 0 4px rgba(107,29,29,0.12) !important;
+}
+
+.dd-page .dd-cat-card__name {
+    color: #6b1d1d !important;
+}
