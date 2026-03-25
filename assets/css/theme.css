@@ -1328,46 +1328,51 @@ body.dd-page .ast-header-woo-cart {
 
     .dd-nav {
         display: none;
-        position: fixed;
-        top: 0;
+        position: absolute;
+        top: 100%;
         left: 0;
         right: 0;
-        bottom: 0;
         flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 28px;
-        padding: 40px 24px;
-        background: rgba(245,239,230,0.99);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 0;
+        padding: 8px 0;
+        background: #FBF7F1;
+        border-bottom: 1px solid rgba(217,203,184,0.7);
+        box-shadow: 0 8px 24px rgba(107,29,29,0.1);
         z-index: 2000;
-        font-size: 20px;
-        font-weight: 600;
     }
+
+    .dd-nav a,
+    .dd-nav li a {
+        display: block;
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--dd-text);
+        border-bottom: 1px solid rgba(217,203,184,0.4);
+        height: auto;
+        transition: background 0.2s, color 0.2s;
+    }
+    .dd-nav a:hover,
+    .dd-nav li a:hover {
+        background: #F5EFE6;
+        color: var(--brand);
+    }
+
     .dd-nav ul {
         flex-direction: column;
-        align-items: center;
-        gap: 24px;
+        align-items: flex-start;
+        gap: 0;
+        width: 100%;
+        height: auto;
     }
-    .dd-nav a, .dd-nav li a {
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--brand);
+    .dd-nav li {
+        width: 100%;
         height: auto;
     }
     .dd-nav.open { display: flex; }
-
-    /* Close button inside nav */
-    .dd-nav::before {
-        content: '✕';
-        position: absolute;
-        top: 20px;
-        right: 24px;
-        font-size: 24px;
-        color: var(--brand);
-        cursor: pointer;
-    }
 
     .dd-header { position: sticky; }
     .dd-hero__img { height: 400px; }
