@@ -205,6 +205,33 @@ body.dd-page .ast-header-woo-cart {
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-bottom: 1px solid rgba(217, 203, 184, 0.7);
+    transition: all 0.3s ease;
+}
+
+/* Scrolled state — added by JS */
+.dd-header.scrolled {
+    background: rgba(245, 239, 230, 0.98) !important;
+    box-shadow: 0 4px 24px rgba(107, 29, 29, 0.1);
+    border-bottom-color: rgba(217, 203, 184, 0.9);
+}
+
+.dd-header.scrolled .dd-header__inner {
+    height: 52px;
+    min-height: 52px;
+}
+
+.dd-header.scrolled .dd-brand__logo {
+    width: 36px !important;
+    height: 36px !important;
+}
+
+.dd-header.scrolled .dd-nav {
+    font-size: 13px;
+}
+
+/* Hidden state — added by JS when scrolling down */
+.dd-header.hidden {
+    transform: translateY(-100%);
 }
 
 .dd-header__inner {
