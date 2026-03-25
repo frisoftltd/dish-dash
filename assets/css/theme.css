@@ -601,17 +601,35 @@ body.dd-page .ast-header-woo-cart {
     border-radius: 999px;
     border: 1px solid #E1D5C6;
     background: var(--dd-surface);
-    color: var(--brand);
+    color: #6b1d1d !important;
     box-shadow: var(--dd-shadow-sm);
     font-size: 18px;
-    transition: transform 0.2s ease, background 0.2s ease;
-    display: grid;
-    place-items: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    outline: none !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+    line-height: 1 !important;
+    padding: 0 !important;
+    transition: transform 0.2s ease, background 0.2s ease;
 }
 .dd-arrow-btn:hover {
     transform: translateY(-2px);
     background: var(--dd-surface-2);
+    color: #6b1d1d !important;
+    text-decoration: none !important;
+}
+.dd-arrow-btn:focus,
+.dd-arrow-btn:active,
+.dd-arrow-btn:focus-visible {
+    background: var(--dd-surface) !important;
+    color: #6b1d1d !important;
+    border-color: #E1D5C6 !important;
+    outline: none !important;
+    box-shadow: var(--dd-shadow-sm) !important;
+    text-decoration: none !important;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -709,12 +727,12 @@ body.dd-page .ast-header-woo-cart {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   DISH CARDS
+   DISH CARDS — 6 visible in one row
 ───────────────────────────────────────────────────────────── */
 .dd-dish-card {
-    min-width: 290px;
-    max-width: 290px;
-    border-radius: 32px;
+    min-width: 220px;
+    max-width: 220px;
+    border-radius: 24px;
     overflow: hidden;
     border: 1px solid var(--dd-line);
     background: var(--dd-surface);
@@ -1371,31 +1389,4 @@ body.dd-page .ast-header-woo-cart {
     }
 
     .dd-cart-top__label { display: none; }
-}
-/* ── Remove WordPress/Astra blue hover on category cards ── */
-.dd-page .dd-cat-card:focus,
-.dd-page .dd-cat-card:hover,
-.dd-page .dd-cat-card:active,
-.dd-page .dd-cat-card.active {
-    background: transparent !important;
-    color: #6b1d1d !important;
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.dd-page .dd-cat-card:focus .dd-cat-card__circle,
-.dd-page .dd-cat-card:hover .dd-cat-card__circle,
-.dd-page .dd-cat-card:active .dd-cat-card__circle {
-    border-color: #6b1d1d !important;
-    box-shadow: 0 8px 24px rgba(107,29,29,0.18) !important;
-}
-
-.dd-page .dd-cat-card.active .dd-cat-card__circle {
-    border-color: #6b1d1d !important;
-    border-width: 4px !important;
-    box-shadow: 0 0 0 4px rgba(107,29,29,0.12) !important;
-}
-
-.dd-page .dd-cat-card__name {
-    color: #6b1d1d !important;
 }
