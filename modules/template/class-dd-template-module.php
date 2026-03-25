@@ -117,11 +117,12 @@ class DD_Template_Module extends DD_Module {
     public function enqueue_frontend_assets(): void {
         if ( is_admin() ) return;
         $plugin_url = plugins_url( 'dish-dash' );
-        wp_enqueue_style( 'dish-dash-theme', $plugin_url . '/assets/css/theme.css', [], DD_VERSION );
-        wp_enqueue_style( 'dish-dash-menu',  $plugin_url . '/assets/css/menu.css',  [], DD_VERSION );
-        wp_enqueue_style( 'dish-dash-cart',  $plugin_url . '/assets/css/cart.css',  [], DD_VERSION );
-        wp_enqueue_script( 'dish-dash-menu', $plugin_url . '/assets/js/menu.js', [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-cart', $plugin_url . '/assets/js/cart.js', [], DD_VERSION, true );
+        wp_enqueue_style(  'dish-dash-theme',    $plugin_url . '/assets/css/theme.css',    [], DD_VERSION );
+        wp_enqueue_style(  'dish-dash-menu',     $plugin_url . '/assets/css/menu.css',     [], DD_VERSION );
+        wp_enqueue_style(  'dish-dash-cart',     $plugin_url . '/assets/css/cart.css',     [], DD_VERSION );
+        wp_enqueue_script( 'dish-dash-menu',     $plugin_url . '/assets/js/menu.js',     [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-cart',     $plugin_url . '/assets/js/cart.js',     [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [], DD_VERSION, true );
         wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
     }
 
