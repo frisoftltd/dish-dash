@@ -1337,12 +1337,11 @@ body.dd-page .ast-header-woo-cart {
         justify-content: flex-start;
         gap: 0;
         padding: 8px 0;
-        background: #FBF7F1 !important;
+        background: #f9f5ef !important;
+        border-top: 3px solid var(--brand);
         border-bottom: 2px solid rgba(107,29,29,0.15);
-        box-shadow: 0 8px 24px rgba(107,29,29,0.12);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.2);
         z-index: 2000;
-        opacity: 1 !important;
-        visibility: visible !important;
     }
 
     .dd-nav a,
@@ -1352,15 +1351,17 @@ body.dd-page .ast-header-woo-cart {
         padding: 14px 24px;
         font-size: 15px;
         font-weight: 600;
-        color: var(--dd-text);
+        color: #221B19 !important;
         border-bottom: 1px solid rgba(217,203,184,0.4);
         height: auto;
         transition: background 0.2s, color 0.2s;
+        background: #f9f5ef !important;
+        text-decoration: none !important;
     }
     .dd-nav a:hover,
     .dd-nav li a:hover {
-        background: #F5EFE6;
-        color: var(--brand);
+        background: #ede8e0 !important;
+        color: var(--brand) !important;
     }
 
     .dd-nav ul {
