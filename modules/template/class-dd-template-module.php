@@ -398,12 +398,12 @@ class DD_Template_Module extends DD_Module {
     private function get_global_header_slugs(): array {
         return [
             'reserve-table',
-            'cart',
+            'cart-dd',
+            'checkout-dd',
             'restaurant-menu',
             'my-restaurant-account',
             'my-account',
             'track-order',
-            'checkout',
         ];
     }
 
@@ -432,7 +432,8 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
-     * Hide Astra header and inject our styles on global header pages.
+     * Hide ALL theme headers and inject our styles on global header pages.
+     * Works with any theme — Astra, OceanWP, GeneratePress, Storefront, etc.
      */
     public function inject_global_header_styles(): void {
         if ( ! $this->is_global_header_page() ) return;
@@ -440,44 +441,113 @@ class DD_Template_Module extends DD_Module {
         $dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
         ?>
         <style>
-        /* Hide Astra header on these pages */
+        /* ── Hide header from ANY theme ─────────────────────── */
+
+        /* Astra */
         .ast-site-header-wrap,
-        #masthead,
-        .site-header,
         .ast-primary-header-bar,
         .ast-above-header-bar,
-        .ast-below-header-bar {
-            display: none !important;
-        }
-        /* Hide Astra breadcrumbs */
-        .ast-breadcrumbs-wrapper { display: none !important; }
+        .ast-below-header-bar,
+        #masthead.site-header,
 
-        /* Our header vars */
+        /* OceanWP */
+        #site-header,
+        #site-header-inner,
+        .oceanwp-mobile-menu-icon,
+
+        /* GeneratePress */
+        .site-header,
+        .gen-site-header,
+
+        /* Storefront / WooCommerce default */
+        .storefront-primary-navigation,
+        .storefront-header,
+
+        /* Divi */
+        #et-top-navigation,
+        #main-header,
+
+        /* Avada */
+        #header,
+        #header-sticky,
+        #side-header,
+
+        /* Hello Elementor */
+        .site-header.elementor-section,
+
+        /* Neve */
+        .nv-navbar,
+        header.neve-site-header,
+
+        /* Flatsome */
+        #header,
+        .header-wrapper,
+
+        /* Woodmart */
+        .whb-header,
+
+        /* Generic fallback — catches most themes */
+        body > header:not(.dd-global-header),
+        body > #header:not(.dd-global-header),
+        body > .header:not(.dd-global-header),
+        body > nav:first-of-type:not(.dd-nav),
+        #page > header:not(.dd-global-header),
+        #wrapper > header:not(.dd-global-header),
+
+        /* Breadcrumbs */
+        .ast-breadcrumbs-wrapper,
+        .woocommerce-breadcrumb,
+        .breadcrumb-trail,
+        .breadcrumbs {
+            display: none !important;
+            height: 0 !important;
+            overflow: hidden !important;
+        }
+
+        /* ── Our CSS variables ──────────────────────────────── */
         :root {
-            --brand: <?php echo esc_attr( $primary ); ?>;
-            --brand-dark: <?php echo esc_attr( $dark ); ?>;
-            --dd-bg: #F5EFE6;
-            --dd-surface: #FBF7F1;
+            --brand:        <?php echo esc_attr( $primary ); ?>;
+            --brand-dark:   <?php echo esc_attr( $dark ); ?>;
+            --dd-bg:        #F5EFE6;
+            --dd-surface:   #FBF7F1;
             --dd-surface-2: #FFF7EA;
-            --dd-text: #221B19;
-            --dd-muted: #6E5B4C;
-            --dd-muted-2: #8A6E53;
-            --dd-gold: #C9A24A;
+            --dd-white:     #ffffff;
+            --dd-text:      #221B19;
+            --dd-muted:     #6E5B4C;
+            --dd-muted-2:   #8A6E53;
+            --dd-gold:      #C9A24A;
             --dd-gold-soft: #E6C77A;
-            --dd-line: #EADfCE;
+            --dd-line:      #EADfCE;
             --dd-shadow-sm: 0 10px 30px rgba(107,29,29,0.06);
             --dd-shadow-md: 0 20px 40px rgba(0,0,0,0.14);
             --dd-container: 1240px;
         }
 
-        /* Add top margin to page content so it clears our header */
+        /* ── Page content spacing ───────────────────────────── */
         .site-content,
         .ast-container,
         #content,
+        #primary,
+        .entry-content,
         .woocommerce-page .entry-content,
-        .woocommerce-account .entry-content {
+        .woocommerce-account .entry-content,
+        main {
             margin-top: 0 !important;
             padding-top: 20px !important;
+        }
+
+        /* ── Our global header styling ──────────────────────── */
+        .dd-global-header {
+            display: flex !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 9999 !important;
+            width: 100% !important;
+            background: rgba(245, 239, 230, 0.97) !important;
+            backdrop-filter: blur(14px) !important;
+            -webkit-backdrop-filter: blur(14px) !important;
+            border-bottom: 1px solid rgba(217, 203, 184, 0.7) !important;
+            box-shadow: 0 2px 20px rgba(107,29,29,0.08) !important;
         }
         </style>
         <?php
