@@ -602,7 +602,12 @@ class DD_Template_Module extends DD_Module {
                 </nav>
 
                 <div class="dd-header__actions">
-                    <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
+                    <?php
+                    $orders_url = function_exists( 'wc_get_account_url' )
+                        ? wc_get_account_url( 'orders' )
+                        : home_url( '/my-account/orders/' );
+                    ?>
+                    <a href="<?php echo esc_url( $orders_url ); ?>"
                        class="dd-btn dd-btn--light dd-btn--sm">Track My Order</a>
                     <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                         <span class="dd-cart-top__label">Cart</span>
