@@ -999,12 +999,15 @@ body.dd-page .ast-header-woo-cart {
     border-radius: 32px;
     padding: 28px;
     box-shadow: var(--dd-shadow-sm);
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .dd-reserve__fields {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+    width: 100%;
 }
 
 .dd-field {
@@ -1016,10 +1019,36 @@ body.dd-page .ast-header-woo-cart {
     font-size: 14px;
     outline: 0;
     width: 100%;
+    box-sizing: border-box;
     transition: border-color 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
 }
 .dd-field:focus { border-color: var(--brand); }
 .dd-field--full { grid-column: 1 / -1; resize: vertical; }
+
+/* Mobile — single column for ALL screen sizes below 860px */
+@media (max-width: 860px) {
+    .dd-reserve__grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+    .dd-reserve__card {
+        padding: 20px 16px;
+        border-radius: 24px;
+    }
+    .dd-reserve__fields {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .dd-field {
+        font-size: 16px; /* prevents iOS zoom on focus */
+        padding: 14px 16px;
+    }
+    .dd-field--full {
+        grid-column: 1;
+    }
+}
 
 /* ─────────────────────────────────────────────────────────────
    REVIEWS
