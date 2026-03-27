@@ -31,7 +31,10 @@ class DD_Template_Module extends DD_Module {
 
         // ── Inject global header on specific pages ──
         add_action( 'wp_body_open', [ $this, 'inject_global_header' ] );
-        add_action( 'wp_head',      [ $this, 'inject_global_header_fallback' ] );
+        add_action( 'wp_head',      [ $this, 'inject_global_header_styles' ] );
+
+        // ── Remove theme header on global header pages (runs early) ──
+        add_action( 'init', [ $this, 'remove_theme_header_hooks' ] );
     }
 
     // ─────────────────────────────────────────
@@ -432,8 +435,43 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
-     * Hide ALL theme headers and inject our styles on global header pages.
-     * Works with any theme — Astra, OceanWP, GeneratePress, Storefront, etc.
+     * Remove theme header hooks on our pages.
+     * Runs on init so it fires before the theme renders anything.
+     */
+    public function remove_theme_header_hooks(): void {
+        if ( is_admin() ) return;
+
+        // We need to check page on template_redirect since init is too early
+        add_action( 'template_redirect', function() {
+            if ( ! $this->is_global_header_page() ) return;
+
+            // ── Astra ──
+            remove_action( 'astra_header', 'astra_header_markup' );
+            add_filter( 'astra_header_markup', '__return_empty_string' );
+            add_filter( 'astra_get_option', function( $val, $option ) {
+                if ( $option === 'hb-header-main-layout' ) return 'disabled';
+                return $val;
+            }, 10, 2 );
+
+            // Remove Astra header actions
+            remove_all_actions( 'astra_masthead' );
+            remove_all_actions( 'astra_masthead_top' );
+            remove_all_actions( 'astra_masthead_bottom' );
+            remove_all_actions( 'astra_above_header' );
+            remove_all_actions( 'astra_below_header' );
+            remove_all_actions( 'astra_header' );
+            remove_all_actions( 'astra_primary_header_bar' );
+
+            // Hide via body class too
+            add_filter( 'body_class', function( $classes ) {
+                $classes[] = 'dd-global-header-page';
+                return $classes;
+            });
+        });
+    }
+
+    /**
+     * Inject styles to hide theme header + our CSS vars.
      */
     public function inject_global_header_styles(): void {
         if ( ! $this->is_global_header_page() ) return;
@@ -626,14 +664,6 @@ class DD_Template_Module extends DD_Module {
     public function inject_global_header(): void {
         if ( ! $this->is_global_header_page() ) return;
         $this->render_global_header();
-    }
-
-    /**
-     * Inject styles to hide Astra header + our CSS vars.
-     */
-    public function inject_global_header_fallback(): void {
-        if ( ! $this->is_global_header_page() ) return;
-        $this->inject_global_header_styles();
     }
 
     // ─────────────────────────────────────────
