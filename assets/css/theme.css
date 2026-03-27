@@ -8,7 +8,7 @@
  */
 
 /* ─────────────────────────────────────────────────────────────
-   GOOGLE FONTS — Loaded here so they apply on ALL pages
+   GOOGLE FONTS — Loaded here so they apply to ALL pages
 ───────────────────────────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -23,7 +23,7 @@ textarea,
 .dd-btn,
 .dd-nav,
 .dd-header {
-    font-family: 'Inter', system-ui, sans-serif! important;
+    font-family: 'Inter', system-ui, sans-serif ! important;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1437,37 +1437,51 @@ body.dd-page .ast-header-woo-cart {
         justify-content: center;
     }
 
+    .dd-header {
+        position: sticky !important;
+        position: -webkit-sticky !important;
+    }
+
+    /* Make header the positioning parent for dropdown */
+    .dd-header__inner {
+        position: relative;
+    }
+
     .dd-nav {
         display: none;
         position: absolute;
         top: 100%;
-        left: 0;
-        right: 0;
+        left: -20px;
+        right: -20px;
         flex-direction: column;
         align-items: flex-start;
         justify-content: flex-start;
         gap: 0;
         padding: 8px 0;
         background: #f9f5ef !important;
-        border-top: 3px solid var(--brand);
-        border-bottom: 2px solid rgba(107,29,29,0.15);
-        box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+        border-top: 3px solid var(--brand) !important;
+        border-bottom: 2px solid rgba(107,29,29,0.15) !important;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.2) !important;
         z-index: 2000;
     }
 
     .dd-nav a,
-    .dd-nav li a {
-        display: block;
-        width: 100%;
-        padding: 14px 24px;
-        font-size: 15px;
-        font-weight: 600;
+    .dd-nav li a,
+    .dd-nav li.current-menu-item > a,
+    .dd-nav li.current_page_item > a {
+        display: block !important;
+        width: 100% !important;
+        padding: 16px 24px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        font-family: 'Inter', system-ui, sans-serif !important;
         color: #221B19 !important;
-        border-bottom: 1px solid rgba(217,203,184,0.4);
-        height: auto;
+        border-bottom: 1px solid rgba(217,203,184,0.4) !important;
+        height: auto !important;
         transition: background 0.2s, color 0.2s;
         background: #f9f5ef !important;
         text-decoration: none !important;
+        box-sizing: border-box;
     }
     .dd-nav a:hover,
     .dd-nav li a:hover {
@@ -1476,19 +1490,21 @@ body.dd-page .ast-header-woo-cart {
     }
 
     .dd-nav ul {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0;
-        width: 100%;
-        height: auto;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
     }
     .dd-nav li {
-        width: 100%;
-        height: auto;
+        width: 100% !important;
+        height: auto !important;
+        display: block !important;
     }
-    .dd-nav.open { display: flex; }
+    .dd-nav.open { display: flex !important; }
 
-    .dd-header { position: sticky; }
     .dd-hero__img { height: 400px; }
     .dd-hero__overlay { left: 20px; right: 20px; bottom: 20px; padding: 18px; }
     .dd-hero__overlay h3 { font-size: 1.5rem; }
