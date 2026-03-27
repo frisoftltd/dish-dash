@@ -318,14 +318,30 @@ body.dd-page .ast-header-woo-cart {
     font-weight: 500;
     height: 100%;
 }
-.dd-nav a, .dd-nav li a {
-    color: var(--dd-text);
+.dd-nav a,
+.dd-nav li a,
+.dd-nav li.current-menu-item > a,
+.dd-nav li.current_page_item > a,
+.dd-nav li.current-menu-parent > a,
+.dd-nav li.current-menu-ancestor > a {
+    color: var(--dd-text) !important;
+    font-weight: 500 !important;
+    font-size: 14px !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    text-decoration: none !important;
     transition: color 0.2s;
     display: flex;
     align-items: center;
     height: 100%;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
 }
-.dd-nav a:hover, .dd-nav li a:hover { color: var(--brand); }
+.dd-nav a:hover,
+.dd-nav li a:hover,
+.dd-nav li.current-menu-item > a:hover {
+    color: var(--brand) !important;
+}
 
 /* Fix wp_nav_menu list output — remove bullet/padding */
 .dd-nav ul { display: flex; align-items: center; gap: 32px; list-style: none; margin: 0; padding: 0; height: 100%; }
