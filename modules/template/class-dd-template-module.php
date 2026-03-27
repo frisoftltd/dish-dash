@@ -28,6 +28,10 @@ class DD_Template_Module extends DD_Module {
 
         // ── Inject cart sidebar on ALL frontend pages ──
         add_action( 'wp_footer', [ $this, 'inject_cart_sidebar' ] );
+
+        // ── Inject global header on specific pages ──
+        add_action( 'wp_body_open', [ $this, 'inject_global_header' ] );
+        add_action( 'wp_head',      [ $this, 'inject_global_header_fallback' ] );
     }
 
     // ─────────────────────────────────────────
@@ -380,6 +384,150 @@ class DD_Template_Module extends DD_Module {
         .dd-form-group input[type="text"],.dd-form-group input[type="email"]{width:100%;padding:.6rem .85rem;border:1.5px solid #e0e0e0;border-radius:8px;font-size:.9rem;transition:border-color .2s;}
         .dd-form-group input:focus{border-color:#E8832A;outline:none;box-shadow:0 0 0 3px rgba(232,131,42,.1);}
         </style>
+        <?php
+    }
+
+    // ─────────────────────────────────────────
+    //  GLOBAL HEADER
+    //  Shown on specific pages
+    // ─────────────────────────────────────────
+
+    /**
+     * List of page slugs where our header should appear.
+     */
+    private function get_global_header_slugs(): array {
+        return [
+            'reserve-table',
+            'cart',
+            'restaurant-menu',
+            'my-restaurant-account',
+            'my-account',
+            'track-order',
+            'checkout',
+        ];
+    }
+
+    /**
+     * Check if current page should show our global header.
+     */
+    private function is_global_header_page(): bool {
+        if ( is_admin() ) return false;
+
+        // Never on DishDash full page template — it has its own header
+        if ( is_page() ) {
+            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
+            if ( 'page-dishdash.php' === $meta ) return false;
+        }
+
+        // Check page slugs
+        if ( is_page( $this->get_global_header_slugs() ) ) return true;
+
+        // Also show on WooCommerce pages
+        if ( function_exists( 'is_cart' ) && is_cart() ) return true;
+        if ( function_exists( 'is_checkout' ) && is_checkout() ) return true;
+        if ( function_exists( 'is_account_page' ) && is_account_page() ) return true;
+        if ( function_exists( 'is_shop' ) && is_shop() ) return true;
+
+        return false;
+    }
+
+    /**
+     * Render the global header HTML.
+     */
+    private function render_global_header(): void {
+        $dd_name   = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $dd_logo   = get_option( 'dish_dash_logo_url', '' );
+        $dd_initials = strtoupper( substr( $dd_name, 0, 2 ) );
+        $dd_cart_count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
+        $home_url  = home_url( '/' );
+        ?>
+        <header class="dd-header dd-global-header">
+            <div class="dd-container dd-header__inner">
+
+                <a href="<?php echo esc_url( $home_url ); ?>" class="dd-brand">
+                    <?php if ( $dd_logo ) : ?>
+                        <img src="<?php echo esc_url( $dd_logo ); ?>"
+                             alt="<?php echo esc_attr( $dd_name ); ?>"
+                             class="dd-brand__logo">
+                    <?php else : ?>
+                        <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
+                        <div>
+                            <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
+                            <div class="dd-brand__sub">Restaurant</div>
+                        </div>
+                    <?php endif; ?>
+                </a>
+
+                <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">&#9776;</button>
+
+                <nav class="dd-nav" id="ddMainNav">
+                    <?php
+                    $nav_html = wp_nav_menu( array(
+                        'theme_location' => 'dd-primary',
+                        'container'      => false,
+                        'items_wrap'     => '%3$s',
+                        'fallback_cb'    => false,
+                        'echo'           => false,
+                    ) );
+                    if ( $nav_html ) {
+                        echo $nav_html;
+                    } else {
+                        echo '<a href="' . esc_url( $home_url ) . '">Home</a>';
+                        echo '<a href="' . esc_url( $home_url ) . '#menu">Menu</a>';
+                        echo '<a href="' . esc_url( $home_url ) . '#reserve">Reserve</a>';
+                    }
+                    ?>
+                </nav>
+
+                <div class="dd-header__actions">
+                    <a href="<?php echo esc_url( $home_url ); ?>"
+                       class="dd-btn dd-btn--light dd-btn--sm">&#8592; Back to Home</a>
+                    <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
+                        <span class="dd-cart-top__label">Cart</span>
+                        <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
+                    </button>
+                </div>
+
+            </div>
+        </header>
+        <?php
+    }
+
+    /**
+     * Inject header via wp_body_open (modern themes).
+     */
+    public function inject_global_header(): void {
+        if ( ! $this->is_global_header_page() ) return;
+        $this->render_global_header();
+    }
+
+    /**
+     * Fallback: inject header via JS for themes that don't support wp_body_open.
+     */
+    public function inject_global_header_fallback(): void {
+        if ( ! $this->is_global_header_page() ) return;
+        // Only run if wp_body_open is not supported
+        if ( function_exists( 'wp_is_block_theme' ) && current_theme_supports( 'body-open' ) ) return;
+        ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if our header was already injected via wp_body_open
+            if ( document.querySelector('.dd-global-header') ) return;
+
+            var headerHTML = <?php
+                ob_start();
+                $this->render_global_header();
+                $html = ob_get_clean();
+                echo json_encode( $html );
+            ?>;
+
+            var body = document.body;
+            var firstChild = body.firstChild;
+            var div = document.createElement('div');
+            div.innerHTML = headerHTML;
+            body.insertBefore( div.firstChild, firstChild );
+        });
+        </script>
         <?php
     }
 
