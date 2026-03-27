@@ -432,16 +432,68 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
+     * Hide Astra header and inject our styles on global header pages.
+     */
+    public function inject_global_header_styles(): void {
+        if ( ! $this->is_global_header_page() ) return;
+        $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+        $dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
+        ?>
+        <style>
+        /* Hide Astra header on these pages */
+        .ast-site-header-wrap,
+        #masthead,
+        .site-header,
+        .ast-primary-header-bar,
+        .ast-above-header-bar,
+        .ast-below-header-bar {
+            display: none !important;
+        }
+        /* Hide Astra breadcrumbs */
+        .ast-breadcrumbs-wrapper { display: none !important; }
+
+        /* Our header vars */
+        :root {
+            --brand: <?php echo esc_attr( $primary ); ?>;
+            --brand-dark: <?php echo esc_attr( $dark ); ?>;
+            --dd-bg: #F5EFE6;
+            --dd-surface: #FBF7F1;
+            --dd-surface-2: #FFF7EA;
+            --dd-text: #221B19;
+            --dd-muted: #6E5B4C;
+            --dd-muted-2: #8A6E53;
+            --dd-gold: #C9A24A;
+            --dd-gold-soft: #E6C77A;
+            --dd-line: #EADfCE;
+            --dd-shadow-sm: 0 10px 30px rgba(107,29,29,0.06);
+            --dd-shadow-md: 0 20px 40px rgba(0,0,0,0.14);
+            --dd-container: 1240px;
+        }
+
+        /* Add top margin to page content so it clears our header */
+        .site-content,
+        .ast-container,
+        #content,
+        .woocommerce-page .entry-content,
+        .woocommerce-account .entry-content {
+            margin-top: 0 !important;
+            padding-top: 20px !important;
+        }
+        </style>
+        <?php
+    }
+
+    /**
      * Render the global header HTML.
      */
     private function render_global_header(): void {
-        $dd_name   = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
-        $dd_logo   = get_option( 'dish_dash_logo_url', '' );
-        $dd_initials = strtoupper( substr( $dd_name, 0, 2 ) );
+        $dd_name       = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $dd_logo       = get_option( 'dish_dash_logo_url', '' );
+        $dd_initials   = strtoupper( substr( $dd_name, 0, 2 ) );
         $dd_cart_count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
-        $home_url  = home_url( '/' );
+        $home_url      = home_url( '/' );
         ?>
-        <header class="dd-header dd-global-header">
+        <header class="dd-header dd-global-header" style="position:sticky;top:0;z-index:1000;">
             <div class="dd-container dd-header__inner">
 
                 <a href="<?php echo esc_url( $home_url ); ?>" class="dd-brand">
@@ -481,7 +533,7 @@ class DD_Template_Module extends DD_Module {
 
                 <div class="dd-header__actions">
                     <a href="<?php echo esc_url( $home_url ); ?>"
-                       class="dd-btn dd-btn--light dd-btn--sm">&#8592; Back to Home</a>
+                       class="dd-btn dd-btn--light dd-btn--sm">&#8592; Home</a>
                     <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                         <span class="dd-cart-top__label">Cart</span>
                         <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
@@ -502,33 +554,11 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
-     * Fallback: inject header via JS for themes that don't support wp_body_open.
+     * Inject styles to hide Astra header + our CSS vars.
      */
     public function inject_global_header_fallback(): void {
         if ( ! $this->is_global_header_page() ) return;
-        // Only run if wp_body_open is not supported
-        if ( function_exists( 'wp_is_block_theme' ) && current_theme_supports( 'body-open' ) ) return;
-        ?>
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Check if our header was already injected via wp_body_open
-            if ( document.querySelector('.dd-global-header') ) return;
-
-            var headerHTML = <?php
-                ob_start();
-                $this->render_global_header();
-                $html = ob_get_clean();
-                echo json_encode( $html );
-            ?>;
-
-            var body = document.body;
-            var firstChild = body.firstChild;
-            var div = document.createElement('div');
-            div.innerHTML = headerHTML;
-            body.insertBefore( div.firstChild, firstChild );
-        });
-        </script>
-        <?php
+        $this->inject_global_header_styles();
     }
 
     // ─────────────────────────────────────────
