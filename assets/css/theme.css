@@ -23,7 +23,7 @@ textarea,
 .dd-btn,
 .dd-nav,
 .dd-header {
-    font-family: 'Inter', system-ui, sans-serif !important;
+    font-family: 'Inter', system-ui, sans-serif! important;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1070,19 +1070,40 @@ body.dd-page .ast-header-woo-cart {
     width: 100%;
 }
 
+.dd-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.dd-field-group--full {
+    grid-column: 1 / -1;
+}
+
+.dd-field-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dd-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-left: 4px;
+}
+
 .dd-field {
     border-radius: 20px;
     border: 1px solid #EFE4D7;
     background: var(--dd-surface);
-    padding: 16px;
-    color: var(--dd-muted-2);
-    font-size: 14px;
+    padding: 14px 16px;
+    color: var(--dd-text);
+    font-size: 15px;
+    font-family: 'Inter', system-ui, sans-serif;
     outline: 0;
     width: 100%;
     box-sizing: border-box;
     transition: border-color 0.2s;
     -webkit-appearance: none;
     appearance: none;
+    min-height: 52px;
 }
 .dd-field:focus { border-color: var(--brand); }
 .dd-field--full { grid-column: 1 / -1; resize: vertical; }
@@ -1102,10 +1123,11 @@ body.dd-page .ast-header-woo-cart {
         gap: 12px;
     }
     .dd-field {
-        font-size: 16px; /* prevents iOS zoom on focus */
+        font-size: 16px;
         padding: 14px 16px;
     }
-    .dd-field--full {
+    .dd-field--full,
+    .dd-field-group--full {
         grid-column: 1;
     }
 }
