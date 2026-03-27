@@ -415,12 +415,26 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         </div>
         <div class="dd-reserve__card">
             <div class="dd-reserve__fields">
-                <input type="date"   class="dd-field" placeholder="Date">
-                <input type="time"   class="dd-field" placeholder="Time">
-                <input type="number" class="dd-field" placeholder="Guests" min="1" max="20">
-                <input type="tel"    class="dd-field" placeholder="Phone Number">
-                <textarea class="dd-field dd-field--full" rows="3"
-                          placeholder="Special requests..."></textarea>
+                <div class="dd-field-group">
+                    <label class="dd-field-label">&#128197; Date</label>
+                    <input type="date" class="dd-field">
+                </div>
+                <div class="dd-field-group">
+                    <label class="dd-field-label">&#128336; Time</label>
+                    <input type="time" class="dd-field">
+                </div>
+                <div class="dd-field-group">
+                    <label class="dd-field-label">&#128101; Guests</label>
+                    <input type="number" class="dd-field" placeholder="Number of guests" min="1" max="20">
+                </div>
+                <div class="dd-field-group">
+                    <label class="dd-field-label">&#128222; Phone Number</label>
+                    <input type="tel" class="dd-field" placeholder="+250 000 000 000">
+                </div>
+                <div class="dd-field-group dd-field-group--full">
+                    <label class="dd-field-label">&#128172; Special Requests</label>
+                    <textarea class="dd-field" rows="3" placeholder="Any special requests or dietary requirements..."></textarea>
+                </div>
             </div>
             <button class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Reserve now</button>
         </div>
