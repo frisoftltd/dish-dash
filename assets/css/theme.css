@@ -32,7 +32,30 @@ body.dd-page .ast-header-woo-cart {
 }
 
 /* ─────────────────────────────────────────────────────────────
-   CSS CUSTOM PROPERTIES
+   CSS CUSTOM PROPERTIES — Global (all pages)
+───────────────────────────────────────────────────────────── */
+:root {
+    --brand:      #6B1D1D;
+    --brand-dark: #160F0D;
+    --dd-bg:        #F5EFE6;
+    --dd-surface:   #FBF7F1;
+    --dd-surface-2: #FFF7EA;
+    --dd-white:     #ffffff;
+    --dd-text:      #221B19;
+    --dd-muted:     #6E5B4C;
+    --dd-muted-2:   #8A6E53;
+    --dd-gold:      #C9A24A;
+    --dd-gold-soft: #E6C77A;
+    --dd-line:      #EADfCE;
+    --dd-hero:      #1A1A1A;
+    --dd-shadow-sm: 0 10px 30px rgba(107, 29, 29, 0.06);
+    --dd-shadow-md: 0 20px 40px rgba(0, 0, 0, 0.14);
+    --dd-shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.18);
+    --dd-container: 1240px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   CSS CUSTOM PROPERTIES — dd-page overrides
 ───────────────────────────────────────────────────────────── */
 .dd-page {
     /* Backgrounds */
