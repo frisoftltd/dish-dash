@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────
-define( 'DD_VERSION', '2.4.0' );
+define( 'DD_VERSION',         '2.4.0' );
 define( 'DD_PLUGIN_FILE',     __FILE__ );
 define( 'DD_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'DD_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
@@ -33,15 +33,12 @@ define( 'DD_ASSETS_URL',      DD_PLUGIN_URL . 'assets/' );
 
 // ─────────────────────────────────────────────
 //  GITHUB UPDATER CONFIGURATION
-//  Repository: github.com/frisoftltd/dish-dash
-//  Leave DD_GITHUB_TOKEN empty for public repos.
 // ─────────────────────────────────────────────
 define( 'DD_GITHUB_REPO',  'frisoftltd/dish-dash' );
 define( 'DD_GITHUB_TOKEN', '' );
 
 // ─────────────────────────────────────────────
 //  AUTOLOADER
-//  Loads dishdash-core files automatically.
 // ─────────────────────────────────────────────
 spl_autoload_register( function ( string $class ) {
     if ( strpos( $class, 'DD_' ) !== 0 ) {
@@ -55,14 +52,12 @@ spl_autoload_register( function ( string $class ) {
 
 // ─────────────────────────────────────────────
 //  GITHUB AUTO-UPDATER
-//  Boots early so it hooks into WP update system.
 // ─────────────────────────────────────────────
 require_once DD_PLUGIN_DIR . 'dishdash-core/class-dd-github-updater.php';
 
 $dd_updater = new DD_GitHub_Updater( DD_GITHUB_REPO, DD_GITHUB_TOKEN );
 $dd_updater->init();
 
-// Handle manual "Check for Updates" click from plugins page.
 add_action( 'admin_init', function () use ( $dd_updater ) {
     if (
         isset( $_GET['dd_check_update'] ) &&
@@ -77,14 +72,29 @@ add_action( 'admin_init', function () use ( $dd_updater ) {
     }
 } );
 
-// Show notice after manual update check.
 add_action( 'admin_notices', function () {
     if ( isset( $_GET['dd_updated'] ) ) {
         echo '<div class="notice notice-success is-dismissible"><p>'
-            . esc_html__( 'Dish Dash: Update check complete. If a new version is available it will appear below.', 'dish-dash' )
+            . esc_html__( 'Dish Dash: Update check complete.', 'dish-dash' )
             . '</p></div>';
     }
 } );
+
+// ─────────────────────────────────────────────
+//  THEME INSTALLER
+// ─────────────────────────────────────────────
+require_once DD_PLUGIN_DIR . 'dishdash-core/class-dd-theme-installer.php';
+
+// Show admin notices from theme installer
+add_action( 'admin_notices', [ 'DD_Theme_Installer', 'admin_notice' ] );
+add_action( 'admin_notices', [ 'DD_Theme_Installer', 'wrong_theme_notice' ] );
+
+// Handle activate theme action from admin
+add_action( 'admin_init', [ 'DD_Theme_Installer', 'handle_activate_action' ] );
+
+// Sync theme files on every page load if our theme is active
+// This keeps theme files updated when plugin updates
+add_action( 'admin_init', [ 'DD_Theme_Installer', 'sync_theme_on_plugin_update' ] );
 
 // ─────────────────────────────────────────────
 //  BOOT ON plugins_loaded
@@ -111,8 +121,14 @@ add_action( 'plugins_loaded', function () {
 //  ACTIVATION / DEACTIVATION
 // ─────────────────────────────────────────────
 register_activation_hook( __FILE__, function () {
+    // Install and activate Dish Dash theme automatically
+    require_once DD_PLUGIN_DIR . 'dishdash-core/class-dd-theme-installer.php';
+    DD_Theme_Installer::on_plugin_activate();
+
+    // Run plugin install routine
     require_once DD_PLUGIN_DIR . 'install.php';
     DD_Install::run();
+
     flush_rewrite_rules();
 } );
 
