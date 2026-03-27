@@ -602,8 +602,8 @@ class DD_Template_Module extends DD_Module {
                 </nav>
 
                 <div class="dd-header__actions">
-                    <a href="<?php echo esc_url( $home_url ); ?>"
-                       class="dd-btn dd-btn--light dd-btn--sm">&#8592; Home</a>
+                    <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
+                       class="dd-btn dd-btn--light dd-btn--sm">Track My Order</a>
                     <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                         <span class="dd-cart-top__label">Cart</span>
                         <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
