@@ -1540,11 +1540,11 @@ body.dd-page .ast-header-woo-cart {
 
     .dd-section { padding: 52px 0 0; }
     .dd-section__top {
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
     }
-    .dd-arrows { display: flex; }
+    .dd-arrows { display: flex !important; }
 
     .dd-reserve__grid { grid-template-columns: 1fr; }
     .dd-reserve__fields { grid-template-columns: 1fr; }
