@@ -45,6 +45,8 @@ class DD_Loader {
             'DD_Admin'            => 'admin/class-dd-admin.php',
             // Template module — handles header, hero, footer, page template
             'DD_Template_Module'  => 'modules/template/class-dd-template-module.php',
+            // Homepage Settings module
+            'DD_Homepage_Module'  => 'modules/homepage/class-dd-homepage-module.php',
             // Menu module — only shortcodes
             'DD_Menu_Module'      => 'modules/menu/class-dd-menu-module.php',
             // Orders module
