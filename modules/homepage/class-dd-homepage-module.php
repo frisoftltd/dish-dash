@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Dish Dash – Homepage Settings Module
@@ -56,8 +55,8 @@ class DD_Homepage_Module extends DD_Module {
 
         $fields = [
             // 1. Header
-            'dd_header_show_track_order' => 'sanitize_text_field',
-            'dd_header_show_cart'        => 'sanitize_text_field',
+            'dd_header_show_track_order' => 'checkbox',
+            'dd_header_show_cart'        => 'checkbox',
 
             // 2. Hero
             'dish_dash_hero_title'       => 'wp_kses_post',
@@ -69,34 +68,34 @@ class DD_Homepage_Module extends DD_Module {
             'dd_hero_btn2_link'          => 'esc_url_raw',
             'dd_hero_btn3_label'         => 'sanitize_text_field',
             'dd_hero_btn3_link'          => 'esc_url_raw',
-            'dd_hero_show_chips'         => 'sanitize_text_field',
+            'dd_hero_show_chips'         => 'checkbox',
             'dd_hero_chip_1'             => 'sanitize_text_field',
             'dd_hero_chip_2'             => 'sanitize_text_field',
             'dd_hero_chip_3'             => 'sanitize_text_field',
             'dd_hero_chip_4'             => 'sanitize_text_field',
 
             // 3. Categories
-            'dd_categories_show'         => 'sanitize_text_field',
+            'dd_categories_show'         => 'checkbox',
             'dd_categories_title'        => 'sanitize_text_field',
             'dd_categories_count'        => 'absint',
 
             // 4. Featured
-            'dd_featured_show'           => 'sanitize_text_field',
+            'dd_featured_show'           => 'checkbox',
             'dd_featured_title'          => 'sanitize_text_field',
             'dd_featured_count'          => 'absint',
             'dd_featured_orderby'        => 'sanitize_text_field',
             'dd_featured_order'          => 'sanitize_text_field',
             'dd_featured_tag'            => 'sanitize_text_field',
-            'dd_featured_show_chips'     => 'sanitize_text_field',
+            'dd_featured_show_chips'     => 'checkbox',
 
             // 5. Selected Category
-            'dd_selcat_show'             => 'sanitize_text_field',
+            'dd_selcat_show'             => 'checkbox',
             'dd_selcat_title'            => 'sanitize_text_field',
             'dd_selcat_count'            => 'absint',
             'dd_selcat_default'          => 'sanitize_text_field',
 
             // 6. Reviews
-            'dd_reviews_show'            => 'sanitize_text_field',
+            'dd_reviews_show'            => 'checkbox',
             'dd_reviews_title'           => 'sanitize_text_field',
             'dd_reviews_source'          => 'sanitize_text_field',
             'dd_reviews_google_place_id' => 'sanitize_text_field',
@@ -105,17 +104,20 @@ class DD_Homepage_Module extends DD_Module {
             'dd_reviews_min_rating'      => 'absint',
 
             // 7. Footer
-            'dd_footer_show_description' => 'sanitize_text_field',
+            'dd_footer_show_description' => 'checkbox',
             'dd_footer_description'      => 'sanitize_textarea_field',
-            'dd_footer_show_social'      => 'sanitize_text_field',
+            'dd_footer_show_social'      => 'checkbox',
             'dish_dash_opening_hours'    => 'sanitize_textarea_field',
-            'dd_footer_show_explore'     => 'sanitize_text_field',
-            'dd_footer_show_contact'     => 'sanitize_text_field',
-            'dd_footer_show_hours'       => 'sanitize_text_field',
+            'dd_footer_show_explore'     => 'checkbox',
+            'dd_footer_show_contact'     => 'checkbox',
+            'dd_footer_show_hours'       => 'checkbox',
         ];
 
         foreach ( $fields as $key => $sanitizer ) {
-            if ( $sanitizer === 'absint' ) {
+            if ( $sanitizer === 'checkbox' ) {
+                // Checkboxes: save '1' if checked, '0' if unchecked
+                update_option( $key, isset( $_POST[ $key ] ) ? '1' : '0' );
+            } elseif ( $sanitizer === 'absint' ) {
                 update_option( $key, absint( $_POST[ $key ] ?? 0 ) );
             } else {
                 update_option( $key, $sanitizer( $_POST[ $key ] ?? '' ) );
@@ -142,8 +144,9 @@ class DD_Homepage_Module extends DD_Module {
         return get_option( $key, $default );
     }
 
-    private function checked( string $key, string $default = '1' ): string {
-        return checked( $this->get( $key, $default ), '1', false );
+    private function checked( string $key, string $default = '1' ): void {
+        $val = get_option( $key, $default );
+        checked( $val, '1' );
     }
 
     private function select( string $key, string $value ): string {
