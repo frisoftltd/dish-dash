@@ -62,6 +62,9 @@ class DD_Homepage_Module extends DD_Module {
             'dish_dash_hero_title'       => 'wp_kses_post',
             'dish_dash_hero_subtitle'    => 'sanitize_text_field',
             'dish_dash_hero_image'       => 'esc_url_raw',
+            'dd_hero_bg_image'           => 'esc_url_raw',
+            'dd_hero_overlay_color'      => 'sanitize_hex_color',
+            'dd_hero_overlay_opacity'    => 'absint',
             'dd_hero_btn1_label'         => 'sanitize_text_field',
             'dd_hero_btn1_link'          => 'esc_url_raw',
             'dd_hero_btn2_label'         => 'sanitize_text_field',
@@ -251,8 +254,8 @@ class DD_Homepage_Module extends DD_Module {
                                 </div>
                             </div>
 
-                            <div class="dd-hp-field" style="margin-top:16px;">
-                                <label><?php esc_html_e( 'Hero Image URL', 'dish-dash' ); ?></label>
+                                        <div class="dd-hp-field" style="margin-top:16px;">
+                                <label><?php esc_html_e( 'Hero Card Image (right side)', 'dish-dash' ); ?></label>
                                 <div style="display:flex;gap:8px;">
                                     <input type="text" name="dish_dash_hero_image" id="dd_hero_image"
                                         value="<?php echo esc_attr( $this->get( 'dish_dash_hero_image' ) ); ?>"
@@ -272,6 +275,56 @@ class DD_Homepage_Module extends DD_Module {
                                         <img id="dd_hero_img_preview" src="" style="width:100%;height:160px;object-fit:cover;display:block;">
                                     </div>
                                 <?php endif; ?>
+                            </div>
+
+                            <!-- Hero Background Image -->
+                            <div class="dd-hp-field" style="margin-top:16px;">
+                                <label><?php esc_html_e( 'Hero Background Image (full section background)', 'dish-dash' ); ?></label>
+                                <div style="display:flex;gap:8px;">
+                                    <input type="text" name="dd_hero_bg_image" id="dd_hero_bg_image"
+                                        value="<?php echo esc_attr( $this->get( 'dd_hero_bg_image' ) ); ?>"
+                                        placeholder="https://... (leave empty for no background image)" class="dd-hp-input dd-hp-input--wide">
+                                    <button type="button" class="button dd-upload-btn" data-target="dd_hero_bg_image" data-preview="dd_hero_bg_preview">
+                                        <?php esc_html_e( 'Upload', 'dish-dash' ); ?>
+                                    </button>
+                                </div>
+                                <?php $bg_img = $this->get( 'dd_hero_bg_image' ); ?>
+                                <?php if ( $bg_img ) : ?>
+                                <div style="margin-top:8px;width:100%;height:100px;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+                                    <img id="dd_hero_bg_preview" src="<?php echo esc_url( $bg_img ); ?>" style="width:100%;height:100px;object-fit:cover;display:block;">
+                                </div>
+                                <?php else : ?>
+                                <div style="display:none;margin-top:8px;width:100%;height:100px;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+                                    <img id="dd_hero_bg_preview" src="" style="width:100%;height:100px;object-fit:cover;display:block;">
+                                </div>
+                                <?php endif; ?>
+                                <span class="dd-hp-hint">This image shows behind the entire hero section with an overlay on top.</span>
+                            </div>
+
+                            <!-- Overlay Color + Opacity -->
+                            <div class="dd-hp-grid-2" style="margin-top:16px;">
+                                <div class="dd-hp-field">
+                                    <label><?php esc_html_e( 'Overlay Color', 'dish-dash' ); ?></label>
+                                    <div style="display:flex;gap:8px;align-items:center;">
+                                        <input type="color" name="dd_hero_overlay_color"
+                                            value="<?php echo esc_attr( $this->get( 'dd_hero_overlay_color', '#6B1D1D' ) ); ?>"
+                                            style="width:48px;height:40px;border:1.5px solid #e0e0e0;border-radius:8px;cursor:pointer;padding:2px;">
+                                        <input type="text" name="dd_hero_overlay_color_text"
+                                            value="<?php echo esc_attr( $this->get( 'dd_hero_overlay_color', '#6B1D1D' ) ); ?>"
+                                            class="dd-hp-input" placeholder="#6B1D1D" style="flex:1;"
+                                            id="dd_overlay_color_text">
+                                    </div>
+                                    <span class="dd-hp-hint">Color of the overlay gradient on top of the background image.</span>
+                                </div>
+                                <div class="dd-hp-field">
+                                    <label><?php esc_html_e( 'Overlay Opacity', 'dish-dash' ); ?> — <span id="dd_opacity_val"><?php echo esc_html( $this->get( 'dd_hero_overlay_opacity', '85' ) ); ?>%</span></label>
+                                    <input type="range" name="dd_hero_overlay_opacity"
+                                        value="<?php echo esc_attr( $this->get( 'dd_hero_overlay_opacity', '85' ) ); ?>"
+                                        min="0" max="100" step="5"
+                                        oninput="document.getElementById('dd_opacity_val').textContent = this.value + '%'"
+                                        style="width:100%;accent-color:#6B1D1D;margin-top:10px;">
+                                    <span class="dd-hp-hint">0% = fully transparent, 100% = fully opaque. Lower = more image shows through.</span>
+                                </div>
                             </div>
 
                             <div class="dd-hp-subsection">
