@@ -311,7 +311,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 </header>
 
 <!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
-<section class="dd-hero">
+<section class="dd-hero" <?php if ( $dd_h_img ) : ?>style="--dd-hero-bg: url('<?php echo esc_url( $dd_h_img ); ?>')"<?php endif; ?>>
     <div class="dd-container dd-hero__grid">
 
         <div class="dd-hero__content">
