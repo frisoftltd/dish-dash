@@ -131,14 +131,6 @@ $raw_cats = get_terms( array(
     'hide_empty' => true,
     'parent'     => 0,
     'orderby'    => 'menu_order',
-) );
-
-// ─── Categories ────────────────────────────────────────────────────────────
-$raw_cats = get_terms( array(
-    'taxonomy'   => 'product_cat',
-    'hide_empty' => true,
-    'parent'     => 0,
-    'orderby'    => 'menu_order',
     'number'     => $dd_cats_count > 0 ? $dd_cats_count : 0,
 ) );
 
@@ -339,6 +331,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                 <?php if ( $dd_chip_4 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_4 ); ?></div><?php endif; ?>
             </div>
             <?php endif; ?>
+        </div><!-- /.dd-hero__content -->
 
         <div class="dd-hero__card">
             <?php
