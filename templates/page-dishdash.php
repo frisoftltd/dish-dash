@@ -63,16 +63,67 @@ $dd_name    = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
 $dd_logo    = get_option( 'dish_dash_logo_url', '' );
 $dd_primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
 $dd_dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
-$dd_h_title = get_option( 'dish_dash_hero_title', 'Elegant food ordering for <span class="dd-gold">Kigali\'s Indian favorite</span>.' );
-$dd_h_sub   = get_option( 'dish_dash_hero_subtitle', 'Discover signature curries, fragrant biryanis, fresh breads, and a seamless online ordering experience.' );
-$dd_h_img   = get_option( 'dish_dash_hero_image', '' );
 $dd_addr    = get_option( 'dish_dash_address', 'Kigali, Rwanda' );
 $dd_phone   = get_option( 'dish_dash_phone', '' );
 $dd_email   = get_option( 'dish_dash_contact_email', '' );
-$dd_hours   = get_option( 'dish_dash_opening_hours', "Mon - Fri: 10:00 - 22:00\nSat - Sun: 09:00 - 23:00" );
 $dd_fb      = get_option( 'dish_dash_facebook', '' );
 $dd_ig      = get_option( 'dish_dash_instagram', '' );
 $dd_wa      = get_option( 'dish_dash_whatsapp', '' );
+
+// ─── Homepage Settings ─────────────────────────────────────────────────────
+
+// 1. Header
+$dd_show_track_order = get_option( 'dd_header_show_track_order', '1' ) === '1';
+$dd_show_cart        = get_option( 'dd_header_show_cart', '1' ) === '1';
+
+// 2. Hero
+$dd_h_title    = get_option( 'dish_dash_hero_title', 'Best Indian Flavor in Kigali' );
+$dd_h_sub      = get_option( 'dish_dash_hero_subtitle', 'Come as customer Leave as family !' );
+$dd_h_img      = get_option( 'dish_dash_hero_image', '' );
+$dd_btn1_label = get_option( 'dd_hero_btn1_label', 'Order Now' );
+$dd_btn1_link  = get_option( 'dd_hero_btn1_link', '#menu' );
+$dd_btn2_label = get_option( 'dd_hero_btn2_label', 'Reserve Table' );
+$dd_btn2_link  = get_option( 'dd_hero_btn2_link', '#reserve' );
+$dd_btn3_label = get_option( 'dd_hero_btn3_label', 'View Full Menu' );
+$dd_btn3_link  = get_option( 'dd_hero_btn3_link', '/shop/' );
+$dd_show_chips = get_option( 'dd_hero_show_chips', '1' ) === '1';
+$dd_chip_1     = get_option( 'dd_hero_chip_1', 'Authentic Indian Flavors' );
+$dd_chip_2     = get_option( 'dd_hero_chip_2', 'Delivery & Pickup Available' );
+$dd_chip_3     = get_option( 'dd_hero_chip_3', 'Elegant Dine-In Experience' );
+$dd_chip_4     = get_option( 'dd_hero_chip_4', 'Freshly Prepared Daily' );
+
+// 3. Categories
+$dd_cats_show  = get_option( 'dd_categories_show', '1' ) === '1';
+$dd_cats_title = get_option( 'dd_categories_title', 'Choose your craving' );
+$dd_cats_count = (int) get_option( 'dd_categories_count', 0 );
+
+// 4. Featured
+$dd_feat_show    = get_option( 'dd_featured_show', '1' ) === '1';
+$dd_feat_title   = get_option( 'dd_featured_title', 'Best sellers today' );
+$dd_feat_count   = (int) get_option( 'dd_featured_count', 8 );
+$dd_feat_orderby = get_option( 'dd_featured_orderby', 'popularity' );
+$dd_feat_tag     = get_option( 'dd_featured_tag', '' );
+$dd_feat_chips   = get_option( 'dd_featured_show_chips', '1' ) === '1';
+
+// 5. Selected Category
+$dd_selcat_show    = get_option( 'dd_selcat_show', '1' ) === '1';
+$dd_selcat_title   = get_option( 'dd_selcat_title', 'Selected category' );
+$dd_selcat_count   = (int) get_option( 'dd_selcat_count', 8 );
+$dd_selcat_default = get_option( 'dd_selcat_default', '' );
+
+// 6. Reviews
+$dd_reviews_show  = get_option( 'dd_reviews_show', '1' ) === '1';
+$dd_reviews_title = get_option( 'dd_reviews_title', 'What our customers say' );
+
+// 7. Footer
+$dd_footer_show_desc    = get_option( 'dd_footer_show_description', '1' ) === '1';
+$dd_footer_desc         = get_option( 'dd_footer_description', 'Premium Indian dining and a refined digital ordering experience designed for smooth discovery, fast checkout, and repeat cravings.' );
+$dd_footer_show_social  = get_option( 'dd_footer_show_social', '1' ) === '1';
+$dd_footer_show_explore = get_option( 'dd_footer_show_explore', '1' ) === '1';
+$dd_footer_show_contact = get_option( 'dd_footer_show_contact', '1' ) === '1';
+$dd_footer_show_hours   = get_option( 'dd_footer_show_hours', '1' ) === '1';
+$dd_hours               = get_option( 'dish_dash_opening_hours', "Mon - Fri: 10AM - 10PM\nSat - Sun: 9AM - 11PM" );
+$dd_tiktok              = get_option( 'dish_dash_tiktok', '' );
 
 // ─── Categories ────────────────────────────────────────────────────────────
 $raw_cats = get_terms( array(
@@ -80,6 +131,15 @@ $raw_cats = get_terms( array(
     'hide_empty' => true,
     'parent'     => 0,
     'orderby'    => 'menu_order',
+) );
+
+// ─── Categories ────────────────────────────────────────────────────────────
+$raw_cats = get_terms( array(
+    'taxonomy'   => 'product_cat',
+    'hide_empty' => true,
+    'parent'     => 0,
+    'orderby'    => 'menu_order',
+    'number'     => $dd_cats_count > 0 ? $dd_cats_count : 0,
 ) );
 
 $dd_cats = array();
@@ -91,13 +151,17 @@ if ( ! is_wp_error( $raw_cats ) && ! empty( $raw_cats ) ) {
     }
 }
 
-// ─── Best sellers ──────────────────────────────────────────────────────────
-$dd_best = wc_get_products( array(
-    'limit'   => 8,
-    'orderby' => 'popularity',
-    'order'   => 'DESC',
+// ─── Best sellers / Featured ───────────────────────────────────────────────
+$feat_args = array(
+    'limit'   => $dd_feat_count,
+    'orderby' => in_array( $dd_feat_orderby, [ 'popularity', 'date', 'price', 'rand' ] ) ? $dd_feat_orderby : 'popularity',
+    'order'   => $dd_feat_orderby === 'price-desc' ? 'DESC' : 'DESC',
     'status'  => 'publish',
-) );
+);
+if ( $dd_feat_tag ) {
+    $feat_args['tag'] = [ $dd_feat_tag ];
+}
+$dd_best = wc_get_products( $feat_args );
 if ( ! $dd_best ) $dd_best = array();
 
 // ─── Products per category ─────────────────────────────────────────────────
@@ -105,7 +169,7 @@ $dd_cat_products = array();
 foreach ( $dd_cats as $cat ) {
     $prods = wc_get_products( array(
         'category' => array( $cat->slug ),
-        'limit'    => 8,
+        'limit'    => $dd_selcat_count,
         'status'   => 'publish',
     ) );
     $dd_cat_products[ $cat->slug ] = $prods ? $prods : array();
@@ -115,6 +179,11 @@ foreach ( $dd_cats as $cat ) {
 $dd_hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
 $dd_cart_count  = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
 $dd_initials    = strtoupper( substr( $dd_name, 0, 2 ) );
+
+// Default first category if none set
+if ( ! $dd_selcat_default && ! empty( $dd_cats ) ) {
+    $dd_selcat_default = $dd_cats[0]->slug;
+}
 
 // ─── Dish card helper — function_exists prevents fatal redeclaration ────────
 if ( ! function_exists( 'dd_render_dish_card' ) ) {
@@ -234,12 +303,16 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         </nav>
 
         <div class="dd-header__actions">
+            <?php if ( $dd_show_track_order ) : ?>
             <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
                class="dd-btn dd-btn--light dd-btn--sm">Track Order</a>
+            <?php endif; ?>
+            <?php if ( $dd_show_cart ) : ?>
             <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                 <span class="dd-cart-top__label">Cart</span>
                 <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
             </button>
+            <?php endif; ?>
         </div>
 
     </div>
@@ -254,18 +327,18 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             <h1 class="dd-hero__title dd-serif"><?php echo wp_kses_post( $dd_h_title ); ?></h1>
             <p class="dd-hero__copy"><?php echo esc_html( $dd_h_sub ); ?></p>
             <div class="dd-hero__actions">
-                <a href="#menu"    class="dd-btn dd-btn--brand">Order Now</a>
-                <a href="#reserve" class="dd-btn dd-btn--outline">Reserve Table</a>
-                <a href="<?php echo esc_url( dd_shop_url() ); ?>"
-                   class="dd-btn dd-btn--soft">View Full Menu</a>
+                <a href="<?php echo esc_url( $dd_btn1_link ); ?>" class="dd-btn dd-btn--brand"><?php echo esc_html( $dd_btn1_label ); ?></a>
+                <a href="<?php echo esc_url( $dd_btn2_link ); ?>" class="dd-btn dd-btn--outline"><?php echo esc_html( $dd_btn2_label ); ?></a>
+                <a href="<?php echo esc_url( $dd_btn3_link ); ?>" class="dd-btn dd-btn--soft"><?php echo esc_html( $dd_btn3_label ); ?></a>
             </div>
+            <?php if ( $dd_show_chips ) : ?>
             <div class="dd-hero__chips">
-                <div class="dd-hero__chip">Authentic Indian Flavors</div>
-                <div class="dd-hero__chip">Delivery &amp; Pickup Available</div>
-                <div class="dd-hero__chip">Elegant Dine-In Experience</div>
-                <div class="dd-hero__chip">Freshly Prepared Daily</div>
+                <?php if ( $dd_chip_1 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_1 ); ?></div><?php endif; ?>
+                <?php if ( $dd_chip_2 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_2 ); ?></div><?php endif; ?>
+                <?php if ( $dd_chip_3 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_3 ); ?></div><?php endif; ?>
+                <?php if ( $dd_chip_4 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_4 ); ?></div><?php endif; ?>
             </div>
-        </div>
+            <?php endif; ?>
 
         <div class="dd-hero__card">
             <?php
@@ -333,13 +406,13 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 </section>
 
 <!-- ══ CATEGORIES ══════════════════════════════════════════════════════════ -->
-<?php if ( ! empty( $dd_cats ) ) : ?>
+<?php if ( $dd_cats_show && ! empty( $dd_cats ) ) : ?>
 <section class="dd-section" id="categories">
     <div class="dd-container">
         <div class="dd-section__top">
             <div>
                 <div class="dd-section__label">Browse by category</div>
-                <h2 class="dd-section__title dd-serif">Choose your craving</h2>
+                <h2 class="dd-section__title dd-serif"><?php echo esc_html( $dd_cats_title ); ?></h2>
             </div>
             <div class="dd-arrows">
                 <button class="dd-arrow-btn" id="ddCatPrev">&#8592;</button>
@@ -352,10 +425,12 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                 $thumb_url = $thumb_id
                     ? wp_get_attachment_image_url( $thumb_id, 'medium' )
                     : 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80';
+                $cat_url   = get_term_link( $cat );
             ?>
                 <button class="dd-cat-card<?php echo $i === 0 ? ' active' : ''; ?>"
                         data-slug="<?php echo esc_attr( $cat->slug ); ?>"
-                        data-name="<?php echo esc_attr( $cat->name ); ?>">
+                        data-name="<?php echo esc_attr( $cat->name ); ?>"
+                        data-url="<?php echo esc_url( is_wp_error( $cat_url ) ? '#' : $cat_url ); ?>">
                     <div class="dd-cat-card__circle">
                         <img src="<?php echo esc_url( $thumb_url ); ?>"
                              alt="<?php echo esc_attr( $cat->name ); ?>">
@@ -369,20 +444,23 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 <?php endif; ?>
 
 <!-- ══ MENU ════════════════════════════════════════════════════════════════ -->
+<?php if ( $dd_feat_show ) : ?>
 <section class="dd-section" id="menu">
     <div class="dd-container">
 
+        <?php if ( $dd_feat_chips ) : ?>
         <div class="dd-chips">
             <button class="dd-chip active" data-filter="">All</button>
             <button class="dd-chip" data-filter="featured">Featured</button>
             <button class="dd-chip" data-filter="veg">Veg</button>
             <button class="dd-chip" data-filter="popular">Popular</button>
         </div>
+        <?php endif; ?>
 
         <div class="dd-section__top">
             <div>
                 <div class="dd-section__label">Featured dishes</div>
-                <h2 class="dd-section__title dd-serif">Best sellers today</h2>
+                <h2 class="dd-section__title dd-serif"><?php echo esc_html( $dd_feat_title ); ?></h2>
             </div>
             <div class="dd-arrows">
                 <button class="dd-arrow-btn" id="ddFeatPrev">&#8592;</button>
@@ -404,6 +482,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 
     </div>
 </section>
+<?php endif; ?>
 
 <!-- ══ RESERVATION ═════════════════════════════════════════════════════════ -->
 <section class="dd-reserve" id="reserve">
@@ -442,11 +521,12 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 </section>
 
 <!-- ══ SELECTED CATEGORY ════════════════════════════════════════════════════ -->
+<?php if ( $dd_selcat_show && ! empty( $dd_cats ) ) : ?>
 <section class="dd-section" id="category-dishes">
     <div class="dd-container">
         <div class="dd-section__top">
             <div>
-                <div class="dd-section__label">Selected category</div>
+                <div class="dd-section__label"><?php echo esc_html( $dd_selcat_title ); ?></div>
                 <h2 class="dd-section__title dd-serif" id="ddCatTitle">
                     <?php echo ! empty( $dd_cats ) ? esc_html( $dd_cats[0]->name ) : 'Menu'; ?>
                 </h2>
@@ -479,58 +559,102 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         </div>
     </div>
 </section>
+<?php endif; ?>
 
 <!-- ══ REVIEWS ═════════════════════════════════════════════════════════════ -->
+<?php if ( $dd_reviews_show ) : ?>
 <section class="dd-section" id="reviews">
     <div class="dd-container">
         <div class="dd-section__top" style="margin-bottom:24px;">
             <div>
                 <div class="dd-section__label">Loved by guests</div>
-                <h2 class="dd-section__title dd-serif">What our customers say</h2>
+                <h2 class="dd-section__title dd-serif"><?php echo esc_html( $dd_reviews_title ); ?></h2>
             </div>
         </div>
         <div class="dd-reviews">
             <?php
-            $dd_reviews = array(
-                array( 'text' => 'The menu feels elegant and very easy to browse. Ordering was fast and smooth.',         'author' => 'Amina K.' ),
-                array( 'text' => 'The categories make it simple to find dishes without feeling overwhelmed by choice.',   'author' => 'David M.' ),
-                array( 'text' => 'Beautiful visuals, premium feel, and the checkout is clear and easy to trust.',         'author' => 'Priya S.' ),
-            );
-            foreach ( $dd_reviews as $r ) :
+            $manual_reviews = json_decode( get_option( 'dd_reviews_manual', '[]' ), true );
+            if ( ! empty( $manual_reviews ) && is_array( $manual_reviews ) ) {
+                $count = (int) get_option( 'dd_reviews_count', 3 );
+                $shown = array_slice( array_filter( $manual_reviews ), 0, $count );
+                foreach ( $shown as $review_text ) :
+            ?>
+                <div class="dd-review-card">
+                    <div class="dd-review-card__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                    <p><?php echo esc_html( $review_text ); ?></p>
+                </div>
+            <?php
+                endforeach;
+            } else {
+                // Default fallback reviews
+                $dd_reviews = array(
+                    array( 'text' => 'The menu feels elegant and very easy to browse. Ordering was fast and smooth.',         'author' => 'Amina K.' ),
+                    array( 'text' => 'The categories make it simple to find dishes without feeling overwhelmed by choice.',   'author' => 'David M.' ),
+                    array( 'text' => 'Beautiful visuals, premium feel, and the checkout is clear and easy to trust.',         'author' => 'Priya S.' ),
+                );
+                foreach ( $dd_reviews as $r ) :
             ?>
                 <div class="dd-review-card">
                     <div class="dd-review-card__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
                     <p><?php echo esc_html( $r['text'] ); ?></p>
                     <div class="dd-review-card__author"><?php echo esc_html( $r['author'] ); ?></div>
                 </div>
-            <?php endforeach; ?>
+            <?php
+                endforeach;
+            }
+            ?>
         </div>
     </div>
 </section>
+<?php endif; ?>
 
 <!-- ══ FOOTER ══════════════════════════════════════════════════════════════ -->
 <footer class="dd-footer">
     <div class="dd-container dd-footer__grid">
-        <div>
-            <div class="dd-brand dd-footer__brand">
+
+        <!-- Brand column -->
+        <div class="dd-footer__col-brand">
+            <div class="dd-footer__brand">
                 <?php if ( $dd_logo ) : ?>
                     <img src="<?php echo esc_url( $dd_logo ); ?>"
                          alt="<?php echo esc_attr( $dd_name ); ?>"
-                         style="height:48px;object-fit:contain;">
+                         class="dd-footer__logo">
                 <?php else : ?>
-                    <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
+                    <div class="dd-footer__brand-badge"><?php echo esc_html( $dd_initials ); ?></div>
                     <span class="dd-footer__brand-name"><?php echo esc_html( $dd_name ); ?></span>
                 <?php endif; ?>
             </div>
-            <p class="dd-footer__copy">Premium Indian dining and a refined digital ordering experience designed for smooth discovery, fast checkout, and repeat cravings.</p>
-            <?php if ( $dd_fb || $dd_ig || $dd_wa ) : ?>
-                <div class="dd-footer__social">
-                    <?php if ( $dd_fb ) echo '<a href="' . esc_url( $dd_fb ) . '" target="_blank" rel="noopener">Facebook</a>'; ?>
-                    <?php if ( $dd_ig ) echo '<a href="' . esc_url( $dd_ig ) . '" target="_blank" rel="noopener">Instagram</a>'; ?>
-                    <?php if ( $dd_wa ) echo '<a href="https://wa.me/' . esc_attr( preg_replace( '/\D/', '', $dd_wa ) ) . '" target="_blank" rel="noopener">WhatsApp</a>'; ?>
-                </div>
+            <?php if ( $dd_footer_show_desc && $dd_footer_desc ) : ?>
+            <p class="dd-footer__copy"><?php echo esc_html( $dd_footer_desc ); ?></p>
+            <?php endif; ?>
+            <?php if ( $dd_footer_show_social ) : ?>
+            <div class="dd-footer__social">
+                <?php if ( $dd_fb ) : ?>
+                    <a href="<?php echo esc_url( $dd_fb ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="Facebook">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                    </a>
+                <?php endif; ?>
+                <?php if ( $dd_ig ) : ?>
+                    <a href="<?php echo esc_url( $dd_ig ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="Instagram">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                    </a>
+                <?php endif; ?>
+                <?php if ( $dd_wa ) : ?>
+                    <a href="https://wa.me/<?php echo esc_attr( preg_replace( '/\D/', '', $dd_wa ) ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="WhatsApp">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.522 5.849L0 24l6.335-1.498A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.854 0-3.587-.504-5.078-1.38l-.36-.214-3.762.889.928-3.667-.235-.374A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+                    </a>
+                <?php endif; ?>
+                <?php if ( $dd_tiktok ) : ?>
+                    <a href="<?php echo esc_url( $dd_tiktok ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="TikTok">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg>
+                    </a>
+                <?php endif; ?>
+            </div>
             <?php endif; ?>
         </div>
+
+        <!-- Explore -->
+        <?php if ( $dd_footer_show_explore ) : ?>
         <div>
             <div class="dd-footer__heading">Explore</div>
             <ul class="dd-footer__list">
@@ -540,20 +664,35 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
                 <li><a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>">Track Order</a></li>
             </ul>
         </div>
+        <?php endif; ?>
+
+        <!-- Contact -->
+        <?php if ( $dd_footer_show_contact ) : ?>
         <div>
             <div class="dd-footer__heading">Contact</div>
             <ul class="dd-footer__list">
-                <?php if ( $dd_addr )  echo '<li>' . esc_html( $dd_addr ) . '</li>'; ?>
-                <?php if ( $dd_phone ) echo '<li><a href="tel:' . esc_attr( preg_replace( '/\s/', '', $dd_phone ) ) . '">' . esc_html( $dd_phone ) . '</a></li>'; ?>
-                <?php if ( $dd_email ) echo '<li><a href="mailto:' . esc_attr( $dd_email ) . '">' . esc_html( $dd_email ) . '</a></li>'; ?>
+                <?php if ( $dd_addr )  echo '<li>📍 ' . esc_html( $dd_addr ) . '</li>'; ?>
+                <?php if ( $dd_phone ) echo '<li><a href="tel:' . esc_attr( preg_replace( '/\s/', '', $dd_phone ) ) . '">📞 ' . esc_html( $dd_phone ) . '</a></li>'; ?>
+                <?php if ( $dd_email ) echo '<li><a href="mailto:' . esc_attr( $dd_email ) . '">✉️ ' . esc_html( $dd_email ) . '</a></li>'; ?>
             </ul>
         </div>
+        <?php endif; ?>
+
+        <!-- Opening Hours -->
+        <?php if ( $dd_footer_show_hours ) : ?>
         <div>
             <div class="dd-footer__heading">Opening Hours</div>
             <ul class="dd-footer__list">
-                <?php foreach ( $dd_hours_lines as $line ) echo '<li>' . esc_html( $line ) . '</li>'; ?>
+                <?php if ( ! empty( $dd_hours_lines ) ) : ?>
+                    <?php foreach ( $dd_hours_lines as $line ) echo '<li>⏰ ' . esc_html( $line ) . '</li>'; ?>
+                <?php else : ?>
+                    <li>Monday – Friday: 10AM – 10PM</li>
+                    <li>Saturday – Sunday: 9AM – 11PM</li>
+                <?php endif; ?>
             </ul>
         </div>
+        <?php endif; ?>
+
     </div>
     <div class="dd-footer__bottom">
         <div class="dd-container">
