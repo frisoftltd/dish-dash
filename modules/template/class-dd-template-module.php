@@ -195,9 +195,6 @@ class DD_Template_Module extends DD_Module {
             'dish_dash_logo_url'        => 'esc_url_raw',
             'dish_dash_primary_color'   => 'sanitize_hex_color',
             'dish_dash_dark_color'      => 'sanitize_hex_color',
-            'dish_dash_hero_title'      => 'sanitize_text_field',
-            'dish_dash_hero_subtitle'   => 'sanitize_text_field',
-            'dish_dash_hero_image'      => 'esc_url_raw',
             'dish_dash_address'         => 'sanitize_text_field',
             'dish_dash_phone'           => 'sanitize_text_field',
             'dish_dash_contact_email'   => 'sanitize_email',
@@ -290,33 +287,15 @@ class DD_Template_Module extends DD_Module {
                         </div>
                     </div>
 
-                    <!-- HERO -->
+                    <!-- HERO — moved to Homepage Settings -->
                     <div class="dd-settings-card">
                         <h2>🦸 <?php esc_html_e( 'Hero Section', 'dish-dash' ); ?></h2>
-                        <div class="dd-form-group">
-                            <label><?php esc_html_e( 'Hero Title', 'dish-dash' ); ?></label>
-                            <input type="text" name="dish_dash_hero_title"
-                                value="<?php echo esc_attr( get_option( 'dish_dash_hero_title', 'Hello Dear,' ) ); ?>" />
-                        </div>
-                        <div class="dd-form-group">
-                            <label><?php esc_html_e( 'Hero Subtitle', 'dish-dash' ); ?></label>
-                            <input type="text" name="dish_dash_hero_subtitle"
-                                value="<?php echo esc_attr( get_option( 'dish_dash_hero_subtitle', "Hungry? You're in the right place..." ) ); ?>" />
-                        </div>
-                        <div class="dd-form-group">
-                            <label><?php esc_html_e( 'Hero Banner Image', 'dish-dash' ); ?></label>
-                            <div style="display:flex;gap:.5rem;">
-                                <input type="text" id="dd_hero_image" name="dish_dash_hero_image"
-                                    value="<?php echo esc_attr( get_option( 'dish_dash_hero_image', '' ) ); ?>" style="flex:1" />
-                                <button type="button" class="button dd-upload-btn"
-                                    data-target="dd_hero_image" data-preview="dd_hero_preview">
-                                    <?php esc_html_e( 'Upload', 'dish-dash' ); ?>
-                                </button>
-                            </div>
-                            <?php $hero_img = get_option( 'dish_dash_hero_image', '' ); ?>
-                            <img id="dd_hero_preview" src="<?php echo esc_url( $hero_img ); ?>"
-                                style="max-width:100%;margin-top:.5rem;border-radius:8px;<?php echo $hero_img ? '' : 'display:none'; ?>" />
-                        </div>
+                        <p style="color:#888;font-size:13px;margin:0;">
+                            Hero title, subtitle, image and buttons are now managed in
+                            <a href="<?php echo admin_url('admin.php?page=dish-dash-homepage'); ?>" style="color:#6B1D1D;font-weight:700;">
+                                🏠 Homepage Settings
+                            </a>
+                        </p>
                     </div>
 
                     <!-- CONTACT -->
@@ -436,35 +415,36 @@ class DD_Template_Module extends DD_Module {
 
     /**
      * Remove theme header hooks on our pages.
-     * Runs on init so it fires before the theme renders anything.
+     * Uses Astra's own filter + CSS nuclear option as fallback.
      */
     public function remove_theme_header_hooks(): void {
         if ( is_admin() ) return;
 
-        // We need to check page on template_redirect since init is too early
         add_action( 'template_redirect', function() {
             if ( ! $this->is_global_header_page() ) return;
 
-            // ── Astra ──
-            remove_action( 'astra_header', 'astra_header_markup' );
-            add_filter( 'astra_header_markup', '__return_empty_string' );
-            add_filter( 'astra_get_option', function( $val, $option ) {
-                if ( $option === 'hb-header-main-layout' ) return 'disabled';
-                return $val;
-            }, 10, 2 );
+            // ── Astra: Use their own disable header filter ──
+            add_filter( 'astra_header_disabled', '__return_true' );
+            add_filter( 'astra_disable_primary_navigation', '__return_true' );
 
-            // Remove Astra header actions
+            // ── Astra builder: disable all header zones ──
+            add_filter( 'astra_header_layout_enabled', '__return_false' );
+            add_filter( 'astra_main_header_display', '__return_false' );
+
+            // ── Remove Astra header template actions ──
+            add_action( 'astra_header', function() {}, 0 );
+            remove_all_actions( 'astra_header' );
             remove_all_actions( 'astra_masthead' );
             remove_all_actions( 'astra_masthead_top' );
             remove_all_actions( 'astra_masthead_bottom' );
             remove_all_actions( 'astra_above_header' );
             remove_all_actions( 'astra_below_header' );
-            remove_all_actions( 'astra_header' );
             remove_all_actions( 'astra_primary_header_bar' );
+            remove_all_actions( 'astra_render_header' );
 
-            // Hide via body class too
+            // ── Add body class for CSS targeting ──
             add_filter( 'body_class', function( $classes ) {
-                $classes[] = 'dd-global-header-page';
+                $classes[] = 'dd-hide-theme-header';
                 return $classes;
             });
         });
@@ -479,67 +459,26 @@ class DD_Template_Module extends DD_Module {
         $dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
         ?>
         <style>
-        /* ── Hide header from ANY theme ─────────────────────── */
-
-        /* Astra */
-        .ast-site-header-wrap,
-        .ast-primary-header-bar,
-        .ast-above-header-bar,
-        .ast-below-header-bar,
-        #masthead.site-header,
-
-        /* OceanWP */
-        #site-header,
-        #site-header-inner,
-        .oceanwp-mobile-menu-icon,
-
-        /* GeneratePress */
-        .site-header,
-        .gen-site-header,
-
-        /* Storefront / WooCommerce default */
-        .storefront-primary-navigation,
-        .storefront-header,
-
-        /* Divi */
-        #et-top-navigation,
-        #main-header,
-
-        /* Avada */
-        #header,
-        #header-sticky,
-        #side-header,
-
-        /* Hello Elementor */
-        .site-header.elementor-section,
-
-        /* Neve */
-        .nv-navbar,
-        header.neve-site-header,
-
-        /* Flatsome */
-        #header,
-        .header-wrapper,
-
-        /* Woodmart */
-        .whb-header,
-
-        /* Generic fallback — catches most themes */
-        body > header:not(.dd-global-header),
-        body > #header:not(.dd-global-header),
-        body > .header:not(.dd-global-header),
-        body > nav:first-of-type:not(.dd-nav),
-        #page > header:not(.dd-global-header),
-        #wrapper > header:not(.dd-global-header),
-
-        /* Breadcrumbs */
-        .ast-breadcrumbs-wrapper,
-        .woocommerce-breadcrumb,
-        .breadcrumb-trail,
-        .breadcrumbs {
+        /* ── Hide header from ANY theme — nuclear option ───── */
+        /* Targets body class added by our PHP */
+        body.dd-hide-theme-header .ast-site-header-wrap,
+        body.dd-hide-theme-header #masthead,
+        body.dd-hide-theme-header .site-header:not(.dd-global-header),
+        body.dd-hide-theme-header .ast-primary-header-bar,
+        body.dd-hide-theme-header .ast-above-header-bar,
+        body.dd-hide-theme-header .ast-below-header-bar,
+        body.dd-hide-theme-header #site-header,
+        body.dd-hide-theme-header #header:not(.dd-global-header),
+        body.dd-hide-theme-header .header:not(.dd-global-header),
+        body.dd-hide-theme-header header:not(.dd-global-header),
+        body.dd-hide-theme-header .ast-breadcrumbs-wrapper,
+        body.dd-hide-theme-header .woocommerce-breadcrumb,
+        body.dd-hide-theme-header .breadcrumbs {
             display: none !important;
             height: 0 !important;
             overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         /* ── Our CSS variables ──────────────────────────────── */
