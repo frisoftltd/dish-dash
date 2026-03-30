@@ -80,6 +80,10 @@ $dd_show_cart        = get_option( 'dd_header_show_cart', '1' ) === '1';
 $dd_h_title    = get_option( 'dish_dash_hero_title', 'Best Indian Flavor in Kigali' );
 $dd_h_sub      = get_option( 'dish_dash_hero_subtitle', 'Come as customer Leave as family !' );
 $dd_h_img      = get_option( 'dish_dash_hero_image', '' );
+$dd_hero_bg    = get_option( 'dd_hero_bg_image', '' );
+$dd_overlay_color   = get_option( 'dd_hero_overlay_color', '#6B1D1D' );
+$dd_overlay_opacity = (int) get_option( 'dd_hero_overlay_opacity', 85 );
+$dd_overlay_rgba    = 'rgba(' . implode( ',', array_map( 'hexdec', str_split( ltrim( $dd_overlay_color, '#' ), 2 ) ) ) . ',' . round( $dd_overlay_opacity / 100, 2 ) . ')';
 $dd_btn1_label = get_option( 'dd_hero_btn1_label', 'Order Now' );
 $dd_btn1_link  = get_option( 'dd_hero_btn1_link', '#menu' );
 $dd_btn2_label = get_option( 'dd_hero_btn2_label', 'Reserve Table' );
@@ -311,7 +315,16 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 </header>
 
 <!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
-<section class="dd-hero" <?php if ( $dd_h_img ) : ?>style="--dd-hero-bg: url('<?php echo esc_url( $dd_h_img ); ?>')"<?php endif; ?>>
+<?php
+$hero_bg_style = '';
+if ( $dd_hero_bg ) {
+    $hero_bg_style = '--dd-hero-bg: url(\'' . esc_url( $dd_hero_bg ) . '\');';
+} elseif ( $dd_h_img ) {
+    $hero_bg_style = '--dd-hero-bg: url(\'' . esc_url( $dd_h_img ) . '\');';
+}
+$hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
+?>
+<section class="dd-hero" style="<?php echo $hero_bg_style; ?>">
     <div class="dd-container dd-hero__grid">
 
         <div class="dd-hero__content">
