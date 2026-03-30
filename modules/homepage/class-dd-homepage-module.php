@@ -195,8 +195,8 @@ class DD_Homepage_Module extends DD_Module {
             </div>
 
             <?php if ( $saved ) : ?>
-            <div class="notice notice-success is-dismissible" style="margin-top:1rem">
-                <p>✅ <strong><?php esc_html_e( 'Homepage settings saved!', 'dish-dash' ); ?></strong></p>
+            <div class="notice notice-success is-dismissible" style="margin-top:0;border-left-color:#00a32a;">
+                <p style="color:#00a32a;font-weight:700;">✅ <?php esc_html_e( 'Homepage settings saved!', 'dish-dash' ); ?></p>
             </div>
             <?php endif; ?>
 
