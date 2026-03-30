@@ -438,21 +438,38 @@ body.dd-page .ast-header-woo-cart {
 .dd-hero {
     position: relative;
     overflow: hidden;
-    background: var(--dd-hero);
+    background: #1A0A0A;
 }
+
+/* Background food texture overlay */
+.dd-hero::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=1920&q=60');
+    background-size: cover;
+    background-position: center;
+    opacity: 0.12;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Rich gradient overlay */
 .dd-hero::before {
     content: "";
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(circle at top right, rgba(201,162,74,0.15), transparent 30%),
-        radial-gradient(circle at bottom left, rgba(107,29,29,0.35), transparent 35%);
+        linear-gradient(135deg, rgba(107,29,29,0.95) 0%, rgba(26,10,10,0.85) 50%, rgba(22,15,13,0.90) 100%),
+        radial-gradient(circle at top right, rgba(201,162,74,0.2), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(107,29,29,0.5), transparent 40%);
     pointer-events: none;
+    z-index: 1;
 }
 
 .dd-hero__grid {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 40px;
@@ -1038,6 +1055,27 @@ body.dd-page .ast-header-woo-cart {
     border-bottom: 1px solid #E8DCCD;
 }
 
+/* Reserve section label — make it a pill badge */
+.dd-reserve .dd-section__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--brand);
+    color: #ffffff;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+}
+
+.dd-reserve .dd-section__label::before {
+    content: '🍽️';
+    font-size: 14px;
+}
+
 .dd-reserve__grid {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
@@ -1179,23 +1217,55 @@ body.dd-page .ast-header-woo-cart {
     grid-template-columns: 1.2fr 1fr 1fr 1fr;
     gap: 40px;
     padding: 56px 0;
+    align-items: start;
+}
+
+.dd-footer__col-brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
 }
 
 .dd-footer__brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 16px;
 }
+
+.dd-footer__logo {
+    height: 52px;
+    width: auto;
+    object-fit: contain;
+}
+
+.dd-footer__brand-badge {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--brand);
+    color: #F5EFE6;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 15px;
+    flex-shrink: 0;
+    border: 1px solid rgba(201,162,74,0.4);
+}
+
 .dd-footer__brand-name {
     font-size: 18px;
     font-weight: 700;
     color: #F5EFE6;
+    line-height: 1.2;
 }
 
 .dd-footer__copy {
     color: rgba(241,231,219,0.8);
     font-size: 14px;
     line-height: 1.8;
-    max-width: 320px;
-    margin: 0;
+    max-width: 300px;
+    margin: 0 0 20px 0;
 }
 
 .dd-footer__heading {
@@ -1207,11 +1277,16 @@ body.dd-page .ast-header-woo-cart {
     margin-bottom: 18px;
 }
 
+.dd-footer__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
 .dd-footer__list li {
     color: rgba(241,231,219,0.8);
     font-size: 14px;
     line-height: 1.8;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 .dd-footer__list a {
     color: rgba(241,231,219,0.8);
@@ -1219,19 +1294,32 @@ body.dd-page .ast-header-woo-cart {
 }
 .dd-footer__list a:hover { color: var(--dd-gold-soft); }
 
+/* Social icons */
 .dd-footer__social {
     display: flex;
-    gap: 16px;
-    margin-top: 20px;
+    gap: 12px;
     flex-wrap: wrap;
+    margin-top: 4px;
 }
-.dd-footer__social a {
-    color: rgba(241,231,219,0.7);
-    font-size: 14px;
-    font-weight: 500;
-    transition: color 0.2s;
+
+.dd-footer__social-link {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    display: grid;
+    place-items: center;
+    color: rgba(241,231,219,0.8);
+    transition: background 0.2s, color 0.2s, transform 0.2s;
+    flex-shrink: 0;
 }
-.dd-footer__social a:hover { color: var(--dd-gold-soft); }
+.dd-footer__social-link:hover {
+    background: var(--brand);
+    color: #ffffff;
+    transform: translateY(-2px);
+    border-color: var(--brand);
+}
 
 .dd-footer__bottom {
     border-top: 1px solid rgba(255,255,255,0.08);
