@@ -449,20 +449,19 @@ body.dd-page .ast-header-woo-cart {
     background-image: var(--dd-hero-bg, url('https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=1920&q=60'));
     background-size: cover;
     background-position: center;
-    opacity: 0.18;
+    opacity: 1;
     pointer-events: none;
     z-index: 0;
 }
 
-/* Rich dark red gradient overlay */
+/* Dynamic overlay using backend color + opacity */
 .dd-hero::before {
     content: "";
     position: absolute;
     inset: 0;
     background:
-        linear-gradient(135deg, rgba(107,29,29,0.92) 0%, rgba(26,10,10,0.82) 50%, rgba(22,15,13,0.88) 100%),
-        radial-gradient(circle at top right, rgba(201,162,74,0.18), transparent 40%),
-        radial-gradient(circle at bottom left, rgba(107,29,29,0.45), transparent 40%);
+        linear-gradient(135deg, var(--dd-overlay-color, rgba(107,29,29,0.85)) 0%, rgba(26,10,10,0.75) 60%, rgba(22,15,13,0.80) 100%),
+        radial-gradient(circle at top right, rgba(201,162,74,0.15), transparent 40%);
     pointer-events: none;
     z-index: 1;
 }
