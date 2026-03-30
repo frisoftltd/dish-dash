@@ -441,28 +441,28 @@ body.dd-page .ast-header-woo-cart {
     background: #1A0A0A;
 }
 
-/* Background food texture overlay */
+/* Restaurant image as background */
 .dd-hero::after {
     content: "";
     position: absolute;
     inset: 0;
-    background-image: url('https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=1920&q=60');
+    background-image: var(--dd-hero-bg, url('https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=1920&q=60'));
     background-size: cover;
     background-position: center;
-    opacity: 0.12;
+    opacity: 0.18;
     pointer-events: none;
     z-index: 0;
 }
 
-/* Rich gradient overlay */
+/* Rich dark red gradient overlay */
 .dd-hero::before {
     content: "";
     position: absolute;
     inset: 0;
     background:
-        linear-gradient(135deg, rgba(107,29,29,0.95) 0%, rgba(26,10,10,0.85) 50%, rgba(22,15,13,0.90) 100%),
-        radial-gradient(circle at top right, rgba(201,162,74,0.2), transparent 40%),
-        radial-gradient(circle at bottom left, rgba(107,29,29,0.5), transparent 40%);
+        linear-gradient(135deg, rgba(107,29,29,0.92) 0%, rgba(26,10,10,0.82) 50%, rgba(22,15,13,0.88) 100%),
+        radial-gradient(circle at top right, rgba(201,162,74,0.18), transparent 40%),
+        radial-gradient(circle at bottom left, rgba(107,29,29,0.45), transparent 40%);
     pointer-events: none;
     z-index: 1;
 }
