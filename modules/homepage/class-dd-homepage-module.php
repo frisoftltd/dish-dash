@@ -262,10 +262,15 @@ class DD_Homepage_Module extends DD_Module {
                                     </button>
                                 </div>
                                 <?php $hero_img = $this->get( 'dish_dash_hero_image' ); ?>
-                                <?php if ( $hero_img ) : ?>
-                                    <img id="dd_hero_img_preview" src="<?php echo esc_url( $hero_img ); ?>" style="max-height:80px;margin-top:8px;border-radius:8px;">
-                                <?php else : ?>
-                                    <img id="dd_hero_img_preview" src="" style="max-height:80px;margin-top:8px;border-radius:8px;display:none;">
+                                <div style="margin-top:8px;width:100%;height:160px;background:#f0f0f0;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;<?php echo $hero_img ? '' : 'display:none'; ?>" id="dd_hero_img_wrap">
+                                    <img id="dd_hero_img_preview"
+                                        src="<?php echo esc_url( $hero_img ); ?>"
+                                        style="width:100%;height:160px;object-fit:cover;object-position:center;display:block;">
+                                </div>
+                                <?php if ( ! $hero_img ) : ?>
+                                    <div id="dd_hero_img_wrap" style="display:none;margin-top:8px;width:100%;height:160px;background:#f0f0f0;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+                                        <img id="dd_hero_img_preview" src="" style="width:100%;height:160px;object-fit:cover;display:block;">
+                                    </div>
                                 <?php endif; ?>
                             </div>
 
