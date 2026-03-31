@@ -151,10 +151,18 @@ if ( ! is_wp_error( $raw_cats ) && ! empty( $raw_cats ) ) {
 $dd_selcat_slugs = get_option( 'dd_selcat_slugs', [] );
 if ( is_string( $dd_selcat_slugs ) ) $dd_selcat_slugs = array_filter( explode( ',', $dd_selcat_slugs ) );
 
-// If specific slugs chosen, filter dd_cats for category section only
-$dd_selcat_cats = ! empty( $dd_selcat_slugs )
-    ? array_filter( $dd_cats, fn( $c ) => in_array( $c->slug, $dd_selcat_slugs ) )
-    : $dd_cats;
+// If specific slugs chosen, filter — reindex with array_values to fix $i !== 0 check
+if ( ! empty( $dd_selcat_slugs ) ) {
+    $filtered = [];
+    foreach ( $dd_cats as $c ) {
+        if ( in_array( $c->slug, (array) $dd_selcat_slugs ) ) {
+            $filtered[] = $c;
+        }
+    }
+    $dd_selcat_cats = $filtered;
+} else {
+    $dd_selcat_cats = array_values( $dd_cats ); // all categories, reindexed
+}
 
 // ─── Best sellers / Featured ───────────────────────────────────────────────
 $feat_args = array(
@@ -557,9 +565,6 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
         <div class="dd-section__top">
             <div>
                 <div class="dd-section__label"><?php echo esc_html( $dd_selcat_title ); ?></div>
-                <h2 class="dd-section__title dd-serif" id="ddCatTitle">
-                    <?php echo ! empty( $dd_selcat_cats ) ? esc_html( reset( $dd_selcat_cats )->name ) : 'Menu'; ?>
-                </h2>
             </div>
             <div class="dd-arrows">
                 <button class="dd-arrow-btn" id="ddSelPrev">&#8592;</button>
