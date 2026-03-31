@@ -881,21 +881,22 @@ body.dd-page .ast-header-woo-cart {
 }
 
 .dd-dish-card__body {
-    padding: 20px;
+    padding: 16px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
 }
 
 .dd-dish-card__title {
     margin: 0;
-    font-size: 1.7rem;
-    line-height: 1.1;
+    font-size: 1.5rem;
+    line-height: 1.15;
     color: var(--dd-text);
 }
 
+/* Hide description — shown on product page click */
 .dd-dish-card__desc {
-    margin: 10px 0 0;
-    color: var(--dd-muted);
-    font-size: 14px;
-    line-height: 1.7;
+    display: none;
 }
 
 .dd-dish-card__footer {
@@ -903,13 +904,16 @@ body.dd-page .ast-header-woo-cart {
     justify-content: space-between;
     align-items: center;
     gap: 12px;
-    margin-top: 20px;
+    margin-top: 14px;
+    flex-wrap: nowrap;
 }
 
 .dd-price {
     color: var(--brand);
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 800;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .dd-empty {
