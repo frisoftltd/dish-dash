@@ -940,18 +940,26 @@ body.dd-page .ast-header-woo-cart {
     color: var(--dd-text);
 }
 
-/* Tabs — horizontal scroll on ALL screen sizes */
+/* Tabs — wrap on desktop, horizontal scroll on mobile */
 .dd-selcat__tabs {
     display: flex;
     gap: 10px;
-    flex-wrap: nowrap;
-    overflow-x: auto;
+    flex-wrap: wrap;
     margin-bottom: 28px;
-    padding-bottom: 8px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
 }
-.dd-selcat__tabs::-webkit-scrollbar { display: none; }
+
+/* Mobile: horizontal scroll */
+@media (max-width: 860px) {
+    .dd-selcat__tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 8px;
+    }
+    .dd-selcat__tabs::-webkit-scrollbar { display: none; }
+}
 
 .dd-selcat__tab {
     padding: 10px 20px;
