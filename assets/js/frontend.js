@@ -4,7 +4,7 @@
  * Works with pre-rendered PHP category rows and WooCommerce AJAX cart.
  *
  * @package DishDash
- * @since   2.5.8
+ * @since   2.2.0
  */
 
 (function () {
@@ -34,8 +34,12 @@
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+            .replace(/"/g, '&quot;');
+    }
+
+    function parseRWF(str) {
+        // "RWF 12,500" → 12500
+        return parseInt((str || '').replace(/[^\d]/g, ''), 10) || 0;
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -231,7 +235,7 @@
                 renderDrawer();
             }
         })
-        .catch(() => {});
+        .catch((e) => console.warn('[DishDash] Remove failed', e));
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -240,23 +244,21 @@
     function addToLocalCart(id, name, price) {
         const existing = cartItems.find((i) => i.id === id);
         if (existing) {
-            existing.qty += 1;
+            existing.qty++;
         } else {
             cartItems.push({ id, name, price, qty: 1 });
         }
     }
 
-    function parseRWF(str) {
-        return parseInt(String(str).replace(/[^0-9]/g, ''), 10) || 0;
-    }
-
     /* ══════════════════════════════════════════════════════════
-       BIND ADD-TO-CART BUTTONS IN A ROW
+       BIND ALL ADD-TO-CART BUTTONS (featured + category rows)
     ══════════════════════════════════════════════════════════ */
-    function bindAddBtns(container) {
-        $all('.dd-add-btn', container).forEach((btn) => {
+    function bindAddBtns(scope) {
+        $all('.dd-add-btn', scope).forEach((btn) => {
+            // Avoid double-binding
             if (btn.dataset.bound) return;
             btn.dataset.bound = '1';
+
             btn.addEventListener('click', () => {
                 const id    = parseInt(btn.dataset.id, 10);
                 const nonce = btn.dataset.nonce || (window.DD ? window.DD.nonce : '');
@@ -271,123 +273,241 @@
     function switchCategory(slug, name) {
         activeSlug = slug;
 
-        // Hide all category rows, show the target
+        // Update title
+        const titleEl = $('ddCatTitle');
+        if (titleEl) titleEl.textContent = name;
+
+        // Hide all rows, show selected
         $all('.dd-cat-row').forEach((row) => {
-            if (row.id === 'ddCatRow-' + slug) {
+            if (row.dataset.slug === slug) {
                 row.removeAttribute('hidden');
-                bindAddBtns(row);
             } else {
                 row.setAttribute('hidden', '');
             }
         });
 
-        // Update selected category title
-        const titleEl = $('ddSelCatTitle');
-        if (titleEl && name) titleEl.textContent = name;
+        // Update active arrow buttons for selected row
+        setupArrows('ddSelPrev', 'ddSelNext', 'ddCatRow-' + slug);
+
+        // Bind any new add-to-cart buttons
+        const activeRow = document.querySelector('.dd-cat-row[data-slug="' + slug + '"]');
+        if (activeRow) bindAddBtns(activeRow);
     }
 
     /* ══════════════════════════════════════════════════════════
-       HORIZONTAL SCROLL ARROWS
+       ARROW SCROLL BUTTONS
     ══════════════════════════════════════════════════════════ */
     function setupArrows(prevId, nextId, rowId) {
-        const prev = $(prevId);
-        const next = $(nextId);
-        const row  = typeof rowId === 'string' ? $(rowId) : rowId;
-        if (!prev || !next || !row) return;
+        var row  = document.getElementById(rowId);
+        var prev = document.getElementById(prevId);
+        var next = document.getElementById(nextId);
+        if (!row || !prev || !next) return;
 
-        const scroll = (dir) => {
-            row.scrollBy({ left: dir * 280, behavior: 'smooth' });
-        };
+        // Use data attribute to prevent double-binding
+        if (prev.dataset.bound === rowId) return;
+        prev.dataset.bound = rowId;
+        next.dataset.bound = rowId;
 
-        prev.addEventListener('click', () => scroll(-1));
-        next.addEventListener('click', () => scroll(1));
+        prev.addEventListener('click', function() {
+            row.scrollBy({ left: -300, behavior: 'smooth' });
+        });
+        next.addEventListener('click', function() {
+            row.scrollBy({ left: 300, behavior: 'smooth' });
+        });
     }
 
     /* ══════════════════════════════════════════════════════════
-       SEARCH
+       SEARCH FILTER
     ══════════════════════════════════════════════════════════ */
     function setupSearch() {
-        const input = $('ddSearchInput');
+        const input = $('ddSearch');
         if (!input) return;
 
-        input.addEventListener('input', function () {
-            const q = this.value.trim().toLowerCase();
+        input.addEventListener('input', () => {
+            const q = input.value.trim().toLowerCase();
+            filterDishCards(q);
+        });
+    }
 
-            $all('.dd-dish-card').forEach((card) => {
-                const title = ($q('.dd-dish-card__title', card) || {}).textContent || '';
-                card.style.display = (!q || title.toLowerCase().includes(q)) ? '' : 'none';
-            });
+    function filterDishCards(q) {
+        const featRow = $('ddFeatRow');
+        if (!featRow) return;
+
+        $all('.dd-dish-card', featRow).forEach((card) => {
+            const name = ($q('.dd-dish-card__title', card) || {}).textContent || '';
+            const desc = ($q('.dd-dish-card__desc',  card) || {}).textContent || '';
+            const tag  = ($q('.dd-dish-card__tag',   card) || {}).textContent || '';
+            const matches = !q ||
+                name.toLowerCase().includes(q) ||
+                desc.toLowerCase().includes(q) ||
+                tag.toLowerCase().includes(q);
+            card.style.display = matches ? '' : 'none';
         });
     }
 
     /* ══════════════════════════════════════════════════════════
-       MODE BUTTONS (Delivery / Pickup)
-    ══════════════════════════════════════════════════════════ */
-    function setupModeButtons() {
-        const btns = $all('.dd-mode-btn');
-        btns.forEach((btn) => {
-            btn.addEventListener('click', () => {
-                btns.forEach((b) => b.classList.remove('active'));
-                btn.classList.add('active');
-            });
-        });
-    }
-
-    /* ══════════════════════════════════════════════════════════
-       FILTER CHIPS
+       FILTER CHIPS — real filtering on featured row
     ══════════════════════════════════════════════════════════ */
     function setupChips() {
-        const chips = $all('.dd-chip');
-        chips.forEach((chip) => {
-            chip.addEventListener('click', () => {
-                chips.forEach((c) => c.classList.remove('active'));
+        var chips   = $all('.dd-chip');
+        var featRow = $('ddFeatRow');
+
+        chips.forEach( function(chip) {
+            chip.addEventListener('click', function() {
+                chips.forEach( function(c) { c.classList.remove('active'); });
                 chip.classList.add('active');
 
-                const tag = chip.dataset.tag || '';
+                var filter = (chip.dataset.filter || '').toLowerCase();
+                if ( ! featRow ) return;
 
-                $all('.dd-dish-card').forEach((card) => {
-                    if (!tag || card.dataset.tags?.split(',').includes(tag)) {
-                        card.style.display = '';
+                // Remove any existing load more button to rebuild
+                var existingBtn = featRow.nextElementSibling;
+                if ( existingBtn && existingBtn.classList.contains('dd-load-more-btn') ) {
+                    existingBtn.remove();
+                }
+
+                // First show all cards so we can filter properly
+                $all('.dd-dish-card', featRow).forEach( function(card) {
+                    card.classList.remove('dd-card-hidden');
+                    card.style.display = '';
+                });
+
+                if ( ! filter ) {
+                    // Show All — re-apply load more if desktop
+                    if ( window.innerWidth > 860 ) {
+                        applyGridLoadMore( featRow, 'ddFeatLoadMoreFiltered', 8 );
+                    }
+                    return;
+                }
+
+                // Filter by tag slug
+                var matching    = [];
+                var nonMatching = [];
+
+                $all('.dd-dish-card', featRow).forEach( function(card) {
+                    var cardFilter = (card.dataset.filter || '').toLowerCase();
+                    var matches = cardFilter.split(',').some(function(f) {
+                        return f.trim() === filter;
+                    });
+                    if ( matches ) {
+                        matching.push(card);
                     } else {
+                        nonMatching.push(card);
                         card.style.display = 'none';
                     }
                 });
+
+                // Re-apply load more for filtered results on desktop
+                if ( window.innerWidth > 860 && matching.length > 8 ) {
+                    matching.forEach(function(card, i) {
+                        if ( i >= 8 ) card.classList.add('dd-card-hidden');
+                    });
+                    applyGridLoadMore( featRow, 'ddFeatLoadMoreFiltered', 8 );
+                }
+            });
+        });
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       MODE BUTTONS (Delivery / Pickup) — store + visual
+    ══════════════════════════════════════════════════════════ */
+    function setupModeButtons() {
+        var currentMode = 'delivery';
+        $all('.dd-mode-btn').forEach( function(btn) {
+            btn.addEventListener('click', function() {
+                $all('.dd-mode-btn').forEach( function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                currentMode = btn.dataset.mode || 'delivery';
+
+                // Update delivery fee display
+                var delRow    = $('ddSumDelivery');
+                var drawerDel = $('ddDrawerDelivery');
+                var fee = currentMode === 'pickup' ? 0 : deliveryFee;
+                if ( delRow   ) delRow.textContent    = fee === 0 ? 'Free' : fmt(fee);
+                if ( drawerDel ) drawerDel.textContent = fee === 0 ? 'Free' : fmt(fee);
+
+                // Recalculate totals with new fee
+                var sub  = cartItems.reduce( function(s,i){ return s + i.price * i.qty; }, 0 );
+                var tot  = sub + fee;
+                var subEl = $('ddSumSubtotal');   if (subEl) subEl.textContent = fmt(sub);
+                var totEl = $('ddSumTotal');       if (totEl) totEl.textContent = fmt(tot);
+                var dSub  = $('ddDrawerSubtotal'); if (dSub)  dSub.textContent  = fmt(sub);
+                var dTot  = $('ddDrawerTotal');    if (dTot)  dTot.textContent  = fmt(tot);
             });
         });
     }
 
     /* ══════════════════════════════════════════════════════════
        DESKTOP GRID + LOAD MORE
+       Mobile: horizontal scroll row (unchanged)
+       Desktop (>860px): 4×2 grid with Load More button
     ══════════════════════════════════════════════════════════ */
     function setupDesktopGrid() {
-        const loadMoreBtn = $('ddLoadMore');
-        if (!loadMoreBtn) return;
+        // Only apply on desktop
+        if ( window.innerWidth <= 860 ) return;
 
-        loadMoreBtn.addEventListener('click', () => {
-            const hidden = $all('.dd-dish-card[data-hidden="1"]');
-            let shown = 0;
-            hidden.forEach((card) => {
-                if (shown < 4) {
-                    card.removeAttribute('data-hidden');
-                    card.style.display = '';
-                    shown++;
-                }
+        var PER_PAGE = 8;
+
+        // Apply to featured row
+        var featRow = $('ddFeatRow');
+        if ( featRow ) {
+            applyGridLoadMore( featRow, 'ddFeatLoadMore', PER_PAGE );
+        }
+
+        // Apply to all category rows
+        $all('.dd-cat-row').forEach(function(row) {
+            var rowId = row.id + 'LoadMore';
+            applyGridLoadMore( row, rowId, PER_PAGE );
+        });
+    }
+
+    function applyGridLoadMore( row, btnId, perPage ) {
+        var cards = Array.from( row.querySelectorAll('.dd-dish-card') );
+        if ( cards.length <= perPage ) return; // No need if all fit
+
+        // Hide cards beyond first page
+        cards.forEach(function(card, i) {
+            if ( i >= perPage ) {
+                card.classList.add('dd-card-hidden');
+            }
+        });
+
+        // Create Load More button
+        var btn = document.createElement('button');
+        btn.id        = btnId;
+        btn.className = 'dd-load-more-btn';
+        btn.innerHTML = 'Load More <span class="dd-load-more-icon">↓</span>';
+
+        // Insert after the row
+        row.parentNode.insertBefore( btn, row.nextSibling );
+
+        btn.addEventListener('click', function() {
+            var hidden = Array.from( row.querySelectorAll('.dd-dish-card.dd-card-hidden') );
+            var toShow = hidden.slice(0, perPage);
+
+            toShow.forEach(function(card) {
+                card.classList.remove('dd-card-hidden');
             });
-            if ($all('.dd-dish-card[data-hidden="1"]').length === 0) {
-                loadMoreBtn.style.display = 'none';
+
+            var stillHidden = row.querySelectorAll('.dd-dish-card.dd-card-hidden').length;
+            if ( stillHidden === 0 ) {
+                btn.remove();
+            } else {
+                btn.innerHTML = 'Load More <span class="dd-load-more-icon">↓</span>';
             }
         });
     }
 
     /* ══════════════════════════════════════════════════════════
-       STICKY HEADER
+       STICKY HEADER SCROLL BEHAVIOR
     ══════════════════════════════════════════════════════════ */
     function setupStickyHeader() {
-        const header = $q('.dd-header');
-        if (!header) return;
+        var header = document.querySelector('.dd-header');
+        if ( ! header ) return;
 
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 60) {
+        window.addEventListener('scroll', function() {
+            var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+            if ( currentScroll > 50 ) {
                 header.classList.add('scrolled');
             } else {
                 header.classList.remove('scrolled');
@@ -489,14 +609,12 @@
 
     /* ══════════════════════════════════════════════════════════
        GOOGLE REVIEWS
-       Calls the dd_get_reviews AJAX action (PHP handles the
-       Google Places API call server-side, so the API key is
-       never exposed in the browser).
-       Results are cached on the server for 12 hours.
+       Calls dd_get_reviews AJAX action — PHP fetches from
+       Google Places API server-side (API key never exposed).
+       Results cached on server for 12 hours.
     ══════════════════════════════════════════════════════════ */
     function loadReviews() {
-        // Support both id conventions: ddReviewsGrid (new) and reviewsGrid (old)
-        var grid = $('ddReviewsGrid') || $('reviewsGrid');
+        var grid = $('ddReviewsGrid');
         if (!grid) return;
         if (!window.DD || !window.DD.ajaxUrl) return;
 
@@ -526,13 +644,10 @@
             }
 
             grid.innerHTML = res.data.map(function (r) {
-                // Build star icons
                 var stars = '';
                 for (var i = 1; i <= 5; i++) {
                     stars += '<span class="dd-review-star' + (i <= r.rating ? ' filled' : '') + '">★</span>';
                 }
-
-                // Author avatar: photo if available, else initial letter
                 var avatar = r.photo
                     ? '<img class="dd-review-photo" src="' + escHtml(r.photo) + '" alt="" loading="lazy">'
                     : '<div class="dd-review-avatar">' + escHtml((r.author || 'G').charAt(0).toUpperCase()) + '</div>';
@@ -551,34 +666,8 @@
             }).join('');
         })
         .catch(function () {
-            // On error just clear the skeleton — section still shows title
             grid.innerHTML = '';
         });
-    }
-
-    /* ══════════════════════════════════════════════════════════
-       WOO FRAGMENTS SYNC
-    ══════════════════════════════════════════════════════════ */
-    function syncCartFromFragments() {
-        // Try to read count from WooCommerce session
-        if (window.wc_add_to_cart_params && window.wc_add_to_cart_params.cart_url) {
-            // Just refresh count from server
-            fetch(window.DD ? window.DD.ajaxUrl : '/wp-admin/admin-ajax.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action: 'dd_get_cart_count',
-                    nonce:  window.DD ? window.DD.nonce : '',
-                }).toString(),
-            })
-            .then((r) => r.json())
-            .then((res) => {
-                if (res.success && res.data && res.data.count !== undefined) {
-                    updateBadges(res.data.count);
-                }
-            })
-            .catch(() => {});
-        }
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -665,6 +754,29 @@
                 updateBadges(fragments.cart_count);
             }
         });
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       WOO FRAGMENTS SYNC
+    ══════════════════════════════════════════════════════════ */
+    function syncCartFromFragments() {
+        if (window.wc_add_to_cart_params && window.wc_add_to_cart_params.cart_url) {
+            fetch(window.DD ? window.DD.ajaxUrl : '/wp-admin/admin-ajax.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'dd_get_cart_count',
+                    nonce:  window.DD ? window.DD.nonce : '',
+                }).toString(),
+            })
+            .then((r) => r.json())
+            .then((res) => {
+                if (res.success && res.data && res.data.count !== undefined) {
+                    updateBadges(res.data.count);
+                }
+            })
+            .catch(() => {});
+        }
     }
 
     /* ══════════════════════════════════════════════════════════
