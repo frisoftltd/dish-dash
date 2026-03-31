@@ -96,6 +96,7 @@ class DD_Homepage_Module extends DD_Module {
             'dd_selcat_title'            => 'sanitize_text_field',
             'dd_selcat_count'            => 'absint',
             'dd_selcat_default'          => 'sanitize_text_field',
+            'dd_reserve_bg_image'        => 'esc_url_raw',
 
             // 6. Reviews
             'dd_reviews_show'            => 'checkbox',
@@ -519,6 +520,43 @@ class DD_Homepage_Module extends DD_Module {
                                 </div>
                                 <?php endif; ?>
                             </div>
+
+                    <!-- ═══ RESERVE TABLE ═══════════════════════════════ -->
+                    <div class="dd-hp-section">
+                        <div class="dd-hp-section__header">
+                            <span class="dd-hp-section__icon">📅</span>
+                            <h2><?php esc_html_e( 'Reserve Table Section', 'dish-dash' ); ?></h2>
+                        </div>
+                        <div class="dd-hp-section__body">
+                            <div class="dd-hp-field">
+                                <label><?php esc_html_e( 'Background Image', 'dish-dash' ); ?></label>
+                                <div style="display:flex;gap:8px;">
+                                    <input type="text" name="dd_reserve_bg_image" id="dd_reserve_bg_image"
+                                        value="<?php echo esc_attr( $this->get( 'dd_reserve_bg_image' ) ); ?>"
+                                        placeholder="https://... (leave empty for default restaurant image)"
+                                        class="dd-hp-input dd-hp-input--wide">
+                                    <button type="button" class="button dd-upload-btn"
+                                        data-target="dd_reserve_bg_image"
+                                        data-preview="dd_reserve_bg_preview">
+                                        <?php esc_html_e( 'Upload', 'dish-dash' ); ?>
+                                    </button>
+                                </div>
+                                <?php $reserve_bg = $this->get( 'dd_reserve_bg_image' ); ?>
+                                <?php if ( $reserve_bg ) : ?>
+                                <div style="margin-top:8px;width:100%;height:120px;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+                                    <img id="dd_reserve_bg_preview" src="<?php echo esc_url( $reserve_bg ); ?>"
+                                        style="width:100%;height:120px;object-fit:cover;display:block;">
+                                </div>
+                                <?php else : ?>
+                                <div style="display:none;margin-top:8px;width:100%;height:120px;border-radius:12px;overflow:hidden;border:1px solid #e0e0e0;">
+                                    <img id="dd_reserve_bg_preview" src=""
+                                        style="width:100%;height:120px;object-fit:cover;display:block;">
+                                </div>
+                                <?php endif; ?>
+                                <span class="dd-hp-hint">This image shows as the background of the Reserve Table section. Recommended: wide restaurant/dining atmosphere photo.</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- ═══ 5. SELECTED CATEGORY ═════════════════════════ -->
                     <div class="dd-hp-section">
