@@ -626,6 +626,11 @@
                 $all('.dd-cat-card').forEach((c) => c.classList.remove('active'));
                 card.classList.add('active');
                 switchCategory(card.dataset.slug, card.dataset.name);
+
+                // Navigate to category page if url is set
+                if ( card.dataset.url && card.dataset.url !== '#' ) {
+                    window.location.href = card.dataset.url;
+                }
             });
         });
 
