@@ -580,6 +580,12 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
             <?php endforeach; ?>
         </div>
 
+        <!-- Product scroll arrows -->
+        <div class="dd-selcat__scroll-hint">
+            <button class="dd-arrow-btn" id="ddSelCatPrev">&#8592;</button>
+            <button class="dd-arrow-btn" id="ddSelCatNext">&#8594;</button>
+        </div>
+
         <!-- Products rows per category -->
         <div class="dd-cat-rows-wrap">
             <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
