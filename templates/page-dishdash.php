@@ -522,7 +522,11 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 <?php endif; ?>
 
 <!-- ══ RESERVATION ═════════════════════════════════════════════════════════ -->
-<section class="dd-reserve" id="reserve">
+<?php
+$dd_reserve_bg = get_option( 'dd_reserve_bg_image', '' );
+$reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $dd_reserve_bg ) . '\')"' : '';
+?>
+<section class="dd-reserve" id="reserve" <?php echo $reserve_style; ?>>
     <div class="dd-container dd-reserve__grid">
         <div>
             <div class="dd-section__label">Reserve your table</div>
