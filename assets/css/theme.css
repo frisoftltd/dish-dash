@@ -768,8 +768,8 @@ body.dd-page .ast-header-woo-cart {
     height: 200px;
     border-radius: 50%;
     overflow: hidden;
-    border: 3px solid var(--dd-line);
-    box-shadow: 0 4px 16px rgba(107,29,29,0.08);
+    border: 3px solid var(--brand);
+    box-shadow: 0 4px 16px rgba(107,29,29,0.12);
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
     background: var(--dd-surface);
     flex-shrink: 0;
