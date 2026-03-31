@@ -149,7 +149,7 @@ if ( ! is_wp_error( $raw_cats ) && ! empty( $raw_cats ) ) {
 
 // ─── Best sellers / Featured ───────────────────────────────────────────────
 $feat_args = array(
-    'limit'   => $dd_feat_count,
+    'limit'   => $dd_feat_count > 0 ? $dd_feat_count : -1,
     'orderby' => in_array( $dd_feat_orderby, [ 'popularity', 'date', 'price', 'rand' ] ) ? $dd_feat_orderby : 'popularity',
     'order'   => $dd_feat_orderby === 'price-desc' ? 'DESC' : 'DESC',
     'status'  => 'publish',
@@ -203,10 +203,12 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         // Build filter string from tag + featured status + product tags
         $filter_parts = array( strtolower( $tag ) );
         if ( $product->is_featured() ) $filter_parts[] = 'featured';
-        $wc_tags = wp_get_post_terms( $id, 'product_tag', array( 'fields' => 'names' ) );
+        // Use slugs so they match chip data-filter values
+        $wc_tags = wp_get_post_terms( $id, 'product_tag', array( 'fields' => 'all' ) );
         if ( ! is_wp_error( $wc_tags ) && ! empty( $wc_tags ) ) {
             foreach ( $wc_tags as $wt ) {
-                $filter_parts[] = strtolower( $wt );
+                $filter_parts[] = $wt->slug;           // slug for chip matching
+                $filter_parts[] = strtolower( $wt->name ); // name as fallback
             }
         }
         $filter_str = implode( ',', array_unique( $filter_parts ) );
