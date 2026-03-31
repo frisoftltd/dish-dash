@@ -1746,6 +1746,24 @@ body.dd-page .ast-header-woo-cart {
 /* ─────────────────────────────────────────────────────────────
    RESPONSIVE — SMALL MOBILE (≤ 680px)
 ───────────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+    /* Selected category and featured — 2 column grid on mobile */
+    #category-dishes .dd-cat-row:not([hidden]) {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 14px !important;
+        overflow: visible !important;
+        flex-wrap: unset !important;
+        padding-bottom: 0 !important;
+    }
+
+    #category-dishes .dd-cat-row .dd-dish-card {
+        min-width: unset !important;
+        max-width: unset !important;
+        width: 100% !important;
+    }
+}
+
 @media (max-width: 680px) {
     body.dd-page { padding-bottom: 88px; }
 
