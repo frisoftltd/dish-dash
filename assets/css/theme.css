@@ -939,13 +939,20 @@ body.dd-page .ast-header-woo-cart {
     margin-top: 8px;
     color: var(--dd-text);
 }
+
+/* Tabs — horizontal scroll on ALL screen sizes */
 .dd-selcat__tabs {
     display: flex;
     gap: 10px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow-x: auto;
     margin-bottom: 28px;
-    padding-bottom: 0;
+    padding-bottom: 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
 }
+.dd-selcat__tabs::-webkit-scrollbar { display: none; }
+
 .dd-selcat__tab {
     padding: 10px 20px;
     border-radius: 999px;
@@ -971,6 +978,9 @@ body.dd-page .ast-header-woo-cart {
     color: #ffffff;
     box-shadow: 0 4px 16px rgba(107,29,29,0.3);
 }
+
+/* Hide old sel arrows — tabs replace them */
+#ddSelPrev, #ddSelNext { display: none !important; }
 
 .dd-cat-rows-wrap {
     min-width: 0;
