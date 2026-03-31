@@ -526,7 +526,7 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
     <div class="dd-container dd-reserve__grid">
         <div>
             <div class="dd-section__label">Reserve your table</div>
-            <h2 class="dd-section__title dd-serif">A dining experience that feels as rich as the food.</h2>
+            <h2 class="dd-reserve__title dd-serif">A dining experience that feels as rich as the food.</h2>
             <p class="dd-reserve__copy">Whether you're planning a relaxed dinner, a business lunch, or a family gathering — reserve your table in seconds and enjoy <?php echo esc_html( $dd_name ); ?> with comfort and style.</p>
         </div>
         <div class="dd-reserve__card">
