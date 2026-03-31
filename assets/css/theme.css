@@ -881,7 +881,7 @@ body.dd-page .ast-header-woo-cart {
 }
 
 .dd-dish-card__body {
-    padding: 16px 20px 20px;
+    padding: 14px 16px 16px;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -889,8 +889,8 @@ body.dd-page .ast-header-woo-cart {
 
 .dd-dish-card__title {
     margin: 0;
-    font-size: 1.5rem;
-    line-height: 1.15;
+    font-size: 1.15rem;
+    line-height: 1.2;
     color: var(--dd-text);
 }
 
@@ -903,15 +903,25 @@ body.dd-page .ast-header-woo-cart {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    margin-top: 14px;
+    gap: 10px;
+    margin-top: 12px;
     flex-wrap: nowrap;
 }
 
 .dd-price {
     color: var(--brand);
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 800;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Add to cart button — smaller and modern */
+.dd-add-btn {
+    padding: 8px 16px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    border-radius: 999px !important;
     white-space: nowrap;
     flex-shrink: 0;
 }
