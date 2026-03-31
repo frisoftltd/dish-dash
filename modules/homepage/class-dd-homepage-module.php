@@ -19,6 +19,9 @@ class DD_Homepage_Module extends DD_Module {
         add_action( 'admin_menu',            [ $this, 'register_admin_page' ] );
         add_action( 'admin_init',            [ $this, 'save_settings' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+
+        // ── Google Reviews AJAX (public — no login required) ──
+        DD_Ajax::register( 'dd_get_reviews', [ $this, 'ajax_get_reviews' ], false );
     }
 
     // ─────────────────────────────────────────
@@ -119,7 +122,6 @@ class DD_Homepage_Module extends DD_Module {
 
         foreach ( $fields as $key => $sanitizer ) {
             if ( $sanitizer === 'checkbox' ) {
-                // Checkboxes: save '1' if checked, '0' if unchecked
                 update_option( $key, isset( $_POST[ $key ] ) ? '1' : '0' );
             } elseif ( $sanitizer === 'absint' ) {
                 update_option( $key, absint( $_POST[ $key ] ?? 0 ) );
@@ -137,7 +139,7 @@ class DD_Homepage_Module extends DD_Module {
         // Handle filter chip tags (array of slugs)
         if ( isset( $_POST['dd_featured_chip_tags'] ) ) {
             $chip_tags = array_map( 'sanitize_text_field', (array) $_POST['dd_featured_chip_tags'] );
-            $chip_tags = array_slice( $chip_tags, 0, 8 ); // max 8
+            $chip_tags = array_slice( $chip_tags, 0, 8 );
             update_option( 'dd_featured_chip_tags', $chip_tags );
         } else {
             update_option( 'dd_featured_chip_tags', [] );
@@ -148,8 +150,11 @@ class DD_Homepage_Module extends DD_Module {
             $selcat_slugs = array_map( 'sanitize_text_field', (array) $_POST['dd_selcat_slugs'] );
             update_option( 'dd_selcat_slugs', $selcat_slugs );
         } else {
-            update_option( 'dd_selcat_slugs', [] ); // empty = all categories
+            update_option( 'dd_selcat_slugs', [] );
         }
+
+        // Clear cached Google reviews so fresh data loads after saving
+        delete_transient( 'dd_google_reviews_cache' );
 
         wp_redirect( add_query_arg( [
             'page'  => 'dish-dash-homepage',
@@ -171,7 +176,6 @@ class DD_Homepage_Module extends DD_Module {
     }
 
     private function select( string $key, $value, $default = '' ): void {
-        // Cast both to string for reliable comparison
         $saved = (string) get_option( $key, $default );
         selected( $saved, (string) $value );
     }
@@ -179,6 +183,100 @@ class DD_Homepage_Module extends DD_Module {
     private function field( string $key, string $type = 'text', string $placeholder = '', $default = '' ): void {
         $val = esc_attr( $this->get( $key, $default ) );
         echo '<input type="' . esc_attr( $type ) . '" name="' . esc_attr( $key ) . '" value="' . $val . '" placeholder="' . esc_attr( $placeholder ) . '" class="dd-hp-input">';
+    }
+
+    // ─────────────────────────────────────────
+    //  AJAX HANDLER — dd_get_reviews
+    //  Triggered by frontend.js on page load.
+    //  Returns reviews array as JSON.
+    // ─────────────────────────────────────────
+    public function ajax_get_reviews(): void {
+        $reviews = self::get_reviews();
+        wp_send_json_success( $reviews );
+    }
+
+    // ─────────────────────────────────────────
+    //  FETCH REVIEWS (static — reusable)
+    //  Fetches from Google Places API or returns
+    //  manual reviews. Caches for 12 hours.
+    // ─────────────────────────────────────────
+    public static function get_reviews(): array {
+        $source     = get_option( 'dd_reviews_source', 'manual' );
+        $count      = max( 1, (int) get_option( 'dd_reviews_count', 3 ) );
+        $min_rating = max( 1, (int) get_option( 'dd_reviews_min_rating', 4 ) );
+
+        // ── Manual reviews ───────────────────
+        if ( $source !== 'google' ) {
+            $manual = json_decode( get_option( 'dd_reviews_manual', '[]' ), true );
+            if ( ! is_array( $manual ) ) $manual = [];
+            $out = [];
+            foreach ( array_filter( $manual ) as $text ) {
+                $out[] = [
+                    'author' => '',
+                    'rating' => 5,
+                    'text'   => $text,
+                    'time'   => '',
+                    'photo'  => '',
+                ];
+            }
+            return array_slice( $out, 0, $count );
+        }
+
+        // ── Google Reviews ───────────────────
+        $place_id = get_option( 'dd_reviews_google_place_id', '' );
+        $api_key  = get_option( 'dd_reviews_google_api_key', '' );
+
+        if ( ! $place_id || ! $api_key ) {
+            return [];
+        }
+
+        // Return cached result if still fresh (12-hour cache)
+        $cache_key = 'dd_google_reviews_cache';
+        $cached    = get_transient( $cache_key );
+        if ( false !== $cached ) {
+            return $cached;
+        }
+
+        // Call Google Places Details API
+        $url = add_query_arg( [
+            'place_id' => $place_id,
+            'fields'   => 'reviews,rating',
+            'key'      => $api_key,
+            'language' => 'en',
+        ], 'https://maps.googleapis.com/maps/api/place/details/json' );
+
+        $response = wp_remote_get( $url, [ 'timeout' => 10 ] );
+
+        if ( is_wp_error( $response ) ) {
+            return [];
+        }
+
+        $body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( empty( $body['result']['reviews'] ) ) {
+            return [];
+        }
+
+        // Filter by minimum star rating and shape the data
+        $reviews = [];
+        foreach ( $body['result']['reviews'] as $r ) {
+            if ( (int) ( $r['rating'] ?? 0 ) < $min_rating ) continue;
+            $reviews[] = [
+                'author' => $r['author_name']               ?? '',
+                'rating' => (int) ( $r['rating']            ?? 5 ),
+                'text'   => $r['text']                      ?? '',
+                'time'   => $r['relative_time_description'] ?? '',
+                'photo'  => $r['profile_photo_url']         ?? '',
+            ];
+        }
+
+        // Limit to configured count
+        $reviews = array_slice( $reviews, 0, $count );
+
+        // Cache for 12 hours
+        set_transient( $cache_key, $reviews, 12 * HOUR_IN_SECONDS );
+
+        return $reviews;
     }
 
     // ─────────────────────────────────────────
@@ -274,7 +372,7 @@ class DD_Homepage_Module extends DD_Module {
                                 </div>
                             </div>
 
-                                        <div class="dd-hp-field" style="margin-top:16px;">
+                            <div class="dd-hp-field" style="margin-top:16px;">
                                 <label><?php esc_html_e( 'Hero Card Image (right side)', 'dish-dash' ); ?></label>
                                 <div style="display:flex;gap:8px;">
                                     <input type="text" name="dish_dash_hero_image" id="dd_hero_image"
@@ -701,7 +799,6 @@ class DD_Homepage_Module extends DD_Module {
                                 <h3><?php esc_html_e( 'Manual Reviews', 'dish-dash' ); ?></h3>
                                 <?php
                                 $manual = json_decode( $this->get( 'dd_reviews_manual', '[]' ), true ) ?: [];
-                                // Ensure at least 3 rows
                                 while ( count( $manual ) < 3 ) $manual[] = '';
                                 foreach ( $manual as $idx => $review ) :
                                 ?>
