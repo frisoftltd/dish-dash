@@ -636,16 +636,6 @@
                 tab.classList.add('active');
                 switchCategory( tab.dataset.slug, tab.dataset.name );
                 setupArrows( 'ddSelCatPrev', 'ddSelCatNext', 'ddCatRow-' + tab.dataset.slug );
-
-                // On mobile: scroll to products after switching
-                if ( window.innerWidth <= 860 ) {
-                    setTimeout(function() {
-                        var productsWrap = document.querySelector('.dd-cat-rows-wrap');
-                        if ( productsWrap ) {
-                            productsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                    }, 100 );
-                }
             });
         });
 
