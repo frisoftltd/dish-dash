@@ -142,6 +142,14 @@ class DD_Homepage_Module extends DD_Module {
             update_option( 'dd_featured_chip_tags', [] );
         }
 
+        // Handle selected category slugs
+        if ( isset( $_POST['dd_selcat_slugs'] ) ) {
+            $selcat_slugs = array_map( 'sanitize_text_field', (array) $_POST['dd_selcat_slugs'] );
+            update_option( 'dd_selcat_slugs', $selcat_slugs );
+        } else {
+            update_option( 'dd_selcat_slugs', [] ); // empty = all categories
+        }
+
         wp_redirect( add_query_arg( [
             'page'  => 'dish-dash-homepage',
             'saved' => '1',
@@ -523,7 +531,7 @@ class DD_Homepage_Module extends DD_Module {
                             </label>
                         </div>
                         <div class="dd-hp-section__body">
-                            <div class="dd-hp-grid-3">
+                            <div class="dd-hp-grid-2">
                                 <div class="dd-hp-field">
                                     <label><?php esc_html_e( 'Section Title', 'dish-dash' ); ?></label>
                                     <input type="text" name="dd_selcat_title"
@@ -533,22 +541,50 @@ class DD_Homepage_Module extends DD_Module {
                                 <div class="dd-hp-field">
                                     <label><?php esc_html_e( 'Products per Category', 'dish-dash' ); ?></label>
                                     <select name="dd_selcat_count" class="dd-hp-select">
-                                        <?php foreach ( [ 4, 6, 8, 12 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_selcat_count', $n, 8 ); ?>><?php echo $n; ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-                                <div class="dd-hp-field">
-                                    <label><?php esc_html_e( 'Default Category', 'dish-dash' ); ?></label>
-                                    <select name="dd_selcat_default" class="dd-hp-select">
-                                        <option value=""><?php esc_html_e( 'First Category', 'dish-dash' ); ?></option>
-                                        <?php foreach ( $cats as $cat ) : ?>
-                                            <option value="<?php echo esc_attr( $cat->slug ); ?>" <?php $this->select( 'dd_selcat_default', $cat->slug ); ?>>
-                                                <?php echo esc_html( $cat->name ); ?>
+                                        <?php foreach ( [ 4, 6, 8, 12, 0 ] as $n ) : ?>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_selcat_count', $n, 8 ); ?>>
+                                                <?php echo $n === 0 ? esc_html__( 'All Products', 'dish-dash' ) : $n; ?>
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
+                            </div>
+
+                            <!-- Multi-select categories -->
+                            <?php
+                            $saved_selcats = get_option( 'dd_selcat_slugs', [] );
+                            if ( is_string( $saved_selcats ) && ! empty( $saved_selcats ) ) {
+                                $saved_selcats = array_filter( explode( ',', $saved_selcats ) );
+                            }
+                            if ( empty( $saved_selcats ) ) $saved_selcats = [];
+                            ?>
+                            <div class="dd-hp-subsection" style="margin-top:16px;">
+                                <h3>📂 <?php esc_html_e( 'Categories to Show', 'dish-dash' ); ?></h3>
+                                <p class="dd-hp-hint" style="margin-bottom:12px;">Select which categories appear in this section. Leave all unchecked to show ALL categories.</p>
+                                <?php if ( empty( $cats ) ) : ?>
+                                    <p class="dd-hp-note">No categories found. <a href="<?php echo admin_url('edit-tags.php?taxonomy=product_cat&post_type=product'); ?>">Add categories</a> first.</p>
+                                <?php else : ?>
+                                <div style="margin-bottom:10px;">
+                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;background:#f0f0f0;">
+                                        <input type="checkbox" id="dd_selcat_all" style="accent-color:#6B1D1D;width:16px;height:16px;"
+                                            <?php checked( empty( $saved_selcats ), true ); ?>>
+                                        All Categories
+                                    </label>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;" id="dd_selcat_grid">
+                                    <?php foreach ( $cats as $cat ) : ?>
+                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;background:#fafafa;">
+                                        <input type="checkbox"
+                                               name="dd_selcat_slugs[]"
+                                               value="<?php echo esc_attr( $cat->slug ); ?>"
+                                               <?php checked( in_array( $cat->slug, (array) $saved_selcats ), true ); ?>
+                                               style="accent-color:#6B1D1D;width:16px;height:16px;">
+                                        <?php echo esc_html( $cat->name ); ?>
+                                        <span style="margin-left:auto;color:#bbb;font-size:11px;"><?php echo $cat->count; ?></span>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -751,7 +787,20 @@ class DD_Homepage_Module extends DD_Module {
                 });
             }
 
-            // Media uploader
+            // All Categories toggle
+            var allCatsChk = document.getElementById('dd_selcat_all');
+            var catGrid    = document.getElementById('dd_selcat_grid');
+            if ( allCatsChk && catGrid ) {
+                function toggleCatGrid() {
+                    var disabled = allCatsChk.checked;
+                    catGrid.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+                        cb.disabled = disabled;
+                        cb.closest('label').style.opacity = disabled ? '0.4' : '1';
+                    });
+                }
+                toggleCatGrid();
+                allCatsChk.addEventListener('change', toggleCatGrid);
+            }
             document.querySelectorAll('.dd-upload-btn').forEach(function(btn) {
                 btn.addEventListener('click', function(e) {
                     e.preventDefault();
