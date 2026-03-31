@@ -357,20 +357,53 @@
                 chips.forEach( function(c) { c.classList.remove('active'); });
                 chip.classList.add('active');
 
-                var filter = chip.dataset.filter || '';
+                var filter = (chip.dataset.filter || '').toLowerCase();
                 if ( ! featRow ) return;
 
+                // Remove any existing load more button to rebuild
+                var existingBtn = featRow.nextElementSibling;
+                if ( existingBtn && existingBtn.classList.contains('dd-load-more-btn') ) {
+                    existingBtn.remove();
+                }
+
+                // First show all cards so we can filter properly
                 $all('.dd-dish-card', featRow).forEach( function(card) {
-                    if ( ! filter ) {
-                        card.style.display = '';
-                        return;
-                    }
-                    var cardFilter = (card.dataset.filter || '').toLowerCase();
-                    var tagEl      = $q('.dd-dish-card__tag', card);
-                    var tagText    = tagEl ? tagEl.textContent.toLowerCase() : '';
-                    var matches    = cardFilter.indexOf(filter) !== -1 || tagText.indexOf(filter) !== -1;
-                    card.style.display = matches ? '' : 'none';
+                    card.classList.remove('dd-card-hidden');
+                    card.style.display = '';
                 });
+
+                if ( ! filter ) {
+                    // Show All — re-apply load more if desktop
+                    if ( window.innerWidth > 860 ) {
+                        applyGridLoadMore( featRow, 'ddFeatLoadMoreFiltered', 8 );
+                    }
+                    return;
+                }
+
+                // Filter by tag slug
+                var matching = [];
+                var nonMatching = [];
+
+                $all('.dd-dish-card', featRow).forEach( function(card) {
+                    var cardFilter = (card.dataset.filter || '').toLowerCase();
+                    var matches = cardFilter.split(',').some(function(f) {
+                        return f.trim() === filter;
+                    });
+                    if ( matches ) {
+                        matching.push(card);
+                    } else {
+                        nonMatching.push(card);
+                        card.style.display = 'none';
+                    }
+                });
+
+                // Re-apply load more for filtered results on desktop
+                if ( window.innerWidth > 860 && matching.length > 8 ) {
+                    matching.forEach(function(card, i) {
+                        if ( i >= 8 ) card.classList.add('dd-card-hidden');
+                    });
+                    applyGridLoadMore( featRow, 'ddFeatLoadMoreFiltered', 8 );
+                }
             });
         });
     }
