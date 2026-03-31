@@ -147,6 +147,15 @@ if ( ! is_wp_error( $raw_cats ) && ! empty( $raw_cats ) ) {
     }
 }
 
+// ─── Selected category section — filter by chosen slugs ───────────────────
+$dd_selcat_slugs = get_option( 'dd_selcat_slugs', [] );
+if ( is_string( $dd_selcat_slugs ) ) $dd_selcat_slugs = array_filter( explode( ',', $dd_selcat_slugs ) );
+
+// If specific slugs chosen, filter dd_cats for category section only
+$dd_selcat_cats = ! empty( $dd_selcat_slugs )
+    ? array_filter( $dd_cats, fn( $c ) => in_array( $c->slug, $dd_selcat_slugs ) )
+    : $dd_cats;
+
 // ─── Best sellers / Featured ───────────────────────────────────────────────
 $feat_args = array(
     'limit'   => $dd_feat_count > 0 ? $dd_feat_count : -1,
@@ -162,10 +171,10 @@ if ( ! $dd_best ) $dd_best = array();
 
 // ─── Products per category ─────────────────────────────────────────────────
 $dd_cat_products = array();
-foreach ( $dd_cats as $cat ) {
+foreach ( $dd_selcat_cats as $cat ) {
     $prods = wc_get_products( array(
         'category' => array( $cat->slug ),
-        'limit'    => $dd_selcat_count,
+        'limit'    => $dd_selcat_count > 0 ? $dd_selcat_count : -1,
         'status'   => 'publish',
     ) );
     $dd_cat_products[ $cat->slug ] = $prods ? $prods : array();
@@ -542,14 +551,14 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 </section>
 
 <!-- ══ SELECTED CATEGORY ════════════════════════════════════════════════════ -->
-<?php if ( $dd_selcat_show && ! empty( $dd_cats ) ) : ?>
+<?php if ( $dd_selcat_show && ! empty( $dd_selcat_cats ) ) : ?>
 <section class="dd-section" id="category-dishes">
     <div class="dd-container">
         <div class="dd-section__top">
             <div>
                 <div class="dd-section__label"><?php echo esc_html( $dd_selcat_title ); ?></div>
                 <h2 class="dd-section__title dd-serif" id="ddCatTitle">
-                    <?php echo ! empty( $dd_cats ) ? esc_html( $dd_cats[0]->name ) : 'Menu'; ?>
+                    <?php echo ! empty( $dd_selcat_cats ) ? esc_html( reset( $dd_selcat_cats )->name ) : 'Menu'; ?>
                 </h2>
             </div>
             <div class="dd-arrows">
@@ -558,7 +567,7 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
             </div>
         </div>
         <div class="dd-cat-rows-wrap">
-            <?php foreach ( $dd_cats as $i => $cat ) : ?>
+            <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
                 <div class="dd-cat-row dd-scroll-row dd-hide-scrollbar"
                      id="ddCatRow-<?php echo esc_attr( $cat->slug ); ?>"
                      data-slug="<?php echo esc_attr( $cat->slug ); ?>"
@@ -574,9 +583,6 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
                     ?>
                 </div>
             <?php endforeach; ?>
-            <?php if ( empty( $dd_cats ) ) : ?>
-                <p class="dd-empty">Add product categories in WooCommerce to show dishes here.</p>
-            <?php endif; ?>
         </div>
     </div>
 </section>
