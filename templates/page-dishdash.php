@@ -454,12 +454,25 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 <section class="dd-section" id="menu">
     <div class="dd-container">
 
-        <?php if ( $dd_feat_chips ) : ?>
+        <?php
+        $dd_chip_tags = get_option( 'dd_featured_chip_tags', [] );
+        if ( is_string( $dd_chip_tags ) ) $dd_chip_tags = array_filter( explode( ',', $dd_chip_tags ) );
+        if ( $dd_feat_chips && ! empty( $dd_chip_tags ) ) :
+        ?>
         <div class="dd-chips">
             <button class="dd-chip active" data-filter="">All</button>
-            <button class="dd-chip" data-filter="featured">Featured</button>
-            <button class="dd-chip" data-filter="veg">Veg</button>
-            <button class="dd-chip" data-filter="popular">Popular</button>
+            <?php foreach ( $dd_chip_tags as $chip_slug ) :
+                $chip_term = get_term_by( 'slug', $chip_slug, 'product_tag' );
+                if ( ! $chip_term ) continue;
+            ?>
+            <button class="dd-chip" data-filter="<?php echo esc_attr( $chip_slug ); ?>">
+                <?php echo esc_html( $chip_term->name ); ?>
+            </button>
+            <?php endforeach; ?>
+        </div>
+        <?php elseif ( $dd_feat_chips ) : ?>
+        <div class="dd-chips">
+            <button class="dd-chip active" data-filter="">All</button>
         </div>
         <?php endif; ?>
 
