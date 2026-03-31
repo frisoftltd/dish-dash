@@ -635,6 +635,7 @@
                 $all('.dd-selcat__tab').forEach(function(t) { t.classList.remove('active'); });
                 tab.classList.add('active');
                 switchCategory( tab.dataset.slug, tab.dataset.name );
+                setupArrows( 'ddSelCatPrev', 'ddSelCatNext', 'ddCatRow-' + tab.dataset.slug );
 
                 // On mobile: scroll to products after switching
                 if ( window.innerWidth <= 860 ) {
@@ -658,6 +659,12 @@
 
         // Category scroll arrows
         setupArrows('ddCatPrev', 'ddCatNext', 'ddCatScrollRow');
+
+        // Selected category product scroll arrows (mobile)
+        var activeSelCatRow = document.querySelector('.dd-cat-row:not([hidden])');
+        if ( activeSelCatRow ) {
+            setupArrows( 'ddSelCatPrev', 'ddSelCatNext', activeSelCatRow.id );
+        }
 
         // Desktop grid + load more
         setupDesktopGrid();
