@@ -620,12 +620,21 @@
         const firstRow = document.querySelector('.dd-cat-row:not([hidden])');
         if (firstRow) bindAddBtns(firstRow);
 
-        // Category card clicks
+        // Category card clicks (browse by category circles)
         $all('.dd-cat-card').forEach((card) => {
             card.addEventListener('click', () => {
                 $all('.dd-cat-card').forEach((c) => c.classList.remove('active'));
                 card.classList.add('active');
                 switchCategory(card.dataset.slug, card.dataset.name);
+            });
+        });
+
+        // Selected category TAB clicks
+        $all('.dd-selcat__tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                $all('.dd-selcat__tab').forEach(function(t) { t.classList.remove('active'); });
+                tab.classList.add('active');
+                switchCategory( tab.dataset.slug, tab.dataset.name );
             });
         });
 
