@@ -990,6 +990,19 @@ body.dd-page .ast-header-woo-cart {
 /* Hide old sel arrows — tabs replace them */
 #ddSelPrev, #ddSelNext { display: none !important; }
 
+/* Product scroll arrows below tabs */
+.dd-selcat__scroll-hint {
+    display: none; /* hidden on desktop */
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 860px) {
+    .dd-selcat__scroll-hint {
+        display: flex;
+    }
+}
+
 .dd-cat-rows-wrap {
     min-width: 0;
     width: 100%;
