@@ -623,39 +623,8 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
                 <h2 class="dd-section__title dd-serif"><?php echo esc_html( $dd_reviews_title ); ?></h2>
             </div>
         </div>
-        <div class="dd-reviews">
-            <?php
-            $manual_reviews = json_decode( get_option( 'dd_reviews_manual', '[]' ), true );
-            if ( ! empty( $manual_reviews ) && is_array( $manual_reviews ) ) {
-                $count = (int) get_option( 'dd_reviews_count', 3 );
-                $shown = array_slice( array_filter( $manual_reviews ), 0, $count );
-                foreach ( $shown as $review_text ) :
-            ?>
-                <div class="dd-review-card">
-                    <div class="dd-review-card__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                    <p><?php echo esc_html( $review_text ); ?></p>
-                </div>
-            <?php
-                endforeach;
-            } else {
-                // Default fallback reviews
-                $dd_reviews = array(
-                    array( 'text' => 'The menu feels elegant and very easy to browse. Ordering was fast and smooth.',         'author' => 'Amina K.' ),
-                    array( 'text' => 'The categories make it simple to find dishes without feeling overwhelmed by choice.',   'author' => 'David M.' ),
-                    array( 'text' => 'Beautiful visuals, premium feel, and the checkout is clear and easy to trust.',         'author' => 'Priya S.' ),
-                );
-                foreach ( $dd_reviews as $r ) :
-            ?>
-                <div class="dd-review-card">
-                    <div class="dd-review-card__stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                    <p><?php echo esc_html( $r['text'] ); ?></p>
-                    <div class="dd-review-card__author"><?php echo esc_html( $r['author'] ); ?></div>
-                </div>
-            <?php
-                endforeach;
-            }
-            ?>
-        </div>
+        <!-- Reviews are rendered by loadReviews() in frontend.js -->
+        <div class="dd-reviews" id="ddReviewsGrid"></div>
     </div>
 </section>
 <?php endif; ?>
