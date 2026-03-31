@@ -133,6 +133,15 @@ class DD_Homepage_Module extends DD_Module {
             update_option( 'dd_reviews_manual', json_encode( array_values( $reviews ) ) );
         }
 
+        // Handle filter chip tags (array of slugs)
+        if ( isset( $_POST['dd_featured_chip_tags'] ) ) {
+            $chip_tags = array_map( 'sanitize_text_field', (array) $_POST['dd_featured_chip_tags'] );
+            $chip_tags = array_slice( $chip_tags, 0, 8 ); // max 8
+            update_option( 'dd_featured_chip_tags', $chip_tags );
+        } else {
+            update_option( 'dd_featured_chip_tags', [] );
+        }
+
         wp_redirect( add_query_arg( [
             'page'  => 'dish-dash-homepage',
             'saved' => '1',
@@ -452,7 +461,7 @@ class DD_Homepage_Module extends DD_Module {
                             </div>
                             <div class="dd-hp-grid-2" style="margin-top:16px;">
                                 <div class="dd-hp-field">
-                                    <label><?php esc_html_e( 'Filter by Tag', 'dish-dash' ); ?></label>
+                                    <label><?php esc_html_e( 'Filter by Tag (default products to fetch)', 'dish-dash' ); ?></label>
                                     <select name="dd_featured_tag" class="dd-hp-select">
                                         <option value=""><?php esc_html_e( 'All Products', 'dish-dash' ); ?></option>
                                         <?php foreach ( $product_tags as $tag ) : ?>
@@ -465,12 +474,41 @@ class DD_Homepage_Module extends DD_Module {
                                 <div class="dd-hp-field">
                                     <label class="dd-hp-toggle">
                                         <input type="checkbox" name="dd_featured_show_chips" value="1" <?php $this->checked( 'dd_featured_show_chips' ); ?>>
-                                        <span><?php esc_html_e( 'Show filter chips (All / Featured / Veg / Popular)', 'dish-dash' ); ?></span>
+                                        <span><?php esc_html_e( 'Show filter chips', 'dish-dash' ); ?></span>
                                     </label>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+
+                            <!-- Dynamic Filter Chips from Product Tags -->
+                            <?php
+                            $saved_chip_tags = get_option( 'dd_featured_chip_tags', [] );
+                            if ( is_string( $saved_chip_tags ) ) {
+                                $saved_chip_tags = array_filter( explode( ',', $saved_chip_tags ) );
+                            }
+                            ?>
+                            <div class="dd-hp-subsection" id="dd_chips_tags_wrap">
+                                <h3>🏷️ <?php esc_html_e( 'Filter Chip Tags (max 8)', 'dish-dash' ); ?></h3>
+                                <p class="dd-hp-hint" style="margin-bottom:12px;">"All" is always the first chip. Select up to 8 product tags to show as filter chips. Each chip filters products by that tag.</p>
+                                <?php if ( empty( $product_tags ) ) : ?>
+                                    <p class="dd-hp-note">No product tags found. <a href="<?php echo admin_url('edit-tags.php?taxonomy=product_tag&post_type=product'); ?>">Add tags to your products</a> first.</p>
+                                <?php else : ?>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;flex-wrap:wrap;">
+                                    <?php foreach ( $product_tags as $tag ) : ?>
+                                    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px solid #e0e0e0;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;background:#fafafa;transition:all 0.2s;"
+                                           class="dd-tag-chip-label <?php echo in_array( $tag->slug, (array) $saved_chip_tags ) ? 'dd-tag-selected' : ''; ?>">
+                                        <input type="checkbox"
+                                               name="dd_featured_chip_tags[]"
+                                               value="<?php echo esc_attr( $tag->slug ); ?>"
+                                               data-name="<?php echo esc_attr( $tag->name ); ?>"
+                                               <?php checked( in_array( $tag->slug, (array) $saved_chip_tags ), true ); ?>
+                                               style="accent-color:#6B1D1D;width:16px;height:16px;">
+                                        <?php echo esc_html( $tag->name ); ?>
+                                        <span style="margin-left:auto;color:#bbb;font-size:11px;"><?php echo $tag->count; ?></span>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php endif; ?>
+                            </div>
 
                     <!-- ═══ 5. SELECTED CATEGORY ═════════════════════════ -->
                     <div class="dd-hp-section">
@@ -683,6 +721,17 @@ class DD_Homepage_Module extends DD_Module {
         .dd-hp-note a { color: #6B1D1D; }
         .dd-hp-save-bar { margin-top: 20px; padding: 16px 20px; background: #fff; border: 1px solid #e0e0e0; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; }
         .dd-hp-save-bar span { color: #666; font-size: 13px; }
+        .dd-tag-chip-label:hover {
+            border-color: #6B1D1D !important;
+            background: #fff5f5 !important;
+        }
+        .dd-tag-chip-label.dd-tag-selected,
+        .dd-tag-chip-label:has(input:checked) {
+            border-color: #6B1D1D !important;
+            background: #fff5f5 !important;
+            color: #6B1D1D !important;
+            font-weight: 700 !important;
+        }
         @media (max-width: 782px) {
             .dd-hp-grid-2, .dd-hp-grid-3 { grid-template-columns: 1fr; }
         }
