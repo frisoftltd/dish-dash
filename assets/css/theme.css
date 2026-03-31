@@ -1486,6 +1486,72 @@ body.dd-page .ast-header-woo-cart {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   DESKTOP GRID — Featured & Category (> 860px)
+   Mobile keeps horizontal scroll row (unchanged)
+───────────────────────────────────────────────────────────── */
+@media (min-width: 861px) {
+    /* Featured dishes — desktop grid */
+    #ddFeatRow {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 20px !important;
+        overflow: visible !important;
+        flex-wrap: unset !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* Category rows — desktop grid */
+    .dd-cat-row:not([hidden]) {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 20px !important;
+        overflow: visible !important;
+        flex-wrap: unset !important;
+        padding-bottom: 0 !important;
+    }
+
+    /* Cards fill grid cell on desktop */
+    #ddFeatRow .dd-dish-card,
+    .dd-cat-row .dd-dish-card {
+        min-width: unset !important;
+        max-width: unset !important;
+        width: 100% !important;
+    }
+
+    /* Hide cards beyond first page */
+    .dd-card-hidden {
+        display: none !important;
+    }
+
+    /* Load More button */
+    .dd-load-more-btn {
+        display: block;
+        margin: 28px auto 0;
+        padding: 14px 32px;
+        background: transparent;
+        border: 2px solid var(--brand);
+        border-radius: 999px;
+        color: var(--brand);
+        font-size: 15px;
+        font-weight: 700;
+        font-family: 'Inter', system-ui, sans-serif;
+        cursor: pointer;
+        transition: background 0.2s, color 0.2s, transform 0.2s;
+    }
+    .dd-load-more-btn:hover {
+        background: var(--brand);
+        color: #ffffff;
+        transform: translateY(-2px);
+    }
+
+    /* Hide arrows on desktop for featured and category (not needed with grid) */
+    #ddFeatPrev, #ddFeatNext,
+    #ddSelPrev, #ddSelNext {
+        display: none;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────────
    RESPONSIVE — TABLET (≤ 1100px)
 ───────────────────────────────────────────────────────────── */
 @media (max-width: 1100px) {
