@@ -1525,23 +1525,40 @@ body.dd-page .ast-header-woo-cart {
 
     /* Load More button */
     .dd-load-more-btn {
-        display: block;
-        margin: 28px auto 0;
-        padding: 14px 32px;
-        background: transparent;
-        border: 2px solid var(--brand);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin: 36px auto 0;
+        padding: 16px 48px;
+        background: var(--brand);
+        border: none;
         border-radius: 999px;
-        color: var(--brand);
+        color: #ffffff;
         font-size: 15px;
         font-weight: 700;
         font-family: 'Inter', system-ui, sans-serif;
         cursor: pointer;
-        transition: background 0.2s, color 0.2s, transform 0.2s;
+        box-shadow: 0 8px 24px rgba(107,29,29,0.35);
+        transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+        letter-spacing: 0.02em;
     }
     .dd-load-more-btn:hover {
-        background: var(--brand);
-        color: #ffffff;
+        background: #8B2020;
         transform: translateY(-2px);
+        box-shadow: 0 12px 32px rgba(107,29,29,0.45);
+    }
+    .dd-load-more-btn:active {
+        transform: translateY(0);
+    }
+    .dd-load-more-icon {
+        font-size: 18px;
+        line-height: 1;
+        display: inline-block;
+        transition: transform 0.2s;
+    }
+    .dd-load-more-btn:hover .dd-load-more-icon {
+        transform: translateY(3px);
     }
 
     /* Hide arrows on desktop for featured and category (not needed with grid) */
