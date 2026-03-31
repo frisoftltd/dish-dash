@@ -152,8 +152,10 @@ class DD_Homepage_Module extends DD_Module {
         checked( $val, '1' );
     }
 
-    private function select( string $key, string $value ): string {
-        return selected( $this->get( $key ), $value, false );
+    private function select( string $key, $value, $default = '' ): void {
+        // Cast both to string for reliable comparison
+        $saved = (string) get_option( $key, $default );
+        selected( $saved, (string) $value );
     }
 
     private function field( string $key, string $type = 'text', string $placeholder = '', $default = '' ): void {
@@ -400,7 +402,7 @@ class DD_Homepage_Module extends DD_Module {
                                     <label><?php esc_html_e( 'Max Categories to Show', 'dish-dash' ); ?></label>
                                     <select name="dd_categories_count" class="dd-hp-select">
                                         <?php foreach ( [ 4, 6, 8, 10, 0 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_categories_count', $n ); ?>>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_categories_count', $n, 0 ); ?>>
                                                 <?php echo $n === 0 ? esc_html__( 'Show All', 'dish-dash' ) : $n; ?>
                                             </option>
                                         <?php endforeach; ?>
@@ -433,7 +435,7 @@ class DD_Homepage_Module extends DD_Module {
                                     <label><?php esc_html_e( 'Number of Products', 'dish-dash' ); ?></label>
                                     <select name="dd_featured_count" class="dd-hp-select">
                                         <?php foreach ( [ 4, 6, 8, 12 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php selected( $this->get( 'dd_featured_count', 8 ), $n ); ?>><?php echo $n; ?></option>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_featured_count', $n, 8 ); ?>><?php echo $n; ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
@@ -492,7 +494,7 @@ class DD_Homepage_Module extends DD_Module {
                                     <label><?php esc_html_e( 'Products per Category', 'dish-dash' ); ?></label>
                                     <select name="dd_selcat_count" class="dd-hp-select">
                                         <?php foreach ( [ 4, 6, 8, 12 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php selected( $this->get( 'dd_selcat_count', 8 ), $n ); ?>><?php echo $n; ?></option>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_selcat_count', $n, 8 ); ?>><?php echo $n; ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
@@ -566,7 +568,7 @@ class DD_Homepage_Module extends DD_Module {
                                     <label><?php esc_html_e( 'Number of Reviews to Show', 'dish-dash' ); ?></label>
                                     <select name="dd_reviews_count" class="dd-hp-select">
                                         <?php foreach ( [ 3, 4, 5, 6 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php selected( $this->get( 'dd_reviews_count', 3 ), $n ); ?>><?php echo $n; ?></option>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_reviews_count', $n, 3 ); ?>><?php echo $n; ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
@@ -574,7 +576,7 @@ class DD_Homepage_Module extends DD_Module {
                                     <label><?php esc_html_e( 'Minimum Star Rating', 'dish-dash' ); ?></label>
                                     <select name="dd_reviews_min_rating" class="dd-hp-select">
                                         <?php foreach ( [ 3, 4, 5 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php selected( $this->get( 'dd_reviews_min_rating', 4 ), $n ); ?>><?php echo $n; ?>+ ⭐</option>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_reviews_min_rating', $n, 4 ); ?>><?php echo $n; ?>+ ⭐</option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
