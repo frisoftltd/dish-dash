@@ -443,8 +443,10 @@ class DD_Homepage_Module extends DD_Module {
                                 <div class="dd-hp-field">
                                     <label><?php esc_html_e( 'Number of Products', 'dish-dash' ); ?></label>
                                     <select name="dd_featured_count" class="dd-hp-select">
-                                        <?php foreach ( [ 4, 6, 8, 12 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_featured_count', $n, 8 ); ?>><?php echo $n; ?></option>
+                                        <?php foreach ( [ 4, 6, 8, 12, 0 ] as $n ) : ?>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_featured_count', $n, 8 ); ?>>
+                                                <?php echo $n === 0 ? esc_html__( 'All Products', 'dish-dash' ) : $n; ?>
+                                            </option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
