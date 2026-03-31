@@ -928,6 +928,50 @@ body.dd-page .ast-header-woo-cart {
     align-items: start;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   SELECTED CATEGORY SECTION
+───────────────────────────────────────────────────────────── */
+.dd-selcat__heading {
+    margin-bottom: 24px;
+}
+.dd-selcat__title {
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    margin-top: 8px;
+    color: var(--dd-text);
+}
+.dd-selcat__tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+    padding-bottom: 0;
+}
+.dd-selcat__tab {
+    padding: 10px 20px;
+    border-radius: 999px;
+    border: 1.5px solid var(--dd-line);
+    background: var(--dd-surface);
+    color: var(--dd-muted);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Inter', system-ui, sans-serif;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.dd-selcat__tab:hover {
+    border-color: var(--brand);
+    color: var(--brand);
+    background: rgba(107,29,29,0.05);
+}
+.dd-selcat__tab.active {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(107,29,29,0.3);
+}
+
 .dd-cat-rows-wrap {
     min-width: 0;
     width: 100%;
