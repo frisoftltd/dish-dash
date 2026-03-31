@@ -404,6 +404,68 @@
         });
     }
     /* ══════════════════════════════════════════════════════════
+       DESKTOP GRID + LOAD MORE
+       Mobile: horizontal scroll row (unchanged)
+       Desktop (>860px): 4×2 grid with Load More button
+    ══════════════════════════════════════════════════════════ */
+    function setupDesktopGrid() {
+        // Only apply on desktop
+        if ( window.innerWidth <= 860 ) return;
+
+        var PER_PAGE = 8;
+
+        // Apply to featured row
+        var featRow = $('ddFeatRow');
+        if ( featRow ) {
+            applyGridLoadMore( featRow, 'ddFeatLoadMore', PER_PAGE );
+        }
+
+        // Apply to all category rows
+        $all('.dd-cat-row').forEach(function(row) {
+            var rowId = row.id + 'LoadMore';
+            applyGridLoadMore( row, rowId, PER_PAGE );
+        });
+    }
+
+    function applyGridLoadMore( row, btnId, perPage ) {
+        var cards = Array.from( row.querySelectorAll('.dd-dish-card') );
+        if ( cards.length <= perPage ) return; // No need if all fit
+
+        // Hide cards beyond first page
+        var visible = perPage;
+        cards.forEach(function(card, i) {
+            if ( i >= visible ) {
+                card.classList.add('dd-card-hidden');
+            }
+        });
+
+        // Create Load More button
+        var btn = document.createElement('button');
+        btn.id        = btnId;
+        btn.className = 'dd-load-more-btn';
+        btn.textContent = 'Load More (' + ( cards.length - visible ) + ' more dishes)';
+
+        // Insert after the row
+        row.parentNode.insertBefore( btn, row.nextSibling );
+
+        btn.addEventListener('click', function() {
+            var hidden = Array.from( row.querySelectorAll('.dd-dish-card.dd-card-hidden') );
+            var toShow = hidden.slice(0, perPage);
+
+            toShow.forEach(function(card) {
+                card.classList.remove('dd-card-hidden');
+            });
+
+            var stillHidden = row.querySelectorAll('.dd-dish-card.dd-card-hidden').length;
+            if ( stillHidden === 0 ) {
+                btn.remove();
+            } else {
+                btn.textContent = 'Load More (' + stillHidden + ' more dishes)';
+            }
+        });
+    }
+
+    /* ══════════════════════════════════════════════════════════
        STICKY HEADER SCROLL BEHAVIOR
     ══════════════════════════════════════════════════════════ */
     function setupStickyHeader() {
@@ -544,6 +606,9 @@
 
         // Category scroll arrows
         setupArrows('ddCatPrev', 'ddCatNext', 'ddCatScrollRow');
+
+        // Desktop grid + load more
+        setupDesktopGrid();
 
         // Other setups
         setupSearch();
