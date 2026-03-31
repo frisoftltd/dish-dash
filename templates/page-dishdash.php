@@ -235,7 +235,6 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             <div class="dd-dish-card__media">
                 <img src="<?php echo esc_url( $img_url ); ?>"
                      alt="<?php echo esc_attr( $product->get_name() ); ?>" loading="lazy">
-                <span class="dd-dish-card__tag"><?php echo esc_html( $tag ); ?></span>
             </div>
             <div class="dd-dish-card__body">
                 <h3 class="dd-dish-card__title dd-serif"><?php echo esc_html( $product->get_name() ); ?></h3>
