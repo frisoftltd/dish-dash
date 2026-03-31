@@ -1138,54 +1138,75 @@ body.dd-page .ast-header-woo-cart {
 ───────────────────────────────────────────────────────────── */
 .dd-reserve {
     margin-top: 72px;
-    padding: 72px 0;
-    background: var(--dd-surface);
-    border-top: 1px solid #E8DCCD;
-    border-bottom: 1px solid #E8DCCD;
+    padding: 80px 0;
+    position: relative;
+    overflow: hidden;
+    background: #1A0A0A;
 }
 
-/* Reserve section label — make it a pill badge */
+/* Background image */
+.dd-reserve::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=1920&q=60');
+    background-size: cover;
+    background-position: center;
+    opacity: 1;
+    z-index: 0;
+}
+
+/* Dark overlay */
+.dd-reserve::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(107,29,29,0.88) 0%, rgba(26,10,10,0.82) 100%);
+    z-index: 1;
+}
+
+/* Content above overlay */
+.dd-reserve .dd-container {
+    position: relative;
+    z-index: 2;
+}
+
+/* Reserve section label override for dark bg */
 .dd-reserve .dd-section__label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--brand);
-    color: #ffffff;
-    padding: 8px 18px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-}
-
-.dd-reserve .dd-section__label::before {
-    content: '🍽️';
-    font-size: 14px;
+    color: rgba(201,162,74,0.9);
 }
 
 .dd-reserve__grid {
     display: grid;
     grid-template-columns: 1.1fr 0.9fr;
     gap: 40px;
-    align-items: start;
+    align-items: center;
+}
+
+/* Left copy text on dark bg */
+.dd-reserve__title {
+    font-size: clamp(1.8rem, 3vw, 2.8rem);
+    color: #F7F0E8;
+    line-height: 1.15;
+    margin: 12px 0 0;
+    font-family: 'Cormorant Garamond', serif;
 }
 
 .dd-reserve__copy {
-    font-size: 17px;
-    color: var(--dd-muted);
+    font-size: 16px;
+    color: rgba(241,231,219,0.8);
     line-height: 1.8;
     margin-top: 16px;
     max-width: 500px;
 }
 
+/* Card on dark bg */
 .dd-reserve__card {
-    background: var(--dd-white);
-    border: 1px solid #E7DBCB;
-    border-radius: 32px;
+    background: rgba(255,255,255,0.97);
+    border: none;
+    border-radius: 24px;
     padding: 28px;
-    box-shadow: var(--dd-shadow-sm);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.3);
     width: 100%;
     box-sizing: border-box;
 }
