@@ -562,15 +562,25 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 <?php if ( $dd_selcat_show && ! empty( $dd_selcat_cats ) ) : ?>
 <section class="dd-section" id="category-dishes">
     <div class="dd-container">
-        <div class="dd-section__top">
-            <div>
-                <div class="dd-section__label"><?php echo esc_html( $dd_selcat_title ); ?></div>
-            </div>
-            <div class="dd-arrows">
-                <button class="dd-arrow-btn" id="ddSelPrev">&#8592;</button>
-                <button class="dd-arrow-btn" id="ddSelNext">&#8594;</button>
-            </div>
+
+        <!-- Section heading -->
+        <div class="dd-selcat__heading">
+            <span class="dd-section__label"><?php echo esc_html( $dd_selcat_title ); ?></span>
+            <h2 class="dd-section__title dd-serif dd-selcat__title">Find Your <span class="dd-gold">Favorite</span> Dish</h2>
         </div>
+
+        <!-- Category tab pills -->
+        <div class="dd-selcat__tabs dd-scroll-row dd-hide-scrollbar" id="ddSelCatTabs">
+            <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
+            <button class="dd-selcat__tab <?php echo $i === 0 ? 'active' : ''; ?>"
+                    data-slug="<?php echo esc_attr( $cat->slug ); ?>"
+                    data-name="<?php echo esc_attr( $cat->name ); ?>">
+                <?php echo esc_html( $cat->name ); ?>
+            </button>
+            <?php endforeach; ?>
+        </div>
+
+        <!-- Products rows per category -->
         <div class="dd-cat-rows-wrap">
             <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
                 <div class="dd-cat-row dd-scroll-row dd-hide-scrollbar"
@@ -589,6 +599,7 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
                 </div>
             <?php endforeach; ?>
         </div>
+
     </div>
 </section>
 <?php endif; ?>
