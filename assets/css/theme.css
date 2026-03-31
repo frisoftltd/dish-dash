@@ -995,6 +995,7 @@ body.dd-page .ast-header-woo-cart {
     display: none; /* hidden on desktop */
     gap: 10px;
     margin-bottom: 16px;
+    justify-content: flex-end;
 }
 
 @media (max-width: 860px) {
