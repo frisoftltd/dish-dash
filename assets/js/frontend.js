@@ -443,7 +443,7 @@
         var btn = document.createElement('button');
         btn.id        = btnId;
         btn.className = 'dd-load-more-btn';
-        btn.textContent = 'Load More (' + ( cards.length - visible ) + ' more dishes)';
+        btn.innerHTML = 'Load More <span class="dd-load-more-icon">↓</span>';
 
         // Insert after the row
         row.parentNode.insertBefore( btn, row.nextSibling );
@@ -460,7 +460,7 @@
             if ( stillHidden === 0 ) {
                 btn.remove();
             } else {
-                btn.textContent = 'Load More (' + stillHidden + ' more dishes)';
+                btn.innerHTML = 'Load More <span class="dd-load-more-icon">↓</span>';
             }
         });
     }
