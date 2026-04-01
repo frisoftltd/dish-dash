@@ -33,6 +33,9 @@ class DD_Template_Module extends DD_Module {
         add_action( 'wp_body_open', [ $this, 'inject_global_header' ] );
         add_action( 'wp_head',      [ $this, 'inject_global_header_styles' ] );
 
+        // ── Inject global footer on all DD pages ──
+        add_action( 'wp_footer', [ $this, 'inject_global_footer' ] );
+
         // ── Remove theme header on global header pages (runs early) ──
         add_action( 'init', [ $this, 'remove_theme_header_hooks' ] );
     }
@@ -395,22 +398,8 @@ class DD_Template_Module extends DD_Module {
     private function is_global_header_page(): bool {
         if ( is_admin() ) return false;
 
-        // Never on DishDash full page template — it has its own header
-        if ( is_page() ) {
-            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
-            if ( 'page-dishdash.php' === $meta ) return false;
-        }
-
-        // Check page slugs
-        if ( is_page( $this->get_global_header_slugs() ) ) return true;
-
-        // Also show on WooCommerce pages
-        if ( function_exists( 'is_cart' ) && is_cart() ) return true;
-        if ( function_exists( 'is_checkout' ) && is_checkout() ) return true;
-        if ( function_exists( 'is_account_page' ) && is_account_page() ) return true;
-        if ( function_exists( 'is_shop' ) && is_shop() ) return true;
-
-        return false;
+        // Show on ALL frontend pages — including the DishDash homepage template
+        return true;
     }
 
     /**
@@ -481,6 +470,14 @@ class DD_Template_Module extends DD_Module {
             padding: 0 !important;
         }
 
+        /* Hide Astra footer — replaced by our global footer */
+        body.dd-hide-theme-header .site-footer,
+        body.dd-hide-theme-header #colophon,
+        body.dd-hide-theme-header .ast-site-footer,
+        body.dd-hide-theme-header footer:not(.dd-footer) {
+            display: none !important;
+        }
+
         /* ── Our CSS variables ──────────────────────────────── */
         :root {
             --brand:        <?php echo esc_attr( $primary ); ?>;
@@ -539,10 +536,30 @@ class DD_Template_Module extends DD_Module {
         $dd_initials   = strtoupper( substr( $dd_name, 0, 2 ) );
         $dd_cart_count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
         $home_url      = home_url( '/' );
-        ?>
-        <header class="dd-header dd-global-header" style="position:sticky;top:0;z-index:1000;">
-            <div class="dd-container dd-header__inner">
+        $orders_url    = function_exists( 'wc_get_account_url' )
+            ? wc_get_account_url( 'orders' )
+            : home_url( '/my-account/orders/' );
 
+        $nav_html = wp_nav_menu( array(
+            'theme_location' => 'dd-primary',
+            'container'      => false,
+            'items_wrap'     => '%3$s',
+            'fallback_cb'    => false,
+            'echo'           => false,
+        ) );
+        if ( ! $nav_html ) {
+            $nav_html  = '<a href="' . esc_url( $home_url ) . '">Home</a>';
+            $nav_html .= '<a href="' . esc_url( home_url( '/restaurant-menu/' ) ) . '">Our Menu</a>';
+            $nav_html .= '<a href="' . esc_url( home_url( '/reserve-table/' ) ) . '">Reserve a Table</a>';
+        }
+        ?>
+
+        <!-- Drawer overlay -->
+        <div class="dd-drawer-overlay" id="ddDrawerOverlay"></div>
+
+        <!-- Slide-out nav drawer -->
+        <aside class="dd-nav-drawer" id="ddNavDrawer" aria-label="Navigation">
+            <div class="dd-nav-drawer__header">
                 <a href="<?php echo esc_url( $home_url ); ?>" class="dd-brand">
                     <?php if ( $dd_logo ) : ?>
                         <img src="<?php echo esc_url( $dd_logo ); ?>"
@@ -556,36 +573,63 @@ class DD_Template_Module extends DD_Module {
                         </div>
                     <?php endif; ?>
                 </a>
+                <button class="dd-nav-drawer__close" id="ddDrawerClose" aria-label="Close">&#10005;</button>
+            </div>
+            <nav class="dd-nav-drawer__nav"><?php echo $nav_html; ?></nav>
+            <div class="dd-nav-drawer__footer">
+                <a href="<?php echo esc_url( $orders_url ); ?>"
+                   class="dd-btn dd-btn--light dd-btn--block">&#128666; Track Your Order</a>
+            </div>
+        </aside>
 
-                <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">&#9776;</button>
+        <!-- Sticky header -->
+        <header class="dd-header dd-global-header" id="ddHeader">
+            <div class="dd-container dd-header__inner">
 
-                <nav class="dd-nav" id="ddMainNav">
-                    <?php
-                    $nav_html = wp_nav_menu( array(
-                        'theme_location' => 'dd-primary',
-                        'container'      => false,
-                        'items_wrap'     => '%3$s',
-                        'fallback_cb'    => false,
-                        'echo'           => false,
-                    ) );
-                    if ( $nav_html ) {
-                        echo $nav_html;
-                    } else {
-                        echo '<a href="' . esc_url( $home_url ) . '">Home</a>';
-                        echo '<a href="' . esc_url( $home_url ) . '#menu">Menu</a>';
-                        echo '<a href="' . esc_url( $home_url ) . '#reserve">Reserve</a>';
-                    }
-                    ?>
-                </nav>
+                <!-- Left: hamburger + logo -->
+                <div class="dd-header__left">
+                    <button class="dd-menu-toggle" id="ddMenuToggle" aria-label="Open menu" aria-expanded="false">
+                        <span class="dd-menu-toggle__bar"></span>
+                        <span class="dd-menu-toggle__bar"></span>
+                        <span class="dd-menu-toggle__bar"></span>
+                    </button>
+                    <a href="<?php echo esc_url( $home_url ); ?>" class="dd-brand">
+                        <?php if ( $dd_logo ) : ?>
+                            <img src="<?php echo esc_url( $dd_logo ); ?>"
+                                 alt="<?php echo esc_attr( $dd_name ); ?>"
+                                 class="dd-brand__logo">
+                        <?php else : ?>
+                            <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
+                            <div>
+                                <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
+                                <div class="dd-brand__sub">Restaurant</div>
+                            </div>
+                        <?php endif; ?>
+                    </a>
+                </div>
 
+                <!-- Center: search -->
+                <div class="dd-smart-search dd-header__search" id="ddSmartSearch">
+                    <div class="dd-ss__bar">
+                        <span class="dd-ss__icon">&#128269;</span>
+                        <input type="search"
+                               id="ddSearch"
+                               class="dd-ss__input"
+                               placeholder="Search dishes&hellip;"
+                               autocomplete="off"
+                               aria-label="Search dishes"
+                               aria-expanded="false"
+                               aria-autocomplete="list"
+                               aria-controls="ddSearchDropdown">
+                        <button class="dd-ss__clear" id="ddSearchClear" aria-label="Clear">&#10005;</button>
+                    </div>
+                    <div class="dd-ss__dropdown" id="ddSearchDropdown" role="listbox"></div>
+                </div>
+
+                <!-- Right: actions -->
                 <div class="dd-header__actions">
-                    <?php
-                    $orders_url = function_exists( 'wc_get_account_url' )
-                        ? wc_get_account_url( 'orders' )
-                        : home_url( '/my-account/orders/' );
-                    ?>
                     <a href="<?php echo esc_url( $orders_url ); ?>"
-                       class="dd-btn dd-btn--light dd-btn--sm">Track My Order</a>
+                       class="dd-btn dd-btn--light dd-btn--sm dd-track-btn">Track Order</a>
                     <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                         <span class="dd-cart-top__label">Cart</span>
                         <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
@@ -593,7 +637,35 @@ class DD_Template_Module extends DD_Module {
                 </div>
 
             </div>
+
+            <!-- Mobile search row -->
+            <div class="dd-header__mobile-search">
+                <div class="dd-container">
+                    <div class="dd-ss__bar dd-ss__bar--mobile">
+                        <span class="dd-ss__icon">&#128269;</span>
+                        <input type="search"
+                               id="ddMobileSearch"
+                               class="dd-ss__input"
+                               placeholder="Search dishes..."
+                               autocomplete="off"
+                               aria-label="Search dishes">
+                        <button class="dd-mobile-search-clear" id="ddMobileSearchClear" aria-label="Clear">&#10005;</button>
+                    </div>
+                </div>
+            </div>
+
         </header>
+
+        <!-- JS bridge for global header pages -->
+        <script>
+        window.DD = window.DD || {
+            ajaxUrl:     '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
+            nonce:       '<?php echo esc_js( wp_create_nonce( 'dd_nonce' ) ); ?>',
+            checkoutUrl: '<?php echo esc_url( function_exists("wc_get_checkout_url") ? wc_get_checkout_url() : home_url("/checkout/") ); ?>',
+            deliveryFee: <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
+            cartCount:   <?php echo (int) $dd_cart_count; ?>,
+        };
+        </script>
         <?php
     }
 
@@ -604,6 +676,91 @@ class DD_Template_Module extends DD_Module {
         if ( ! $this->is_global_header_page() ) return;
         $this->render_global_header();
     }
+
+    // ─────────────────────────────────────────
+    //  INJECT GLOBAL FOOTER
+    //  Shown on all DD pages except full template
+    // ─────────────────────────────────────────
+    public function inject_global_footer(): void {
+        if ( ! $this->is_global_header_page() ) return;
+
+        $dd_name    = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $dd_logo    = get_option( 'dish_dash_logo_url', '' );
+        $dd_initials= strtoupper( substr( $dd_name, 0, 2 ) );
+        $dd_addr    = get_option( 'dish_dash_address', '' );
+        $dd_phone   = get_option( 'dish_dash_phone', '' );
+        $dd_email   = get_option( 'dish_dash_contact_email', '' );
+        $dd_hours   = get_option( 'dish_dash_opening_hours', '' );
+        $dd_fb      = get_option( 'dish_dash_facebook', '' );
+        $dd_ig      = get_option( 'dish_dash_instagram', '' );
+        $dd_wa      = get_option( 'dish_dash_whatsapp', '' );
+        $dd_tiktok  = get_option( 'dish_dash_tiktok', '' );
+        $home_url   = home_url( '/' );
+        $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
+        $orders_url = function_exists( 'wc_get_account_url' )
+            ? wc_get_account_url( 'orders' )
+            : home_url( '/my-account/orders/' );
+        ?>
+        <footer class="dd-footer dd-global-footer">
+            <div class="dd-container dd-footer__grid">
+
+                <div class="dd-footer__col-brand">
+                    <div class="dd-footer__brand">
+                        <?php if ( $dd_logo ) : ?>
+                            <img src="<?php echo esc_url( $dd_logo ); ?>" alt="<?php echo esc_attr( $dd_name ); ?>" class="dd-footer__logo">
+                        <?php else : ?>
+                            <div class="dd-footer__brand-badge"><?php echo esc_html( $dd_initials ); ?></div>
+                            <span class="dd-footer__brand-name"><?php echo esc_html( $dd_name ); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <div class="dd-footer__social">
+                        <?php if ( $dd_fb ) : ?><a href="<?php echo esc_url( $dd_fb ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="Facebook"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a><?php endif; ?>
+                        <?php if ( $dd_ig ) : ?><a href="<?php echo esc_url( $dd_ig ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="Instagram"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a><?php endif; ?>
+                        <?php if ( $dd_wa ) : ?><a href="https://wa.me/<?php echo esc_attr( preg_replace('/\D/', '', $dd_wa) ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.522 5.849L0 24l6.335-1.498A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.854 0-3.587-.504-5.078-1.38l-.36-.214-3.762.889.928-3.667-.235-.374A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg></a><?php endif; ?>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="dd-footer__heading">Explore</div>
+                    <ul class="dd-footer__list">
+                        <li><a href="<?php echo esc_url( $home_url ); ?>">Home</a></li>
+                        <li><a href="<?php echo esc_url( home_url('/restaurant-menu/') ); ?>">Our Menu</a></li>
+                        <li><a href="<?php echo esc_url( home_url('/reserve-table/') ); ?>">Reserve Table</a></li>
+                        <li><a href="<?php echo esc_url( $orders_url ); ?>">Track Order</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <div class="dd-footer__heading">Contact</div>
+                    <ul class="dd-footer__list">
+                        <?php if ( $dd_addr )  echo '<li>📍 ' . esc_html( $dd_addr ) . '</li>'; ?>
+                        <?php if ( $dd_phone ) echo '<li><a href="tel:' . esc_attr( preg_replace('/\s/', '', $dd_phone) ) . '">📞 ' . esc_html( $dd_phone ) . '</a></li>'; ?>
+                        <?php if ( $dd_email ) echo '<li><a href="mailto:' . esc_attr( $dd_email ) . '">✉️ ' . esc_html( $dd_email ) . '</a></li>'; ?>
+                    </ul>
+                </div>
+
+                <div>
+                    <div class="dd-footer__heading">Opening Hours</div>
+                    <ul class="dd-footer__list">
+                        <?php if ( ! empty( $hours_lines ) ) : ?>
+                            <?php foreach ( $hours_lines as $line ) echo '<li>⏰ ' . esc_html( $line ) . '</li>'; ?>
+                        <?php else : ?>
+                            <li>Mon – Fri: 10AM – 10PM</li>
+                            <li>Sat – Sun: 9AM – 11PM</li>
+                        <?php endif; ?>
+                    </ul>
+                </div>
+
+            </div>
+            <div class="dd-footer__bottom">
+                <div class="dd-container">
+                    <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?>. Powered by <strong>Dish Dash</strong> by Fri Soft Ltd</p>
+                </div>
+            </div>
+        </footer>
+        <?php
+    }
+
 
     // ─────────────────────────────────────────
     //  REMOVE THEME & PLUGIN CONFLICTS
