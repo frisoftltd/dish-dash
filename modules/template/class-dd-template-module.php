@@ -494,6 +494,17 @@ class DD_Template_Module extends DD_Module {
             display: none !important;
         }
 
+        /* Force footer dark background on all pages */
+        .dd-footer, .dd-global-footer {
+            background: <?php echo esc_attr( $dark ); ?> !important;
+            color: #F1E7DB !important;
+        }
+        .dd-footer__heading { color: #C9A24A !important; }
+        .dd-footer__list a, .dd-footer__list li { color: rgba(241,231,219,0.7) !important; }
+        .dd-footer__list a:hover { color: #F1E7DB !important; }
+        .dd-footer__bottom { background: rgba(0,0,0,0.2) !important; }
+        .dd-footer__brand-name, .dd-footer__copy { color: rgba(241,231,219,0.7) !important; }
+
         /* ── Our CSS variables — set on ALL pages ───────────── */
         :root {
             --brand:        <?php echo esc_attr( $primary ); ?>;
