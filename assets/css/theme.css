@@ -2371,6 +2371,7 @@ body.dd-page .ast-header-woo-cart {
     text-align: left;
     transition: background 0.12s;
     font-family: 'Inter', system-ui, sans-serif;
+    justify-content: space-between;
 }
 .dd-ss__result-card:hover { background: #faf6f2; }
 
@@ -2415,16 +2416,12 @@ body.dd-page .ast-header-woo-cart {
 
 .dd-ss__result-add {
     flex-shrink: 0;
-    width: 36px !important;
-    height: 36px !important;
-    padding: 0 !important;
-    border-radius: 50% !important;
-    font-size: 20px !important;
-    font-weight: 400 !important;
-    line-height: 1 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    padding: 8px 14px !important;
+    border-radius: 999px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    height: auto !important;
 }
 
 /* ─────────────────────────────────────────────────────────────
