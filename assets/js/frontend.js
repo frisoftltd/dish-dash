@@ -763,8 +763,8 @@
             var imgEl   = card.querySelector('img');
             var addBtn  = card.querySelector('.dd-add-btn');
             var id = card.dataset.id || '';
-            if (titleEl && id && !seen[id]) {
-                seen[id] = true;
+            if (titleEl && id && !productsSeen[id]) {
+                productsSeen[id] = true;
                 productNames.push({
                     id:    id,
                     name:  titleEl.textContent.trim(),
@@ -784,8 +784,8 @@
             var imgEl   = card.querySelector('img');
             var addBtn  = card.querySelector('.dd-add-btn');
             var id = card.dataset.id || '';
-            if (titleEl && id && !seen[id]) {
-                seen[id] = true;
+            if (titleEl && id && !productsSeen[id]) {
+                productsSeen[id] = true;
                 productNames.push({
                     id:    id,
                     name:  titleEl.textContent.trim(),
@@ -816,8 +816,8 @@
             .then(function(res) {
                 if (res.success && res.data) {
                     res.data.forEach(function(p) {
-                        if (!seen[p.id]) {
-                            seen[p.id] = true;
+                        if (!productsSeen[p.id]) {
+                            productsSeen[p.id] = true;
                             productNames.push(p);
                         }
                     });
