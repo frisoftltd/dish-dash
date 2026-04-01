@@ -595,11 +595,11 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
 </nav>
 
 <!-- ══ PRODUCT MODAL ══════════════════════════════════════════════════════ -->
-<div class="dd-product-modal-overlay" id="ddProductModalOverlay"></div>
 <div class="dd-product-modal" id="ddProductModal" role="dialog" aria-modal="true" aria-label="Product details">
-    <button class="dd-product-modal__close" id="ddProductModalClose" aria-label="Close">&#10005;</button>
-    <div class="dd-product-modal__body" id="ddProductModalBody">
-        <!-- Filled by JS -->
+    <div class="dd-product-modal__overlay" id="ddProductModalOverlay"></div>
+    <div class="dd-product-modal__wrap">
+        <button class="dd-product-modal__close" id="ddProductModalClose" aria-label="Close" onclick="if(window.ddCloseModal)window.ddCloseModal();return false;">&#10005;</button>
+        <div class="dd-product-modal__content" id="ddProductModalContent"></div>
     </div>
 </div>
 
