@@ -255,9 +255,10 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     color: var(--dd-primary, #6B1D1D);
 }
 .dd-menu-filter-btn.active {
-    background: var(--dd-primary, #6B1D1D);
+    background: transparent;
     border-color: var(--dd-primary, #6B1D1D);
-    color: #fff;
+    color: var(--dd-primary, #6B1D1D);
+    font-weight: 700;
 }
 .dd-menu-filter-count {
     font-size: 11px;
