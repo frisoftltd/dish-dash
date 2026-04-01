@@ -1721,9 +1721,18 @@ body.dd-page .ast-header-woo-cart {
 ───────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
     .dd-mobile-toggle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 44px !important;
+        height: 44px !important;
+        min-width: 44px !important;
+        font-size: 26px !important;
+        background: rgba(107, 29, 29, 0.08) !important;
+        border-radius: 12px !important;
+        padding: 0 !important;
+        color: var(--brand) !important;
+        flex-shrink: 0 !important;
     }
 
     .dd-header {
