@@ -745,7 +745,7 @@ class DD_Template_Module extends DD_Module {
         $orders_url  = function_exists( 'wc_get_account_url' ) ? wc_get_account_url( 'orders' ) : home_url( '/my-account/orders/' );
         $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
         ?>
-        <footer class="dd-footer dd-global-footer">
+        <footer class="dd-footer dd-global-footer" style="background:<?php echo esc_attr($dark); ?> !important;color:#F1E7DB;">
             <div class="dd-container dd-footer__grid">
 
                 <div class="dd-footer__col-brand">
@@ -798,7 +798,7 @@ class DD_Template_Module extends DD_Module {
                 </div>
 
             </div>
-            <div class="dd-footer__bottom">
+            <div class="dd-footer__bottom" style="background:rgba(0,0,0,0.25);color:rgba(241,231,219,0.6);">
                 <div class="dd-container">
                     <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?>. Powered by <strong>Dish Dash</strong> by Fri Soft Ltd</p>
                 </div>
