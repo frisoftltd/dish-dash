@@ -16,8 +16,6 @@ if ( ! function_exists( 'wc_get_products' ) ) {
 }
 
 // ─── Safe WooCommerce URL helpers ─────────────────────────────────────────
-// These exist because wc_get_account_url() was added in WC 2.6 and some
-// installs may have an older version or WC not fully bootstrapped yet.
 if ( ! function_exists( 'dd_account_url' ) ) {
     function dd_account_url( $endpoint = '' ) {
         if ( function_exists( 'wc_get_account_url' ) ) {
@@ -147,11 +145,10 @@ if ( ! is_wp_error( $raw_cats ) && ! empty( $raw_cats ) ) {
     }
 }
 
-// ─── Selected category section — filter by chosen slugs ───────────────────
+// ─── Selected category section ─────────────────────────────────────────────
 $dd_selcat_slugs = get_option( 'dd_selcat_slugs', [] );
 if ( is_string( $dd_selcat_slugs ) ) $dd_selcat_slugs = array_filter( explode( ',', $dd_selcat_slugs ) );
 
-// If specific slugs chosen, filter — reindex with array_values to fix $i !== 0 check
 if ( ! empty( $dd_selcat_slugs ) ) {
     $filtered = [];
     foreach ( $dd_cats as $c ) {
@@ -161,7 +158,7 @@ if ( ! empty( $dd_selcat_slugs ) ) {
     }
     $dd_selcat_cats = $filtered;
 } else {
-    $dd_selcat_cats = array_values( $dd_cats ); // all categories, reindexed
+    $dd_selcat_cats = array_values( $dd_cats );
 }
 
 // ─── Best sellers / Featured ───────────────────────────────────────────────
@@ -193,12 +190,11 @@ $dd_hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) 
 $dd_cart_count  = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
 $dd_initials    = strtoupper( substr( $dd_name, 0, 2 ) );
 
-// Default first category if none set
 if ( ! $dd_selcat_default && ! empty( $dd_cats ) ) {
     $dd_selcat_default = $dd_cats[0]->slug;
 }
 
-// ─── Dish card helper — function_exists prevents fatal redeclaration ────────
+// ─── Dish card helper ──────────────────────────────────────────────────────
 if ( ! function_exists( 'dd_render_dish_card' ) ) {
     function dd_render_dish_card( $product, $tag = '' ) {
         $img_id  = $product->get_image_id();
@@ -217,15 +213,13 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         $id    = $product->get_id();
         $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
-        // Build filter string from tag + featured status + product tags
         $filter_parts = array( strtolower( $tag ) );
         if ( $product->is_featured() ) $filter_parts[] = 'featured';
-        // Use slugs so they match chip data-filter values
         $wc_tags = wp_get_post_terms( $id, 'product_tag', array( 'fields' => 'all' ) );
         if ( ! is_wp_error( $wc_tags ) && ! empty( $wc_tags ) ) {
             foreach ( $wc_tags as $wt ) {
-                $filter_parts[] = $wt->slug;           // slug for chip matching
-                $filter_parts[] = strtolower( $wt->name ); // name as fallback
+                $filter_parts[] = $wt->slug;
+                $filter_parts[] = strtolower( $wt->name );
             }
         }
         $filter_str = implode( ',', array_unique( $filter_parts ) );
@@ -362,7 +356,7 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
                 <?php if ( $dd_chip_4 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_4 ); ?></div><?php endif; ?>
             </div>
             <?php endif; ?>
-        </div><!-- /.dd-hero__content -->
+        </div>
 
         <div class="dd-hero__card">
             <?php
@@ -402,29 +396,29 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
     </div>
 </section>
 
-<!-- ══ QUICK ORDER BAR ═════════════════════════════════════════════════════ -->
-<section class="dd-quick">
+<!-- ══ SMART SEARCH ════════════════════════════════════════════════════════ -->
+<section class="dd-ss-section">
     <div class="dd-container">
-        <div class="dd-quick__card">
-            <div class="dd-panel">
-                <div class="dd-panel__label">Mode</div>
-                <div class="dd-mode-btns">
-                    <button class="dd-mode-btn active" data-mode="delivery">Delivery</button>
-                    <button class="dd-mode-btn" data-mode="pickup">Pickup</button>
+        <div class="dd-smart-search" id="ddSmartSearch">
+            <div class="dd-ss__bar">
+                <span class="dd-ss__icon">&#128269;</span>
+                <input type="search"
+                       id="ddSearch"
+                       class="dd-ss__input"
+                       placeholder="Search dishes, try &lsquo;biryani&rsquo; or &lsquo;chicken&rsquo;&hellip;"
+                       autocomplete="off"
+                       aria-label="Search dishes"
+                       aria-expanded="false"
+                       aria-autocomplete="list"
+                       aria-controls="ddSearchDropdown">
+                <button class="dd-ss__clear" id="ddSearchClear" aria-label="Clear search">&#10005;</button>
+                <div class="dd-ss__divider"></div>
+                <div class="dd-ss__modes">
+                    <button class="dd-ss__mode dd-mode-btn active" data-mode="delivery">Delivery</button>
+                    <button class="dd-ss__mode dd-mode-btn" data-mode="pickup">Pickup</button>
                 </div>
             </div>
-            <div class="dd-panel">
-                <div class="dd-panel__label">Search dishes</div>
-                <div class="dd-search">
-                    <span>&#128269;</span>
-                    <input type="text" id="ddSearch"
-                           placeholder="Search butter chicken, biryani, naan...">
-                    <span class="dd-search__tag">Fast search</span>
-                </div>
-            </div>
-            <a href="<?php echo esc_url( dd_shop_url() ); ?>"
-               class="dd-btn dd-btn--light" target="_blank">View Full Menu</a>
-            <a href="#menu" class="dd-btn dd-btn--gold" id="ddStartOrder">Start Order</a>
+            <div class="dd-ss__dropdown" id="ddSearchDropdown" role="listbox" aria-label="Search suggestions"></div>
         </div>
     </div>
 </section>
@@ -566,13 +560,11 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
 <section class="dd-section" id="category-dishes">
     <div class="dd-container">
 
-        <!-- Section heading -->
         <div class="dd-selcat__heading">
             <span class="dd-section__label"><?php echo esc_html( $dd_selcat_title ); ?></span>
             <h2 class="dd-section__title dd-serif dd-selcat__title">Find Your <span class="dd-gold">Favorite</span> Dish</h2>
         </div>
 
-        <!-- Category tab pills -->
         <div class="dd-selcat__tabs dd-scroll-row dd-hide-scrollbar" id="ddSelCatTabs">
             <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
             <button class="dd-selcat__tab <?php echo $i === 0 ? 'active' : ''; ?>"
@@ -583,13 +575,11 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
             <?php endforeach; ?>
         </div>
 
-        <!-- Product scroll arrows -->
         <div class="dd-selcat__scroll-hint">
             <button class="dd-arrow-btn" id="ddSelCatPrev">&#8592;</button>
             <button class="dd-arrow-btn" id="ddSelCatNext">&#8594;</button>
         </div>
 
-        <!-- Products rows per category -->
         <div class="dd-cat-rows-wrap">
             <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
                 <div class="dd-cat-row dd-scroll-row dd-hide-scrollbar"
@@ -623,7 +613,7 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
                 <h2 class="dd-section__title dd-serif"><?php echo esc_html( $dd_reviews_title ); ?></h2>
             </div>
         </div>
-        <!-- Reviews are rendered by loadReviews() in frontend.js -->
+        <!-- Reviews rendered by loadReviews() in frontend.js -->
         <div class="dd-reviews" id="ddReviewsGrid"></div>
     </div>
 </section>
@@ -633,7 +623,6 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
 <footer class="dd-footer">
     <div class="dd-container dd-footer__grid">
 
-        <!-- Brand column -->
         <div class="dd-footer__col-brand">
             <div class="dd-footer__brand">
                 <?php if ( $dd_logo ) : ?>
@@ -674,7 +663,6 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
             <?php endif; ?>
         </div>
 
-        <!-- Explore -->
         <?php if ( $dd_footer_show_explore ) : ?>
         <div>
             <div class="dd-footer__heading">Explore</div>
@@ -687,7 +675,6 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         </div>
         <?php endif; ?>
 
-        <!-- Contact -->
         <?php if ( $dd_footer_show_contact ) : ?>
         <div>
             <div class="dd-footer__heading">Contact</div>
@@ -699,7 +686,6 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         </div>
         <?php endif; ?>
 
-        <!-- Opening Hours -->
         <?php if ( $dd_footer_show_hours ) : ?>
         <div>
             <div class="dd-footer__heading">Opening Hours</div>
