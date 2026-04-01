@@ -1133,6 +1133,15 @@
         // Show modal
         modal.classList.add('open');
         document.body.style.overflow = 'hidden';
+
+        // Re-bind close button directly — most reliable approach
+        var cb = $('ddProductModalClose');
+        if (cb) {
+            cb.onclick = function(e) {
+                e.stopPropagation();
+                closeProductModal();
+            };
+        }
     }
 
     function closeProductModal() {
@@ -1140,46 +1149,30 @@
         if (modal) modal.classList.remove('open');
         document.body.style.overflow = '';
     }
+    // Expose globally so onclick= in HTML can call it directly
+    window.ddCloseModal = closeProductModal;
 
     function setupProductModal() {
         var modal = $('ddProductModal');
         if (!modal) return;
 
-        // Use event delegation on the modal root — reliable regardless of z-index stacking
+        // Overlay click closes modal
         modal.addEventListener('click', function(e) {
-            // Close button clicked
-            if (e.target.closest('.dd-product-modal__close')) {
-                e.stopPropagation();
+            if (e.target === modal || e.target.id === 'ddProductModalOverlay') {
                 closeProductModal();
-                return;
-            }
-            // Overlay clicked (not the wrap)
-            if (e.target === modal || e.target.classList.contains('dd-product-modal__overlay')) {
-                closeProductModal();
-                return;
             }
         });
 
-        // Prevent clicks inside wrap from bubbling to overlay
-        var wrap = modal.querySelector('.dd-product-modal__wrap');
-        if (wrap) {
-            wrap.addEventListener('click', function(e) {
-                // Only stop if NOT the close button (already handled above)
-                if (!e.target.closest('.dd-product-modal__close')) {
-                    e.stopPropagation();
-                }
-            });
-        }
-
+        // Escape key
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && modal.classList.contains('open')) {
                 closeProductModal();
             }
         });
 
-        // Open modal when dish card image/name is clicked (not Add button)
+        // Open modal when dish card image/name clicked (not Add button)
         document.addEventListener('click', function(e) {
-            if (e.target.closest('.dd-product-modal')) return; // ignore clicks inside modal
+            if (e.target.closest('.dd-product-modal')) return;
             var card = e.target.closest('.dd-dish-card');
             if (!card) return;
             if (e.target.closest('.dd-add-btn')) return;
