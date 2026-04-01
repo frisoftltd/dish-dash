@@ -708,6 +708,9 @@
         // Load Google Reviews
         loadReviews();
 
+        // Product modal
+        setupProductModal();
+
         // Sync cart count from WooCommerce fragments (if available)
         document.body.addEventListener('wc_fragments_refreshed', syncCartFromFragments);
         document.body.addEventListener('wc_cart_button_updated', syncCartFromFragments);
@@ -743,14 +746,22 @@
             return;
         }
 
-        // Extract all product names from DOM for instant suggestions
+        // Extract full product data from DOM for search + modal
         var productNames = [];
         document.querySelectorAll('.dd-dish-card').forEach(function(card) {
-            var title = card.querySelector('.dd-dish-card__title');
-            if (title) {
+            var titleEl = card.querySelector('.dd-dish-card__title');
+            var priceEl = card.querySelector('.dd-price');
+            var descEl  = card.querySelector('.dd-dish-card__desc');
+            var imgEl   = card.querySelector('img');
+            var addBtn  = card.querySelector('.dd-add-btn');
+            if (titleEl) {
                 productNames.push({
-                    name: title.textContent.trim(),
-                    id:   card.dataset.id || ''
+                    id:    card.dataset.id   || '',
+                    name:  titleEl.textContent.trim(),
+                    price: priceEl  ? priceEl.textContent.trim()  : '',
+                    desc:  descEl   ? descEl.textContent.trim()   : '',
+                    img:   imgEl    ? imgEl.src                   : '',
+                    nonce: addBtn   ? (addBtn.dataset.nonce || '') : '',
                 });
             }
         });
@@ -786,70 +797,85 @@
             );
         }
 
-        /* ── Render dropdown ─────────────────────────────── */
+        /* ── Render dropdown with visual product cards ─────── */
         function renderDropdown(recents, query) {
             var html = '';
             var q = (query || '').toLowerCase().trim();
 
-            if (!q && recents.length > 0) {
-                // No query — show recent searches
+            // ── No query: show recent searches only ──────────
+            if (!q) {
+                if (recents.length > 0) {
+                    html += '<div class="dd-ss__dropdown-section">';
+                    html += '<div class="dd-ss__dropdown-label">Recently searched</div>';
+                    recents.forEach(function(s) {
+                        html +=
+                            '<button class="dd-ss__suggestion" data-query="' + escHtml(s) + '">' +
+                            '<span class="dd-ss__sug-icon dd-ss__sug-icon--recent">&#128337;</span>' +
+                            '<span class="dd-ss__sug-text">' + escHtml(s) + '</span>' +
+                            '<button class="dd-ss__sug-remove" data-remove="' + escHtml(s) + '" tabindex="-1">&#10005;</button>' +
+                            '</button>';
+                    });
+                    html += '</div>';
+                }
+                if (!html) { closeDropdown(); return; }
+                dropdown.innerHTML = html;
+                dropdown.classList.add('open');
+                input.setAttribute('aria-expanded', 'true');
+                return;
+            }
+
+            // ── With query: show visual product results ───────
+            var matchRecent = recents.filter(function(s) {
+                return s.toLowerCase().indexOf(q) !== -1;
+            });
+
+            var matchDishes = productNames.filter(function(p) {
+                return p.name.toLowerCase().indexOf(q) !== -1;
+            }).slice(0, 6);
+
+            // Recent search text suggestions
+            if (matchRecent.length > 0) {
                 html += '<div class="dd-ss__dropdown-section">';
-                html += '<div class="dd-ss__dropdown-label">Recently searched</div>';
-                recents.forEach(function(s) {
+                html += '<div class="dd-ss__dropdown-label">Recent</div>';
+                matchRecent.forEach(function(s) {
                     html +=
                         '<button class="dd-ss__suggestion" data-query="' + escHtml(s) + '">' +
                         '<span class="dd-ss__sug-icon dd-ss__sug-icon--recent">&#128337;</span>' +
-                        '<span class="dd-ss__sug-text">' + escHtml(s) + '</span>' +
-                        '<button class="dd-ss__sug-remove" data-remove="' + escHtml(s) + '" tabindex="-1">&#10005;</button>' +
+                        '<span class="dd-ss__sug-text">' + highlight(s, query) + '</span>' +
                         '</button>';
                 });
                 html += '</div>';
             }
 
-            if (q.length >= 1) {
-                // Filter recent searches
-                var matchRecent = recents.filter(function(s) {
-                    return s.toLowerCase().indexOf(q) !== -1;
+            // Visual product cards
+            if (matchDishes.length > 0) {
+                html += '<div class="dd-ss__dropdown-section">';
+                html += '<div class="dd-ss__dropdown-label">Dishes (' + matchDishes.length + ')</div>';
+                html += '<div class="dd-ss__results-grid">';
+                matchDishes.forEach(function(p) {
+                    html +=
+                        '<button class="dd-ss__result-card" data-product-id="' + escHtml(p.id) + '" data-query="' + escHtml(p.name) + '">' +
+                            '<div class="dd-ss__result-img">' +
+                                (p.img ? '<img src="' + escHtml(p.img) + '" alt="' + escHtml(p.name) + '" loading="lazy">' : '<span>&#127869;</span>') +
+                            '</div>' +
+                            '<div class="dd-ss__result-body">' +
+                                '<div class="dd-ss__result-name">' + highlight(p.name, query) + '</div>' +
+                                '<div class="dd-ss__result-price">' + escHtml(p.price) + '</div>' +
+                            '</div>' +
+                            '<button class="dd-ss__result-add dd-btn dd-btn--brand dd-btn--sm dd-add-btn" ' +
+                                'data-id="' + escHtml(p.id) + '" ' +
+                                'data-nonce="' + escHtml(p.nonce) + '" ' +
+                                'aria-label="Add ' + escHtml(p.name) + ' to cart">+</button>' +
+                        '</button>';
                 });
+                html += '</div></div>';
+            }
 
-                // Filter product names
-                var matchDishes = productNames.filter(function(p) {
-                    return p.name.toLowerCase().indexOf(q) !== -1;
-                }).slice(0, 5);
-
-                if (matchRecent.length > 0) {
-                    html += '<div class="dd-ss__dropdown-section">';
-                    html += '<div class="dd-ss__dropdown-label">Recent matches</div>';
-                    matchRecent.forEach(function(s) {
-                        html +=
-                            '<button class="dd-ss__suggestion" data-query="' + escHtml(s) + '">' +
-                            '<span class="dd-ss__sug-icon dd-ss__sug-icon--recent">&#128337;</span>' +
-                            '<span class="dd-ss__sug-text">' + highlight(s, query) + '</span>' +
-                            '</button>';
-                    });
-                    html += '</div>';
-                }
-
-                if (matchDishes.length > 0) {
-                    html += '<div class="dd-ss__dropdown-section">';
-                    html += '<div class="dd-ss__dropdown-label">Dishes</div>';
-                    matchDishes.forEach(function(p) {
-                        html +=
-                            '<button class="dd-ss__suggestion" data-query="' + escHtml(p.name) + '">' +
-                            '<span class="dd-ss__sug-icon dd-ss__sug-icon--dish">&#127869;</span>' +
-                            '<span class="dd-ss__sug-text">' + highlight(p.name, query) + '</span>' +
-                            '</button>';
-                    });
-                    html += '</div>';
-                }
-
-                if (!matchRecent.length && !matchDishes.length) {
-                    html = '<div class="dd-ss__empty">No results for &ldquo;' + escHtml(query) + '&rdquo;</div>';
-                }
+            if (!matchRecent.length && !matchDishes.length) {
+                html = '<div class="dd-ss__empty">No dishes found for &ldquo;' + escHtml(query) + '&rdquo;</div>';
             }
 
             if (!html) { closeDropdown(); return; }
-
             dropdown.innerHTML = html;
             dropdown.classList.add('open');
             input.setAttribute('aria-expanded', 'true');
@@ -903,12 +929,11 @@
 
         /* ── Dropdown interaction ───────────────────────── */
         dropdown.addEventListener('mousedown', function(e) {
-            // prevent input blur before click registers
             e.preventDefault();
         });
 
         dropdown.addEventListener('click', function(e) {
-            // Remove button inside suggestion
+            // Remove recent search
             var removeBtn = e.target.closest('.dd-ss__sug-remove');
             if (removeBtn) {
                 var toRemove = removeBtn.dataset.remove;
@@ -917,7 +942,26 @@
                 return;
             }
 
-            // Suggestion click — fill input + filter + track
+            // Add to cart button on result card — stop propagation so modal doesn't open
+            var addBtn = e.target.closest('.dd-ss__result-add');
+            if (addBtn) {
+                e.stopPropagation();
+                // Already handled by global add-to-cart listener in bindAddBtns
+                return;
+            }
+
+            // Product result card click — open modal
+            var resultCard = e.target.closest('.dd-ss__result-card');
+            if (resultCard) {
+                var pid = resultCard.dataset.productId;
+                if (pid) {
+                    openProductModal(pid);
+                    closeDropdown();
+                }
+                return;
+            }
+
+            // Text suggestion click — fill input + filter + track
             var suggestion = e.target.closest('.dd-ss__suggestion');
             if (suggestion) {
                 var q = suggestion.dataset.query || '';
@@ -925,8 +969,6 @@
                 if (clearBtn) clearBtn.classList.toggle('visible', q.length > 0);
                 filterDishCards(q);
                 closeDropdown();
-
-                // Track via DDTrack (fires dd_track_event which saves to DB)
                 if (window.DDTrack) window.DDTrack.search(q);
             }
         });
@@ -981,6 +1023,151 @@
                 filterDishCards('');
             });
         }
+    }
+
+
+    /* ══════════════════════════════════════════════════════════
+       PRODUCT MODAL
+       Opens when user clicks a product in search results
+       or anywhere else that calls openProductModal(id).
+       Reads product data from DOM — no extra AJAX needed.
+    ══════════════════════════════════════════════════════════ */
+    function openProductModal(productId) {
+        var modal   = $('ddProductModal');
+        var content = $('ddProductModalContent');
+        if (!modal || !content) return;
+
+        // Find the dish card in DOM
+        var card = document.querySelector('.dd-dish-card[data-id="' + productId + '"]');
+        if (!card) return;
+
+        var name    = (card.querySelector('.dd-dish-card__title') || {}).textContent || '';
+        var price   = (card.querySelector('.dd-price')            || {}).textContent || '';
+        var desc    = (card.querySelector('.dd-dish-card__desc')  || {}).textContent || '';
+        var imgEl   = card.querySelector('img');
+        var imgSrc  = imgEl ? imgEl.src : '';
+        var addBtn  = card.querySelector('.dd-add-btn');
+        var nonce   = addBtn ? (addBtn.dataset.nonce || '') : '';
+
+        content.innerHTML =
+            '<div class="dd-pm__img-wrap">' +
+                (imgSrc ? '<img src="' + escHtml(imgSrc) + '" alt="' + escHtml(name) + '">' : '<div class="dd-pm__img-placeholder">&#127869;</div>') +
+            '</div>' +
+            '<div class="dd-pm__body">' +
+                '<h2 class="dd-pm__name dd-serif">' + escHtml(name) + '</h2>' +
+                (desc ? '<p class="dd-pm__desc">' + escHtml(desc) + '</p>' : '') +
+                '<div class="dd-pm__footer">' +
+                    '<span class="dd-pm__price">' + escHtml(price) + '</span>' +
+                    '<div class="dd-pm__qty-wrap">' +
+                        '<button class="dd-pm__qty-btn" id="ddPmMinus" aria-label="Decrease">&#8722;</button>' +
+                        '<span class="dd-pm__qty" id="ddPmQty">1</span>' +
+                        '<button class="dd-pm__qty-btn" id="ddPmPlus" aria-label="Increase">&#43;</button>' +
+                    '</div>' +
+                    '<button class="dd-btn dd-btn--brand dd-pm__add" ' +
+                        'id="ddPmAddBtn" ' +
+                        'data-id="' + escHtml(productId) + '" ' +
+                        'data-nonce="' + escHtml(nonce) + '">' +
+                        'Add to cart' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+
+        // Quantity controls
+        var qty = 1;
+        var qtyEl  = $('ddPmQty');
+        var minBtn = $('ddPmMinus');
+        var plsBtn = $('ddPmPlus');
+        var pmAdd  = $('ddPmAddBtn');
+
+        if (minBtn) {
+            minBtn.addEventListener('click', function() {
+                if (qty > 1) { qty--; if (qtyEl) qtyEl.textContent = qty; }
+            });
+        }
+        if (plsBtn) {
+            plsBtn.addEventListener('click', function() {
+                qty++;
+                if (qtyEl) qtyEl.textContent = qty;
+            });
+        }
+        if (pmAdd) {
+            pmAdd.addEventListener('click', function() {
+                if (!window.DD) return;
+                pmAdd.textContent = 'Adding…';
+                pmAdd.disabled = true;
+
+                var body = new URLSearchParams({
+                    action:     'dd_add_to_cart',
+                    product_id: productId,
+                    quantity:   qty,
+                    nonce:      nonce,
+                });
+
+                fetch(window.DD.ajaxUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: body.toString(),
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res.success) {
+                        var newCount = (res.data && res.data.count !== undefined)
+                            ? res.data.count : cartCount + qty;
+                        updateBadges(newCount);
+                        if (res.data && res.data.items) cartItems = res.data.items;
+                        renderSummary();
+                        renderDrawer();
+                        pmAdd.textContent = '✓ Added!';
+                        setTimeout(function() {
+                            closeProductModal();
+                        }, 900);
+                    } else {
+                        pmAdd.textContent = 'Add to cart';
+                        pmAdd.disabled = false;
+                    }
+                })
+                .catch(function() {
+                    pmAdd.textContent = 'Add to cart';
+                    pmAdd.disabled = false;
+                });
+            });
+        }
+
+        // Show modal
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeProductModal() {
+        var modal = $('ddProductModal');
+        if (modal) modal.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    function setupProductModal() {
+        var modal   = $('ddProductModal');
+        var overlay = $('ddProductModalOverlay');
+        var closeBtn= $('ddProductModalClose');
+        if (!modal) return;
+
+        if (overlay)  overlay.addEventListener('click', closeProductModal);
+        if (closeBtn) closeBtn.addEventListener('click', closeProductModal);
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && modal.classList.contains('open')) {
+                closeProductModal();
+            }
+        });
+
+        // Also open modal when dish card image/name is clicked (not Add button)
+        document.addEventListener('click', function(e) {
+            var card = e.target.closest('.dd-dish-card');
+            if (!card) return;
+            // Don't open if Add to Cart was clicked
+            if (e.target.closest('.dd-add-btn')) return;
+            var pid = card.dataset.id;
+            if (pid) openProductModal(pid);
+        });
     }
 
     /* ══════════════════════════════════════════════════════════
