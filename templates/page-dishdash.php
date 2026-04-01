@@ -225,7 +225,12 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         $filter_str = implode( ',', array_unique( $filter_parts ) );
 
         ob_start(); ?>
-        <article class="dd-dish-card" data-id="<?php echo esc_attr( $id ); ?>" data-filter="<?php echo esc_attr( $filter_str ); ?>">
+        <article class="dd-dish-card"
+                 data-id="<?php echo esc_attr( $id ); ?>"
+                 data-filter="<?php echo esc_attr( $filter_str ); ?>"
+                 data-img="<?php echo esc_attr( $img_url ); ?>"
+                 data-price="<?php echo esc_attr( $price ); ?>"
+                 data-desc="<?php echo esc_attr( $desc ); ?>">
             <div class="dd-dish-card__media">
                 <img src="<?php echo esc_url( $img_url ); ?>"
                      alt="<?php echo esc_attr( $product->get_name() ); ?>" loading="lazy">
@@ -754,6 +759,15 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
     </div>
 </footer>
 
+<!-- ══ PRODUCT MODAL ══════════════════════════════════════════════════════ -->
+<div class="dd-product-modal" id="ddProductModal" role="dialog" aria-modal="true" aria-label="Product details">
+    <div class="dd-product-modal__overlay" id="ddProductModalOverlay"></div>
+    <div class="dd-product-modal__wrap">
+        <button class="dd-product-modal__close" id="ddProductModalClose" aria-label="Close">&#10005;</button>
+        <div class="dd-product-modal__content" id="ddProductModalContent"></div>
+    </div>
+</div>
+
 <!-- ══ CART DRAWER ═════════════════════════════════════════════════════════ -->
 <div class="dd-cart-overlay" id="ddCartOverlay"></div>
 <aside class="dd-cart-drawer" id="ddCartDrawer" aria-label="Shopping cart">
@@ -799,6 +813,15 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         <span class="dd-bottom-badge" id="ddBottomBadge"><?php echo esc_html( $dd_cart_count ); ?></span>
     </button>
 </nav>
+
+<!-- ══ PRODUCT MODAL ══════════════════════════════════════════════════════ -->
+<div class="dd-product-modal-overlay" id="ddProductModalOverlay"></div>
+<div class="dd-product-modal" id="ddProductModal" role="dialog" aria-modal="true" aria-label="Product details">
+    <button class="dd-product-modal__close" id="ddProductModalClose" aria-label="Close">&#10005;</button>
+    <div class="dd-product-modal__body" id="ddProductModalBody">
+        <!-- Filled by JS -->
+    </div>
+</div>
 
 <!-- ══ JS DATA BRIDGE ══════════════════════════════════════════════════════ -->
 <script>
