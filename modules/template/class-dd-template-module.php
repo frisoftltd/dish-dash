@@ -686,12 +686,6 @@ class DD_Template_Module extends DD_Module {
     // ─────────────────────────────────────────
     public function inject_product_modal(): void {
         if ( is_admin() ) return;
-
-        // Skip on DishDash full template — it injects its own
-        if ( is_page() ) {
-            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
-            if ( 'page-dishdash.php' === $meta ) return;
-        }
         ?>
         <div class="dd-product-modal" id="ddProductModal" role="dialog" aria-modal="true" aria-label="Product details">
             <div class="dd-product-modal__overlay" id="ddProductModalOverlay"></div>
