@@ -270,12 +270,13 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 <?php wp_head(); ?>
 </head>
 <body class="dd-page" id="home">
+<?php wp_body_open(); ?>
 
 <?php if ( is_admin_bar_showing() ) : ?>
 <div style="height:32px"></div>
 <?php endif; ?>
 
-<!-- Header injected globally by DD_Template_Module -->
+<!-- Header injected globally by DD_Template_Module via wp_body_open -->
 
 <!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
 <?php
