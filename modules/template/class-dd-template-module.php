@@ -494,7 +494,7 @@ class DD_Template_Module extends DD_Module {
             display: none !important;
         }
 
-        /* ── Our CSS variables ──────────────────────────────── */
+        /* ── Our CSS variables — set on ALL pages ───────────── */
         :root {
             --brand:        <?php echo esc_attr( $primary ); ?>;
             --brand-dark:   <?php echo esc_attr( $dark ); ?>;
@@ -717,12 +717,6 @@ class DD_Template_Module extends DD_Module {
     // ─────────────────────────────────────────
     public function inject_global_footer(): void {
         if ( ! $this->is_global_header_page() ) return;
-
-        // Skip on full page template — has its own footer
-        if ( is_page() ) {
-            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
-            if ( 'page-dishdash.php' === $meta ) return;
-        }
 
         $dd_name     = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
         $dd_logo     = get_option( 'dish_dash_logo_url', '' );
