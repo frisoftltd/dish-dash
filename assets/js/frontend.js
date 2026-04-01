@@ -13,6 +13,11 @@
     /* ══════════════════════════════════════════════════════════
        STATE
     ══════════════════════════════════════════════════════════ */
+    // Shared product data — populated by setupSmartSearch, used by openProductModal
+    var productNames   = [];
+    var productsLoaded = false;
+    var productsSeen   = {};
+
     let activeSlug    = window.DD ? window.DD.firstCat : '';
     let deliveryFee   = window.DD ? parseInt(window.DD.deliveryFee, 10) : 2000;
     let cartCount     = window.DD ? parseInt(window.DD.cartCount, 10) : 0;
@@ -748,8 +753,7 @@
 
         // Extract full product data from DOM — works on homepage (.dd-dish-card)
         // AND menu page (.dd-menu-item)
-        var productNames = [];
-        var seen = {};
+        // Uses outer-scope productNames/productsSeen so openProductModal can access them
 
         // Homepage dish cards
         document.querySelectorAll('.dd-dish-card').forEach(function(card) {
@@ -795,7 +799,7 @@
 
         var recentSearches  = [];
         var recentLoaded    = false;
-        var productsLoaded  = productNames.length > 0;
+        productsLoaded = productNames.length > 0;
 
         /* ── Fetch products via AJAX if none in DOM ──────── */
         function loadProductsFromServer(callback) {
