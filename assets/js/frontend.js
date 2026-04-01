@@ -933,17 +933,26 @@
             }
         });
 
-        /* ── Sticky behaviour ───────────────────────────── */
-        if (searchEl) {
-            var hero = document.querySelector('.dd-hero');
-            if (hero && window.IntersectionObserver) {
-                var stickyObs = new IntersectionObserver(function(entries) {
-                    entries.forEach(function(entry) {
-                        searchEl.classList.toggle('sticky', !entry.isIntersecting);
-                    });
-                }, { threshold: 0, rootMargin: '-72px 0px 0px 0px' });
-                stickyObs.observe(hero);
-            }
+        /* ── Sync mobile search with desktop search ───────── */
+        var mobileInput = document.getElementById('ddMobileSearch');
+        var mobileClear = document.getElementById('ddMobileSearchClear');
+
+        if (mobileInput) {
+            // Typing in mobile search syncs to main search + filters
+            mobileInput.addEventListener('input', function() {
+                var q = this.value.trim();
+                if (mobileClear) mobileClear.style.display = q ? '' : 'none';
+                filterDishCards(q);
+                // Also track the search
+                if (q.length >= 2 && window.DDTrack) window.DDTrack.search(q);
+            });
+        }
+        if (mobileClear) {
+            mobileClear.addEventListener('click', function() {
+                if (mobileInput) { mobileInput.value = ''; mobileInput.focus(); }
+                this.style.display = 'none';
+                filterDishCards('');
+            });
         }
     }
 
