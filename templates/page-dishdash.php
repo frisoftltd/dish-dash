@@ -271,12 +271,65 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 <?php endif; ?>
 
 <!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+
+<!-- Nav Drawer Overlay -->
+<div class="dd-drawer-overlay" id="ddDrawerOverlay"></div>
+
+<!-- Nav Drawer (slide from left) -->
+<aside class="dd-nav-drawer" id="ddNavDrawer" aria-label="Navigation menu">
+    <div class="dd-nav-drawer__header">
+        <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-brand">
+            <?php if ( $dd_logo ) : ?>
+                <img src="<?php echo esc_url( $dd_logo ); ?>"
+                     alt="<?php echo esc_attr( $dd_name ); ?>"
+                     class="dd-brand__logo">
+            <?php else : ?>
+                <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
+                <div>
+                    <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
+                    <div class="dd-brand__sub">Restaurant</div>
+                </div>
+            <?php endif; ?>
+        </a>
+        <button class="dd-nav-drawer__close" id="ddDrawerClose" aria-label="Close menu">&#10005;</button>
+    </div>
+    <nav class="dd-nav-drawer__nav">
+        <?php
+        $nav_html = wp_nav_menu( array(
+            'theme_location' => 'dd-primary',
+            'container'      => false,
+            'items_wrap'     => '%3$s',
+            'fallback_cb'    => false,
+            'echo'           => false,
+        ) );
+        if ( $nav_html ) {
+            echo $nav_html;
+        } else {
+            echo '<a href="#home">Home</a>';
+            echo '<a href="#menu">Menu</a>';
+            echo '<a href="#reserve">Reserve</a>';
+            echo '<a href="#reviews">Reviews</a>';
+        }
+        ?>
+    </nav>
+    <?php if ( $dd_show_track_order ) : ?>
+    <div class="dd-nav-drawer__footer">
+        <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
+           class="dd-btn dd-btn--light dd-btn--block">&#128666; Track Your Order</a>
+    </div>
+    <?php endif; ?>
+</aside>
+
 <header class="dd-header" id="ddHeader">
     <div class="dd-container dd-header__inner">
 
-        <!-- ── Left: Mobile toggle + Logo ────────────── -->
+        <!-- ── Left: Hamburger + Logo ─────────────────── -->
         <div class="dd-header__left">
-            <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">&#9776;</button>
+            <button class="dd-menu-toggle" id="ddMenuToggle" aria-label="Open menu" aria-expanded="false">
+                <span class="dd-menu-toggle__bar"></span>
+                <span class="dd-menu-toggle__bar"></span>
+                <span class="dd-menu-toggle__bar"></span>
+            </button>
             <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-brand">
                 <?php if ( $dd_logo ) : ?>
                     <img src="<?php echo esc_url( $dd_logo ); ?>"
@@ -292,7 +345,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             </a>
         </div>
 
-        <!-- ── Center: Search bar (desktop) ──────────── -->
+        <!-- ── Center: Search bar ─────────────────────── -->
         <div class="dd-smart-search dd-header__search" id="ddSmartSearch">
             <div class="dd-ss__bar">
                 <span class="dd-ss__icon">&#128269;</span>
@@ -326,14 +379,14 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 
     </div>
 
-    <!-- ── Mobile search row (below top bar, visible on mobile) ── -->
+    <!-- ── Mobile search row ─────────────────────────── -->
     <div class="dd-header__mobile-search">
         <div class="dd-container">
             <div class="dd-ss__bar dd-ss__bar--mobile">
                 <span class="dd-ss__icon">&#128269;</span>
                 <input type="search"
                        id="ddMobileSearch"
-                       class="dd-ss__input dd-mobile-search-input"
+                       class="dd-ss__input"
                        placeholder="Search dishes..."
                        autocomplete="off"
                        aria-label="Search dishes">
@@ -341,27 +394,6 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
             </div>
         </div>
     </div>
-
-    <!-- ── Mobile nav dropdown ───────────────────────── -->
-    <nav class="dd-nav" id="ddMainNav">
-        <?php
-        $nav_html = wp_nav_menu( array(
-            'theme_location' => 'dd-primary',
-            'container'      => false,
-            'items_wrap'     => '%3$s',
-            'fallback_cb'    => false,
-            'echo'           => false,
-        ) );
-        if ( $nav_html ) {
-            echo $nav_html;
-        } else {
-            echo '<a href="#home">Home</a>';
-            echo '<a href="#menu">Menu</a>';
-            echo '<a href="#reserve">Reserve</a>';
-            echo '<a href="#reviews">Reviews</a>';
-        }
-        ?>
-    </nav>
 
 </header>
 
