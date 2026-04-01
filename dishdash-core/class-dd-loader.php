@@ -47,6 +47,8 @@ class DD_Loader {
             'DD_Template_Module'  => 'modules/template/class-dd-template-module.php',
             // Homepage Settings module
             'DD_Homepage_Module'  => 'modules/homepage/class-dd-homepage-module.php',
+            // Tracking module — behavior events, AI foundation
+            'DD_Tracking_Module'  => 'modules/tracking/class-dd-tracking-module.php',
             // Menu module — only shortcodes
             'DD_Menu_Module'      => 'modules/menu/class-dd-menu-module.php',
             // Orders module
