@@ -142,7 +142,7 @@
             );
             if ( ! isSearchInput ) return;
             var q = el.value.trim();
-            if ( q && q.length >= 2 ) {
+            if ( q && q.length >= 5 ) {
                 fire( 'search', null, null, { query: q } );
             }
         } );
