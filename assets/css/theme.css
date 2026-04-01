@@ -1466,9 +1466,15 @@ body.dd-page .ast-header-woo-cart {
    FOOTER
 ───────────────────────────────────────────────────────────── */
 .dd-footer {
-    background: var(--brand-dark);
+    background: var(--brand-dark, #160F0D);
     color: #F1E7DB;
     margin-top: 72px;
+}
+
+/* Ensure global footer on non-homepage pages gets correct colors */
+.dd-global-footer {
+    background: var(--brand-dark, #160F0D) !important;
+    color: #F1E7DB !important;
 }
 
 .dd-footer__grid {
