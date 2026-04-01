@@ -36,6 +36,9 @@ class DD_Template_Module extends DD_Module {
         // ── Inject global footer on all DD pages ──
         add_action( 'wp_footer', [ $this, 'inject_global_footer' ] );
 
+        // ── Inject product modal on all DD pages ──
+        add_action( 'wp_footer', [ $this, 'inject_product_modal' ] );
+
         // ── Remove theme header on global header pages (runs early) ──
         add_action( 'init', [ $this, 'remove_theme_header_hooks' ] );
     }
@@ -676,6 +679,30 @@ class DD_Template_Module extends DD_Module {
         if ( ! $this->is_global_header_page() ) return;
         $this->render_global_header();
     }
+
+    // ─────────────────────────────────────────
+    //  INJECT PRODUCT MODAL
+    //  On all pages so clicking any dish opens modal
+    // ─────────────────────────────────────────
+    public function inject_product_modal(): void {
+        if ( is_admin() ) return;
+
+        // Skip on DishDash full template — it injects its own
+        if ( is_page() ) {
+            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
+            if ( 'page-dishdash.php' === $meta ) return;
+        }
+        ?>
+        <div class="dd-product-modal" id="ddProductModal" role="dialog" aria-modal="true" aria-label="Product details">
+            <div class="dd-product-modal__overlay" id="ddProductModalOverlay"></div>
+            <div class="dd-product-modal__wrap">
+                <button class="dd-product-modal__close" id="ddProductModalClose" aria-label="Close" onclick="if(window.ddCloseModal)window.ddCloseModal();return false;">&#10005;</button>
+                <div class="dd-product-modal__content" id="ddProductModalContent"></div>
+            </div>
+        </div>
+        <?php
+    }
+
 
     // ─────────────────────────────────────────
     //  INJECT GLOBAL FOOTER
