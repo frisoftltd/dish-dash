@@ -746,17 +746,44 @@
             return;
         }
 
-        // Extract full product data from DOM for search + modal
+        // Extract full product data from DOM — works on homepage (.dd-dish-card)
+        // AND menu page (.dd-menu-item)
         var productNames = [];
+        var seen = {};
+
+        // Homepage dish cards
         document.querySelectorAll('.dd-dish-card').forEach(function(card) {
             var titleEl = card.querySelector('.dd-dish-card__title');
             var priceEl = card.querySelector('.dd-price');
             var descEl  = card.querySelector('.dd-dish-card__desc');
             var imgEl   = card.querySelector('img');
             var addBtn  = card.querySelector('.dd-add-btn');
-            if (titleEl) {
+            var id = card.dataset.id || '';
+            if (titleEl && id && !seen[id]) {
+                seen[id] = true;
                 productNames.push({
-                    id:    card.dataset.id   || '',
+                    id:    id,
+                    name:  titleEl.textContent.trim(),
+                    price: priceEl  ? priceEl.textContent.trim()  : '',
+                    desc:  descEl   ? descEl.textContent.trim()   : '',
+                    img:   imgEl    ? imgEl.src                   : '',
+                    nonce: addBtn   ? (addBtn.dataset.nonce || '') : '',
+                });
+            }
+        });
+
+        // Menu page list items
+        document.querySelectorAll('.dd-menu-item').forEach(function(card) {
+            var titleEl = card.querySelector('.dd-menu-item__name');
+            var priceEl = card.querySelector('.dd-menu-item__price');
+            var descEl  = card.querySelector('.dd-menu-item__desc');
+            var imgEl   = card.querySelector('img');
+            var addBtn  = card.querySelector('.dd-add-btn');
+            var id = card.dataset.id || '';
+            if (titleEl && id && !seen[id]) {
+                seen[id] = true;
+                productNames.push({
+                    id:    id,
                     name:  titleEl.textContent.trim(),
                     price: priceEl  ? priceEl.textContent.trim()  : '',
                     desc:  descEl   ? descEl.textContent.trim()   : '',
@@ -1034,13 +1061,15 @@
         var content = $('ddProductModalContent');
         if (!modal || !content) return;
 
-        // Find the dish card in DOM
-        var card = document.querySelector('.dd-dish-card[data-id="' + productId + '"]');
+        // Find card in DOM — works on both homepage (.dd-dish-card) and menu page (.dd-menu-item)
+        var card = document.querySelector('.dd-dish-card[data-id="' + productId + '"]')
+                || document.querySelector('.dd-menu-item[data-id="' + productId + '"]');
         if (!card) return;
 
-        var name    = (card.querySelector('.dd-dish-card__title') || {}).textContent || '';
-        var price   = (card.querySelector('.dd-price')            || {}).textContent || '';
-        var desc    = (card.querySelector('.dd-dish-card__desc')  || {}).textContent || '';
+        var isDishCard = card.classList.contains('dd-dish-card');
+        var name    = ((isDishCard ? card.querySelector('.dd-dish-card__title') : card.querySelector('.dd-menu-item__name')) || {}).textContent || '';
+        var price   = ((isDishCard ? card.querySelector('.dd-price') : card.querySelector('.dd-menu-item__price')) || {}).textContent || '';
+        var desc    = ((isDishCard ? card.querySelector('.dd-dish-card__desc') : card.querySelector('.dd-menu-item__desc')) || {}).textContent || '';
         var imgEl   = card.querySelector('img');
         var imgSrc  = imgEl ? imgEl.src : '';
         var addBtn  = card.querySelector('.dd-add-btn');
