@@ -1,4 +1,3 @@
-
 /**
  * Dish Dash — Behavior Tracking
  *
@@ -128,30 +127,25 @@
     }
 
     /* ── SEARCH ─────────────────────────────────────────────────────────── */
-    // Fires 800ms after user stops typing.
-    // Works on homepage ddSearch and menu page ddMenuSearch.
+    // Search is tracked ONLY on Enter key or suggestion click — NOT on keystroke.
+    // This prevents partial queries ("bi", "ch") from polluting recent searches.
+    // Tracking is fired from frontend.js via window.DDTrack.search(query).
     function setupSearchTracking() {
-        var timer = null;
-        var lastQuery = '';
-
-        document.addEventListener( 'input', function( e ) {
+        document.addEventListener( 'keydown', function( e ) {
+            if ( e.key !== 'Enter' ) return;
             var el = e.target;
             var isSearchInput = (
                 el.id === 'ddSearch'     ||
+                el.id === 'ddMobileSearch' ||
                 el.id === 'ddMenuSearch' ||
                 el.classList.contains('dd-search-input')
             );
             if ( ! isSearchInput ) return;
-
-            clearTimeout( timer );
-            timer = setTimeout( function() {
-                var q = el.value.trim();
-                if ( q && q !== lastQuery && q.length >= 2 ) {
-                    lastQuery = q;
-                    fire( 'search', null, null, { query: q });
-                }
-            }, 800 );
-        });
+            var q = el.value.trim();
+            if ( q && q.length >= 2 ) {
+                fire( 'search', null, null, { query: q } );
+            }
+        } );
     }
 
     /* ── ADD TO CART ────────────────────────────────────────────────────── */
