@@ -276,14 +276,36 @@ body.dd-page .ast-header-woo-cart {
 /* Hidden state removed - header always visible */
 
 .dd-header__inner {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    padding: 0 0;
+    gap: 20px;
+    padding: 0;
     height: 72px;
     min-height: 72px;
 }
+
+/* Left group: hamburger + logo */
+.dd-header__left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* Center: search bar — takes all available space */
+.dd-header__search {
+    width: 100%;
+    max-width: 640px;
+    justify-self: center;
+    position: relative;
+}
+.dd-header__search .dd-ss__bar {
+    height: 46px;
+}
+
+/* Mobile search row — hidden on desktop */
+.dd-header__mobile-search { display: none; }
 
 /* Brand */
 .dd-brand {
@@ -1729,6 +1751,39 @@ body.dd-page .ast-header-woo-cart {
         flex-shrink: 0 !important;
     }
 
+    /* Mobile header — 3-column: left(toggle+logo) | spacer | right(actions) */
+    .dd-header__inner {
+        grid-template-columns: 1fr auto !important;
+        height: 60px !important;
+        min-height: 60px !important;
+        gap: 12px !important;
+    }
+
+    /* Hide desktop search in main row on mobile */
+    .dd-header__search {
+        display: none !important;
+    }
+
+    /* Show mobile search row below main header row */
+    .dd-header__mobile-search {
+        display: block !important;
+        padding: 0 0 10px;
+        border-top: 1px solid rgba(217,203,184,0.4);
+    }
+    .dd-header__mobile-search .dd-container {
+        padding-top: 10px;
+    }
+    .dd-ss__bar--mobile {
+        height: 44px !important;
+    }
+
+    /* Track Order: show as compact pill on mobile */
+    .dd-track-btn {
+        padding: 7px 12px !important;
+        font-size: 12px !important;
+        white-space: nowrap;
+    }
+
     .dd-header {
         position: sticky !important;
         position: -webkit-sticky !important;
@@ -1833,7 +1888,7 @@ body.dd-page .ast-header-woo-cart {
 
     .dd-container { width: min(var(--dd-container), calc(100% - 20px)); }
 
-    .dd-header__inner { padding: 10px 0; min-height: 70px; }
+    .dd-header__inner { padding: 6px 0; min-height: 58px !important; height: 58px !important; }
     .dd-brand__logo { width: 54px !important; height: 54px !important; }
     .dd-header__actions { display: none; }
 
