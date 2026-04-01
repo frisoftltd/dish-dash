@@ -170,7 +170,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     position: sticky;
     top: 0;
     z-index: 100;
-    background: #faf6f0;
+    background: transparent;
     padding: 12px 0 8px;
     margin-bottom: 4px;
 }
