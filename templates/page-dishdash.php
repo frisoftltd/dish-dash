@@ -412,11 +412,6 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
                        aria-autocomplete="list"
                        aria-controls="ddSearchDropdown">
                 <button class="dd-ss__clear" id="ddSearchClear" aria-label="Clear search">&#10005;</button>
-                <div class="dd-ss__divider"></div>
-                <div class="dd-ss__modes">
-                    <button class="dd-ss__mode dd-mode-btn active" data-mode="delivery">Delivery</button>
-                    <button class="dd-ss__mode dd-mode-btn" data-mode="pickup">Pickup</button>
-                </div>
             </div>
             <div class="dd-ss__dropdown" id="ddSearchDropdown" role="listbox" aria-label="Search suggestions"></div>
         </div>
