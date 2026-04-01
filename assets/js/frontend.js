@@ -29,19 +29,6 @@
 
     const fmt = (n) => 'RWF ' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
-    function escHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    function parseRWF(str) {
-        // "RWF 12,500" → 12500
-        return parseInt((str || '').replace(/[^\d]/g, ''), 10) || 0;
-    }
-
     /* ══════════════════════════════════════════════════════════
        CART BADGE SYNC
     ══════════════════════════════════════════════════════════ */
@@ -250,6 +237,19 @@
         }
     }
 
+    function parseRWF(str) {
+        // "RWF 12,500" → 12500
+        return parseInt((str || '').replace(/[^\d]/g, ''), 10) || 0;
+    }
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     /* ══════════════════════════════════════════════════════════
        BIND ALL ADD-TO-CART BUTTONS (featured + category rows)
     ══════════════════════════════════════════════════════════ */
@@ -381,7 +381,7 @@
                 }
 
                 // Filter by tag slug
-                var matching    = [];
+                var matching = [];
                 var nonMatching = [];
 
                 $all('.dd-dish-card', featRow).forEach( function(card) {
@@ -420,23 +420,22 @@
                 currentMode = btn.dataset.mode || 'delivery';
 
                 // Update delivery fee display
-                var delRow    = $('ddSumDelivery');
+                var delRow = $('ddSumDelivery');
                 var drawerDel = $('ddDrawerDelivery');
                 var fee = currentMode === 'pickup' ? 0 : deliveryFee;
-                if ( delRow   ) delRow.textContent    = fee === 0 ? 'Free' : fmt(fee);
+                if ( delRow   ) delRow.textContent   = fee === 0 ? 'Free' : fmt(fee);
                 if ( drawerDel ) drawerDel.textContent = fee === 0 ? 'Free' : fmt(fee);
 
                 // Recalculate totals with new fee
                 var sub  = cartItems.reduce( function(s,i){ return s + i.price * i.qty; }, 0 );
                 var tot  = sub + fee;
-                var subEl = $('ddSumSubtotal');   if (subEl) subEl.textContent = fmt(sub);
-                var totEl = $('ddSumTotal');       if (totEl) totEl.textContent = fmt(tot);
-                var dSub  = $('ddDrawerSubtotal'); if (dSub)  dSub.textContent  = fmt(sub);
-                var dTot  = $('ddDrawerTotal');    if (dTot)  dTot.textContent  = fmt(tot);
+                var subEl = $('ddSumSubtotal');  if (subEl) subEl.textContent = fmt(sub);
+                var totEl = $('ddSumTotal');      if (totEl) totEl.textContent = fmt(tot);
+                var dSub  = $('ddDrawerSubtotal'); if (dSub) dSub.textContent = fmt(sub);
+                var dTot  = $('ddDrawerTotal');    if (dTot) dTot.textContent = fmt(tot);
             });
         });
     }
-
     /* ══════════════════════════════════════════════════════════
        DESKTOP GRID + LOAD MORE
        Mobile: horizontal scroll row (unchanged)
@@ -466,8 +465,9 @@
         if ( cards.length <= perPage ) return; // No need if all fit
 
         // Hide cards beyond first page
+        var visible = perPage;
         cards.forEach(function(card, i) {
-            if ( i >= perPage ) {
+            if ( i >= visible ) {
                 card.classList.add('dd-card-hidden');
             }
         });
@@ -507,6 +507,7 @@
 
         window.addEventListener('scroll', function() {
             var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
             if ( currentScroll > 50 ) {
                 header.classList.add('scrolled');
             } else {
@@ -608,69 +609,6 @@
     }
 
     /* ══════════════════════════════════════════════════════════
-       GOOGLE REVIEWS
-       Calls dd_get_reviews AJAX action — PHP fetches from
-       Google Places API server-side (API key never exposed).
-       Results cached on server for 12 hours.
-    ══════════════════════════════════════════════════════════ */
-    function loadReviews() {
-        var grid = $('ddReviewsGrid');
-        if (!grid) return;
-        if (!window.DD || !window.DD.ajaxUrl) return;
-
-        // Show skeleton cards while loading
-        grid.innerHTML = [1, 2, 3].map(function () {
-            return '<div class="dd-review-card dd-review-card--skeleton">' +
-                '<div class="dd-review-skel dd-review-skel--stars"></div>' +
-                '<div class="dd-review-skel dd-review-skel--line"></div>' +
-                '<div class="dd-review-skel dd-review-skel--line dd-review-skel--short"></div>' +
-                '<div class="dd-review-skel dd-review-skel--author"></div>' +
-                '</div>';
-        }).join('');
-
-        fetch(window.DD.ajaxUrl, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body:    new URLSearchParams({
-                action: 'dd_get_reviews',
-                nonce:  window.DD.nonce || '',
-            }).toString(),
-        })
-        .then(function (r) { return r.json(); })
-        .then(function (res) {
-            if (!res.success || !res.data || !res.data.length) {
-                grid.innerHTML = '';
-                return;
-            }
-
-            grid.innerHTML = res.data.map(function (r) {
-                var stars = '';
-                for (var i = 1; i <= 5; i++) {
-                    stars += '<span class="dd-review-star' + (i <= r.rating ? ' filled' : '') + '">★</span>';
-                }
-                var avatar = r.photo
-                    ? '<img class="dd-review-photo" src="' + escHtml(r.photo) + '" alt="" loading="lazy">'
-                    : '<div class="dd-review-avatar">' + escHtml((r.author || 'G').charAt(0).toUpperCase()) + '</div>';
-
-                return '<div class="dd-review-card">' +
-                    '<div class="dd-review-stars">' + stars + '</div>' +
-                    '<p class="dd-review-text">' + escHtml(r.text) + '</p>' +
-                    '<div class="dd-review-footer">' +
-                        avatar +
-                        '<div>' +
-                            '<strong class="dd-review-author">' + escHtml(r.author) + '</strong>' +
-                            (r.time ? '<span class="dd-review-time">' + escHtml(r.time) + '</span>' : '') +
-                        '</div>' +
-                    '</div>' +
-                '</div>';
-            }).join('');
-        })
-        .catch(function () {
-            grid.innerHTML = '';
-        });
-    }
-
-    /* ══════════════════════════════════════════════════════════
        INIT
     ══════════════════════════════════════════════════════════ */
     function init() {
@@ -727,7 +665,7 @@
         setupDesktopGrid();
 
         // Other setups
-        setupSearch();
+        setupSmartSearch();   // replaces setupSearch() — adds dropdown + DB recent searches
         setupModeButtons();
         setupChips();
         setupMobileNav();
@@ -740,7 +678,7 @@
         renderSummary();
         renderDrawer();
 
-        // Load Google Reviews from server
+        // Load Google Reviews
         loadReviews();
 
         // Sync cart count from WooCommerce fragments (if available)
@@ -756,11 +694,266 @@
         });
     }
 
+
+    /* ══════════════════════════════════════════════════════════
+       SMART SEARCH
+       Replaces basic setupSearch().
+       - Transparent bar, no white background
+       - Dropdown with recent searches from DB (not localStorage)
+       - Autosuggestion from product names already in DOM
+       - Sticky after hero scrolls out of view
+    ══════════════════════════════════════════════════════════ */
+    function setupSmartSearch() {
+        var input    = $('ddSearch');
+        var dropdown = $('ddSearchDropdown');
+        var clearBtn = $('ddSearchClear');
+        var searchEl = $('ddSmartSearch');
+
+        // Fallback to basic search if smart search elements not present
+        if (!input) return;
+        if (!dropdown) {
+            setupSearch();
+            return;
+        }
+
+        // Extract all product names from DOM for instant suggestions
+        var productNames = [];
+        document.querySelectorAll('.dd-dish-card').forEach(function(card) {
+            var title = card.querySelector('.dd-dish-card__title');
+            if (title) {
+                productNames.push({
+                    name: title.textContent.trim(),
+                    id:   card.dataset.id || ''
+                });
+            }
+        });
+
+        var recentSearches  = [];
+        var recentLoaded    = false;
+
+        /* ── Fetch recent searches from DB ───────────────── */
+        function loadRecentSearches(callback) {
+            if (!window.DD || !window.DD.ajaxUrl) { callback([]); return; }
+            fetch(window.DD.ajaxUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'dd_get_recent_searches',
+                    nonce:  window.DD.nonce || ''
+                }).toString()
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                callback(res.success ? (res.data || []) : []);
+            })
+            .catch(function() { callback([]); });
+        }
+
+        /* ── Highlight matching text ─────────────────────── */
+        function highlight(text, query) {
+            if (!query) return escHtml(text);
+            var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            return escHtml(text).replace(
+                new RegExp('(' + escaped + ')', 'gi'),
+                '<span class="dd-ss__highlight">$1</span>'
+            );
+        }
+
+        /* ── Render dropdown ─────────────────────────────── */
+        function renderDropdown(recents, query) {
+            var html = '';
+            var q = (query || '').toLowerCase().trim();
+
+            if (!q && recents.length > 0) {
+                // No query — show recent searches
+                html += '<div class="dd-ss__dropdown-section">';
+                html += '<div class="dd-ss__dropdown-label">Recently searched</div>';
+                recents.forEach(function(s) {
+                    html +=
+                        '<button class="dd-ss__suggestion" data-query="' + escHtml(s) + '">' +
+                        '<span class="dd-ss__sug-icon dd-ss__sug-icon--recent">&#128337;</span>' +
+                        '<span class="dd-ss__sug-text">' + escHtml(s) + '</span>' +
+                        '<button class="dd-ss__sug-remove" data-remove="' + escHtml(s) + '" tabindex="-1">&#10005;</button>' +
+                        '</button>';
+                });
+                html += '</div>';
+            }
+
+            if (q.length >= 1) {
+                // Filter recent searches
+                var matchRecent = recents.filter(function(s) {
+                    return s.toLowerCase().indexOf(q) !== -1;
+                });
+
+                // Filter product names
+                var matchDishes = productNames.filter(function(p) {
+                    return p.name.toLowerCase().indexOf(q) !== -1;
+                }).slice(0, 5);
+
+                if (matchRecent.length > 0) {
+                    html += '<div class="dd-ss__dropdown-section">';
+                    html += '<div class="dd-ss__dropdown-label">Recent matches</div>';
+                    matchRecent.forEach(function(s) {
+                        html +=
+                            '<button class="dd-ss__suggestion" data-query="' + escHtml(s) + '">' +
+                            '<span class="dd-ss__sug-icon dd-ss__sug-icon--recent">&#128337;</span>' +
+                            '<span class="dd-ss__sug-text">' + highlight(s, query) + '</span>' +
+                            '</button>';
+                    });
+                    html += '</div>';
+                }
+
+                if (matchDishes.length > 0) {
+                    html += '<div class="dd-ss__dropdown-section">';
+                    html += '<div class="dd-ss__dropdown-label">Dishes</div>';
+                    matchDishes.forEach(function(p) {
+                        html +=
+                            '<button class="dd-ss__suggestion" data-query="' + escHtml(p.name) + '">' +
+                            '<span class="dd-ss__sug-icon dd-ss__sug-icon--dish">&#127869;</span>' +
+                            '<span class="dd-ss__sug-text">' + highlight(p.name, query) + '</span>' +
+                            '</button>';
+                    });
+                    html += '</div>';
+                }
+
+                if (!matchRecent.length && !matchDishes.length) {
+                    html = '<div class="dd-ss__empty">No results for &ldquo;' + escHtml(query) + '&rdquo;</div>';
+                }
+            }
+
+            if (!html) { closeDropdown(); return; }
+
+            dropdown.innerHTML = html;
+            dropdown.classList.add('open');
+            input.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeDropdown() {
+            dropdown.classList.remove('open');
+            dropdown.innerHTML = '';
+            input.setAttribute('aria-expanded', 'false');
+        }
+
+        /* ── Input focus ────────────────────────────────── */
+        input.addEventListener('focus', function() {
+            var q = this.value.trim();
+            if (!recentLoaded) {
+                loadRecentSearches(function(searches) {
+                    recentSearches = searches;
+                    recentLoaded   = true;
+                    renderDropdown(recentSearches, q);
+                });
+            } else {
+                renderDropdown(recentSearches, q);
+            }
+        });
+
+        /* ── Input change ───────────────────────────────── */
+        input.addEventListener('input', function() {
+            var q = this.value.trim();
+
+            // Show / hide clear button
+            if (clearBtn) {
+                clearBtn.classList.toggle('visible', q.length > 0);
+            }
+
+            // Filter dish cards on the page (existing behaviour)
+            filterDishCards(q);
+
+            renderDropdown(recentSearches, q);
+        });
+
+        /* ── Clear button ───────────────────────────────── */
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                input.value = '';
+                this.classList.remove('visible');
+                filterDishCards('');
+                closeDropdown();
+                input.focus();
+            });
+        }
+
+        /* ── Dropdown interaction ───────────────────────── */
+        dropdown.addEventListener('mousedown', function(e) {
+            // prevent input blur before click registers
+            e.preventDefault();
+        });
+
+        dropdown.addEventListener('click', function(e) {
+            // Remove button inside suggestion
+            var removeBtn = e.target.closest('.dd-ss__sug-remove');
+            if (removeBtn) {
+                var toRemove = removeBtn.dataset.remove;
+                recentSearches = recentSearches.filter(function(s) { return s !== toRemove; });
+                renderDropdown(recentSearches, input.value.trim());
+                return;
+            }
+
+            // Suggestion click — fill input + filter + track
+            var suggestion = e.target.closest('.dd-ss__suggestion');
+            if (suggestion) {
+                var q = suggestion.dataset.query || '';
+                input.value = q;
+                if (clearBtn) clearBtn.classList.toggle('visible', q.length > 0);
+                filterDishCards(q);
+                closeDropdown();
+
+                // Track via DDTrack (fires dd_track_event which saves to DB)
+                if (window.DDTrack) window.DDTrack.search(q);
+            }
+        });
+
+        /* ── Close on outside click ─────────────────────── */
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.dd-smart-search') && !e.target.closest('.dd-ss-section')) {
+                closeDropdown();
+            }
+        });
+
+        /* ── Keyboard navigation ────────────────────────── */
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDropdown();
+                this.blur();
+            }
+            if (e.key === 'Enter') {
+                var q = this.value.trim();
+                if (q) {
+                    filterDishCards(q);
+                    closeDropdown();
+                    if (window.DDTrack) window.DDTrack.search(q);
+                    // Update recent searches locally for immediate display
+                    recentSearches = [q].concat(
+                        recentSearches.filter(function(s) {
+                            return s.toLowerCase() !== q.toLowerCase();
+                        })
+                    ).slice(0, 5);
+                }
+            }
+        });
+
+        /* ── Sticky behaviour ───────────────────────────── */
+        if (searchEl) {
+            var hero = document.querySelector('.dd-hero');
+            if (hero && window.IntersectionObserver) {
+                var stickyObs = new IntersectionObserver(function(entries) {
+                    entries.forEach(function(entry) {
+                        searchEl.classList.toggle('sticky', !entry.isIntersecting);
+                    });
+                }, { threshold: 0, rootMargin: '-72px 0px 0px 0px' });
+                stickyObs.observe(hero);
+            }
+        }
+    }
+
     /* ══════════════════════════════════════════════════════════
        WOO FRAGMENTS SYNC
     ══════════════════════════════════════════════════════════ */
     function syncCartFromFragments() {
+        // Try to read count from WooCommerce session
         if (window.wc_add_to_cart_params && window.wc_add_to_cart_params.cart_url) {
+            // Just refresh count from server
             fetch(window.DD ? window.DD.ajaxUrl : '/wp-admin/admin-ajax.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
