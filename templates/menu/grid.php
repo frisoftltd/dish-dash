@@ -3,13 +3,12 @@
  * Dish Dash – Menu Page Template
  *
  * Simple mobile-first list layout.
- * Category filter pills + search + add to cart.
- * All product cards carry data attributes for JS filtering
- * and behavior tracking (DD_Tracking_Module).
+ * Transparent search bar + category filter pills + add to cart.
+ * Tracking data attributes for DD_Tracking_Module.
  *
- * Variables available from DD_Menu_Module::shortcode():
+ * Variables from DD_Menu_Module::shortcode():
  *   $items        WP_Query
- *   $categories   array of WP_Term
+ *   $categories   WP_Term[]
  *   $atts         shortcode attributes
  *   $product_cats array[ product_id => WP_Term[] ]
  *
@@ -31,7 +30,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 <div class="dd-menu-page" style="--dd-primary:<?php echo esc_attr($primary); ?>;--dd-dark:<?php echo esc_attr($dark); ?>;">
 
     <?php if ( $show_search || $show_filter ) : ?>
-    <!-- ── Controls bar ───────────────────────────────────────── -->
+    <!-- ── Controls ───────────────────────────────────────────── -->
     <div class="dd-menu-controls">
 
         <?php if ( $show_search ) : ?>
@@ -73,13 +72,12 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     </div>
     <?php endif; ?>
 
-    <!-- ── Results count ─────────────────────────────────────── -->
+    <!-- ── Count ──────────────────────────────────────────────── -->
     <div class="dd-menu-meta">
-        <span id="ddMenuCount"><?php echo (int) $items->found_posts; ?></span>
-        <span> dishes</span>
+        <span id="ddMenuCount"><?php echo (int) $items->found_posts; ?></span> dishes
     </div>
 
-    <!-- ── Product list ──────────────────────────────────────── -->
+    <!-- ── Product list ───────────────────────────────────────── -->
     <?php if ( $items->have_posts() ) : ?>
     <div class="dd-menu-list" id="ddMenuList">
 
@@ -97,16 +95,13 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
             $long  = $product->get_description();
             $desc  = wp_trim_words( strip_tags( $short ?: $long ), 12, '...' );
 
-            // Image
             $img_id  = $product->get_image_id();
             $img_url = $img_id
                 ? wp_get_attachment_image_url( $img_id, 'thumbnail' )
                 : ( function_exists('wc_placeholder_img_src') ? wc_placeholder_img_src('thumbnail') : '' );
 
-            // Category slugs + IDs for filtering & tracking
             $item_cats    = $product_cats[ $id ] ?? [];
             $cat_slugs    = implode( ',', array_column( $item_cats, 'slug' ) );
-            $cat_ids      = implode( ',', array_column( $item_cats, 'term_id' ) );
             $first_cat_id = ! empty( $item_cats ) ? $item_cats[0]->term_id : '';
         ?>
 
@@ -147,7 +142,6 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
     </div>
 
-    <!-- Empty state (shown by JS when search/filter has no results) -->
     <div class="dd-menu-empty" id="ddMenuEmpty" style="display:none;">
         <span>&#128372;</span>
         <p>No dishes found.</p>
@@ -164,7 +158,6 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 </div><!-- /.dd-menu-page -->
 
 <style>
-/* ── Menu page styles ──────────────────────────────────────────────────── */
 .dd-menu-page {
     max-width: 800px;
     margin: 0 auto;
@@ -172,7 +165,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     font-family: 'Inter', system-ui, sans-serif;
 }
 
-/* Controls */
+/* Controls sticky bar */
 .dd-menu-controls {
     position: sticky;
     top: 0;
@@ -182,26 +175,27 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     margin-bottom: 4px;
 }
 
-/* Search */
+/* Search — transparent, no white box */
 .dd-menu-search-wrap {
     position: relative;
     display: flex;
     align-items: center;
-    background: #fff;
-    border: 1.5px solid #e8ddd2;
+    background: transparent;
+    border: 1.5px solid rgba(107, 29, 29, 0.18);
     border-radius: 999px;
     padding: 0 16px;
+    height: 50px;
     margin-bottom: 12px;
-    transition: border-color .2s;
+    transition: border-color .2s, box-shadow .2s;
 }
 .dd-menu-search-wrap:focus-within {
     border-color: var(--dd-primary, #6B1D1D);
-    box-shadow: 0 0 0 3px rgba(107,29,29,.08);
+    box-shadow: 0 0 0 3px rgba(107,29,29,.07);
 }
 .dd-menu-search-icon {
     font-size: 16px;
     margin-right: 8px;
-    opacity: .5;
+    opacity: .4;
     flex-shrink: 0;
 }
 .dd-menu-search-input {
@@ -209,17 +203,20 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     border: none;
     outline: none;
     background: transparent;
-    padding: 12px 0;
+    padding: 0;
     font-size: 15px;
     color: #221B19;
     min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
 }
 .dd-menu-search-input::placeholder { color: #aaa; }
+.dd-menu-search-input::-webkit-search-cancel-button { display: none; }
 .dd-menu-search-clear {
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 13px;
     color: #aaa;
     padding: 4px;
     flex-shrink: 0;
@@ -243,14 +240,15 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     gap: 5px;
     padding: 7px 16px;
     border-radius: 999px;
-    border: 1.5px solid #e0d6cc;
-    background: #fff;
+    border: 1.5px solid rgba(107,29,29,0.12);
+    background: transparent;
     font-size: 13px;
     font-weight: 600;
     color: #4a3728;
     cursor: pointer;
     white-space: nowrap;
     transition: all .18s;
+    font-family: 'Inter', system-ui, sans-serif;
 }
 .dd-menu-filter-btn:hover {
     border-color: var(--dd-primary, #6B1D1D);
@@ -263,7 +261,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 }
 .dd-menu-filter-count {
     font-size: 11px;
-    opacity: .7;
+    opacity: .65;
 }
 
 /* Meta */
@@ -274,18 +272,18 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     font-weight: 500;
 }
 
-/* List */
+/* List container */
 .dd-menu-list {
     display: flex;
     flex-direction: column;
     gap: 1px;
-    background: #ede6db;
+    background: rgba(107,29,29,0.08);
     border-radius: 16px;
     overflow: hidden;
-    border: 1px solid #ede6db;
+    border: 1px solid rgba(107,29,29,0.08);
 }
 
-/* Item */
+/* Item row */
 .dd-menu-item {
     display: flex;
     align-items: center;
@@ -295,15 +293,16 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     transition: background .15s;
 }
 .dd-menu-item:hover { background: #fdfaf7; }
+.dd-menu-item[hidden] { display: none !important; }
 
-/* Item image */
+/* Image */
 .dd-menu-item__img {
     flex-shrink: 0;
     width: 72px;
     height: 72px;
     border-radius: 12px;
     overflow: hidden;
-    background: #f0ece6;
+    background: #f5efe6;
 }
 .dd-menu-item__img img {
     width: 100%;
@@ -312,7 +311,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     display: block;
 }
 
-/* Item body */
+/* Body */
 .dd-menu-item__body {
     flex: 1;
     min-width: 0;
@@ -331,7 +330,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 }
 .dd-menu-item__desc {
     font-size: 12px;
-    color: #888;
+    color: #999;
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -349,17 +348,11 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     font-weight: 800;
     color: var(--dd-primary, #6B1D1D);
 }
-
-/* Add button */
 .dd-menu-add-btn {
     flex-shrink: 0;
     padding: 7px 16px !important;
     font-size: 13px !important;
     border-radius: 999px !important;
-}
-.dd-menu-add-btn.loading {
-    opacity: .6;
-    pointer-events: none;
 }
 
 /* Empty state */
@@ -371,10 +364,6 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 .dd-menu-empty span { font-size: 48px; display: block; margin-bottom: 12px; }
 .dd-menu-empty p { font-size: 15px; margin: 0 0 16px; }
 
-/* Hidden items */
-.dd-menu-item[hidden] { display: none !important; }
-
-/* Mobile tweaks */
 @media (max-width: 480px) {
     .dd-menu-item__img { width: 60px; height: 60px; }
     .dd-menu-item__name { font-size: 14px; }
@@ -384,84 +373,76 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
 <script>
 (function() {
-    var list     = document.getElementById('ddMenuList');
-    var filters  = document.getElementById('ddMenuFilters');
-    var searchEl = document.getElementById('ddMenuSearch');
-    var clearBtn = document.getElementById('ddMenuSearchClear');
-    var countEl  = document.getElementById('ddMenuCount');
-    var emptyEl  = document.getElementById('ddMenuEmpty');
-    var resetBtn = document.getElementById('ddMenuReset');
+    var list    = document.getElementById('ddMenuList');
+    var filters = document.getElementById('ddMenuFilters');
+    var search  = document.getElementById('ddMenuSearch');
+    var clearBtn= document.getElementById('ddMenuSearchClear');
+    var countEl = document.getElementById('ddMenuCount');
+    var emptyEl = document.getElementById('ddMenuEmpty');
+    var resetBtn= document.getElementById('ddMenuReset');
 
-    if ( ! list ) return;
+    if (!list) return;
 
-    var allItems      = Array.from( list.querySelectorAll('.dd-menu-item') );
-    var activeSlug    = '';
-    var activeSearch  = '';
+    var allItems     = Array.from(list.querySelectorAll('.dd-menu-item'));
+    var activeSlug   = '';
+    var activeSearch = '';
 
     function updateCount() {
         var visible = allItems.filter(function(i) { return !i.hidden; }).length;
-        if ( countEl ) countEl.textContent = visible;
-        if ( emptyEl ) emptyEl.style.display = visible === 0 ? '' : 'none';
+        if (countEl) countEl.textContent = visible;
+        if (emptyEl) emptyEl.style.display = visible === 0 ? '' : 'none';
     }
 
     function applyFilters() {
         allItems.forEach(function(item) {
             var slugs = (item.dataset.slugs || '').split(',');
             var name  = item.dataset.name || '';
-
-            var catMatch = ! activeSlug || slugs.indexOf(activeSlug) !== -1;
-            var srchMatch = ! activeSearch || name.indexOf(activeSearch) !== -1;
-
-            item.hidden = ! (catMatch && srchMatch);
+            var catOk = !activeSlug || slugs.indexOf(activeSlug) !== -1;
+            var srcOk = !activeSearch || name.indexOf(activeSearch) !== -1;
+            item.hidden = !(catOk && srcOk);
         });
         updateCount();
     }
 
-    // ── Category filter ───────────────────────────────────────────────
-    if ( filters ) {
+    if (filters) {
         filters.addEventListener('click', function(e) {
             var btn = e.target.closest('.dd-menu-filter-btn');
-            if ( ! btn ) return;
-
-            Array.from( filters.querySelectorAll('.dd-menu-filter-btn') ).forEach(function(b) {
+            if (!btn) return;
+            Array.from(filters.querySelectorAll('.dd-menu-filter-btn')).forEach(function(b) {
                 b.classList.remove('active');
                 b.setAttribute('aria-selected', 'false');
             });
             btn.classList.add('active');
             btn.setAttribute('aria-selected', 'true');
-
             activeSlug = btn.dataset.slug || '';
             applyFilters();
         });
     }
 
-    // ── Search ────────────────────────────────────────────────────────
-    if ( searchEl ) {
-        searchEl.addEventListener('input', function() {
+    if (search) {
+        search.addEventListener('input', function() {
             activeSearch = this.value.trim().toLowerCase();
-            if ( clearBtn ) clearBtn.style.display = activeSearch ? '' : 'none';
+            if (clearBtn) clearBtn.style.display = activeSearch ? '' : 'none';
             applyFilters();
         });
     }
 
-    if ( clearBtn ) {
+    if (clearBtn) {
         clearBtn.addEventListener('click', function() {
-            if ( searchEl ) { searchEl.value = ''; searchEl.focus(); }
+            if (search) { search.value = ''; search.focus(); }
             activeSearch = '';
             this.style.display = 'none';
             applyFilters();
         });
     }
 
-    // ── Reset button (empty state) ────────────────────────────────────
-    if ( resetBtn ) {
+    if (resetBtn) {
         resetBtn.addEventListener('click', function() {
-            activeSlug   = '';
-            activeSearch = '';
-            if ( searchEl ) searchEl.value = '';
-            if ( clearBtn ) clearBtn.style.display = 'none';
-            if ( filters ) {
-                Array.from( filters.querySelectorAll('.dd-menu-filter-btn') ).forEach(function(b, i) {
+            activeSlug = activeSearch = '';
+            if (search) search.value = '';
+            if (clearBtn) clearBtn.style.display = 'none';
+            if (filters) {
+                Array.from(filters.querySelectorAll('.dd-menu-filter-btn')).forEach(function(b, i) {
                     b.classList.toggle('active', i === 0);
                     b.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
                 });
