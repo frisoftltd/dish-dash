@@ -1,8 +1,13 @@
 <?php
 /**
- * Dish Dash – Menu Module v2.3
- * Only handles menu display and shortcodes.
- * Template/nav handled by DD_Template_Module.
+ * Dish Dash – Menu Module
+ *
+ * Handles menu display shortcodes only.
+ * Assets loaded by DD_Template_Module.
+ * Tracking handled by DD_Tracking_Module.
+ *
+ * @package DishDash
+ * @since   2.2.0
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -60,10 +65,20 @@ class DD_Menu_Module extends DD_Module {
         $query_args = apply_filters( 'dish_dash_menu_query_args', $query_args );
         $items      = new WP_Query( $query_args );
 
+        // Build a product → categories map for filtering and tracking
+        $product_cats = [];
+        if ( $items->have_posts() ) {
+            foreach ( $items->posts as $post ) {
+                $terms = wp_get_post_terms( $post->ID, 'product_cat', [ 'fields' => 'all' ] );
+                $product_cats[ $post->ID ] = is_wp_error( $terms ) ? [] : $terms;
+            }
+        }
+
         return $this->get_template( 'menu/grid.php', [
-            'items'      => $items,
-            'categories' => $categories,
-            'atts'       => $atts,
+            'items'        => $items,
+            'categories'   => $categories,
+            'atts'         => $atts,
+            'product_cats' => $product_cats,
         ] );
     }
 
