@@ -795,6 +795,34 @@
 
         var recentSearches  = [];
         var recentLoaded    = false;
+        var productsLoaded  = productNames.length > 0;
+
+        /* ── Fetch products via AJAX if none in DOM ──────── */
+        function loadProductsFromServer(callback) {
+            if (!window.DD || !window.DD.ajaxUrl) { callback(); return; }
+            fetch(window.DD.ajaxUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'dd_get_search_products',
+                    nonce:  window.DD.nonce || ''
+                }).toString()
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (res.success && res.data) {
+                    res.data.forEach(function(p) {
+                        if (!seen[p.id]) {
+                            seen[p.id] = true;
+                            productNames.push(p);
+                        }
+                    });
+                }
+                productsLoaded = true;
+                callback();
+            })
+            .catch(function() { productsLoaded = true; callback(); });
+        }
 
         /* ── Fetch recent searches from DB ───────────────── */
         function loadRecentSearches(callback) {
@@ -914,14 +942,28 @@
         /* ── Input focus ────────────────────────────────── */
         input.addEventListener('focus', function() {
             var q = this.value.trim();
-            if (!recentLoaded) {
+            var self = this;
+            function doRender() {
+                renderDropdown(recentSearches, self.value.trim());
+            }
+            // Load both recent searches and products if needed
+            var needRecent   = !recentLoaded;
+            var needProducts = !productsLoaded;
+            var pending = (needRecent ? 1 : 0) + (needProducts ? 1 : 0);
+
+            if (pending === 0) { doRender(); return; }
+
+            function onDone() { pending--; if (pending === 0) doRender(); }
+
+            if (needRecent) {
                 loadRecentSearches(function(searches) {
                     recentSearches = searches;
                     recentLoaded   = true;
-                    renderDropdown(recentSearches, q);
+                    onDone();
                 });
-            } else {
-                renderDropdown(recentSearches, q);
+            }
+            if (needProducts) {
+                loadProductsFromServer(onDone);
             }
         });
 
