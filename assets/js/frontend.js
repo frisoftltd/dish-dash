@@ -517,22 +517,49 @@
     }
 
     function setupMobileNav() {
-        const toggle = $('ddMobileToggle');
-        const nav    = $('ddMainNav');
-        if (!toggle || !nav) return;
+        // New: Instacart-style slide-out drawer (desktop + mobile)
+        var toggle  = $('ddMenuToggle');
+        var drawer  = $('ddNavDrawer');
+        var overlay = $('ddDrawerOverlay');
+        var closeBtn= $('ddDrawerClose');
 
-        toggle.addEventListener('click', () => nav.classList.toggle('open'));
+        if (!toggle || !drawer) return;
 
-        // Close when a link is clicked
-        $all('a', nav).forEach((link) => {
-            link.addEventListener('click', () => nav.classList.remove('open'));
+        function openDrawer() {
+            drawer.classList.add('open');
+            if (overlay) overlay.classList.add('open');
+            toggle.classList.add('open');
+            toggle.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDrawer() {
+            drawer.classList.remove('open');
+            if (overlay) overlay.classList.remove('open');
+            toggle.classList.remove('open');
+            toggle.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        }
+
+        toggle.addEventListener('click', function() {
+            if (drawer.classList.contains('open')) {
+                closeDrawer();
+            } else {
+                openDrawer();
+            }
         });
 
-        // Close on outside click
-        document.addEventListener('click', (e) => {
-            if (!nav.contains(e.target) && e.target !== toggle) {
-                nav.classList.remove('open');
-            }
+        if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+        if (overlay)  overlay.addEventListener('click', closeDrawer);
+
+        // Close when nav link clicked
+        $all('a', drawer).forEach(function(link) {
+            link.addEventListener('click', closeDrawer);
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeDrawer();
         });
     }
 
