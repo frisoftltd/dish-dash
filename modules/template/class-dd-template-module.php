@@ -741,6 +741,7 @@ class DD_Template_Module extends DD_Module {
         $dd_wa       = get_option( 'dish_dash_whatsapp', '' );
         $dd_tiktok   = get_option( 'dish_dash_tiktok', '' );
         $dd_footer_desc = get_option( 'dd_footer_description', 'Premium Indian dining and a refined digital ordering experience.' );
+        $dark        = get_option( 'dish_dash_dark_color', '#160F0D' );
         $home_url    = home_url( '/' );
         $orders_url  = function_exists( 'wc_get_account_url' ) ? wc_get_account_url( 'orders' ) : home_url( '/my-account/orders/' );
         $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
