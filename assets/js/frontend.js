@@ -1021,8 +1021,12 @@
             if (resultCard) {
                 var pid = resultCard.dataset.productId;
                 if (pid) {
-                    openProductModal(pid);
                     closeDropdown();
+                    if (!productsLoaded) {
+                        loadProductsFromServer(function() { openProductModal(pid); });
+                    } else {
+                        openProductModal(pid);
+                    }
                 }
                 return;
             }
@@ -1103,19 +1107,36 @@
         var content = $('ddProductModalContent');
         if (!modal || !content) return;
 
-        // Find card in DOM — works on both homepage (.dd-dish-card) and menu page (.dd-menu-item)
+        var name = '', price = '', desc = '', imgSrc = '', nonce = '';
+
+        // 1. Try to find card in DOM first
         var card = document.querySelector('.dd-dish-card[data-id="' + productId + '"]')
                 || document.querySelector('.dd-menu-item[data-id="' + productId + '"]');
-        if (!card) return;
 
-        var isDishCard = card.classList.contains('dd-dish-card');
-        var name    = ((isDishCard ? card.querySelector('.dd-dish-card__title') : card.querySelector('.dd-menu-item__name')) || {}).textContent || '';
-        var price   = ((isDishCard ? card.querySelector('.dd-price') : card.querySelector('.dd-menu-item__price')) || {}).textContent || '';
-        var desc    = ((isDishCard ? card.querySelector('.dd-dish-card__desc') : card.querySelector('.dd-menu-item__desc')) || {}).textContent || '';
-        var imgEl   = card.querySelector('img');
-        var imgSrc  = imgEl ? imgEl.src : '';
-        var addBtn  = card.querySelector('.dd-add-btn');
-        var nonce   = addBtn ? (addBtn.dataset.nonce || '') : '';
+        if (card) {
+            var isDishCard = card.classList.contains('dd-dish-card');
+            name   = ((isDishCard ? card.querySelector('.dd-dish-card__title') : card.querySelector('.dd-menu-item__name')) || {}).textContent || '';
+            price  = ((isDishCard ? card.querySelector('.dd-price') : card.querySelector('.dd-menu-item__price')) || {}).textContent || '';
+            desc   = ((isDishCard ? card.querySelector('.dd-dish-card__desc') : card.querySelector('.dd-menu-item__desc')) || {}).textContent || '';
+            var imgEl  = card.querySelector('img');
+            imgSrc = imgEl ? imgEl.src : '';
+            var addBtn = card.querySelector('.dd-add-btn');
+            nonce  = addBtn ? (addBtn.dataset.nonce || '') : '';
+        } else {
+            // 2. Fallback: use productNames array (loaded from AJAX on pages without DOM cards)
+            var found = null;
+            for (var i = 0; i < productNames.length; i++) {
+                if (String(productNames[i].id) === String(productId)) {
+                    found = productNames[i]; break;
+                }
+            }
+            if (!found) return;
+            name   = found.name  || '';
+            price  = found.price || '';
+            desc   = found.desc  || '';
+            imgSrc = found.img   || '';
+            nonce  = found.nonce || '';
+        }
 
         content.innerHTML =
             '<div class="dd-pm__img-wrap">' +
