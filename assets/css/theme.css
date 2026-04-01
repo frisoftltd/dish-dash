@@ -2133,17 +2133,19 @@ body.dd-page .ast-header-woo-cart {
     display: flex;
     align-items: center;
     gap: 10px;
-    background: transparent;
-    border: 1.5px solid rgba(107, 29, 29, 0.18);
+    background: rgba(107, 29, 29, 0.05);
+    border: 1.5px solid rgba(107, 29, 29, 0.14);
     border-radius: 999px;
-    padding: 0 18px;
-    height: 54px;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    padding: 0 20px;
+    height: 46px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     position: relative;
+    box-shadow: 0 2px 12px rgba(107, 29, 29, 0.08), inset 0 1px 3px rgba(107, 29, 29, 0.04);
 }
 .dd-ss__bar:focus-within {
     border-color: var(--brand);
-    box-shadow: 0 0 0 3px rgba(107, 29, 29, 0.08);
+    background: rgba(107, 29, 29, 0.04);
+    box-shadow: 0 4px 20px rgba(107, 29, 29, 0.15), 0 0 0 3px rgba(107, 29, 29, 0.08);
 }
 
 /* Icon */
