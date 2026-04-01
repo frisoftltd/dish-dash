@@ -1045,10 +1045,31 @@
                 var q = suggestion.dataset.query || '';
                 input.value = q;
                 if (clearBtn) clearBtn.classList.toggle('visible', q.length > 0);
-                filterDishCards(q);
                 closeDropdown();
+
+                // Check if query matches exactly one product — open modal directly
+                var exactMatch = null;
+                for (var pi = 0; pi < productNames.length; pi++) {
+                    if (productNames[pi].name.toLowerCase() === q.toLowerCase()) {
+                        exactMatch = productNames[pi];
+                        break;
+                    }
+                }
+
+                if (exactMatch) {
+                    // Open product modal directly
+                    if (!productsLoaded) {
+                        loadProductsFromServer(function() { openProductModal(exactMatch.id); });
+                    } else {
+                        openProductModal(exactMatch.id);
+                    }
+                } else {
+                    // Filter page cards
+                    filterDishCards(q);
+                }
+
                 // Track full query to DB
-                if (window.DDTrack && q.length >= 2) window.DDTrack.search(q);
+                if (window.DDTrack && q.length >= 5) window.DDTrack.search(q);
                 // Update local list immediately
                 recentSearches = [q].concat(
                     recentSearches.filter(function(s) { return s.toLowerCase() !== q.toLowerCase(); })
@@ -1071,7 +1092,7 @@
             }
             if (e.key === 'Enter') {
                 var q = this.value.trim();
-                if (q && q.length >= 2) {
+                if (q && q.length >= 5) {
                     filterDishCards(q);
                     closeDropdown();
                     // Save full query to DB (not partial letters)
