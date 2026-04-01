@@ -404,15 +404,23 @@ body.dd-page .ast-header-woo-cart {
 /* Mobile toggle */
 .dd-mobile-toggle {
     display: none;
-    background: transparent;
+    width: 44px;
+    height: 44px;
+    background: rgba(107, 29, 29, 0.08);
     color: var(--brand);
-    font-size: 36px;
-    padding: 8px;
+    font-size: 26px;
+    padding: 0;
     border: 0;
+    border-radius: 12px;
     line-height: 1;
     cursor: pointer;
     z-index: 1001;
     position: relative;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+.dd-mobile-toggle:hover {
+    background: rgba(107, 29, 29, 0.14);
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -1820,7 +1828,7 @@ body.dd-page .ast-header-woo-cart {
 @media (max-width: 680px) {
     body.dd-page { padding-bottom: 88px; }
 
-    .dd-container { width: min(var(--dd-container), calc(100% - 20px)); }
+    .dd-container { width: min(var(--dd-container), calc(100% - 40px)); }
 
     .dd-header__inner { padding: 10px 0; min-height: 70px; }
     .dd-brand__logo { width: 54px !important; height: 54px !important; }
