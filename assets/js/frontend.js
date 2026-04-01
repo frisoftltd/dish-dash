@@ -862,10 +862,7 @@
                                 '<div class="dd-ss__result-name">' + highlight(p.name, query) + '</div>' +
                                 '<div class="dd-ss__result-price">' + escHtml(p.price) + '</div>' +
                             '</div>' +
-                            '<button class="dd-ss__result-add dd-btn dd-btn--brand dd-btn--sm dd-add-btn" ' +
-                                'data-id="' + escHtml(p.id) + '" ' +
-                                'data-nonce="' + escHtml(p.nonce) + '" ' +
-                                'aria-label="Add ' + escHtml(p.name) + ' to cart">Add to cart</button>' +
+
                         '</button>';
                 });
                 html += '</div></div>';
