@@ -1142,13 +1142,34 @@
     }
 
     function setupProductModal() {
-        var modal   = $('ddProductModal');
-        var overlay = $('ddProductModalOverlay');
-        var closeBtn= $('ddProductModalClose');
+        var modal = $('ddProductModal');
         if (!modal) return;
 
-        if (overlay)  overlay.addEventListener('click', closeProductModal);
-        if (closeBtn) closeBtn.addEventListener('click', closeProductModal);
+        // Use event delegation on the modal root — reliable regardless of z-index stacking
+        modal.addEventListener('click', function(e) {
+            // Close button clicked
+            if (e.target.closest('.dd-product-modal__close')) {
+                e.stopPropagation();
+                closeProductModal();
+                return;
+            }
+            // Overlay clicked (not the wrap)
+            if (e.target === modal || e.target.classList.contains('dd-product-modal__overlay')) {
+                closeProductModal();
+                return;
+            }
+        });
+
+        // Prevent clicks inside wrap from bubbling to overlay
+        var wrap = modal.querySelector('.dd-product-modal__wrap');
+        if (wrap) {
+            wrap.addEventListener('click', function(e) {
+                // Only stop if NOT the close button (already handled above)
+                if (!e.target.closest('.dd-product-modal__close')) {
+                    e.stopPropagation();
+                }
+            });
+        }
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape' && modal.classList.contains('open')) {
@@ -1156,11 +1177,11 @@
             }
         });
 
-        // Also open modal when dish card image/name is clicked (not Add button)
+        // Open modal when dish card image/name is clicked (not Add button)
         document.addEventListener('click', function(e) {
+            if (e.target.closest('.dd-product-modal')) return; // ignore clicks inside modal
             var card = e.target.closest('.dd-dish-card');
             if (!card) return;
-            // Don't open if Add to Cart was clicked
             if (e.target.closest('.dd-add-btn')) return;
             var pid = card.dataset.id;
             if (pid) openProductModal(pid);
