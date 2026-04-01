@@ -271,49 +271,50 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 <?php endif; ?>
 
 <!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
-<header class="dd-header">
+<header class="dd-header" id="ddHeader">
     <div class="dd-container dd-header__inner">
 
-        <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-brand">
-            <?php if ( $dd_logo ) : ?>
-                <img src="<?php echo esc_url( $dd_logo ); ?>"
-                     alt="<?php echo esc_attr( $dd_name ); ?>"
-                     class="dd-brand__logo">
-            <?php else : ?>
-                <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
-                <div>
-                    <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
-                    <div class="dd-brand__sub">Restaurant</div>
-                </div>
-            <?php endif; ?>
-        </a>
+        <!-- ── Left: Mobile toggle + Logo ────────────── -->
+        <div class="dd-header__left">
+            <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">&#9776;</button>
+            <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-brand">
+                <?php if ( $dd_logo ) : ?>
+                    <img src="<?php echo esc_url( $dd_logo ); ?>"
+                         alt="<?php echo esc_attr( $dd_name ); ?>"
+                         class="dd-brand__logo">
+                <?php else : ?>
+                    <span class="dd-brand__badge"><?php echo esc_html( $dd_initials ); ?></span>
+                    <div>
+                        <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
+                        <div class="dd-brand__sub">Restaurant</div>
+                    </div>
+                <?php endif; ?>
+            </a>
+        </div>
 
-        <button class="dd-mobile-toggle" id="ddMobileToggle" aria-label="Open menu">&#9776;</button>
+        <!-- ── Center: Search bar (desktop) ──────────── -->
+        <div class="dd-smart-search dd-header__search" id="ddSmartSearch">
+            <div class="dd-ss__bar">
+                <span class="dd-ss__icon">&#128269;</span>
+                <input type="search"
+                       id="ddSearch"
+                       class="dd-ss__input"
+                       placeholder="Search dishes, try &lsquo;biryani&rsquo; or &lsquo;chicken&rsquo;&hellip;"
+                       autocomplete="off"
+                       aria-label="Search dishes"
+                       aria-expanded="false"
+                       aria-autocomplete="list"
+                       aria-controls="ddSearchDropdown">
+                <button class="dd-ss__clear" id="ddSearchClear" aria-label="Clear">&#10005;</button>
+            </div>
+            <div class="dd-ss__dropdown" id="ddSearchDropdown" role="listbox"></div>
+        </div>
 
-        <nav class="dd-nav" id="ddMainNav">
-            <?php
-            $nav_html = wp_nav_menu( array(
-                'theme_location' => 'dd-primary',
-                'container'      => false,
-                'items_wrap'     => '%3$s',
-                'fallback_cb'    => false,
-                'echo'           => false,
-            ) );
-            if ( $nav_html ) {
-                echo $nav_html;
-            } else {
-                echo '<a href="#home">Home</a>';
-                echo '<a href="#menu">Menu</a>';
-                echo '<a href="#reserve">Reserve</a>';
-                echo '<a href="#reviews">Reviews</a>';
-            }
-            ?>
-        </nav>
-
+        <!-- ── Right: Actions ────────────────────────── -->
         <div class="dd-header__actions">
             <?php if ( $dd_show_track_order ) : ?>
             <a href="<?php echo esc_url( dd_account_url( 'orders' ) ); ?>"
-               class="dd-btn dd-btn--light dd-btn--sm">Track Order</a>
+               class="dd-btn dd-btn--light dd-btn--sm dd-track-btn">Track Order</a>
             <?php endif; ?>
             <?php if ( $dd_show_cart ) : ?>
             <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
@@ -324,6 +325,44 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
         </div>
 
     </div>
+
+    <!-- ── Mobile search row (below top bar, visible on mobile) ── -->
+    <div class="dd-header__mobile-search">
+        <div class="dd-container">
+            <div class="dd-ss__bar dd-ss__bar--mobile">
+                <span class="dd-ss__icon">&#128269;</span>
+                <input type="search"
+                       id="ddMobileSearch"
+                       class="dd-ss__input dd-mobile-search-input"
+                       placeholder="Search dishes..."
+                       autocomplete="off"
+                       aria-label="Search dishes">
+                <button class="dd-mobile-search-clear" id="ddMobileSearchClear" aria-label="Clear">&#10005;</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Mobile nav dropdown ───────────────────────── -->
+    <nav class="dd-nav" id="ddMainNav">
+        <?php
+        $nav_html = wp_nav_menu( array(
+            'theme_location' => 'dd-primary',
+            'container'      => false,
+            'items_wrap'     => '%3$s',
+            'fallback_cb'    => false,
+            'echo'           => false,
+        ) );
+        if ( $nav_html ) {
+            echo $nav_html;
+        } else {
+            echo '<a href="#home">Home</a>';
+            echo '<a href="#menu">Menu</a>';
+            echo '<a href="#reserve">Reserve</a>';
+            echo '<a href="#reviews">Reviews</a>';
+        }
+        ?>
+    </nav>
+
 </header>
 
 <!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
@@ -396,27 +435,7 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
     </div>
 </section>
 
-<!-- ══ SMART SEARCH ════════════════════════════════════════════════════════ -->
-<section class="dd-ss-section">
-    <div class="dd-container">
-        <div class="dd-smart-search" id="ddSmartSearch">
-            <div class="dd-ss__bar">
-                <span class="dd-ss__icon">&#128269;</span>
-                <input type="search"
-                       id="ddSearch"
-                       class="dd-ss__input"
-                       placeholder="Search dishes, try &lsquo;biryani&rsquo; or &lsquo;chicken&rsquo;&hellip;"
-                       autocomplete="off"
-                       aria-label="Search dishes"
-                       aria-expanded="false"
-                       aria-autocomplete="list"
-                       aria-controls="ddSearchDropdown">
-                <button class="dd-ss__clear" id="ddSearchClear" aria-label="Clear search">&#10005;</button>
-            </div>
-            <div class="dd-ss__dropdown" id="ddSearchDropdown" role="listbox" aria-label="Search suggestions"></div>
-        </div>
-    </div>
-</section>
+
 
 <!-- ══ CATEGORIES ══════════════════════════════════════════════════════════ -->
 <?php if ( $dd_cats_show && ! empty( $dd_cats ) ) : ?>
