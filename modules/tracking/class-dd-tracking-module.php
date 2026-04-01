@@ -29,8 +29,9 @@ class DD_Tracking_Module extends DD_Module {
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
         // AJAX — public (works for both logged-in and guests)
-        DD_Ajax::register( 'dd_track_event',         [ $this, 'ajax_track_event' ],         false );
-        DD_Ajax::register( 'dd_get_recent_searches', [ $this, 'ajax_get_recent_searches' ], false );
+        DD_Ajax::register( 'dd_track_event',          [ $this, 'ajax_track_event' ],          false );
+        DD_Ajax::register( 'dd_get_recent_searches',  [ $this, 'ajax_get_recent_searches' ],  false );
+        DD_Ajax::register( 'dd_get_search_products',  [ $this, 'ajax_get_search_products' ],  false );
     }
 
     // ─────────────────────────────────────────
@@ -150,6 +151,42 @@ class DD_Tracking_Module extends DD_Module {
         }
 
         wp_send_json_success( $unique );
+    }
+
+    // ─────────────────────────────────────────
+    //  AJAX — GET SEARCH PRODUCTS
+    //  Returns all published products for search
+    //  suggestions on pages with no dish cards in DOM.
+    // ─────────────────────────────────────────
+    public function ajax_get_search_products(): void {
+        if ( ! function_exists( 'wc_get_products' ) ) {
+            wp_send_json_success( [] );
+            return;
+        }
+
+        $products = wc_get_products( [
+            'limit'   => -1,
+            'status'  => 'publish',
+            'orderby' => 'popularity',
+        ] );
+
+        $data = [];
+        foreach ( $products as $product ) {
+            $img_id  = $product->get_image_id();
+            $img_url = $img_id ? wp_get_attachment_image_url( $img_id, 'thumbnail' ) : '';
+            $price   = (float) $product->get_price();
+
+            $data[] = [
+                'id'    => (string) $product->get_id(),
+                'name'  => $product->get_name(),
+                'price' => $price ? 'RWF ' . number_format( $price, 0, '.', ',' ) : '',
+                'desc'  => wp_trim_words( strip_tags( $product->get_short_description() ?: $product->get_description() ), 12, '...' ),
+                'img'   => $img_url ?: '',
+                'nonce' => wp_create_nonce( 'dd_add_to_cart' ),
+            ];
+        }
+
+        wp_send_json_success( $data );
     }
 
     // ─────────────────────────────────────────
