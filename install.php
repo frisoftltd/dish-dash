@@ -211,6 +211,56 @@ class DD_Install {
                 KEY          stat_date (stat_date)
             ) $charset;
         " );
+
+        // ── dishdash_user_events ─────────────
+        // AI Foundation — records every user interaction.
+        // Feeds the behavior engine and user profile builder.
+        // event_type values: view_product, view_category, search,
+        //                    add_to_cart, remove_from_cart, order,
+        //                    reorder, page_view
+        dbDelta( "
+            CREATE TABLE {$wpdb->prefix}dishdash_user_events (
+                id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id     BIGINT UNSIGNED          DEFAULT NULL,
+                session_id  VARCHAR(64)     NOT NULL DEFAULT '',
+                event_type  VARCHAR(50)     NOT NULL DEFAULT '',
+                product_id  BIGINT UNSIGNED          DEFAULT NULL,
+                category_id BIGINT UNSIGNED          DEFAULT NULL,
+                meta        JSON                     DEFAULT NULL,
+                created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY         user_id (user_id),
+                KEY         session_id (session_id),
+                KEY         event_type (event_type),
+                KEY         product_id (product_id),
+                KEY         category_id (category_id),
+                KEY         created_at (created_at)
+            ) $charset;
+        " );
+
+        // ── dishdash_user_profiles ───────────
+        // AI Foundation — computed profile per user/session.
+        // Updated automatically as events are tracked.
+        // One row per user_id (logged in) or session_id (guest).
+        dbDelta( "
+            CREATE TABLE {$wpdb->prefix}dishdash_user_profiles (
+                id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id              BIGINT UNSIGNED          DEFAULT NULL,
+                session_id           VARCHAR(64)     NOT NULL DEFAULT '',
+                favorite_items       JSON                     DEFAULT NULL,
+                favorite_categories  JSON                     DEFAULT NULL,
+                avg_order_value      DECIMAL(10,2)   NOT NULL DEFAULT '0.00',
+                order_count          INT UNSIGNED    NOT NULL DEFAULT 0,
+                order_times          JSON                     DEFAULT NULL,
+                last_orders          JSON                     DEFAULT NULL,
+                last_seen            DATETIME                 DEFAULT NULL,
+                updated_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY  user_id (user_id),
+                KEY         session_id (session_id),
+                KEY         updated_at (updated_at)
+            ) $charset;
+        " );
     }
 
     // ─────────────────────────────────────────
