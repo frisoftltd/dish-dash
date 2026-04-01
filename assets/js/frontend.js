@@ -13,6 +13,9 @@
     /* ══════════════════════════════════════════════════════════
        STATE
     ══════════════════════════════════════════════════════════ */
+    // Ensure window.DD exists — may not be set on non-homepage pages
+    window.DD = window.DD || {};
+
     // Shared product data — populated by setupSmartSearch, used by openProductModal
     var productNames   = [];
     var productsLoaded = false;
@@ -980,9 +983,10 @@
                 clearBtn.classList.toggle('visible', q.length > 0);
             }
 
-            // Filter dish cards on the page (existing behaviour)
+            // Filter dish cards on the page
             filterDishCards(q);
 
+            // Render suggestions — do NOT track here (partial queries)
             renderDropdown(recentSearches, q);
         });
 
@@ -1043,7 +1047,12 @@
                 if (clearBtn) clearBtn.classList.toggle('visible', q.length > 0);
                 filterDishCards(q);
                 closeDropdown();
-                if (window.DDTrack) window.DDTrack.search(q);
+                // Track full query to DB
+                if (window.DDTrack && q.length >= 2) window.DDTrack.search(q);
+                // Update local list immediately
+                recentSearches = [q].concat(
+                    recentSearches.filter(function(s) { return s.toLowerCase() !== q.toLowerCase(); })
+                ).slice(0, 5);
             }
         });
 
@@ -1062,9 +1071,10 @@
             }
             if (e.key === 'Enter') {
                 var q = this.value.trim();
-                if (q) {
+                if (q && q.length >= 2) {
                     filterDishCards(q);
                     closeDropdown();
+                    // Save full query to DB (not partial letters)
                     if (window.DDTrack) window.DDTrack.search(q);
                     // Update recent searches locally for immediate display
                     recentSearches = [q].concat(
