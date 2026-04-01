@@ -51,52 +51,65 @@ class DD_Template_Module extends DD_Module {
     public function inject_cart_sidebar(): void {
         if ( is_admin() ) return;
 
-        // Don't inject twice if full page template already has it
+        // Skip on full page template — it has its own cart drawer + floating cart
         if ( is_page() ) {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
             if ( 'page-dishdash.php' === $meta ) return;
         }
+
+        $checkout_url  = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' );
+        $dd_cart_count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
         ?>
-        <!-- Dish Dash Cart Sidebar -->
-        <div class="dd-cart-overlay"></div>
-        <aside class="dd-cart-sidebar" aria-label="<?php esc_attr_e( 'Shopping cart', 'dish-dash' ); ?>">
-            <div class="dd-cart-sidebar__header">
-                <h3>🛒 <?php esc_html_e( 'Your Cart', 'dish-dash' ); ?></h3>
-                <button class="dd-cart-close" aria-label="<?php esc_attr_e( 'Close cart', 'dish-dash' ); ?>">✕</button>
+
+        <!-- ══ CART DRAWER ══════════════════════════════════════ -->
+        <div class="dd-cart-overlay" id="ddCartOverlay"></div>
+        <aside class="dd-cart-drawer" id="ddCartDrawer" aria-label="Shopping cart">
+            <div class="dd-cart-drawer__header">
+                <span class="dd-cart-drawer__title">Your cart</span>
+                <button class="dd-cart-drawer__close" id="ddCloseCart">Close &#10005;</button>
             </div>
-            <div class="dd-cart-items">
-                <p class="dd-cart-empty"><?php esc_html_e( 'Your cart is empty.', 'dish-dash' ); ?></p>
+            <div class="dd-cart-drawer__body" id="ddDrawerBody">
+                <div class="dd-cart-drawer__empty">Your cart is empty.</div>
             </div>
-            <div class="dd-cart-summary" style="display:none">
-                <div class="dd-cart-summary__row">
-                    <span><?php esc_html_e( 'Subtotal', 'dish-dash' ); ?></span>
-                    <span class="dd-cart-subtotal">—</span>
+            <div class="dd-cart-drawer__footer">
+                <div class="dd-cart-drawer__totals">
+                    <div class="dd-cart-drawer__row"><span>Subtotal</span><span id="ddDrawerSubtotal">RWF 0</span></div>
+                    <div class="dd-cart-drawer__row"><span>Delivery</span><span id="ddDrawerDelivery">RWF 2,000</span></div>
+                    <div class="dd-cart-drawer__row dd-cart-drawer__row--main"><span>Total</span><span id="ddDrawerTotal">RWF 0</span></div>
                 </div>
-                <?php if ( (float) DD_Settings::get( 'tax_rate', 0 ) > 0 ) : ?>
-                <div class="dd-cart-summary__row">
-                    <span><?php echo esc_html( DD_Settings::get( 'tax_label', 'Tax' ) ); ?></span>
-                    <span class="dd-cart-tax">—</span>
-                </div>
-                <?php endif; ?>
-                <div class="dd-cart-summary__row dd-cart-summary__row--total">
-                    <span><?php esc_html_e( 'Total', 'dish-dash' ); ?></span>
-                    <span class="dd-cart-total">—</span>
-                </div>
-                <button class="dd-cart-checkout-btn">
-                    <?php esc_html_e( 'Proceed to Checkout', 'dish-dash' ); ?> →
-                </button>
+                <a href="<?php echo esc_url( $checkout_url ); ?>"
+                   class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Checkout now</a>
             </div>
         </aside>
 
-        <!-- Floating cart trigger button -->
-        <button class="dd-cart-trigger" aria-label="<?php esc_attr_e( 'Open cart', 'dish-dash' ); ?>">
-            🛒 <?php esc_html_e( 'Cart', 'dish-dash' ); ?>
-            <span class="dd-cart-count" style="display:none">0</span>
+        <!-- ══ FLOATING CART ════════════════════════════════════ -->
+        <button class="dd-floating-cart" id="ddFloatingCart" aria-label="Open cart">
+            <span>&#128722;</span>
+            <span class="dd-floating-cart__text">Cart</span>
+            <span class="dd-cart-badge" id="ddFloatingCount"><?php echo esc_html( $dd_cart_count ); ?></span>
         </button>
+
+        <!-- ══ MOBILE BOTTOM NAV ════════════════════════════════ -->
+        <nav class="dd-bottom-nav" id="ddBottomNav">
+            <a href="<?php echo esc_url( home_url('/') ); ?>" class="dd-bottom-link">
+                <span class="dd-bottom-link__icon">&#127968;</span><span>Home</span>
+            </a>
+            <a href="<?php echo esc_url( home_url('/restaurant-menu/') ); ?>" class="dd-bottom-link">
+                <span class="dd-bottom-link__icon">&#127859;</span><span>Menu</span>
+            </a>
+            <a href="<?php echo esc_url( home_url('/reserve-table/') ); ?>" class="dd-bottom-link">
+                <span class="dd-bottom-link__icon">&#127860;</span><span>Reserve</span>
+            </a>
+            <button class="dd-bottom-link" id="ddBottomCartBtn" type="button">
+                <span class="dd-bottom-link__icon">&#128722;</span>
+                <span>Cart</span>
+                <span class="dd-bottom-badge" id="ddBottomBadge"><?php echo esc_html( $dd_cart_count ); ?></span>
+            </button>
+        </nav>
         <?php
     }
 
-    // ─────────────────────────────────────────
+        // ─────────────────────────────────────────
     //  NAV MENUS
     // ─────────────────────────────────────────
     public function register_nav_menus(): void {
@@ -705,22 +718,27 @@ class DD_Template_Module extends DD_Module {
     public function inject_global_footer(): void {
         if ( ! $this->is_global_header_page() ) return;
 
-        $dd_name    = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
-        $dd_logo    = get_option( 'dish_dash_logo_url', '' );
-        $dd_initials= strtoupper( substr( $dd_name, 0, 2 ) );
-        $dd_addr    = get_option( 'dish_dash_address', '' );
-        $dd_phone   = get_option( 'dish_dash_phone', '' );
-        $dd_email   = get_option( 'dish_dash_contact_email', '' );
-        $dd_hours   = get_option( 'dish_dash_opening_hours', '' );
-        $dd_fb      = get_option( 'dish_dash_facebook', '' );
-        $dd_ig      = get_option( 'dish_dash_instagram', '' );
-        $dd_wa      = get_option( 'dish_dash_whatsapp', '' );
-        $dd_tiktok  = get_option( 'dish_dash_tiktok', '' );
-        $home_url   = home_url( '/' );
+        // Skip on full page template — has its own footer
+        if ( is_page() ) {
+            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
+            if ( 'page-dishdash.php' === $meta ) return;
+        }
+
+        $dd_name     = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $dd_logo     = get_option( 'dish_dash_logo_url', '' );
+        $dd_initials = strtoupper( substr( $dd_name, 0, 2 ) );
+        $dd_addr     = get_option( 'dish_dash_address', '' );
+        $dd_phone    = get_option( 'dish_dash_phone', '' );
+        $dd_email    = get_option( 'dish_dash_contact_email', '' );
+        $dd_hours    = get_option( 'dish_dash_opening_hours', '' );
+        $dd_fb       = get_option( 'dish_dash_facebook', '' );
+        $dd_ig       = get_option( 'dish_dash_instagram', '' );
+        $dd_wa       = get_option( 'dish_dash_whatsapp', '' );
+        $dd_tiktok   = get_option( 'dish_dash_tiktok', '' );
+        $dd_footer_desc = get_option( 'dd_footer_description', 'Premium Indian dining and a refined digital ordering experience.' );
+        $home_url    = home_url( '/' );
+        $orders_url  = function_exists( 'wc_get_account_url' ) ? wc_get_account_url( 'orders' ) : home_url( '/my-account/orders/' );
         $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
-        $orders_url = function_exists( 'wc_get_account_url' )
-            ? wc_get_account_url( 'orders' )
-            : home_url( '/my-account/orders/' );
         ?>
         <footer class="dd-footer dd-global-footer">
             <div class="dd-container dd-footer__grid">
@@ -734,10 +752,12 @@ class DD_Template_Module extends DD_Module {
                             <span class="dd-footer__brand-name"><?php echo esc_html( $dd_name ); ?></span>
                         <?php endif; ?>
                     </div>
+                    <p class="dd-footer__copy"><?php echo esc_html( $dd_footer_desc ); ?></p>
                     <div class="dd-footer__social">
                         <?php if ( $dd_fb ) : ?><a href="<?php echo esc_url( $dd_fb ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="Facebook"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a><?php endif; ?>
                         <?php if ( $dd_ig ) : ?><a href="<?php echo esc_url( $dd_ig ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="Instagram"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg></a><?php endif; ?>
                         <?php if ( $dd_wa ) : ?><a href="https://wa.me/<?php echo esc_attr( preg_replace('/\D/', '', $dd_wa) ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="WhatsApp"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.116 1.522 5.849L0 24l6.335-1.498A11.95 11.95 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.854 0-3.587-.504-5.078-1.38l-.36-.214-3.762.889.928-3.667-.235-.374A9.96 9.96 0 0 1 2 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg></a><?php endif; ?>
+                        <?php if ( $dd_tiktok ) : ?><a href="<?php echo esc_url( $dd_tiktok ); ?>" target="_blank" rel="noopener" class="dd-footer__social-link" aria-label="TikTok"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.18 8.18 0 0 0 4.78 1.52V6.75a4.85 4.85 0 0 1-1.01-.06z"/></svg></a><?php endif; ?>
                     </div>
                 </div>
 
@@ -782,8 +802,7 @@ class DD_Template_Module extends DD_Module {
         <?php
     }
 
-
-    // ─────────────────────────────────────────
+        // ─────────────────────────────────────────
     //  REMOVE THEME & PLUGIN CONFLICTS
     //  Runs only on our DishDash page template
     // ─────────────────────────────────────────
