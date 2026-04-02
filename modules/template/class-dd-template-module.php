@@ -678,8 +678,25 @@ class DD_Template_Module extends DD_Module {
         $home_url    = home_url( '/' );
         $orders_url  = function_exists( 'wc_get_account_url' ) ? wc_get_account_url( 'orders' ) : home_url( '/my-account/orders/' );
         $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
+        <?php
+        echo '<style>'
+            . '#ddGlobalFooter,#ddGlobalFooter *{box-sizing:border-box}'
+            . '#ddGlobalFooter{'
+                . 'background:' . esc_attr($dark) . ';'
+                . 'color:#F1E7DB;'
+                . 'margin-top:72px'
+            . '}'
+            . '#ddGlobalFooter .dd-footer__heading{color:#C9A24A;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px}'
+            . '#ddGlobalFooter .dd-footer__list{list-style:none;margin:0;padding:0}'
+            . '#ddGlobalFooter .dd-footer__list li,#ddGlobalFooter .dd-footer__list a{color:rgba(241,231,219,.7);font-size:14px;line-height:1.8;text-decoration:none}'
+            . '#ddGlobalFooter .dd-footer__list a:hover{color:#F1E7DB}'
+            . '#ddGlobalFooter .dd-footer__copy{color:rgba(241,231,219,.6);font-size:14px;line-height:1.7;margin:12px 0 0}'
+            . '#ddGlobalFooter .dd-footer__brand-name{color:#F1E7DB;font-weight:700}'
+            . '#ddGlobalFooter .dd-footer__social-link{color:rgba(241,231,219,.7)}'
+            . '#ddGlobalFooter .dd-footer__social-link:hover{color:#F1E7DB}'
+            . '#ddGlobalFooter .dd-footer__bottom{background:rgba(0,0,0,.2);padding:16px 0;text-align:center;font-size:13px;color:rgba(241,231,219,.5)}'
+            . '</style>';
         ?>
-        <style>#ddGlobalFooter,#ddGlobalFooter *{box-sizing:border-box}#ddGlobalFooter{background:<?php echo esc_attr($dark); ?>;color:#F1E7DB;margin-top:72px}#ddGlobalFooter .dd-footer__heading{color:#C9A24A;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px}#ddGlobalFooter .dd-footer__list{list-style:none;margin:0;padding:0}#ddGlobalFooter .dd-footer__list li,#ddGlobalFooter .dd-footer__list a{color:rgba(241,231,219,.7);font-size:14px;line-height:1.8;text-decoration:none}#ddGlobalFooter .dd-footer__list a:hover{color:#F1E7DB}#ddGlobalFooter .dd-footer__copy{color:rgba(241,231,219,.6);font-size:14px;line-height:1.7;margin:12px 0 0}#ddGlobalFooter .dd-footer__brand-name{color:#F1E7DB;font-weight:700}#ddGlobalFooter .dd-footer__social-link{color:rgba(241,231,219,.7)}#ddGlobalFooter .dd-footer__social-link:hover{color:#F1E7DB}#ddGlobalFooter .dd-footer__bottom{background:rgba(0,0,0,.2);padding:16px 0;text-align:center;font-size:13px;color:rgba(241,231,219,.5)}</style>
         <footer class="dd-footer dd-global-footer" id="ddGlobalFooter">
             <div class="dd-container dd-footer__grid">
 
@@ -735,7 +752,7 @@ class DD_Template_Module extends DD_Module {
             </div>
             <div class="dd-footer__bottom" style="background:rgba(0,0,0,0.25);color:rgba(241,231,219,0.6);">
                 <div class="dd-container">
-                    <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?>. Powered by <strong></strong> by Fri Soft Ltd</p>
+                    <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?>. Powered by <strong>Dish Dash</strong> by Fri Soft Ltd</p>
                 </div>
             </div>
         </footer>
