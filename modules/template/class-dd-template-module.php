@@ -146,6 +146,10 @@ class DD_Template_Module extends DD_Module {
     public function enqueue_frontend_assets(): void {
         if ( is_admin() ) return;
         $plugin_url = plugins_url( 'dish-dash' );
+
+        $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+        $dark    = get_option( 'dish_dash_dark_color',    '#160F0D' );
+
         wp_enqueue_style(  'dish-dash-theme',    $plugin_url . '/assets/css/theme.css',    [], DD_VERSION );
         wp_enqueue_style(  'dish-dash-menu',     $plugin_url . '/assets/css/menu.css',     [], DD_VERSION );
         wp_enqueue_style(  'dish-dash-cart',     $plugin_url . '/assets/css/cart.css',     [], DD_VERSION );
@@ -153,6 +157,26 @@ class DD_Template_Module extends DD_Module {
         wp_enqueue_script( 'dish-dash-cart',     $plugin_url . '/assets/js/cart.js',     [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [], DD_VERSION, true );
         wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
+
+        // Inject CSS variables + footer background via WordPress inline style system
+        // This is guaranteed to output after theme.css and override correctly
+        wp_add_inline_style( 'dish-dash-theme', '
+            :root {
+                --brand:      ' . $primary . ';
+                --brand-dark: ' . $dark . ';
+            }
+            .dd-footer, .dd-global-footer {
+                background: ' . $dark . ' !important;
+                color: #F1E7DB !important;
+            }
+            .dd-footer__heading { color: #C9A24A !important; }
+            .dd-footer__list a, .dd-footer__list li { color: rgba(241,231,219,0.7) !important; }
+            .dd-footer__list a:hover { color: #F1E7DB !important; }
+            .dd-footer__bottom { background: rgba(0,0,0,0.25) !important; color: rgba(241,231,219,0.5) !important; }
+            .dd-footer__copy, .dd-footer__brand-name { color: rgba(241,231,219,0.7) !important; }
+            .dd-footer__social-link { color: rgba(241,231,219,0.7) !important; }
+            .dd-footer__social-link:hover { color: #F1E7DB !important; }
+        ' );
     }
 
     // ─────────────────────────────────────────
@@ -678,23 +702,6 @@ class DD_Template_Module extends DD_Module {
         $home_url    = home_url( '/' );
         $orders_url  = function_exists( 'wc_get_account_url' ) ? wc_get_account_url( 'orders' ) : home_url( '/my-account/orders/' );
         $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
-        echo '<style>'
-            . '#ddGlobalFooter,#ddGlobalFooter *{box-sizing:border-box}'
-            . '#ddGlobalFooter{'
-                . 'background:' . esc_attr($dark) . ';'
-                . 'color:#F1E7DB;'
-                . 'margin-top:72px'
-            . '}'
-            . '#ddGlobalFooter .dd-footer__heading{color:#C9A24A;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px}'
-            . '#ddGlobalFooter .dd-footer__list{list-style:none;margin:0;padding:0}'
-            . '#ddGlobalFooter .dd-footer__list li,#ddGlobalFooter .dd-footer__list a{color:rgba(241,231,219,.7);font-size:14px;line-height:1.8;text-decoration:none}'
-            . '#ddGlobalFooter .dd-footer__list a:hover{color:#F1E7DB}'
-            . '#ddGlobalFooter .dd-footer__copy{color:rgba(241,231,219,.6);font-size:14px;line-height:1.7;margin:12px 0 0}'
-            . '#ddGlobalFooter .dd-footer__brand-name{color:#F1E7DB;font-weight:700}'
-            . '#ddGlobalFooter .dd-footer__social-link{color:rgba(241,231,219,.7)}'
-            . '#ddGlobalFooter .dd-footer__social-link:hover{color:#F1E7DB}'
-            . '#ddGlobalFooter .dd-footer__bottom{background:rgba(0,0,0,.2);padding:16px 0;text-align:center;font-size:13px;color:rgba(241,231,219,.5)}'
-            . '</style>';
         ?>
         <footer class="dd-footer dd-global-footer" id="ddGlobalFooter">
             <div class="dd-container dd-footer__grid">
