@@ -423,36 +423,8 @@ class DD_Template_Module extends DD_Module {
      * Uses Astra's own filter + CSS nuclear option as fallback.
      */
     public function remove_theme_header_hooks(): void {
-        if ( is_admin() ) return;
-
-        add_action( 'template_redirect', function() {
-            if ( ! $this->is_global_header_page() ) return;
-
-            // ── Astra: Use their own disable header filter ──
-            add_filter( 'astra_header_disabled', '__return_true' );
-            add_filter( 'astra_disable_primary_navigation', '__return_true' );
-
-            // ── Astra builder: disable all header zones ──
-            add_filter( 'astra_header_layout_enabled', '__return_false' );
-            add_filter( 'astra_main_header_display', '__return_false' );
-
-            // ── Remove Astra header template actions ──
-            add_action( 'astra_header', function() {}, 0 );
-            remove_all_actions( 'astra_header' );
-            remove_all_actions( 'astra_masthead' );
-            remove_all_actions( 'astra_masthead_top' );
-            remove_all_actions( 'astra_masthead_bottom' );
-            remove_all_actions( 'astra_above_header' );
-            remove_all_actions( 'astra_below_header' );
-            remove_all_actions( 'astra_primary_header_bar' );
-            remove_all_actions( 'astra_render_header' );
-
-            // ── Add body class for CSS targeting ──
-            add_filter( 'body_class', function( $classes ) {
-                $classes[] = 'dd-hide-theme-header';
-                return $classes;
-            });
-        });
+        // Blank theme — no third-party hooks to remove
+        // Header/footer visibility handled via CSS in inject_global_header_styles()
     }
 
     /**
@@ -464,48 +436,7 @@ class DD_Template_Module extends DD_Module {
         $dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
         ?>
         <style>
-        /* ── Hide header from ANY theme — nuclear option ───── */
-        /* Targets body class added by our PHP */
-        body.dd-hide-theme-header .ast-site-header-wrap,
-        body.dd-hide-theme-header #masthead,
-        body.dd-hide-theme-header .site-header:not(.dd-global-header),
-        body.dd-hide-theme-header .ast-primary-header-bar,
-        body.dd-hide-theme-header .ast-above-header-bar,
-        body.dd-hide-theme-header .ast-below-header-bar,
-        body.dd-hide-theme-header #site-header,
-        body.dd-hide-theme-header #header:not(.dd-global-header),
-        body.dd-hide-theme-header .header:not(.dd-global-header),
-        body.dd-hide-theme-header header:not(.dd-global-header),
-        body.dd-hide-theme-header .ast-breadcrumbs-wrapper,
-        body.dd-hide-theme-header .woocommerce-breadcrumb,
-        body.dd-hide-theme-header .breadcrumbs {
-            display: none !important;
-            height: 0 !important;
-            overflow: hidden !important;
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-
-        /* Hide Astra footer — replaced by our global footer */
-        body.dd-hide-theme-header .site-footer,
-        body.dd-hide-theme-header #colophon,
-        body.dd-hide-theme-header .ast-site-footer,
-        body.dd-hide-theme-header footer:not(.dd-footer) {
-            display: none !important;
-        }
-
-        /* Force footer dark background on all pages */
-        .dd-footer, .dd-global-footer {
-            background: <?php echo esc_attr( $dark ); ?> !important;
-            color: #F1E7DB !important;
-        }
-        .dd-footer__heading { color: #C9A24A !important; }
-        .dd-footer__list a, .dd-footer__list li { color: rgba(241,231,219,0.7) !important; }
-        .dd-footer__list a:hover { color: #F1E7DB !important; }
-        .dd-footer__bottom { background: rgba(0,0,0,0.2) !important; }
-        .dd-footer__brand-name, .dd-footer__copy { color: rgba(241,231,219,0.7) !important; }
-
-        /* ── Our CSS variables — set on ALL pages ───────────── */
+        /* ── CSS variables for all pages ───────────────────── */
         :root {
             --brand:        <?php echo esc_attr( $primary ); ?>;
             --brand-dark:   <?php echo esc_attr( $dark ); ?>;
@@ -524,31 +455,33 @@ class DD_Template_Module extends DD_Module {
             --dd-container: 1240px;
         }
 
+        /* ── Hide default theme header/footer — blank theme ── */
+        .site-header:not(.dd-header):not(.dd-global-header),
+        header:not(.dd-header):not(.dd-global-header),
+        .site-footer:not(.dd-footer):not(.dd-global-footer),
+        footer:not(.dd-footer):not(.dd-global-footer),
+        #colophon, #masthead,
+        .woocommerce-breadcrumb,
+        .breadcrumbs { display: none !important; }
+
         /* ── Page content spacing ───────────────────────────── */
-        .site-content,
-        .ast-container,
-        #content,
-        #primary,
-        .entry-content,
-        .woocommerce-page .entry-content,
-        .woocommerce-account .entry-content,
-        main {
+        #content, #primary, .entry-content, main {
             margin-top: 0 !important;
             padding-top: 20px !important;
         }
 
-        /* ── Our global header styling ──────────────────────── */
+        /* ── Global header ──────────────────────────────────── */
         .dd-global-header {
-            display: flex !important;
             position: sticky !important;
             top: 0 !important;
             z-index: 9999 !important;
             width: 100% !important;
-            background: rgba(245, 239, 230, 0.97) !important;
-            backdrop-filter: blur(14px) !important;
-            -webkit-backdrop-filter: blur(14px) !important;
-            border-bottom: 1px solid rgba(217, 203, 184, 0.7) !important;
-            box-shadow: 0 2px 20px rgba(107,29,29,0.08) !important;
+        }
+
+        /* ── Footer background — hardcoded, no variable needed ── */
+        .dd-footer, .dd-global-footer {
+            background: <?php echo esc_attr( $dark ); ?> !important;
+            color: #F1E7DB !important;
         }
         </style>
         <?php
@@ -746,7 +679,8 @@ class DD_Template_Module extends DD_Module {
         $orders_url  = function_exists( 'wc_get_account_url' ) ? wc_get_account_url( 'orders' ) : home_url( '/my-account/orders/' );
         $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
         ?>
-        <footer class="dd-footer dd-global-footer" style="background:<?php echo esc_attr($dark); ?> !important;color:#F1E7DB;">
+        <style>#ddGlobalFooter,#ddGlobalFooter *{box-sizing:border-box}#ddGlobalFooter{background:<?php echo esc_attr($dark); ?>;color:#F1E7DB;margin-top:72px}#ddGlobalFooter .dd-footer__heading{color:#C9A24A;font-size:12px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;margin-bottom:16px}#ddGlobalFooter .dd-footer__list{list-style:none;margin:0;padding:0}#ddGlobalFooter .dd-footer__list li,#ddGlobalFooter .dd-footer__list a{color:rgba(241,231,219,.7);font-size:14px;line-height:1.8;text-decoration:none}#ddGlobalFooter .dd-footer__list a:hover{color:#F1E7DB}#ddGlobalFooter .dd-footer__copy{color:rgba(241,231,219,.6);font-size:14px;line-height:1.7;margin:12px 0 0}#ddGlobalFooter .dd-footer__brand-name{color:#F1E7DB;font-weight:700}#ddGlobalFooter .dd-footer__social-link{color:rgba(241,231,219,.7)}#ddGlobalFooter .dd-footer__social-link:hover{color:#F1E7DB}#ddGlobalFooter .dd-footer__bottom{background:rgba(0,0,0,.2);padding:16px 0;text-align:center;font-size:13px;color:rgba(241,231,219,.5)}</style>
+        <footer class="dd-footer dd-global-footer" id="ddGlobalFooter">
             <div class="dd-container dd-footer__grid">
 
                 <div class="dd-footer__col-brand">
@@ -801,7 +735,7 @@ class DD_Template_Module extends DD_Module {
             </div>
             <div class="dd-footer__bottom" style="background:rgba(0,0,0,0.25);color:rgba(241,231,219,0.6);">
                 <div class="dd-container">
-                    <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?>. Powered by <strong>Dish Dash</strong> by Fri Soft Ltd</p>
+                    <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?>. Powered by <strong></strong> by Fri Soft Ltd</p>
                 </div>
             </div>
         </footer>
@@ -813,38 +747,27 @@ class DD_Template_Module extends DD_Module {
     //  Runs only on our DishDash page template
     // ─────────────────────────────────────────
     public function remove_theme_conflicts(): void {
-        if ( ! is_page() ) return;
+        if ( is_admin() ) return;
 
-        $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
-        if ( 'page-dishdash.php' !== $meta ) return;
-
-        // ── Remove Astra theme styles ──
-        wp_dequeue_style( 'astra-theme-css' );
-        wp_dequeue_style( 'astra-theme-dynamic-css' );
-        wp_dequeue_style( 'astra-fonts' );
-        wp_dequeue_style( 'astra-google-fonts' );
-        wp_deregister_style( 'astra-theme-css' );
-        wp_deregister_style( 'astra-theme-dynamic-css' );
-
-        // ── Remove Astra scripts ──
-        wp_dequeue_script( 'astra-theme-js' );
-        wp_deregister_script( 'astra-theme-js' );
+        // ── Remove WordPress block / global styles on ALL DD pages ──
+        // These can inject background colors that override our footer/header styles
+        wp_dequeue_style( 'wp-block-library' );
+        wp_dequeue_style( 'global-styles' );
+        wp_dequeue_style( 'classic-theme-styles' );
+        wp_dequeue_style( 'wp-block-library-theme' );
 
         // ── Remove WooCommerce styles that conflict ──
-        wp_dequeue_style( 'woocommerce-general' );
         wp_dequeue_style( 'woocommerce-layout' );
         wp_dequeue_style( 'woocommerce-smallscreen' );
         wp_dequeue_style( 'wc-blocks-style' );
         wp_dequeue_style( 'wc-blocks-vendors-style' );
 
-        // ── Remove WordPress block / global styles ──
-        wp_dequeue_style( 'wp-block-library' );
-        wp_dequeue_style( 'global-styles' );
-        wp_dequeue_style( 'classic-theme-styles' );
-
-        // ── Remove Elementor if active ──
-        wp_dequeue_style( 'elementor-frontend' );
-        wp_dequeue_style( 'elementor-post' );
-        wp_dequeue_script( 'elementor-frontend' );
+        // ── Only on full page template — remove more aggressively ──
+        if ( is_page() ) {
+            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
+            if ( 'page-dishdash.php' === $meta ) {
+                wp_dequeue_style( 'woocommerce-general' );
+            }
+        }
     }
 }
