@@ -678,7 +678,6 @@ class DD_Template_Module extends DD_Module {
         $home_url    = home_url( '/' );
         $orders_url  = function_exists( 'wc_get_account_url' ) ? wc_get_account_url( 'orders' ) : home_url( '/my-account/orders/' );
         $hours_lines = array_filter( array_map( 'trim', explode( "\n", $dd_hours ) ) );
-        <?php
         echo '<style>'
             . '#ddGlobalFooter,#ddGlobalFooter *{box-sizing:border-box}'
             . '#ddGlobalFooter{'
