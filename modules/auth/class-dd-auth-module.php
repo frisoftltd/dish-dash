@@ -436,7 +436,7 @@ class DD_Auth_Module extends DD_Module {
             document.addEventListener('click', function(e) {
                 if (e.target.closest('#ddOpenLogin'))    { e.preventDefault(); window.ddOpenLogin(); }
                 if (e.target.closest('#ddOpenRegister')) { e.preventDefault(); window.ddOpenRegister(); }
-                if (e.target.closest('#ddLogoutBtn'))    { e.preventDefault(); ddAuthAjax('dd_logout', {}, function() { window.location.reload(); }); }
+                if (e.target.closest('#ddLogoutBtn'))    { e.preventDefault(); ddAuthAjax('dd_logout', {}, function(res) { window.location.href = (res.success && res.data && res.data.redirect) ? res.data.redirect : '/'; }); }
             });
         })();
         </script>
@@ -550,7 +550,7 @@ class DD_Auth_Module extends DD_Module {
             wp_send_json_error( 'Security check failed.' );
         }
         wp_logout();
-        wp_send_json_success();
+        wp_send_json_success( [ 'redirect' => home_url( '/' ) ] );
     }
 
     // ─────────────────────────────────────────
