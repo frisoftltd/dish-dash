@@ -29,10 +29,12 @@ class DD_Auth_Module extends DD_Module {
         // Inject auth modal on all frontend pages
         add_action( 'wp_footer', [ $this, 'inject_auth_modal' ] );
 
-        // AJAX handlers
-        DD_Ajax::register( 'dd_login',    [ $this, 'ajax_login' ],    false );
-        DD_Ajax::register( 'dd_register', [ $this, 'ajax_register' ], false );
-        DD_Ajax::register( 'dd_logout',   [ $this, 'ajax_logout' ],   true  );
+        // AJAX handlers — direct WP hooks, most reliable
+        add_action( 'wp_ajax_nopriv_dd_login',    [ $this, 'ajax_login' ] );
+        add_action( 'wp_ajax_dd_login',           [ $this, 'ajax_login' ] );
+        add_action( 'wp_ajax_nopriv_dd_register', [ $this, 'ajax_register' ] );
+        add_action( 'wp_ajax_dd_register',        [ $this, 'ajax_register' ] );
+        add_action( 'wp_ajax_dd_logout',          [ $this, 'ajax_logout' ] );
 
         // Google OAuth — runs early to intercept the callback
         add_action( 'init', [ $this, 'handle_google_oauth' ] );
@@ -445,7 +447,9 @@ class DD_Auth_Module extends DD_Module {
     //  AJAX — LOGIN
     // ─────────────────────────────────────────
     public function ajax_login(): void {
-        check_ajax_referer( 'dd_auth', 'nonce' );
+        if ( ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ?? '' ), 'dd_auth' ) ) {
+            wp_send_json_error( 'Security check failed.' );
+        }
 
         $login    = sanitize_text_field( $_POST['email'] ?? '' ); // accepts username or email
         $password = $_POST['password'] ?? '';
@@ -488,7 +492,9 @@ class DD_Auth_Module extends DD_Module {
     //  AJAX — REGISTER
     // ─────────────────────────────────────────
     public function ajax_register(): void {
-        check_ajax_referer( 'dd_auth', 'nonce' );
+        if ( ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ?? '' ), 'dd_auth' ) ) {
+            wp_send_json_error( 'Security check failed.' );
+        }
 
         if ( get_option( 'dd_auth_allow_registration', '1' ) !== '1' ) {
             wp_send_json_error( 'Registration is currently disabled.' );
@@ -540,7 +546,9 @@ class DD_Auth_Module extends DD_Module {
     //  AJAX — LOGOUT
     // ─────────────────────────────────────────
     public function ajax_logout(): void {
-        check_ajax_referer( 'dd_auth', 'nonce' );
+        if ( ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ?? '' ), 'dd_auth' ) ) {
+            wp_send_json_error( 'Security check failed.' );
+        }
         wp_logout();
         wp_send_json_success();
     }
