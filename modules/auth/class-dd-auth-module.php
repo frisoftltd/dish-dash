@@ -29,6 +29,9 @@ class DD_Auth_Module extends DD_Module {
         // Inject auth modal on all frontend pages
         add_action( 'wp_footer', [ $this, 'inject_auth_modal' ] );
 
+        // Show verification status banner
+        add_action( 'wp_footer', [ $this, 'inject_verify_banner' ] );
+
         // AJAX handlers — direct WP hooks, most reliable
         add_action( 'wp_ajax_nopriv_dd_login',    [ $this, 'ajax_login' ] );
         add_action( 'wp_ajax_dd_login',           [ $this, 'ajax_login' ] );
@@ -38,6 +41,9 @@ class DD_Auth_Module extends DD_Module {
 
         // Google OAuth — runs early to intercept the callback
         add_action( 'init', [ $this, 'handle_google_oauth' ] );
+
+        // Email verification callback
+        add_action( 'init', [ $this, 'handle_email_verification' ] );
     }
 
     // ─────────────────────────────────────────
@@ -177,6 +183,38 @@ class DD_Auth_Module extends DD_Module {
     }
 
     // ─────────────────────────────────────────
+    //  INJECT VERIFICATION BANNER
+    // ─────────────────────────────────────────
+    public function inject_verify_banner(): void {
+        if ( is_admin() ) return;
+        $status = sanitize_text_field( $_GET['dd_verify_status'] ?? '' );
+        if ( ! $status ) return;
+        ?>
+        <div id="ddVerifyBanner" style="
+            position:fixed;top:80px;left:50%;transform:translateX(-50%);
+            z-index:5000;padding:14px 24px;border-radius:12px;font-size:14px;
+            font-family:'Inter',system-ui,sans-serif;font-weight:600;
+            box-shadow:0 8px 32px rgba(0,0,0,0.15);
+            <?php echo $status === 'success'
+                ? 'background:#f0fff4;color:#27ae60;border:1px solid #c3fad5;'
+                : 'background:#fff2f2;color:#c0392b;border:1px solid #fdd;'; ?>
+            max-width:90vw;text-align:center;
+        ">
+            <?php if ( $status === 'success' ) : ?>
+                ✅ Email verified! You are now logged in. Welcome!
+            <?php else : ?>
+                ⚠️ This verification link has expired. Please register again or contact support.
+            <?php endif; ?>
+            <button onclick="this.parentElement.remove()" style="
+                background:none;border:none;cursor:pointer;margin-left:12px;
+                font-size:16px;color:inherit;opacity:0.6;
+            ">✕</button>
+        </div>
+        <script>setTimeout(function(){var b=document.getElementById('ddVerifyBanner');if(b)b.remove();},6000);</script>
+        <?php
+    }
+
+    // ─────────────────────────────────────────
     //  INJECT AUTH MODAL HTML
     // ─────────────────────────────────────────
     public function inject_auth_modal(): void {
@@ -267,6 +305,10 @@ class DD_Auth_Module extends DD_Module {
 
                     <div class="dd-auth-msg" id="ddRegisterMsg"></div>
 
+                    <!-- Honeypot — hidden from humans, bots will fill it -->
+                    <div style="display:none;position:absolute;left:-9999px;" aria-hidden="true">
+                        <input type="text" name="website" id="ddRegHoneypot" tabindex="-1" autocomplete="off">
+                    </div>
                     <div class="dd-auth-field">
                         <label>Full name</label>
                         <input type="text" id="ddRegName" placeholder="Your name" autocomplete="name">
@@ -385,12 +427,23 @@ class DD_Auth_Module extends DD_Module {
                     regBtn.textContent = 'Creating account…';
                     regBtn.disabled = true;
 
-                    ddAuthAjax('dd_register', { name: name, email: email, password: password }, function(res) {
+                    var honeypot = (document.getElementById('ddRegHoneypot') || {}).value || '';
+                    ddAuthAjax('dd_register', { name: name, email: email, password: password, website: honeypot }, function(res) {
                         regBtn.textContent = 'Create account';
                         regBtn.disabled = false;
                         if (res.success) {
-                            ddAuthMsg(regMsg, '✓ Account created! Signing you in…', 'success');
-                            setTimeout(function() { window.location.reload(); }, 900);
+                            if (res.data && res.data.verify) {
+                                // Show email verification message
+                                ddAuthMsg(regMsg,
+                                    '✓ Account created! We sent a verification link to <strong>' + res.data.email + '</strong>. Please check your inbox to activate your account.',
+                                    'success'
+                                );
+                                regBtn.textContent = 'Check your email';
+                                regBtn.disabled = true;
+                            } else {
+                                ddAuthMsg(regMsg, '✓ Account created! Signing you in…', 'success');
+                                setTimeout(function() { window.location.reload(); }, 900);
+                            }
                         } else {
                             ddAuthMsg(regMsg, res.data || 'Registration failed. Please try again.', 'error');
                         }
@@ -427,7 +480,7 @@ class DD_Auth_Module extends DD_Module {
 
             function ddAuthMsg(el, msg, type) {
                 if (!el) return;
-                el.textContent = msg;
+                el.innerHTML = msg; // innerHTML to allow links in error messages
                 el.className = 'dd-auth-msg dd-auth-msg--' + type;
                 el.style.display = '';
             }
@@ -470,7 +523,15 @@ class DD_Auth_Module extends DD_Module {
         }
 
         if ( ! wp_check_password( $password, $user->user_pass, $user->ID ) ) {
-            wp_send_json_error( 'Incorrect password. Please try again.' );
+            // Increment failed attempts
+            set_transient( $rate_key, $attempts + 1, 15 * MINUTE_IN_SECONDS );
+            wp_send_json_error( 'Incorrect password. <a href="' . esc_url( wp_lostpassword_url() ) . '" style="color:var(--brand);font-weight:700;">Reset your password?</a>' );
+        }
+
+        // Block unverified accounts
+        $verified = get_user_meta( $user->ID, 'dd_email_verified', true );
+        if ( $verified === '0' ) {
+            wp_send_json_error( 'Please verify your email before logging in. Check your inbox for the verification link.' );
         }
 
         // Use wp_signon for proper cookie handling
@@ -490,10 +551,24 @@ class DD_Auth_Module extends DD_Module {
 
     // ─────────────────────────────────────────
     //  AJAX — REGISTER
+    //  Creates user as pending, sends verification email
     // ─────────────────────────────────────────
     public function ajax_register(): void {
         if ( ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ?? '' ), 'dd_auth' ) ) {
             wp_send_json_error( 'Security check failed.' );
+        }
+
+        // ── Bot protection: honeypot ──
+        if ( ! empty( $_POST['website'] ) ) {
+            wp_send_json_success( [ 'verified' => false ] ); // silent fail for bots
+        }
+
+        // ── Rate limiting: max 3 registrations per IP per hour ──
+        $ip       = sanitize_text_field( $_SERVER['REMOTE_ADDR'] ?? '' );
+        $rate_key = 'dd_reg_rate_' . md5( $ip );
+        $attempts = (int) get_transient( $rate_key );
+        if ( $attempts >= 3 ) {
+            wp_send_json_error( 'Too many attempts. Please try again in an hour.' );
         }
 
         if ( get_option( 'dd_auth_allow_registration', '1' ) !== '1' ) {
@@ -507,22 +582,22 @@ class DD_Auth_Module extends DD_Module {
         if ( ! $name || ! $email || ! $password ) {
             wp_send_json_error( 'All fields are required.' );
         }
+        if ( ! is_email( $email ) ) {
+            wp_send_json_error( 'Please enter a valid email address.' );
+        }
         if ( strlen( $password ) < 8 ) {
             wp_send_json_error( 'Password must be at least 8 characters.' );
         }
         if ( email_exists( $email ) ) {
-            wp_send_json_error( 'An account with this email already exists.' );
+            wp_send_json_error( 'An account with this email already exists. Try logging in.' );
         }
 
-        // Split name into first/last
+        // ── Create user as inactive ──
         $parts      = explode( ' ', $name, 2 );
         $first_name = $parts[0];
         $last_name  = $parts[1] ?? '';
-
-        $username = sanitize_user( strtolower( $first_name . ( $last_name ? '.' . $last_name : '' ) ) );
-        if ( username_exists( $username ) ) {
-            $username = $username . rand( 100, 999 );
-        }
+        $username   = sanitize_user( strtolower( str_replace( ' ', '.', $name ) ) );
+        if ( username_exists( $username ) ) $username .= rand( 100, 999 );
 
         $user_id = wp_create_user( $username, $password, $email );
         if ( is_wp_error( $user_id ) ) {
@@ -536,10 +611,46 @@ class DD_Auth_Module extends DD_Module {
             'last_name'    => $last_name,
         ] );
 
-        wp_set_auth_cookie( $user_id, true );
-        wp_set_current_user( $user_id );
+        // Mark as pending verification
+        update_user_meta( $user_id, 'dd_email_verified', '0' );
 
-        wp_send_json_success( [ 'user_id' => $user_id, 'name' => $name ] );
+        // Generate verification token
+        $token = bin2hex( random_bytes( 32 ) );
+        set_transient( 'dd_verify_' . $token, $user_id, 24 * HOUR_IN_SECONDS );
+
+        // Send verification email
+        $verify_url  = add_query_arg( [ 'dd_verify' => $token ], home_url( '/' ) );
+        $site_name   = get_option( 'dish_dash_restaurant_name', get_bloginfo( 'name' ) );
+        $from_email  = get_option( 'admin_email' );
+        $subject     = 'Verify your email — ' . $site_name;
+        $message     = "Hi {$first_name},
+
+"
+            . "Welcome to {$site_name}! Please verify your email address by clicking the link below:
+
+"
+            . $verify_url . "
+
+"
+            . "This link expires in 24 hours.
+
+"
+            . "If you did not create an account, please ignore this email.
+
+"
+            . "— " . $site_name;
+
+        wp_mail(
+            $email,
+            $subject,
+            $message,
+            [ 'From: ' . $site_name . ' <' . $from_email . '>' ]
+        );
+
+        // Increment rate limiter
+        set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
+
+        wp_send_json_success( [ 'verify' => true, 'email' => $email ] );
     }
 
     // ─────────────────────────────────────────
@@ -551,6 +662,34 @@ class DD_Auth_Module extends DD_Module {
         }
         wp_logout();
         wp_send_json_success( [ 'redirect' => home_url( '/' ) ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  EMAIL VERIFICATION HANDLER
+    // ─────────────────────────────────────────
+    public function handle_email_verification(): void {
+        if ( ! isset( $_GET['dd_verify'] ) ) return;
+
+        $token   = sanitize_text_field( $_GET['dd_verify'] );
+        $user_id = get_transient( 'dd_verify_' . $token );
+
+        if ( ! $user_id ) {
+            // Invalid or expired token
+            wp_redirect( add_query_arg( 'dd_verify_status', 'expired', home_url( '/' ) ) );
+            exit;
+        }
+
+        // Mark as verified
+        update_user_meta( $user_id, 'dd_email_verified', '1' );
+        delete_transient( 'dd_verify_' . $token );
+
+        // Auto-login the user
+        wp_set_auth_cookie( $user_id, true );
+        wp_set_current_user( $user_id );
+
+        // Redirect to homepage with success flag
+        wp_redirect( add_query_arg( 'dd_verify_status', 'success', home_url( '/' ) ) );
+        exit;
     }
 
     // ─────────────────────────────────────────
