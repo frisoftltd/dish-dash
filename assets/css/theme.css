@@ -2606,3 +2606,21 @@ body.dd-page .ast-header-woo-cart {
     height: 46px !important;
     font-size: 15px !important;
 }
+
+/* ── Drawer logout link ─────────────────────────────────── */
+.dd-nav-drawer__logout {
+    display: block;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 13px;
+    color: rgba(107,29,29,0.5);
+    text-decoration: none;
+    padding: 6px;
+    transition: color 0.2s;
+}
+.dd-nav-drawer__logout:hover { color: var(--brand); }
+
+/* ── Hide Sign up on mobile if space tight ──────────────── */
+@media (max-width: 480px) {
+    .dd-header__actions .dd-btn--brand.dd-btn--sm { display: none; }
+}
