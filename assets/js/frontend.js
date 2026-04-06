@@ -1308,6 +1308,41 @@
         });
     }
 
+
+    /* ══════════════════════════════════════════════════════════
+       LOAD REVIEWS
+       Fetches reviews via AJAX and renders them into #ddReviewsGrid
+    ══════════════════════════════════════════════════════════ */
+    function loadReviews() {
+        var grid = document.getElementById('ddReviewsGrid');
+        if (!grid || !window.DD || !window.DD.ajaxUrl) return;
+
+        // Show skeleton
+        grid.innerHTML = '<div class="dd-review-skeleton"></div><div class="dd-review-skeleton"></div><div class="dd-review-skeleton"></div>';
+
+        fetch(window.DD.ajaxUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action: 'dd_get_reviews', nonce: window.DD.nonce }).toString()
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res.success || !res.data || !res.data.length) {
+                grid.innerHTML = '';
+                return;
+            }
+            grid.innerHTML = res.data.map(function(r) {
+                var stars = '★★★★★'.slice(0, Math.round(r.rating || 5));
+                return '<div class="dd-review-card">' +
+                    '<div class="dd-review-card__stars">' + stars + '</div>' +
+                    '<p>' + escHtml(r.text || r.review || '') + '</p>' +
+                    '<div class="dd-review-card__author">' + escHtml(r.author || r.name || '') + '</div>' +
+                '</div>';
+            }).join('');
+        })
+        .catch(function() { grid.innerHTML = ''; });
+    }
+
     /* ══════════════════════════════════════════════════════════
        WOO FRAGMENTS SYNC
     ══════════════════════════════════════════════════════════ */
