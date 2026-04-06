@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Dish Dash – Auth Module
@@ -399,17 +398,30 @@ class DD_Auth_Module extends DD_Module {
 
             /* ── Helpers ── */
             function ddAuthAjax(action, data, callback) {
+                var ajaxUrl = (window.DD && window.DD.ajaxUrl) ? window.DD.ajaxUrl : '<?php echo esc_url( admin_url("admin-ajax.php") ); ?>';
                 var body = new URLSearchParams({ action: action, nonce: '<?php echo esc_js( wp_create_nonce("dd_auth") ); ?>' });
                 Object.keys(data).forEach(function(k) { body.append(k, data[k]); });
-                fetch('<?php echo esc_url( admin_url("admin-ajax.php") ); ?>', {
+                fetch(ajaxUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: body.toString()
                 })
                 .then(function(r) { return r.json(); })
                 .then(callback)
-                .catch(function() { callback({ success: false, data: 'Network error. Please try again.' }); });
+                .catch(function(err) {
+                    console.error('Auth error:', err);
+                    callback({ success: false, data: 'Network error. Please try again.' });
+                });
             }
+
+            // Enter key support
+            document.addEventListener('keydown', function(e) {
+                if (e.key !== 'Enter' || !modal.classList.contains('open')) return;
+                var lp = document.getElementById('ddLoginPanel');
+                var rp = document.getElementById('ddRegisterPanel');
+                if (lp && lp.style.display !== 'none' && loginBtn) loginBtn.click();
+                else if (rp && rp.style.display !== 'none' && regBtn)   regBtn.click();
+            });
 
             function ddAuthMsg(el, msg, type) {
                 if (!el) return;
@@ -435,26 +447,39 @@ class DD_Auth_Module extends DD_Module {
     public function ajax_login(): void {
         check_ajax_referer( 'dd_auth', 'nonce' );
 
-        $email    = sanitize_email( $_POST['email']    ?? '' );
+        $login    = sanitize_text_field( $_POST['email'] ?? '' ); // accepts username or email
         $password = $_POST['password'] ?? '';
         $remember = ! empty( $_POST['remember'] );
 
-        if ( ! $email || ! $password ) {
+        if ( ! $login || ! $password ) {
             wp_send_json_error( 'Email and password are required.' );
         }
 
-        $user = get_user_by( 'email', $email );
+        // Try email first, then username
+        $user = get_user_by( 'email', $login );
         if ( ! $user ) {
-            wp_send_json_error( 'No account found with that email.' );
+            $user = get_user_by( 'login', $login );
+        }
+
+        if ( ! $user ) {
+            wp_send_json_error( 'No account found. Please check your email or username.' );
         }
 
         if ( ! wp_check_password( $password, $user->user_pass, $user->ID ) ) {
             wp_send_json_error( 'Incorrect password. Please try again.' );
         }
 
-        wp_set_auth_cookie( $user->ID, $remember );
-        wp_set_current_user( $user->ID );
-        do_action( 'wp_login', $user->user_login, $user );
+        // Use wp_signon for proper cookie handling
+        $credentials = [
+            'user_login'    => $user->user_login,
+            'user_password' => $password,
+            'remember'      => $remember,
+        ];
+        $signed_in = wp_signon( $credentials, is_ssl() );
+
+        if ( is_wp_error( $signed_in ) ) {
+            wp_send_json_error( 'Login failed. Please try again.' );
+        }
 
         wp_send_json_success( [ 'user_id' => $user->ID, 'name' => $user->display_name ] );
     }
