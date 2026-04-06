@@ -564,13 +564,10 @@ class DD_Template_Module extends DD_Module {
                 <?php if ( is_user_logged_in() ) : ?>
                 <a href="<?php echo esc_url( $orders_url ); ?>"
                    class="dd-btn dd-btn--light dd-btn--block">&#128666; My Orders</a>
-                <a href="<?php echo esc_url( wp_logout_url( home_url('/') ) ); ?>"
-                   class="dd-nav-drawer__logout">Log out</a>
+                <button id="ddLogoutBtn" class="dd-nav-drawer__logout">Log out</button>
                 <?php else : ?>
-                <a href="<?php echo esc_url( wp_registration_url() ); ?>"
-                   class="dd-btn dd-btn--brand dd-btn--block" style="margin-bottom:10px;">&#128100; Create Account</a>
-                <a href="<?php echo esc_url( wp_login_url( home_url('/') ) ); ?>"
-                   class="dd-btn dd-btn--light dd-btn--block">Log in</a>
+                <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--block" style="margin-bottom:10px;">&#128100; Create Account</button>
+                <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--block">Log in</button>
                 <?php endif; ?>
             </div>
         </aside>
@@ -624,11 +621,10 @@ class DD_Template_Module extends DD_Module {
                     <?php if ( is_user_logged_in() ) : ?>
                     <a href="<?php echo esc_url( $orders_url ); ?>"
                        class="dd-btn dd-btn--light dd-btn--sm">My Orders</a>
+                    <button id="ddLogoutBtn" class="dd-auth-logout-btn dd-btn dd-btn--light dd-btn--sm">Log out</button>
                     <?php else : ?>
-                    <a href="<?php echo esc_url( wp_login_url( home_url('/') ) ); ?>"
-                       class="dd-btn dd-btn--light dd-btn--sm">Log in</a>
-                    <a href="<?php echo esc_url( wp_registration_url() ); ?>"
-                       class="dd-btn dd-btn--brand dd-btn--sm">Sign up</a>
+                    <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--sm">Log in</button>
+                    <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--sm">Sign up</button>
                     <?php endif; ?>
                     <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                         <span class="dd-cart-top__label">Cart</span>
