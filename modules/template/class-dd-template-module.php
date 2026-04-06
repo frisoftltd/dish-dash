@@ -561,8 +561,17 @@ class DD_Template_Module extends DD_Module {
             </div>
             <nav class="dd-nav-drawer__nav"><?php echo $nav_html; ?></nav>
             <div class="dd-nav-drawer__footer">
+                <?php if ( is_user_logged_in() ) : ?>
                 <a href="<?php echo esc_url( $orders_url ); ?>"
-                   class="dd-btn dd-btn--light dd-btn--block">&#128666; Track Your Order</a>
+                   class="dd-btn dd-btn--light dd-btn--block">&#128666; My Orders</a>
+                <a href="<?php echo esc_url( wp_logout_url( home_url('/') ) ); ?>"
+                   class="dd-nav-drawer__logout">Log out</a>
+                <?php else : ?>
+                <a href="<?php echo esc_url( wp_registration_url() ); ?>"
+                   class="dd-btn dd-btn--brand dd-btn--block" style="margin-bottom:10px;">&#128100; Create Account</a>
+                <a href="<?php echo esc_url( wp_login_url( home_url('/') ) ); ?>"
+                   class="dd-btn dd-btn--light dd-btn--block">Log in</a>
+                <?php endif; ?>
             </div>
         </aside>
 
@@ -612,8 +621,15 @@ class DD_Template_Module extends DD_Module {
 
                 <!-- Right: actions -->
                 <div class="dd-header__actions">
+                    <?php if ( is_user_logged_in() ) : ?>
                     <a href="<?php echo esc_url( $orders_url ); ?>"
-                       class="dd-btn dd-btn--light dd-btn--sm dd-track-btn">Track Order</a>
+                       class="dd-btn dd-btn--light dd-btn--sm">My Orders</a>
+                    <?php else : ?>
+                    <a href="<?php echo esc_url( wp_login_url( home_url('/') ) ); ?>"
+                       class="dd-btn dd-btn--light dd-btn--sm">Log in</a>
+                    <a href="<?php echo esc_url( wp_registration_url() ); ?>"
+                       class="dd-btn dd-btn--brand dd-btn--sm">Sign up</a>
+                    <?php endif; ?>
                     <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                         <span class="dd-cart-top__label">Cart</span>
                         <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
