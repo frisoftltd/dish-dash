@@ -882,10 +882,15 @@ class DD_Auth_Module extends DD_Module {
         );
 
         if ( $result ) {
-            wp_send_json_success( 'Email sent successfully.' );
+            wp_send_json_success( 'Email sent to ' . $to . '! Check inbox.' );
         } else {
-            global $ts_mail_errors;
-            wp_send_json_error( 'wp_mail() returned false. Check SMTP host, port, and password.' );
+            // Capture PHPMailer error
+            global $phpmailer;
+            $error = '';
+            if ( isset( $phpmailer ) && is_object( $phpmailer ) && ! empty( $phpmailer->ErrorInfo ) ) {
+                $error = $phpmailer->ErrorInfo;
+            }
+            wp_send_json_error( $error ?: 'wp_mail() returned false. Check host/port/password and ensure noreply@khanakhazana.rw exists in cPanel Email Accounts.' );
         }
     }
 
@@ -895,13 +900,13 @@ class DD_Auth_Module extends DD_Module {
     // ─────────────────────────────────────────
     public function configure_smtp( $phpmailer ): void {
         $host       = get_option( 'dd_smtp_host',       'mail.khanakhazana.rw' );
-        $port       = (int) get_option( 'dd_smtp_port', 587 );
+        $port       = (int) get_option( 'dd_smtp_port', 465 );
         $from_email = get_option( 'dd_smtp_from_email', 'noreply@khanakhazana.rw' );
         $from_name  = get_option( 'dd_smtp_from_name',  get_option( 'dish_dash_restaurant_name', 'Khana Khazana' ) );
         $password   = get_option( 'dd_smtp_password',   '' );
-        $encryption = get_option( 'dd_smtp_encryption', 'tls' );
+        $encryption = get_option( 'dd_smtp_encryption', 'ssl' );
 
-        if ( ! $host || ! $password ) return; // not configured yet
+        if ( ! $host || ! $password ) return;
 
         $phpmailer->isSMTP();
         $phpmailer->Host        = $host;
@@ -912,15 +917,26 @@ class DD_Auth_Module extends DD_Module {
         $phpmailer->From        = $from_email;
         $phpmailer->FromName    = $from_name;
         $phpmailer->CharSet     = 'UTF-8';
+        $phpmailer->SMTPDebug   = 0; // set to 2 temporarily to debug
 
-        if ( $encryption === 'tls' ) {
-            $phpmailer->SMTPSecure = 'tls';
-        } elseif ( $encryption === 'ssl' ) {
-            $phpmailer->SMTPSecure = 'ssl';
+        if ( $encryption === 'ssl' ) {
+            $phpmailer->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif ( $encryption === 'tls' ) {
+            $phpmailer->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
         } else {
-            $phpmailer->SMTPSecure = '';
+            $phpmailer->SMTPSecure  = '';
             $phpmailer->SMTPAutoTLS = false;
         }
+
+        // Disable SSL certificate verification — required for most cPanel servers
+        // which use self-signed or hostname-mismatched certs
+        $phpmailer->SMTPOptions = [
+            'ssl' => [
+                'verify_peer'       => false,
+                'verify_peer_name'  => false,
+                'allow_self_signed' => true,
+            ],
+        ];
     }
 
     // ─────────────────────────────────────────
