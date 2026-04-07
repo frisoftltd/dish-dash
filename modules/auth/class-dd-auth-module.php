@@ -23,11 +23,16 @@ class DD_Auth_Module extends DD_Module {
 
     public function init(): void {
         // Admin settings
-        add_action( 'admin_menu', [ $this, 'register_admin_page' ] );
-        add_action( 'admin_init', [ $this, 'save_settings' ] );
+        add_action( 'admin_menu',            [ $this, 'register_admin_page' ] );
+        add_action( 'admin_init',            [ $this, 'save_settings' ] );
+        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
+        add_action( 'wp_ajax_dd_test_email', [ $this, 'ajax_test_email' ] );
 
         // Enqueue auth data (nonce + ajaxUrl) via wp_head
         add_action( 'wp_head', [ $this, 'inject_auth_data' ], 5 );
+
+        // Hook into PHPMailer to use SMTP for all outgoing emails
+        add_action( 'phpmailer_init', [ $this, 'configure_smtp' ] );
 
         // Inject auth modal on all frontend pages
         add_action( 'wp_footer', [ $this, 'inject_auth_modal' ] );
@@ -125,6 +130,73 @@ class DD_Auth_Module extends DD_Module {
                 </div>
 
                 <div class="dd-settings-card" style="margin-top:1rem;">
+                    <h2>📧 SMTP Email (noreply@khanakhazana.rw)</h2>
+
+                    <div style="background:#f0f7ff;border:1px solid #c8e0ff;border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px;line-height:1.8;">
+                        <strong>cPanel Email Setup:</strong><br>
+                        1. Go to <strong>cPanel → Email Accounts</strong><br>
+                        2. Create <code>noreply@khanakhazana.rw</code> if it doesn't exist<br>
+                        3. Copy the password you set and paste it below<br>
+                        4. Host is usually <code>mail.khanakhazana.rw</code> for cPanel servers
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div class="dd-form-group">
+                            <label>SMTP Host</label>
+                            <input type="text" name="dd_smtp_host"
+                                value="<?php echo esc_attr( get_option( 'dd_smtp_host', 'mail.khanakhazana.rw' ) ); ?>" />
+                        </div>
+                        <div class="dd-form-group">
+                            <label>SMTP Port</label>
+                            <input type="number" name="dd_smtp_port"
+                                value="<?php echo esc_attr( get_option( 'dd_smtp_port', '587' ) ); ?>" />
+                        </div>
+                        <div class="dd-form-group">
+                            <label>From Email</label>
+                            <input type="email" name="dd_smtp_from_email"
+                                value="<?php echo esc_attr( get_option( 'dd_smtp_from_email', 'noreply@khanakhazana.rw' ) ); ?>" />
+                        </div>
+                        <div class="dd-form-group">
+                            <label>From Name</label>
+                            <input type="text" name="dd_smtp_from_name"
+                                value="<?php echo esc_attr( get_option( 'dd_smtp_from_name', get_option('dish_dash_restaurant_name','Khana Khazana') ) ); ?>" />
+                        </div>
+                    </div>
+
+                    <div class="dd-form-group">
+                        <label>Email Password (cPanel email account password)</label>
+                        <input type="password" name="dd_smtp_password"
+                            value="<?php echo esc_attr( get_option( 'dd_smtp_password', '' ) ); ?>"
+                            placeholder="Your cPanel email password" />
+                    </div>
+
+                    <div class="dd-form-group">
+                        <label>Encryption</label>
+                        <select name="dd_smtp_encryption" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;">
+                            <option value="tls"  <?php selected( get_option('dd_smtp_encryption','tls'), 'tls'  ); ?>>TLS — Port 587 (recommended)</option>
+                            <option value="ssl"  <?php selected( get_option('dd_smtp_encryption','tls'), 'ssl'  ); ?>>SSL — Port 465</option>
+                            <option value="none" <?php selected( get_option('dd_smtp_encryption','tls'), 'none' ); ?>>None — Port 25</option>
+                        </select>
+                    </div>
+
+                    <!-- Test email -->
+                    <div style="border-top:1px solid #f0f0f0;margin-top:16px;padding-top:16px;">
+                        <label style="font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#888;display:block;margin-bottom:8px;">
+                            Send Test Email
+                        </label>
+                        <div style="display:flex;gap:8px;align-items:center;">
+                            <input type="email" id="dd_test_email_to"
+                                placeholder="recipient@example.com"
+                                style="flex:1;padding:.6rem .85rem;border:1.5px solid #e0e0e0;border-radius:8px;font-size:.9rem;" />
+                            <button type="button" id="dd_send_test_btn" class="button button-secondary">
+                                Send Test ✉️
+                            </button>
+                        </div>
+                        <p id="dd_test_result" style="margin:8px 0 0;font-size:13px;min-height:20px;"></p>
+                    </div>
+                </div>
+
+                <div class="dd-settings-card" style="margin-top:1rem;">
                     <h2>⚙️ General</h2>
                     <div class="dd-form-group">
                         <label>
@@ -169,6 +241,12 @@ class DD_Auth_Module extends DD_Module {
             'dd_google_client_id'          => 'sanitize_text_field',
             'dd_google_client_secret'      => 'sanitize_text_field',
             'dd_auth_redirect_after_login' => 'sanitize_text_field',
+            'dd_smtp_host'                 => 'sanitize_text_field',
+            'dd_smtp_port'                 => 'absint',
+            'dd_smtp_from_email'           => 'sanitize_email',
+            'dd_smtp_from_name'            => 'sanitize_text_field',
+            'dd_smtp_password'             => 'sanitize_text_field',
+            'dd_smtp_encryption'           => 'sanitize_text_field',
         ];
 
         foreach ( $fields as $key => $fn ) {
@@ -675,12 +753,34 @@ class DD_Auth_Module extends DD_Module {
 "
             . "— " . $site_name;
 
-        wp_mail(
-            $email,
-            $subject,
-            $message,
-            [ 'From: ' . $site_name . ' <' . $from_email . '>' ]
-        );
+        // Build HTML email
+        $html_body = '
+        <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #ede6db;">
+            <div style="background:#160F0D;padding:28px 32px;text-align:center;">
+                <h1 style="color:#F1E7DB;font-size:22px;margin:0;">' . esc_html( $site_name ) . '</h1>
+            </div>
+            <div style="padding:32px;">
+                <h2 style="color:#221B19;font-size:20px;margin:0 0 12px;">Verify your email address</h2>
+                <p style="color:#6E5B4C;line-height:1.7;margin:0 0 24px;">
+                    Hi ' . esc_html( $first_name ) . ', welcome to ' . esc_html( $site_name ) . '!<br>
+                    Please click the button below to verify your email and activate your account.
+                </p>
+                <a href="' . esc_url( $verify_url ) . '"
+                   style="display:inline-block;background:#6B1D1D;color:#ffffff;text-decoration:none;
+                          padding:14px 32px;border-radius:999px;font-weight:700;font-size:15px;">
+                    ✓ Verify my email
+                </a>
+                <p style="color:#aaa;font-size:12px;margin:24px 0 0;line-height:1.6;">
+                    This link expires in 24 hours.<br>
+                    If you did not create an account, you can safely ignore this email.
+                </p>
+            </div>
+            <div style="background:#f5efe6;padding:16px 32px;text-align:center;font-size:12px;color:#888;">
+                © ' . date('Y') . ' ' . esc_html( $site_name ) . ' — Powered by Dish Dash
+            </div>
+        </div>';
+
+        $this->send_email( $email, $subject, $html_body );
 
         // Increment rate limiter
         set_transient( $rate_key, $attempts + 1, HOUR_IN_SECONDS );
@@ -727,6 +827,119 @@ class DD_Auth_Module extends DD_Module {
         exit;
     }
 
+    // ─────────────────────────────────────────
+    //  ADMIN ASSETS + TEST EMAIL
+    // ─────────────────────────────────────────
+    public function enqueue_admin_assets( string $hook ): void {
+        if ( strpos( $hook, 'dish-dash-auth' ) === false ) return;
+        wp_add_inline_script( 'jquery', "
+            jQuery(function($){
+                $('#dd_send_test_btn').on('click', function(){
+                    var to  = $('#dd_test_email_to').val().trim();
+                    var res = $('#dd_test_result');
+                    if (!to) { res.text('Please enter an email address.').css('color','#c0392b'); return; }
+                    $(this).prop('disabled', true).text('Sending…');
+                    res.text('').css('color','');
+                    $.post(ajaxurl, {
+                        action: 'dd_test_email',
+                        nonce:  '" . wp_create_nonce('dd_test_email') . "',
+                        to:     to
+                    }, function(r) {
+                        $('#dd_send_test_btn').prop('disabled', false).text('Send Test ✉️');
+                        if (r.success) {
+                            res.text('✅ Test email sent to ' + to + '! Check your inbox.').css('color','#27ae60');
+                        } else {
+                            res.text('❌ Failed: ' + (r.data || 'Unknown error')).css('color','#c0392b');
+                        }
+                    }).fail(function(){
+                        $('#dd_send_test_btn').prop('disabled', false).text('Send Test ✉️');
+                        res.text('❌ Request failed. Check your browser console.').css('color','#c0392b');
+                    });
+                });
+            });
+        " );
+    }
+
+    public function ajax_test_email(): void {
+        if ( ! wp_verify_nonce( sanitize_text_field( $_POST['nonce'] ?? '' ), 'dd_test_email' )
+            || ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Unauthorized.' );
+        }
+
+        $to        = sanitize_email( $_POST['to'] ?? '' );
+        $site_name = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+
+        if ( ! $to ) wp_send_json_error( 'Invalid email address.' );
+
+        $result = $this->send_email(
+            $to,
+            'Test Email from ' . $site_name,
+            '<div style="font-family:Inter,sans-serif;padding:32px;max-width:480px;">
+                <h2 style="color:#221B19;">✅ SMTP is working!</h2>
+                <p style="color:#6E5B4C;">This test email was sent from <strong>' . esc_html( $site_name ) . '</strong> via your cPanel SMTP settings.</p>
+                <p style="color:#aaa;font-size:12px;">Sent at: ' . current_time( 'Y-m-d H:i:s' ) . '</p>
+            </div>'
+        );
+
+        if ( $result ) {
+            wp_send_json_success( 'Email sent successfully.' );
+        } else {
+            global $ts_mail_errors;
+            wp_send_json_error( 'wp_mail() returned false. Check SMTP host, port, and password.' );
+        }
+    }
+
+    // ─────────────────────────────────────────
+    //  SMTP CONFIGURATION
+    //  Hooks into PHPMailer for all WP emails
+    // ─────────────────────────────────────────
+    public function configure_smtp( $phpmailer ): void {
+        $host       = get_option( 'dd_smtp_host',       'mail.khanakhazana.rw' );
+        $port       = (int) get_option( 'dd_smtp_port', 587 );
+        $from_email = get_option( 'dd_smtp_from_email', 'noreply@khanakhazana.rw' );
+        $from_name  = get_option( 'dd_smtp_from_name',  get_option( 'dish_dash_restaurant_name', 'Khana Khazana' ) );
+        $password   = get_option( 'dd_smtp_password',   '' );
+        $encryption = get_option( 'dd_smtp_encryption', 'tls' );
+
+        if ( ! $host || ! $password ) return; // not configured yet
+
+        $phpmailer->isSMTP();
+        $phpmailer->Host        = $host;
+        $phpmailer->Port        = $port;
+        $phpmailer->SMTPAuth    = true;
+        $phpmailer->Username    = $from_email;
+        $phpmailer->Password    = $password;
+        $phpmailer->From        = $from_email;
+        $phpmailer->FromName    = $from_name;
+        $phpmailer->CharSet     = 'UTF-8';
+
+        if ( $encryption === 'tls' ) {
+            $phpmailer->SMTPSecure = 'tls';
+        } elseif ( $encryption === 'ssl' ) {
+            $phpmailer->SMTPSecure = 'ssl';
+        } else {
+            $phpmailer->SMTPSecure = '';
+            $phpmailer->SMTPAutoTLS = false;
+        }
+    }
+
+    // ─────────────────────────────────────────
+    //  SEND EMAIL HELPER
+    // ─────────────────────────────────────────
+    private function send_email( string $to, string $subject, string $body ): bool {
+        $from_name  = get_option( 'dd_smtp_from_name',  get_option( 'dish_dash_restaurant_name', 'Khana Khazana' ) );
+        $from_email = get_option( 'dd_smtp_from_email', 'noreply@khanakhazana.rw' );
+
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $from_name . ' <' . $from_email . '>',
+        ];
+
+        return wp_mail( $to, $subject, $body, $headers );
+    }
+
+    // ─────────────────────────────────────────
+    //  SMTP ADMIN PAGE UI + TEST EMAIL AJAX
     // ─────────────────────────────────────────
     //  GOOGLE OAUTH
     // ─────────────────────────────────────────
