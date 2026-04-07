@@ -1,4 +1,3 @@
-
 <?php
 /**
  * Dish Dash – Customers Module
@@ -95,7 +94,7 @@ class DD_Customers_Module extends DD_Module {
         $table = $wpdb->prefix . 'dishdash_reservations';
         if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table}'" ) !== $table ) return 0;
         return (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE email = %s", $email
+            "SELECT COUNT(*) FROM {$table} WHERE customer_email = %s", $email
         ) );
     }
 
