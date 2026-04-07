@@ -598,8 +598,8 @@ class DD_Template_Module extends DD_Module {
                     </a>
                 </div>
 
-                <!-- Center: search -->
-                <div class="dd-smart-search dd-header__search" id="ddSmartSearch">
+                <!-- Center: search (desktop only) -->
+                <div class="dd-smart-search dd-header__search dd-desktop-search" id="ddSmartSearch">
                     <div class="dd-ss__bar">
                         <span class="dd-ss__icon">&#128269;</span>
                         <input type="search"
@@ -620,15 +620,21 @@ class DD_Template_Module extends DD_Module {
                     <div class="dd-ss__dropdown" id="ddSearchDropdown" role="listbox"></div>
                 </div>
 
-                <!-- Right: actions -->
+                <!-- Right: search icon (mobile) + actions -->
                 <div class="dd-header__actions">
+                    <!-- Mobile search trigger -->
+                    <button class="dd-mobile-search-trigger" id="ddMobileSearchTrigger" aria-label="Search">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        </svg>
+                    </button>
                     <?php if ( is_user_logged_in() ) : ?>
                     <a href="<?php echo esc_url( $orders_url ); ?>"
-                       class="dd-btn dd-btn--light dd-btn--sm">My Orders</a>
-                    <button id="ddLogoutBtn" class="dd-auth-logout-btn dd-btn dd-btn--light dd-btn--sm">Log out</button>
+                       class="dd-btn dd-btn--light dd-btn--sm dd-desktop-only">My Orders</a>
+                    <button id="ddLogoutBtn" class="dd-auth-logout-btn dd-btn dd-btn--light dd-btn--sm dd-desktop-only">Log out</button>
                     <?php else : ?>
-                    <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--sm">Log in</button>
-                    <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--sm">Sign up</button>
+                    <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--sm dd-desktop-only">Log in</button>
+                    <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--sm dd-desktop-only">Sign up</button>
                     <?php endif; ?>
                     <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
                         <span class="dd-cart-top__label">Cart</span>
@@ -638,23 +644,24 @@ class DD_Template_Module extends DD_Module {
 
             </div>
 
-            <!-- Mobile search row -->
-            <div class="dd-header__mobile-search">
-                <div class="dd-container">
-                    <div class="dd-ss__bar dd-ss__bar--mobile">
+            <!-- Mobile search expand panel -->
+            <div class="dd-mobile-search-panel" id="ddMobileSearchPanel" aria-hidden="true">
+                <div class="dd-mobile-search-panel__inner">
+                    <div class="dd-ss__bar dd-ss__bar--mobile-expand">
                         <span class="dd-ss__icon">&#128269;</span>
                         <input type="search"
                                id="ddMobileSearch"
                                name="dd_search_mobile"
                                class="dd-ss__input"
-                               placeholder="Search dishes..."
+                               placeholder="Search dishes, try 'biryani'…"
                                autocomplete="off"
                                autocorrect="off"
                                autocapitalize="off"
                                spellcheck="false"
                                aria-label="Search dishes">
-                        <button class="dd-mobile-search-clear" id="ddMobileSearchClear" aria-label="Clear">&#10005;</button>
+                        <button class="dd-mobile-search-close" id="ddMobileSearchClose" aria-label="Close search">Cancel</button>
                     </div>
+                    <div class="dd-ss__dropdown dd-ss__dropdown--mobile" id="ddMobileSearchDropdown" role="listbox"></div>
                 </div>
             </div>
 
