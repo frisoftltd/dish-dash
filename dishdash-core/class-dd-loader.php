@@ -49,6 +49,8 @@ class DD_Loader {
             'DD_Homepage_Module'  => 'modules/homepage/class-dd-homepage-module.php',
             // Auth module — custom login/register/Google OAuth
             'DD_Auth_Module'      => 'modules/auth/class-dd-auth-module.php',
+            // Customers module — customer management dashboard
+            'DD_Customers_Module' => 'modules/customers/class-dd-customers-module.php',
             // Tracking module — behavior events, AI foundation
             'DD_Tracking_Module'  => 'modules/tracking/class-dd-tracking-module.php',
             // Menu module — only shortcodes
