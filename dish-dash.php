@@ -5,7 +5,7 @@
  * Description:       A complete restaurant ordering & management system built on WordPress and WooCommerce.
  * Version:           2.5.84
  * Author:            Fri Soft Ltd
- * Author URI:        https://frisoftltd.com
+ * Author URI:        https://frisoft.rw
  * License:           GPL-2.0+
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       dish-dash
