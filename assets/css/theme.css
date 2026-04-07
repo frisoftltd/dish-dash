@@ -2858,20 +2858,9 @@ body.dd-page .ast-header-woo-cart {
    MOBILE SEARCH — Uber Eats / Airbnb style expandable
 ───────────────────────────────────────────────────────────── */
 
-/* Hide desktop search on mobile, hide mobile trigger on desktop */
-@media (max-width: 768px) {
-    .dd-desktop-search  { display: none !important; }
-    .dd-desktop-only    { display: none !important; }
-    .dd-mobile-search-trigger { display: flex !important; }
-}
-@media (min-width: 769px) {
-    .dd-mobile-search-trigger  { display: none !important; }
-    .dd-mobile-search-panel    { display: none !important; }
-}
-
-/* Mobile search trigger button */
+/* Mobile search trigger button — always visible, hidden on desktop */
 .dd-mobile-search-trigger {
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 40px;
@@ -2885,6 +2874,18 @@ body.dd-page .ast-header-woo-cart {
     flex-shrink: 0;
 }
 .dd-mobile-search-trigger:hover { background: rgba(107,29,29,0.08); }
+
+/* Desktop: hide mobile elements, show desktop elements */
+@media (min-width: 769px) {
+    .dd-mobile-search-trigger { display: none !important; }
+    .dd-mobile-search-panel   { display: none !important; }
+}
+
+/* Mobile: hide desktop elements */
+@media (max-width: 768px) {
+    .dd-desktop-search { display: none !important; }
+    .dd-desktop-only   { display: none !important; }
+}
 
 /* Mobile search panel — hidden by default, expands over header */
 .dd-mobile-search-panel {
