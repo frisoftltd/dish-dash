@@ -26,6 +26,9 @@ class DD_Auth_Module extends DD_Module {
         add_action( 'admin_menu', [ $this, 'register_admin_page' ] );
         add_action( 'admin_init', [ $this, 'save_settings' ] );
 
+        // Enqueue auth data (nonce + ajaxUrl) via wp_head
+        add_action( 'wp_head', [ $this, 'inject_auth_data' ], 5 );
+
         // Inject auth modal on all frontend pages
         add_action( 'wp_footer', [ $this, 'inject_auth_modal' ] );
 
@@ -180,6 +183,23 @@ class DD_Auth_Module extends DD_Module {
 
         wp_redirect( add_query_arg( [ 'page' => 'dish-dash-auth', 'saved' => '1' ], admin_url( 'admin.php' ) ) );
         exit;
+    }
+
+    // ─────────────────────────────────────────
+    //  INJECT AUTH DATA (nonce + ajaxUrl) in <head>
+    //  Runs in PHP context so values are correct
+    // ─────────────────────────────────────────
+    public function inject_auth_data(): void {
+        if ( is_admin() ) return;
+        ?>
+        <script>
+        window.DDAauth = {
+            ajaxUrl:          '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
+            nonce:            '<?php echo esc_js( wp_create_nonce( 'dd_auth' ) ); ?>',
+            lostPasswordUrl:  '<?php echo esc_url( wp_lostpassword_url( home_url('/') ) ); ?>'
+        };
+        </script>
+        <?php
     }
 
     // ─────────────────────────────────────────
@@ -453,8 +473,10 @@ class DD_Auth_Module extends DD_Module {
 
             /* ── Helpers ── */
             function ddAuthAjax(action, data, callback) {
-                var ajaxUrl = (window.DD && window.DD.ajaxUrl) ? window.DD.ajaxUrl : '<?php echo esc_url( admin_url("admin-ajax.php") ); ?>';
-                var body = new URLSearchParams({ action: action, nonce: '<?php echo esc_js( wp_create_nonce("dd_auth") ); ?>' });
+                var auth    = window.DDAauth || {};
+                var ajaxUrl = auth.ajaxUrl || (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+                var nonce   = auth.nonce   || '';
+                var body = new URLSearchParams({ action: action, nonce: nonce });
                 Object.keys(data).forEach(function(k) { body.append(k, data[k]); });
                 fetch(ajaxUrl, {
                     method: 'POST',
@@ -480,9 +502,22 @@ class DD_Auth_Module extends DD_Module {
 
             function ddAuthMsg(el, msg, type) {
                 if (!el) return;
-                el.innerHTML = msg; // innerHTML to allow links in error messages
+                el.innerHTML = msg;
                 el.className = 'dd-auth-msg dd-auth-msg--' + type;
-                el.style.display = '';
+                el.style.display = 'block';
+                el.style.padding = '10px 14px';
+                el.style.marginBottom = '16px';
+                el.style.borderRadius = '10px';
+                el.style.fontSize = '13px';
+                if (type === 'error') {
+                    el.style.background = '#fff2f2';
+                    el.style.color = '#c0392b';
+                    el.style.border = '1px solid #fdd';
+                } else {
+                    el.style.background = '#f0fff4';
+                    el.style.color = '#27ae60';
+                    el.style.border = '1px solid #c3fad5';
+                }
             }
 
             /* ── Wire up header buttons ── */
@@ -525,7 +560,7 @@ class DD_Auth_Module extends DD_Module {
         if ( ! wp_check_password( $password, $user->user_pass, $user->ID ) ) {
             // Increment failed attempts
             set_transient( $rate_key, $attempts + 1, 15 * MINUTE_IN_SECONDS );
-            wp_send_json_error( 'Incorrect password. <a href="' . esc_url( wp_lostpassword_url() ) . '" style="color:var(--brand);font-weight:700;">Reset your password?</a>' );
+            wp_send_json_error( 'Incorrect password. <a href="' . esc_url( wp_lostpassword_url( home_url('/') ) ) . '" style="color:#6B1D1D;font-weight:700;text-decoration:underline;">Reset your password?</a>' );
         }
 
         // Block unverified accounts
