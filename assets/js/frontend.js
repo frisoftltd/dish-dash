@@ -719,6 +719,9 @@
         // Product modal
         setupProductModal();
 
+        // Mobile expandable search
+        setupMobileSearch();
+
         // Sync cart count from WooCommerce fragments (if available)
         document.body.addEventListener('wc_fragments_refreshed', syncCartFromFragments);
         document.body.addEventListener('wc_cart_button_updated', syncCartFromFragments);
@@ -1346,6 +1349,156 @@
             }).join('');
         })
         .catch(function() { grid.innerHTML = ''; });
+    }
+
+
+    /* ══════════════════════════════════════════════════════════
+       MOBILE SEARCH — Expandable Uber Eats style
+       Trigger: search icon tap → panel slides down → instant focus
+       Real-time results as user types (no submit)
+    ══════════════════════════════════════════════════════════ */
+    function setupMobileSearch() {
+        var trigger   = $('ddMobileSearchTrigger');
+        var panel     = $('ddMobileSearchPanel');
+        var input     = $('ddMobileSearch');
+        var closeBtn  = $('ddMobileSearchClose');
+        var dropdown  = $('ddMobileSearchDropdown');
+
+        if (!trigger || !panel || !input) return;
+
+        // Create overlay
+        var overlay = document.createElement('div');
+        overlay.className = 'dd-mobile-search-overlay';
+        overlay.id = 'ddMobileOverlay';
+        document.body.appendChild(overlay);
+
+        function openMobileSearch() {
+            panel.classList.add('open');
+            overlay.classList.add('open');
+            panel.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            // Slight delay so animation starts before keyboard opens
+            setTimeout(function() {
+                input.value = '';
+                input.focus();
+            }, 80);
+        }
+
+        function closeMobileSearch() {
+            panel.classList.remove('open');
+            overlay.classList.remove('open');
+            panel.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            input.value = '';
+            if (dropdown) {
+                dropdown.innerHTML = '';
+                dropdown.classList.remove('open');
+            }
+            input.blur();
+        }
+
+        trigger.addEventListener('click', openMobileSearch);
+        closeBtn && closeBtn.addEventListener('click', closeMobileSearch);
+        overlay.addEventListener('click', closeMobileSearch);
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && panel.classList.contains('open')) closeMobileSearch();
+        });
+
+        // Real-time search — fires on every keystroke (no debounce for instant feel)
+        input.addEventListener('input', function() {
+            var q = this.value.trim();
+
+            // Clear button visibility
+            var clearBtn = $('ddMobileSearchClear');
+            if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
+
+            // Filter page cards
+            filterDishCards(q);
+
+            // Show results in mobile dropdown
+            renderMobileDropdown(q);
+        });
+
+        // Enter key on mobile search
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                var q = this.value.trim();
+                if (q && q.length >= 5 && window.DDTrack) window.DDTrack.search(q);
+                closeMobileSearch();
+            }
+            if (e.key === 'Escape') closeMobileSearch();
+        });
+    }
+
+    /* Render results into mobile dropdown */
+    function renderMobileDropdown(query) {
+        var dropdown = $('ddMobileSearchDropdown');
+        if (!dropdown) return;
+
+        var q = (query || '').toLowerCase().trim();
+
+        if (!q) {
+            dropdown.innerHTML = '';
+            dropdown.classList.remove('open');
+            return;
+        }
+
+        // Load products from server if needed (pages without DOM cards)
+        if (!productsLoaded) {
+            loadProductsFromServer(function() { renderMobileDropdown(query); });
+            return;
+        }
+
+        var matches = productNames.filter(function(p) {
+            return p.name.toLowerCase().indexOf(q) !== -1;
+        }).slice(0, 8);
+
+        if (!matches.length) {
+            dropdown.innerHTML = '<div class="dd-ss__empty">No dishes found for "' + escHtml(query) + '"</div>';
+            dropdown.classList.add('open');
+            return;
+        }
+
+        var html = '<div class="dd-ss__dropdown-section">';
+        html += '<div class="dd-ss__dropdown-label">Dishes (' + matches.length + ')</div>';
+        html += '<div class="dd-ss__results-grid">';
+        matches.forEach(function(p) {
+            html += '<button class="dd-ss__result-card" data-product-id="' + escHtml(p.id) + '">' +
+                '<div class="dd-ss__result-img">' +
+                    (p.img ? '<img src="' + escHtml(p.img) + '" alt="' + escHtml(p.name) + '" loading="lazy">' : '<span>&#127869;</span>') +
+                '</div>' +
+                '<div class="dd-ss__result-body">' +
+                    '<div class="dd-ss__result-name">' + highlight(p.name, query) + '</div>' +
+                    '<div class="dd-ss__result-price">' + escHtml(p.price) + '</div>' +
+                '</div>' +
+            '</button>';
+        });
+        html += '</div></div>';
+
+        dropdown.innerHTML = html;
+        dropdown.classList.add('open');
+
+        // Clicking a result opens the modal + closes search
+        dropdown.querySelectorAll('.dd-ss__result-card').forEach(function(card) {
+            card.addEventListener('click', function() {
+                var pid = this.dataset.productId;
+                // Close mobile search
+                var panel = $('ddMobileSearchPanel');
+                var overlay = $('ddMobileOverlay');
+                if (panel)   panel.classList.remove('open');
+                if (overlay) overlay.classList.remove('open');
+                document.body.style.overflow = '';
+                // Open product modal
+                if (pid) {
+                    if (!productsLoaded) {
+                        loadProductsFromServer(function() { openProductModal(pid); });
+                    } else {
+                        openProductModal(pid);
+                    }
+                }
+            });
+        });
     }
 
     /* ══════════════════════════════════════════════════════════
