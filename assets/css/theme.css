@@ -2000,8 +2000,9 @@ body.dd-page .ast-header-woo-cart {
 
     .dd-header__inner { padding: 6px 0; min-height: 58px !important; height: 58px !important; }
     .dd-brand__logo { width: 54px !important; height: 54px !important; }
-    .dd-header__actions { display: flex; gap: 8px; }
+    .dd-header__actions { display: flex; gap: 8px; justify-content: flex-end; }
     .dd-header__actions .dd-btn { display: none; }
+    .dd-header__actions .dd-cart-top { display: none; }
 
     .dd-hero__grid { padding: 36px 0 64px; gap: 24px; }
     .dd-hero__title { font-size: 2.8rem; }
@@ -2864,8 +2865,8 @@ body.dd-page .ast-header-woo-cart {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     border: 0;
     background: transparent;
     color: var(--brand, #6B1D1D);
@@ -2873,6 +2874,11 @@ body.dd-page .ast-header-woo-cart {
     border-radius: 50%;
     transition: background 0.15s;
     flex-shrink: 0;
+    margin-left: auto;
+}
+.dd-mobile-search-trigger svg {
+    width: 24px;
+    height: 24px;
 }
 .dd-mobile-search-trigger:hover { background: rgba(107,29,29,0.08); }
 
