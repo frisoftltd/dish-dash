@@ -604,9 +604,13 @@ class DD_Template_Module extends DD_Module {
                         <span class="dd-ss__icon">&#128269;</span>
                         <input type="search"
                                id="ddSearch"
+                               name="dd_search"
                                class="dd-ss__input"
                                placeholder="Search dishes&hellip;"
                                autocomplete="off"
+                               autocorrect="off"
+                               autocapitalize="off"
+                               spellcheck="false"
                                aria-label="Search dishes"
                                aria-expanded="false"
                                aria-autocomplete="list"
@@ -641,9 +645,13 @@ class DD_Template_Module extends DD_Module {
                         <span class="dd-ss__icon">&#128269;</span>
                         <input type="search"
                                id="ddMobileSearch"
+                               name="dd_search_mobile"
                                class="dd-ss__input"
                                placeholder="Search dishes..."
                                autocomplete="off"
+                               autocorrect="off"
+                               autocapitalize="off"
+                               spellcheck="false"
                                aria-label="Search dishes">
                         <button class="dd-mobile-search-clear" id="ddMobileSearchClear" aria-label="Clear">&#10005;</button>
                     </div>
