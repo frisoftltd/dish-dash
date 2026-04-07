@@ -2000,7 +2000,8 @@ body.dd-page .ast-header-woo-cart {
 
     .dd-header__inner { padding: 6px 0; min-height: 58px !important; height: 58px !important; }
     .dd-brand__logo { width: 54px !important; height: 54px !important; }
-    .dd-header__actions { display: none; }
+    .dd-header__actions { display: flex; gap: 8px; }
+    .dd-header__actions .dd-btn { display: none; }
 
     .dd-hero__grid { padding: 36px 0 64px; gap: 24px; }
     .dd-hero__title { font-size: 2.8rem; }
