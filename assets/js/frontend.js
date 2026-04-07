@@ -749,6 +749,11 @@
 
         // Fallback to basic search if smart search elements not present
         if (!input) return;
+
+        // Clear any browser-autofilled value immediately
+        input.value = '';
+        var mobileInput = $('ddMobileSearch');
+        if (mobileInput) mobileInput.value = '';
         if (!dropdown) {
             setupSearch();
             return;
