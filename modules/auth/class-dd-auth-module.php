@@ -753,32 +753,46 @@ class DD_Auth_Module extends DD_Module {
 "
             . "— " . $site_name;
 
-        // Build HTML email
-        $html_body = '
-        <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #ede6db;">
-            <div style="background:#160F0D;padding:28px 32px;text-align:center;">
-                <h1 style="color:#F1E7DB;font-size:22px;margin:0;">' . esc_html( $site_name ) . '</h1>
-            </div>
-            <div style="padding:32px;">
-                <h2 style="color:#221B19;font-size:20px;margin:0 0 12px;">Verify your email address</h2>
-                <p style="color:#6E5B4C;line-height:1.7;margin:0 0 24px;">
-                    Hi ' . esc_html( $first_name ) . ', welcome to ' . esc_html( $site_name ) . '!<br>
-                    Please click the button below to verify your email and activate your account.
-                </p>
-                <a href="' . esc_url( $verify_url ) . '"
-                   style="display:inline-block;background:#6B1D1D;color:#ffffff;text-decoration:none;
-                          padding:14px 32px;border-radius:999px;font-weight:700;font-size:15px;">
-                    ✓ Verify my email
-                </a>
-                <p style="color:#aaa;font-size:12px;margin:24px 0 0;line-height:1.6;">
-                    This link expires in 24 hours.<br>
-                    If you did not create an account, you can safely ignore this email.
-                </p>
-            </div>
-            <div style="background:#f5efe6;padding:16px 32px;text-align:center;font-size:12px;color:#888;">
-                © ' . date('Y') . ' ' . esc_html( $site_name ) . ' — Powered by Dish Dash
-            </div>
-        </div>';
+        // Build modern HTML email with logo
+        $logo_url  = get_option( 'dish_dash_logo_url', '' );
+        $primary   = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+        $logo_html = $logo_url
+            ? '<img src="' . esc_url( $logo_url ) . '" alt="' . esc_attr( $site_name ) . '" style="max-height:70px;max-width:200px;object-fit:contain;">'
+            : '<span style="font-size:22px;font-weight:800;color:#221B19;font-family:Georgia,serif;">' . esc_html( $site_name ) . '</span>';
+
+        $html_body = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head>'
+            . '<body style="margin:0;padding:0;background:#F5EFE6;font-family:Inter,-apple-system,sans-serif;">'
+            . '<table width="100%" cellpadding="0" cellspacing="0" style="background:#F5EFE6;padding:40px 16px;">'
+            . '<tr><td align="center"><table width="100%" style="max-width:520px;" cellpadding="0" cellspacing="0">'
+
+            /* Header — white with logo */
+            . '<tr><td style="background:#ffffff;border-radius:20px 20px 0 0;padding:28px 40px;text-align:center;border-bottom:2px solid #F5EFE6;">'
+            . $logo_html
+            . '</td></tr>'
+
+            /* Body */
+            . '<tr><td style="background:#ffffff;padding:36px 40px;">'
+            . '<h2 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#221B19;">Verify your email address</h2>'
+            . '<p style="margin:0 0 8px;font-size:15px;color:#6E5B4C;line-height:1.7;">Hi <strong style="color:#221B19;">' . esc_html( $first_name ) . '</strong>, welcome to ' . esc_html( $site_name ) . '!</p>'
+            . '<p style="margin:0 0 32px;font-size:15px;color:#6E5B4C;line-height:1.7;">Please click the button below to verify your email and activate your account.</p>'
+            . '<table cellpadding="0" cellspacing="0" style="margin-bottom:32px;">'
+            . '<tr><td style="border-radius:999px;background:' . esc_attr( $primary ) . ';">'
+            . '<a href="' . esc_url( $verify_url ) . '" style="display:inline-block;padding:16px 40px;color:#ffffff;text-decoration:none;font-size:16px;font-weight:700;border-radius:999px;">✓ &nbsp;Verify my email</a>'
+            . '</td></tr></table>'
+            . '<div style="border-top:1px solid #EAD9CE;padding-top:24px;">'
+            . '<p style="margin:0;font-size:13px;color:#aaa;line-height:1.8;">⏰ This link expires in <strong>24 hours</strong>.<br>🔒 If you did not create this account, you can safely ignore this email.</p>'
+            . '</div>'
+            . '</td></tr>'
+
+            /* Footer */
+            . '<tr><td style="background:#221B19;border-radius:0 0 20px 20px;padding:20px 40px;text-align:center;">'
+            . '<p style="margin:0;font-size:12px;color:rgba(241,231,219,0.5);line-height:1.8;">'
+            . '&copy; ' . date('Y') . ' ' . esc_html( $site_name ) . '<br>'
+            . 'Built with care by <strong style="color:rgba(241,231,219,0.8);">Fri Soft Ltd</strong>'
+            . '</p></td></tr>'
+
+            . '</table></td></tr></table>'
+            . '</body></html>';
 
         $this->send_email( $email, $subject, $html_body );
 
@@ -871,14 +885,26 @@ class DD_Auth_Module extends DD_Module {
 
         if ( ! $to ) wp_send_json_error( 'Invalid email address.' );
 
+        $logo_url  = get_option( 'dish_dash_logo_url', '' );
+        $primary   = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+        $logo_html = $logo_url
+            ? '<img src="' . esc_url( $logo_url ) . '" alt="' . esc_attr( $site_name ) . '" style="max-height:60px;max-width:180px;object-fit:contain;">'
+            : '<span style="font-size:20px;font-weight:800;color:#221B19;">' . esc_html( $site_name ) . '</span>';
+
         $result = $this->send_email(
             $to,
-            'Test Email from ' . $site_name,
-            '<div style="font-family:Inter,sans-serif;padding:32px;max-width:480px;">
-                <h2 style="color:#221B19;">✅ SMTP is working!</h2>
-                <p style="color:#6E5B4C;">This test email was sent from <strong>' . esc_html( $site_name ) . '</strong> via your cPanel SMTP settings.</p>
-                <p style="color:#aaa;font-size:12px;">Sent at: ' . current_time( 'Y-m-d H:i:s' ) . '</p>
-            </div>'
+            'Test Email — SMTP Working ✅',
+            '<!DOCTYPE html><html><body style="margin:0;padding:40px 16px;background:#F5EFE6;font-family:Inter,sans-serif;">'
+            . '<table width="100%" style="max-width:520px;margin:0 auto;" cellpadding="0" cellspacing="0">'
+            . '<tr><td style="background:#fff;border-radius:20px 20px 0 0;padding:28px 40px;text-align:center;border-bottom:2px solid #F5EFE6;">' . $logo_html . '</td></tr>'
+            . '<tr><td style="background:#fff;padding:36px 40px;border-radius:0 0 20px 20px;">'
+            . '<h2 style="color:#221B19;margin:0 0 12px;">✅ SMTP is working!</h2>'
+            . '<p style="color:#6E5B4C;line-height:1.7;margin:0 0 16px;">Your email settings are configured correctly. Verification emails will now be delivered to your users.</p>'
+            . '<p style="color:#aaa;font-size:12px;margin:0;">Sent at: ' . current_time( 'Y-m-d H:i:s' ) . '<br>From: ' . esc_html( get_option('dd_smtp_from_email','') ) . '</p>'
+            . '</td></tr>'
+            . '<tr><td style="background:#221B19;border-radius:0 0 20px 20px;padding:16px 40px;text-align:center;">'
+            . '<p style="margin:0;font-size:12px;color:rgba(241,231,219,0.5);">&copy; ' . date('Y') . ' ' . esc_html( $site_name ) . ' &mdash; Fri Soft Ltd</p>'
+            . '</td></tr></table></body></html>'
         );
 
         if ( $result ) {
