@@ -45,6 +45,16 @@
 
     const fmt = (n) => 'RWF ' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
+    /* ── Highlight matching text in search results ── */
+    function highlight(text, query) {
+        if (!query) return escHtml(text);
+        var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return escHtml(text).replace(
+            new RegExp('(' + escaped + ')', 'gi'),
+            '<span class="dd-ss__highlight">$1</span>'
+        );
+    }
+
     /* ══════════════════════════════════════════════════════════
        CART BADGE SYNC
     ══════════════════════════════════════════════════════════ */
