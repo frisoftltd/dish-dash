@@ -762,6 +762,114 @@
        - Autosuggestion from product names already in DOM
        - Sticky after hero scrolls out of view
     ══════════════════════════════════════════════════════════ */
+    /* ── Fetch products via AJAX if none in DOM ──────── */
+    function loadProductsFromServer(callback) {
+        var ajaxUrl = (window.DD && window.DD.ajaxUrl)
+               || (window.DDAauth && window.DDAauth.ajaxUrl)
+               || '/wp-admin/admin-ajax.php';
+        var nonce   = (window.DD && window.DD.nonce)
+               || (window.DDAauth && window.DDAauth.nonce)
+               || '';
+        if (!ajaxUrl) { callback(); return; }
+        fetch(ajaxUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            action: 'dd_get_search_products',
+            nonce:  nonce
+        }).toString()
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+        if (res.success && res.data) {
+            res.data.forEach(function(p) {
+            if (!productsSeen[p.id]) {
+                productsSeen[p.id] = true;
+                productNames.push(p);
+            }
+            });
+        }
+        productsLoaded = true;
+        callback();
+        })
+        .catch(function() { productsLoaded = true; callback(); });
+    }
+
+
+    /* ── Fetch recent searches from DB ───────────────── */
+    function loadRecentSearches(callback) {
+        if (!window.DD || !window.DD.ajaxUrl) { callback([]); return; }
+        fetch(window.DD.ajaxUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            action: 'dd_get_recent_searches',
+            nonce:  window.DD.nonce || ''
+        }).toString()
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+        callback(res.success ? (res.data || []) : []);
+        })
+        .catch(function() { callback([]); });
+    }
+
+    /* ── Highlight matching text ─────────────────────── */
+    function highlight(text, query) {
+        if (!query) return escHtml(text);
+        var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return escHtml(text).replace(
+        new RegExp('(' + escaped + ')', 'gi'),
+        '<span class="dd-ss__highlight">$1</span>'
+        );
+    }
+
+    /* ── Render dropdown — products only, click opens modal ── */
+    function renderDropdown(recents, query) {
+        var q = (query || '').toLowerCase().trim();
+
+        // No query — close dropdown
+        if (!q) { closeDropdown(); return; }
+
+        // Load from server if no DOM cards (non-homepage pages)
+        if (!productsLoaded) {
+        loadProductsFromServer(function() { renderDropdown(recents, query); });
+        return;
+        }
+
+        var matches = productNames.filter(function(p) {
+        return p.name.toLowerCase().indexOf(q) !== -1;
+        }).slice(0, 6);
+
+        var html = '';
+        if (matches.length > 0) {
+        html += '<div class="dd-ss__dropdown-section">';
+        html += '<div class="dd-ss__dropdown-label">Dishes (' + matches.length + ')</div>';
+        html += '<div class="dd-ss__results-grid">';
+        matches.forEach(function(p) {
+            html +=
+            '<button class="dd-ss__result-card" data-product-id="' + escHtml(p.id) + '">' +
+                '<div class="dd-ss__result-img">' +
+                (p.img ? '<img src="' + escHtml(p.img) + '" alt="' + escHtml(p.name) + '" loading="lazy">' : '<span>&#127869;</span>') +
+                '</div>' +
+                '<div class="dd-ss__result-body">' +
+                '<div class="dd-ss__result-name">' + highlight(p.name, query) + '</div>' +
+                '<div class="dd-ss__result-price">' + escHtml(p.price) + '</div>' +
+                '</div>' +
+            '</button>';
+        });
+        html += '</div></div>';
+        } else {
+        html = '<div class="dd-ss__empty">No dishes found for &ldquo;' + escHtml(query) + '&rdquo;</div>';
+        }
+
+        dropdown.innerHTML = html;
+        dropdown.classList.add('open');
+        input.setAttribute('aria-expanded', 'true');
+    }
+
+
+
     function setupSmartSearch() {
         var input    = $('ddSearch');
         var dropdown = $('ddSearchDropdown');
@@ -839,112 +947,6 @@
         var recentSearches  = [];
         var recentLoaded    = false;
         productsLoaded = productNames.length > 0;
-
-        /* ── Fetch products via AJAX if none in DOM ──────── */
-        function loadProductsFromServer(callback) {
-            var ajaxUrl = (window.DD && window.DD.ajaxUrl)
-                       || (window.DDAauth && window.DDAauth.ajaxUrl)
-                       || '/wp-admin/admin-ajax.php';
-            var nonce   = (window.DD && window.DD.nonce)
-                       || (window.DDAauth && window.DDAauth.nonce)
-                       || '';
-            if (!ajaxUrl) { callback(); return; }
-            fetch(ajaxUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action: 'dd_get_search_products',
-                    nonce:  nonce
-                }).toString()
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(res) {
-                if (res.success && res.data) {
-                    res.data.forEach(function(p) {
-                        if (!productsSeen[p.id]) {
-                            productsSeen[p.id] = true;
-                            productNames.push(p);
-                        }
-                    });
-                }
-                productsLoaded = true;
-                callback();
-            })
-            .catch(function() { productsLoaded = true; callback(); });
-        }
-
-        /* ── Fetch recent searches from DB ───────────────── */
-        function loadRecentSearches(callback) {
-            if (!window.DD || !window.DD.ajaxUrl) { callback([]); return; }
-            fetch(window.DD.ajaxUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action: 'dd_get_recent_searches',
-                    nonce:  window.DD.nonce || ''
-                }).toString()
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(res) {
-                callback(res.success ? (res.data || []) : []);
-            })
-            .catch(function() { callback([]); });
-        }
-
-        /* ── Highlight matching text ─────────────────────── */
-        function highlight(text, query) {
-            if (!query) return escHtml(text);
-            var escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            return escHtml(text).replace(
-                new RegExp('(' + escaped + ')', 'gi'),
-                '<span class="dd-ss__highlight">$1</span>'
-            );
-        }
-
-        /* ── Render dropdown — products only, click opens modal ── */
-        function renderDropdown(recents, query) {
-            var q = (query || '').toLowerCase().trim();
-
-            // No query — close dropdown
-            if (!q) { closeDropdown(); return; }
-
-            // Load from server if no DOM cards (non-homepage pages)
-            if (!productsLoaded) {
-                loadProductsFromServer(function() { renderDropdown(recents, query); });
-                return;
-            }
-
-            var matches = productNames.filter(function(p) {
-                return p.name.toLowerCase().indexOf(q) !== -1;
-            }).slice(0, 6);
-
-            var html = '';
-            if (matches.length > 0) {
-                html += '<div class="dd-ss__dropdown-section">';
-                html += '<div class="dd-ss__dropdown-label">Dishes (' + matches.length + ')</div>';
-                html += '<div class="dd-ss__results-grid">';
-                matches.forEach(function(p) {
-                    html +=
-                        '<button class="dd-ss__result-card" data-product-id="' + escHtml(p.id) + '">' +
-                            '<div class="dd-ss__result-img">' +
-                                (p.img ? '<img src="' + escHtml(p.img) + '" alt="' + escHtml(p.name) + '" loading="lazy">' : '<span>&#127869;</span>') +
-                            '</div>' +
-                            '<div class="dd-ss__result-body">' +
-                                '<div class="dd-ss__result-name">' + highlight(p.name, query) + '</div>' +
-                                '<div class="dd-ss__result-price">' + escHtml(p.price) + '</div>' +
-                            '</div>' +
-                        '</button>';
-                });
-                html += '</div></div>';
-            } else {
-                html = '<div class="dd-ss__empty">No dishes found for &ldquo;' + escHtml(query) + '&rdquo;</div>';
-            }
-
-            dropdown.innerHTML = html;
-            dropdown.classList.add('open');
-            input.setAttribute('aria-expanded', 'true');
-        }
-
 
         /* ── Input focus — preload products on all pages ── */
         input.addEventListener('focus', function() {
