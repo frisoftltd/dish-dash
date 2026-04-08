@@ -547,12 +547,20 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
     $dd_review_items    = array(); // [{author, photo, time, rating, text}]
 
     // ─── 1. Try Google Places API ─────────────────────────────────────────
+    $dd_review_debug = array(); // diagnostic info for HTML comment
     if ( $dd_review_source === 'google' ) {
         $place_id = trim( get_option( 'dd_reviews_google_place_id', '' ) );
         $api_key  = trim( get_option( 'dd_reviews_google_api_key', '' ) );
 
+        $dd_review_debug['source']      = 'google';
+        $dd_review_debug['has_place']   = $place_id ? 'yes' : 'no';
+        $dd_review_debug['has_api_key'] = $api_key ? 'yes' : 'no';
+
         if ( $place_id && $api_key ) {
-            $cache_key = 'dd_google_reviews_' . md5( $place_id . '|' . $api_key );
+            // v3.1.1: bumped cache key to force fresh fetch and bypass any
+            // stale transient from prior versions that may have stored a
+            // different data shape.
+            $cache_key = 'dd_grev_v3_' . md5( $place_id . '|' . $api_key );
             $cached    = get_transient( $cache_key );
 
             if ( $cached === false ) {
@@ -567,26 +575,83 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
 
                 $resp = wp_remote_get( $url, array( 'timeout' => 10 ) );
 
-                if ( ! is_wp_error( $resp ) && 200 === wp_remote_retrieve_response_code( $resp ) ) {
-                    $body = json_decode( wp_remote_retrieve_body( $resp ), true );
-                    if ( ! empty( $body['status'] ) && $body['status'] === 'OK' && ! empty( $body['result']['reviews'] ) ) {
-                        $cached = $body['result']['reviews'];
-                        set_transient( $cache_key, $cached, 12 * HOUR_IN_SECONDS );
+                if ( is_wp_error( $resp ) ) {
+                    $dd_review_debug['fetch'] = 'wp_error: ' . $resp->get_error_message();
+                } else {
+                    $dd_review_debug['http_code'] = wp_remote_retrieve_response_code( $resp );
+                    if ( 200 === (int) $dd_review_debug['http_code'] ) {
+                        $body = json_decode( wp_remote_retrieve_body( $resp ), true );
+                        $dd_review_debug['api_status'] = isset( $body['status'] ) ? $body['status'] : 'no_status';
+                        $dd_review_debug['review_cnt'] = isset( $body['result']['reviews'] ) ? count( $body['result']['reviews'] ) : 0;
+
+                        if ( ! empty( $body['status'] ) && $body['status'] === 'OK' && ! empty( $body['result']['reviews'] ) ) {
+                            $cached = $body['result']['reviews'];
+                            set_transient( $cache_key, $cached, 12 * HOUR_IN_SECONDS );
+                        } elseif ( isset( $body['error_message'] ) ) {
+                            $dd_review_debug['api_error'] = $body['error_message'];
+                        }
                     }
                 }
+            } else {
+                $dd_review_debug['cache'] = 'hit';
             }
 
             if ( is_array( $cached ) ) {
+                $dd_review_debug['cached_items'] = count( $cached );
                 foreach ( $cached as $r ) {
-                    if ( (int) ( isset( $r['rating'] ) ? $r['rating'] : 0 ) < $dd_review_min_rate ) continue;
+                    // Defensive: handle case where transient was stored as stdClass.
+                    $r = (array) $r;
+
+                    $rating = (int) ( isset( $r['rating'] ) ? $r['rating'] : 0 );
+                    if ( $rating < $dd_review_min_rate ) continue;
+
+                    // Normalize text field — Google Places API legacy returns
+                    // 'text' as a string. New Places API (v1) returns it as
+                    // an object with a 'text' sub-key. Handle both.
+                    $text = '';
+                    if ( isset( $r['text'] ) ) {
+                        if ( is_string( $r['text'] ) ) {
+                            $text = $r['text'];
+                        } elseif ( is_array( $r['text'] ) && isset( $r['text']['text'] ) ) {
+                            $text = $r['text']['text'];
+                        }
+                    }
+
+                    // Normalize author — legacy uses 'author_name', new API
+                    // uses 'authorAttribution.displayName'.
+                    $author = '';
+                    if ( ! empty( $r['author_name'] ) && is_string( $r['author_name'] ) ) {
+                        $author = $r['author_name'];
+                    } elseif ( ! empty( $r['authorAttribution']['displayName'] ) ) {
+                        $author = $r['authorAttribution']['displayName'];
+                    }
+                    if ( ! $author ) $author = 'Google User';
+
+                    // Normalize photo
+                    $photo = '';
+                    if ( ! empty( $r['profile_photo_url'] ) && is_string( $r['profile_photo_url'] ) ) {
+                        $photo = $r['profile_photo_url'];
+                    } elseif ( ! empty( $r['authorAttribution']['photoUri'] ) ) {
+                        $photo = $r['authorAttribution']['photoUri'];
+                    }
+
+                    // Normalize time ago
+                    $time = '';
+                    if ( ! empty( $r['relative_time_description'] ) ) {
+                        $time = $r['relative_time_description'];
+                    } elseif ( ! empty( $r['relativePublishTimeDescription'] ) ) {
+                        $time = $r['relativePublishTimeDescription'];
+                    }
+
                     $dd_review_items[] = array(
-                        'author' => isset( $r['author_name'] )               ? $r['author_name']               : 'Google User',
-                        'photo'  => isset( $r['profile_photo_url'] )         ? $r['profile_photo_url']         : '',
-                        'time'   => isset( $r['relative_time_description'] ) ? $r['relative_time_description'] : '',
-                        'rating' => (int) ( isset( $r['rating'] ) ? $r['rating'] : 5 ),
-                        'text'   => isset( $r['text'] ) ? $r['text'] : '',
+                        'author' => $author,
+                        'photo'  => $photo,
+                        'time'   => $time,
+                        'rating' => $rating > 0 ? $rating : 5,
+                        'text'   => $text,
                     );
                 }
+                $dd_review_debug['normalized_items'] = count( $dd_review_items );
             }
         }
     }
@@ -620,7 +685,9 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
     }
 
     $dd_review_items = array_slice( $dd_review_items, 0, $dd_review_count );
+    $dd_review_debug['final_count'] = count( $dd_review_items );
 ?>
+<!-- DD Reviews Debug: <?php echo esc_html( wp_json_encode( $dd_review_debug ) ); ?> -->
 <section class="dd-section" id="reviews">
     <div class="dd-container">
         <div class="dd-section__top" style="margin-bottom:24px;">
