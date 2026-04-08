@@ -21,6 +21,10 @@
     var productsLoaded = false;
     var productsSeen   = {};
 
+    // Shared recent searches state
+    var recentSearches = [];
+    var recentLoaded   = false;
+
     // Shared dropdown close — used by renderDropdown and event handlers
     function closeDropdown() {
         var dd = document.getElementById('ddSearchDropdown');
@@ -944,8 +948,6 @@
             }
         });
 
-        var recentSearches  = [];
-        var recentLoaded    = false;
         productsLoaded = productNames.length > 0;
 
         /* ── Input focus — preload products on all pages ── */
