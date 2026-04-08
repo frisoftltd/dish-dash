@@ -557,10 +557,9 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         $dd_review_debug['has_api_key'] = $api_key ? 'yes' : 'no';
 
         if ( $place_id && $api_key ) {
-            // v3.1.1: bumped cache key to force fresh fetch and bypass any
-            // stale transient from prior versions that may have stored a
-            // different data shape.
-            $cache_key = 'dd_grev_v3_' . md5( $place_id . '|' . $api_key );
+            // v3.1.2: bumped cache key to v4 to kick out v3 cache (which
+            // may contain star-only reviews that now get filtered differently).
+            $cache_key = 'dd_grev_v4_' . md5( $place_id . '|' . $api_key );
             $cached    = get_transient( $cache_key );
 
             if ( $cached === false ) {
@@ -597,7 +596,8 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
             }
 
             if ( is_array( $cached ) ) {
-                $dd_review_debug['cached_items'] = count( $cached );
+                $dd_review_debug['cached_items']  = count( $cached );
+                $dd_review_debug['skipped_empty'] = 0;
                 foreach ( $cached as $r ) {
                     // Defensive: handle case where transient was stored as stdClass.
                     $r = (array) $r;
@@ -615,6 +615,14 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
                         } elseif ( is_array( $r['text'] ) && isset( $r['text']['text'] ) ) {
                             $text = $r['text']['text'];
                         }
+                    }
+                    $text = trim( (string) $text );
+
+                    // Skip star-only reviews with no written content —
+                    // they produce empty-looking cards.
+                    if ( $text === '' ) {
+                        $dd_review_debug['skipped_empty']++;
+                        continue;
                     }
 
                     // Normalize author — legacy uses 'author_name', new API
