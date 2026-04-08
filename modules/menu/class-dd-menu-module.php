@@ -97,38 +97,141 @@ class DD_Menu_Module extends DD_Module {
         ob_start();
         $dd_name = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
         ?>
-        <div class="dd-reserve-page" style="max-width:600px;margin:40px auto;padding:0 20px;">
-            <h2 style="font-family:'Cormorant Garamond',serif;font-size:2rem;margin-bottom:8px;">Reserve a Table</h2>
-            <p style="color:#6E5B4C;margin-bottom:32px;">Book your table at <?php echo esc_html( $dd_name ); ?> in seconds.</p>
-            <div class="dd-reserve__card" style="background:#fff;border-radius:20px;padding:32px;box-shadow:0 8px 32px rgba(107,29,29,0.08);">
-                <div class="dd-reserve__fields" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <style>
+        .dd-reserve-page {
+            max-width: 600px;
+            margin: 32px auto;
+            padding: 0 16px;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+        .dd-reserve-page h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 2rem;
+            color: #221B19;
+            margin: 0 0 8px;
+            line-height: 1.2;
+        }
+        .dd-reserve-page > p {
+            color: #6E5B4C;
+            font-size: 15px;
+            margin: 0 0 24px;
+            line-height: 1.6;
+        }
+        .dd-reserve__card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 28px;
+            box-shadow: 0 8px 32px rgba(107,29,29,0.08);
+        }
+        .dd-reserve__grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+        .dd-reserve__full { grid-column: 1 / -1; }
+        .dd-field-group { display: flex; flex-direction: column; gap: 6px; }
+        .dd-field-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #888;
+        }
+        .dd-reserve__field {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid #e8ddd2;
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: inherit;
+            color: #221B19;
+            background: #fdfaf7;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .dd-reserve__field:focus {
+            border-color: #6B1D1D;
+            box-shadow: 0 0 0 3px rgba(107,29,29,0.08);
+            background: #fff;
+        }
+        .dd-reserve__field::placeholder { color: #bbb; }
+        .dd-reserve__btn {
+            width: 100%;
+            padding: 15px;
+            background: #6B1D1D;
+            color: #fff;
+            border: 0;
+            border-radius: 999px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 20px;
+            font-family: inherit;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .dd-reserve__btn:hover { background: #5a1818; }
+        .dd-reserve__btn:active { transform: scale(0.98); }
+        .dd-reserve__msg {
+            display: none;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 14px;
+            text-align: center;
+        }
+        /* Mobile: stack all fields */
+        @media (max-width: 480px) {
+            .dd-reserve-page { padding: 0 12px; margin: 20px auto; }
+            .dd-reserve__card { padding: 20px 16px; border-radius: 16px; }
+            .dd-reserve__grid { grid-template-columns: 1fr; gap: 12px; }
+            .dd-reserve__full { grid-column: 1; }
+            .dd-reserve-page h2 { font-size: 1.6rem; }
+        }
+        </style>
+
+        <div class="dd-reserve-page">
+            <h2>Reserve a Table</h2>
+            <p>Book your table at <?php echo esc_html( $dd_name ); ?> in seconds.</p>
+            <div class="dd-reserve__card">
+                <div class="dd-reserve__grid">
                     <div class="dd-field-group">
                         <label class="dd-field-label">&#128197; Date</label>
-                        <input type="date" class="dd-field" style="width:100%;padding:12px;border:1.5px solid #e8ddd2;border-radius:10px;font-size:15px;">
+                        <input type="date" class="dd-reserve__field" id="ddResDate" min="<?php echo date('Y-m-d'); ?>">
                     </div>
                     <div class="dd-field-group">
                         <label class="dd-field-label">&#128336; Time</label>
-                        <input type="time" class="dd-field" style="width:100%;padding:12px;border:1.5px solid #e8ddd2;border-radius:10px;font-size:15px;">
+                        <input type="time" class="dd-reserve__field" id="ddResTime">
                     </div>
                     <div class="dd-field-group">
                         <label class="dd-field-label">&#128101; Guests</label>
-                        <input type="number" class="dd-field" placeholder="Number of guests" min="1" max="20" style="width:100%;padding:12px;border:1.5px solid #e8ddd2;border-radius:10px;font-size:15px;">
+                        <input type="number" class="dd-reserve__field" id="ddResGuests"
+                            placeholder="Number of guests" min="1" max="20" autocomplete="off">
                     </div>
                     <div class="dd-field-group">
                         <label class="dd-field-label">&#128222; Phone</label>
-                        <input type="tel" class="dd-field" placeholder="+250 000 000 000" style="width:100%;padding:12px;border:1.5px solid #e8ddd2;border-radius:10px;font-size:15px;">
+                        <input type="tel" class="dd-reserve__field" id="ddResPhone"
+                            placeholder="+250 000 000 000" autocomplete="tel">
                     </div>
-                    <div class="dd-field-group" style="grid-column:1/-1;">
+                    <div class="dd-field-group dd-reserve__full">
                         <label class="dd-field-label">&#128172; Special Requests</label>
-                        <textarea class="dd-field" rows="3" placeholder="Any special requests..." style="width:100%;padding:12px;border:1.5px solid #e8ddd2;border-radius:10px;font-size:15px;resize:vertical;"></textarea>
+                        <textarea class="dd-reserve__field" id="ddResNotes"
+                            rows="3" placeholder="Dietary needs, occasion, seating preference…"
+                            style="resize:vertical;min-height:80px;"></textarea>
                     </div>
                 </div>
-                <button class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:24px;height:52px;font-size:16px;">Reserve now</button>
+                <button class="dd-reserve__btn" id="ddReserveBtn">Reserve now</button>
+                <div class="dd-reserve__msg" id="ddReserveMsg"></div>
             </div>
         </div>
         <?php
         return ob_get_clean();
     }
+
 
     public function shortcode_track( $atts ): string {
         ob_start();
