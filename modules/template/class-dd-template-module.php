@@ -155,7 +155,8 @@ class DD_Template_Module extends DD_Module {
         wp_enqueue_style(  'dish-dash-cart',     $plugin_url . '/assets/css/cart.css',     [], DD_VERSION );
         wp_enqueue_script( 'dish-dash-menu',     $plugin_url . '/assets/js/menu.js',     [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-cart',     $plugin_url . '/assets/js/cart.js',     [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-search',   $plugin_url . '/assets/js/search.js',   [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [ 'dish-dash-search' ], DD_VERSION, true );
         wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
 
         // Inject CSS variables + footer background via WordPress inline style system
