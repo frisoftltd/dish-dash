@@ -156,6 +156,10 @@ class DD_Homepage_Module extends DD_Module {
         // Clear cached Google reviews so fresh data loads after saving
         delete_transient( 'dd_google_reviews_cache' );
 
+        // Clear page cache transients so changes appear instantly
+        delete_transient( 'dd_cats_0' );
+        for ( $i = 1; $i <= 20; $i++ ) delete_transient( 'dd_cats_' . $i );
+
         wp_redirect( add_query_arg( [
             'page'  => 'dish-dash-homepage',
             'saved' => '1',
