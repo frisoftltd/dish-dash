@@ -369,7 +369,7 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
                 $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
                 $thumb_url = $thumb_id
                     ? wp_get_attachment_image_url( $thumb_id, 'medium' )
-                    : 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80';
+                    : '';  // No fallback — show initials placeholder via CSS
                 $cat_url   = get_term_link( $cat );
             ?>
                 <button class="dd-cat-card<?php echo $i === 0 ? ' active' : ''; ?>"
@@ -377,8 +377,12 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
                         data-name="<?php echo esc_attr( $cat->name ); ?>"
                         data-url="<?php echo esc_url( is_wp_error( $cat_url ) ? '#' : $cat_url ); ?>">
                     <div class="dd-cat-card__circle">
+                        <?php if ( $thumb_url ) : ?>
                         <img src="<?php echo esc_url( $thumb_url ); ?>"
                              alt="<?php echo esc_attr( $cat->name ); ?>">
+                        <?php else : ?>
+                        <span class="dd-cat-card__initial"><?php echo esc_html( strtoupper( substr( $cat->name, 0, 1 ) ) ); ?></span>
+                        <?php endif; ?>
                     </div>
                     <span class="dd-cat-card__name"><?php echo esc_html( $cat->name ); ?></span>
                 </button>
