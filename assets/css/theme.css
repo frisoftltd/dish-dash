@@ -2993,3 +2993,18 @@ body.dd-page .ast-header-woo-cart {
 .dd-ss__result-card:nth-child(4) { animation-delay: 0.12s; }
 .dd-ss__result-card:nth-child(5) { animation-delay: 0.16s; }
 .dd-ss__result-card:nth-child(6) { animation-delay: 0.20s; }
+
+/* ── Category circle letter placeholder (when no image set) ── */
+.dd-cat-card__initial {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--brand);
+    background: var(--dd-bg, #F5EFE6);
+    border-radius: 50%;
+    font-family: 'Cormorant Garamond', serif;
+}
