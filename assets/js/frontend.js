@@ -722,7 +722,6 @@
         setupDesktopGrid();
 
         // Other setups
-        setupSmartSearch();   // replaces setupSearch() — adds dropdown + DB recent searches
         setupModeButtons();
         setupChips();
         setupMobileNav();
@@ -741,8 +740,13 @@
         // Product modal
         setupProductModal();
 
-        // Mobile expandable search
-        setupMobileSearch();
+        // Listen for search module events (decoupled communication)
+        document.addEventListener('dd:open-modal', function(e) {
+            if (e.detail && e.detail.productId) openProductModal(e.detail.productId);
+        });
+        document.addEventListener('dd:filter-cards', function(e) {
+            filterDishCards(e.detail ? e.detail.query : '');
+        });
 
         // Sync cart count from WooCommerce fragments (if available)
         document.body.addEventListener('wc_fragments_refreshed', syncCartFromFragments);
@@ -888,8 +892,7 @@
         var mobileInput = $('ddMobileSearch');
         if (mobileInput) mobileInput.value = '';
         if (!dropdown) {
-            setupSearch();
-            return;
+                return;
         }
 
         // Extract full product data from DOM — works on homepage (.dd-dish-card)
