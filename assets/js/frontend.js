@@ -1147,21 +1147,26 @@
             imgSrc = imgEl ? imgEl.src : '';
             var addBtn = card.querySelector('.dd-add-btn');
             nonce  = addBtn ? (addBtn.dataset.nonce || '') : '';
+            renderModal(productId, name, price, desc, imgSrc, nonce);
         } else {
-            // 2. Fallback: use productNames array (loaded from AJAX on pages without DOM cards)
-            var found = null;
-            for (var i = 0; i < productNames.length; i++) {
-                if (String(productNames[i].id) === String(productId)) {
-                    found = productNames[i]; break;
-                }
+            // 2. Request product data from search.js via custom event
+            function onData(e) {
+                document.removeEventListener('dd:product-data', onData);
+                var p = e.detail;
+                if (!p) return;
+                renderModal(productId, p.name || '', p.price || '', p.desc || '', p.img || '', p.nonce || '');
             }
-            if (!found) return;
-            name   = found.name  || '';
-            price  = found.price || '';
-            desc   = found.desc  || '';
-            imgSrc = found.img   || '';
-            nonce  = found.nonce || '';
+            document.addEventListener('dd:product-data', onData);
+            document.dispatchEvent(new CustomEvent('dd:get-product', {
+                detail: { productId: productId }
+            }));
+            return; // renderModal called async via event
         }
+
+    function renderModal(productId, name, price, desc, imgSrc, nonce) {
+        var modal   = $('ddProductModal');
+        var content = $('ddProductModalContent');
+        if (!modal || !content) return;
 
         content.innerHTML =
             '<div class="dd-pm__img-wrap">' +
@@ -1260,6 +1265,8 @@
                 closeProductModal();
             };
         }
+    }
+
     }
 
     function closeProductModal() {
