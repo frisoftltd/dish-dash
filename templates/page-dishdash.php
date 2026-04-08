@@ -128,13 +128,17 @@ $dd_hours               = get_option( 'dish_dash_opening_hours', "Mon - Fri: 10A
 $dd_tiktok              = get_option( 'dish_dash_tiktok', '' );
 
 // ─── Categories ────────────────────────────────────────────────────────────
-$raw_cats = get_terms( array(
-    'taxonomy'   => 'product_cat',
-    'hide_empty' => true,
-    'parent'     => 0,
-    'orderby'    => 'menu_order',
-    'number'     => $dd_cats_count > 0 ? $dd_cats_count : 0,
-) );
+$cat_cache_key = 'dd_cats_' . $dd_cats_count;
+$raw_cats      = get_transient( $cat_cache_key );
+if ( false === $raw_cats ) {
+    $raw_cats = get_terms( array(
+        'taxonomy'   => 'product_cat',
+        'hide_empty' => false,
+        'orderby'    => 'menu_order',
+        'number'     => $dd_cats_count > 0 ? $dd_cats_count : 0,
+    ) );
+    set_transient( $cat_cache_key, $raw_cats, 5 * MINUTE_IN_SECONDS );
+}
 
 $dd_cats = array();
 if ( ! is_wp_error( $raw_cats ) && ! empty( $raw_cats ) ) {
