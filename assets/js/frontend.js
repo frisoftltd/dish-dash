@@ -794,6 +794,10 @@
             var id = card.dataset.id || '';
             if (titleEl && id && !productsSeen[id]) {
                 productsSeen[id] = true;
+                var linkEl = card.querySelector('a') || card.closest('a');
+                var cardUrl = (linkEl && linkEl.href) ? linkEl.href : '';
+                // Also check data-url attribute
+                if (!cardUrl && card.dataset.url) cardUrl = card.dataset.url;
                 productNames.push({
                     id:    id,
                     name:  titleEl.textContent.trim(),
@@ -801,6 +805,7 @@
                     desc:  descEl   ? descEl.textContent.trim()   : '',
                     img:   imgEl    ? imgEl.src                   : '',
                     nonce: addBtn   ? (addBtn.dataset.nonce || '') : '',
+                    url:   cardUrl,
                 });
             }
         });
@@ -815,6 +820,10 @@
             var id = card.dataset.id || '';
             if (titleEl && id && !productsSeen[id]) {
                 productsSeen[id] = true;
+                var linkEl = card.querySelector('a') || card.closest('a');
+                var cardUrl = (linkEl && linkEl.href) ? linkEl.href : '';
+                // Also check data-url attribute
+                if (!cardUrl && card.dataset.url) cardUrl = card.dataset.url;
                 productNames.push({
                     id:    id,
                     name:  titleEl.textContent.trim(),
@@ -822,6 +831,7 @@
                     desc:  descEl   ? descEl.textContent.trim()   : '',
                     img:   imgEl    ? imgEl.src                   : '',
                     nonce: addBtn   ? (addBtn.dataset.nonce || '') : '',
+                    url:   cardUrl,
                 });
             }
         });
@@ -832,13 +842,19 @@
 
         /* ── Fetch products via AJAX if none in DOM ──────── */
         function loadProductsFromServer(callback) {
-            if (!window.DD || !window.DD.ajaxUrl) { callback(); return; }
-            fetch(window.DD.ajaxUrl, {
+            var ajaxUrl = (window.DD && window.DD.ajaxUrl)
+                       || (window.DDAauth && window.DDAauth.ajaxUrl)
+                       || '/wp-admin/admin-ajax.php';
+            var nonce   = (window.DD && window.DD.nonce)
+                       || (window.DDAauth && window.DDAauth.nonce)
+                       || '';
+            if (!ajaxUrl) { callback(); return; }
+            fetch(ajaxUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
                     action: 'dd_get_search_products',
-                    nonce:  window.DD.nonce || ''
+                    nonce:  nonce
                 }).toString()
             })
             .then(function(r) { return r.json(); })
@@ -1161,6 +1177,7 @@
                         'Add to cart' +
                     '</button>' +
                 '</div>' +
+
             '</div>';
 
         // Quantity controls
