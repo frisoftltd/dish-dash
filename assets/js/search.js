@@ -1,4 +1,3 @@
-
 /**
  * Dish Dash — Search Module
  *
@@ -333,6 +332,34 @@
             if (e.key === 'Escape') close();
         });
     }
+
+    /* ════════════════════════════════════════════════
+       PRODUCT DATA API
+       Lets other modules request product data by ID
+       without sharing scope or variables
+    ════════════════════════════════════════════════ */
+    document.addEventListener('dd:get-product', function (e) {
+        var pid = e.detail && e.detail.productId;
+        if (!pid) return;
+
+        function respond() {
+            var found = null;
+            for (var i = 0; i < products.length; i++) {
+                if (String(products[i].id) === String(pid)) {
+                    found = products[i]; break;
+                }
+            }
+            document.dispatchEvent(new CustomEvent('dd:product-data', {
+                detail: found || null
+            }));
+        }
+
+        if (productsReady) {
+            respond();
+        } else {
+            ensureProducts(respond);
+        }
+    });
 
     /* ════════════════════════════════════════════════
        BOOT — runs when DOM is ready
