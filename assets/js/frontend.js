@@ -21,6 +21,14 @@
     var productsLoaded = false;
     var productsSeen   = {};
 
+    // Shared dropdown close — used by renderDropdown and event handlers
+    function closeDropdown() {
+        var dd = document.getElementById('ddSearchDropdown');
+        var inp = document.getElementById('ddSearch');
+        if (dd) { dd.innerHTML = ''; dd.classList.remove('open'); }
+        if (inp) inp.setAttribute('aria-expanded', 'false');
+    }
+
     let activeSlug    = window.DD ? window.DD.firstCat : '';
     let deliveryFee   = window.DD ? parseInt(window.DD.deliveryFee, 10) : 2000;
     let cartCount     = window.DD ? parseInt(window.DD.cartCount, 10) : 0;
