@@ -867,64 +867,31 @@
             );
         }
 
-        /* ── Render dropdown with visual product cards ─────── */
+        /* ── Render dropdown — products only, click opens modal ── */
         function renderDropdown(recents, query) {
-            var html = '';
             var q = (query || '').toLowerCase().trim();
 
-            // ── No query: show recent searches only ──────────
-            if (!q) {
-                if (recents.length > 0) {
-                    html += '<div class="dd-ss__dropdown-section">';
-                    html += '<div class="dd-ss__dropdown-label">Recently searched</div>';
-                    recents.forEach(function(s) {
-                        html +=
-                            '<button class="dd-ss__suggestion" data-query="' + escHtml(s) + '">' +
-                            '<span class="dd-ss__sug-icon dd-ss__sug-icon--recent">&#128337;</span>' +
-                            '<span class="dd-ss__sug-text">' + escHtml(s) + '</span>' +
-                            '<button class="dd-ss__sug-remove" data-remove="' + escHtml(s) + '" tabindex="-1">&#10005;</button>' +
-                            '</button>';
-                    });
-                    html += '</div>';
-                }
-                if (!html) { closeDropdown(); return; }
-                dropdown.innerHTML = html;
-                dropdown.classList.add('open');
-                input.setAttribute('aria-expanded', 'true');
+            // No query — close dropdown
+            if (!q) { closeDropdown(); return; }
+
+            // Load from server if no DOM cards (non-homepage pages)
+            if (!productsLoaded) {
+                loadProductsFromServer(function() { renderDropdown(recents, query); });
                 return;
             }
 
-            // ── With query: show visual product results ───────
-            var matchRecent = recents.filter(function(s) {
-                return s.toLowerCase().indexOf(q) !== -1;
-            });
-
-            var matchDishes = productNames.filter(function(p) {
+            var matches = productNames.filter(function(p) {
                 return p.name.toLowerCase().indexOf(q) !== -1;
             }).slice(0, 6);
 
-            // Recent search text suggestions
-            if (matchRecent.length > 0) {
+            var html = '';
+            if (matches.length > 0) {
                 html += '<div class="dd-ss__dropdown-section">';
-                html += '<div class="dd-ss__dropdown-label">Recent</div>';
-                matchRecent.forEach(function(s) {
-                    html +=
-                        '<button class="dd-ss__suggestion" data-query="' + escHtml(s) + '">' +
-                        '<span class="dd-ss__sug-icon dd-ss__sug-icon--recent">&#128337;</span>' +
-                        '<span class="dd-ss__sug-text">' + highlight(s, query) + '</span>' +
-                        '</button>';
-                });
-                html += '</div>';
-            }
-
-            // Visual product cards
-            if (matchDishes.length > 0) {
-                html += '<div class="dd-ss__dropdown-section">';
-                html += '<div class="dd-ss__dropdown-label">Dishes (' + matchDishes.length + ')</div>';
+                html += '<div class="dd-ss__dropdown-label">Dishes (' + matches.length + ')</div>';
                 html += '<div class="dd-ss__results-grid">';
-                matchDishes.forEach(function(p) {
+                matches.forEach(function(p) {
                     html +=
-                        '<button class="dd-ss__result-card" data-product-id="' + escHtml(p.id) + '" data-query="' + escHtml(p.name) + '">' +
+                        '<button class="dd-ss__result-card" data-product-id="' + escHtml(p.id) + '">' +
                             '<div class="dd-ss__result-img">' +
                                 (p.img ? '<img src="' + escHtml(p.img) + '" alt="' + escHtml(p.name) + '" loading="lazy">' : '<span>&#127869;</span>') +
                             '</div>' +
@@ -932,53 +899,27 @@
                                 '<div class="dd-ss__result-name">' + highlight(p.name, query) + '</div>' +
                                 '<div class="dd-ss__result-price">' + escHtml(p.price) + '</div>' +
                             '</div>' +
-
                         '</button>';
                 });
                 html += '</div></div>';
-            }
-
-            if (!matchRecent.length && !matchDishes.length) {
+            } else {
                 html = '<div class="dd-ss__empty">No dishes found for &ldquo;' + escHtml(query) + '&rdquo;</div>';
             }
 
-            if (!html) { closeDropdown(); return; }
             dropdown.innerHTML = html;
             dropdown.classList.add('open');
             input.setAttribute('aria-expanded', 'true');
         }
 
-        function closeDropdown() {
-            dropdown.classList.remove('open');
-            dropdown.innerHTML = '';
-            input.setAttribute('aria-expanded', 'false');
-        }
 
-        /* ── Input focus ────────────────────────────────── */
+        /* ── Input focus — preload products on all pages ── */
         input.addEventListener('focus', function() {
-            var q = this.value.trim();
-            var self = this;
-            function doRender() {
-                renderDropdown(recentSearches, self.value.trim());
-            }
-            // Load both recent searches and products if needed
-            var needRecent   = !recentLoaded;
-            var needProducts = !productsLoaded;
-            var pending = (needRecent ? 1 : 0) + (needProducts ? 1 : 0);
-
-            if (pending === 0) { doRender(); return; }
-
-            function onDone() { pending--; if (pending === 0) doRender(); }
-
-            if (needRecent) {
-                loadRecentSearches(function(searches) {
-                    recentSearches = searches;
-                    recentLoaded   = true;
-                    onDone();
+            // Always ensure products are loaded (for non-homepage pages)
+            if (!productsLoaded) {
+                loadProductsFromServer(function() {
+                    var q = input.value.trim();
+                    if (q) renderDropdown(recentSearches, q);
                 });
-            }
-            if (needProducts) {
-                loadProductsFromServer(onDone);
             }
         });
 
@@ -1377,6 +1318,8 @@
             overlay.classList.add('open');
             panel.setAttribute('aria-hidden', 'false');
             document.body.style.overflow = 'hidden';
+            // Pre-load products so results are instant
+            preloadProducts();
             // Slight delay so animation starts before keyboard opens
             setTimeout(function() {
                 input.value = '';
@@ -1405,13 +1348,15 @@
             if (e.key === 'Escape' && panel.classList.contains('open')) closeMobileSearch();
         });
 
-        // Real-time search — fires on every keystroke (no debounce for instant feel)
+        // When panel opens, pre-load products from server (non-homepage pages)
+        // so results are instant when user starts typing
+        function preloadProducts() {
+            if (!productsLoaded) loadProductsFromServer(function() {});
+        }
+
+        // Real-time search — fires on every keystroke
         input.addEventListener('input', function() {
             var q = this.value.trim();
-
-            // Clear button visibility
-            var clearBtn = $('ddMobileSearchClear');
-            if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
 
             // Filter page cards
             filterDishCards(q);
@@ -1431,7 +1376,7 @@
         });
     }
 
-    /* Render results into mobile dropdown */
+    /* Render results into mobile dropdown — identical logic to desktop */
     function renderMobileDropdown(query) {
         var dropdown = $('ddMobileSearchDropdown');
         if (!dropdown) return;
@@ -1444,7 +1389,7 @@
             return;
         }
 
-        // Load products from server if needed (pages without DOM cards)
+        // Load from server if no DOM cards (non-homepage pages)
         if (!productsLoaded) {
             loadProductsFromServer(function() { renderMobileDropdown(query); });
             return;
@@ -1455,7 +1400,7 @@
         }).slice(0, 8);
 
         if (!matches.length) {
-            dropdown.innerHTML = '<div class="dd-ss__empty">No dishes found for "' + escHtml(query) + '"</div>';
+            dropdown.innerHTML = '<div class="dd-ss__empty">No dishes found for &ldquo;' + escHtml(query) + '&rdquo;</div>';
             dropdown.classList.add('open');
             return;
         }
@@ -1479,27 +1424,20 @@
         dropdown.innerHTML = html;
         dropdown.classList.add('open');
 
-        // Clicking a result opens the modal + closes search
+        // Click on result card → close search + open product modal
         dropdown.querySelectorAll('.dd-ss__result-card').forEach(function(card) {
             card.addEventListener('click', function() {
                 var pid = this.dataset.productId;
-                // Close mobile search
-                var panel = $('ddMobileSearchPanel');
+                var panel   = $('ddMobileSearchPanel');
                 var overlay = $('ddMobileOverlay');
                 if (panel)   panel.classList.remove('open');
                 if (overlay) overlay.classList.remove('open');
                 document.body.style.overflow = '';
-                // Open product modal
-                if (pid) {
-                    if (!productsLoaded) {
-                        loadProductsFromServer(function() { openProductModal(pid); });
-                    } else {
-                        openProductModal(pid);
-                    }
-                }
+                if (pid) openProductModal(pid);
             });
         });
     }
+
 
     /* ══════════════════════════════════════════════════════════
        WOO FRAGMENTS SYNC
