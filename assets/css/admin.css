@@ -1,0 +1,208 @@
+/* ============================================================
+   Dish Dash — Admin Styles
+   File: assets/css/admin.css
+   ============================================================ */
+
+/* ── Variables ──────────────────────────────────────────── */
+:root {
+    --dd-primary:      #E8832A;
+    --dd-dark:         #1E3A5F;
+    --dd-success:      #2e9e5b;
+    --dd-danger:       #c0392b;
+    --dd-border:       #e0e0e0;
+    --dd-bg:           #f9f9f9;
+    --dd-radius:       10px;
+    --dd-shadow:       0 2px 12px rgba(0,0,0,.07);
+}
+
+/* ── Wrap ───────────────────────────────────────────────── */
+.dd-admin-wrap {
+    max-width: 1200px;
+    padding: 1.5rem 1rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* ── Admin Header ───────────────────────────────────────── */
+.dd-admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--dd-dark);
+    color: #fff;
+    border-radius: var(--dd-radius);
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dd-admin-header__logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.dd-logo-icon { font-size: 2rem; }
+
+.dd-admin-header h1 {
+    color: #fff;
+    font-size: 1.6rem;
+    margin: 0;
+    line-height: 1;
+}
+
+.dd-version {
+    font-size: .75rem;
+    background: rgba(255,255,255,.2);
+    padding: .15rem .5rem;
+    border-radius: 999px;
+    margin-top: .25rem;
+    display: inline-block;
+}
+
+/* ── KPI Grid ───────────────────────────────────────────── */
+.dd-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.dd-kpi-card {
+    background: #fff;
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius);
+    padding: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: var(--dd-shadow);
+}
+
+.dd-kpi-card__icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.dd-kpi-card__data {
+    display: flex;
+    flex-direction: column;
+}
+
+.dd-kpi-card__number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--dd-dark);
+    line-height: 1;
+}
+
+.dd-kpi-card__label {
+    font-size: .8rem;
+    color: #888;
+    margin-top: .25rem;
+}
+
+/* ── Quick Links ────────────────────────────────────────── */
+.dd-quick-links {
+    background: #fff;
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--dd-shadow);
+}
+
+.dd-quick-links h2 {
+    font-size: 1rem;
+    color: var(--dd-dark);
+    margin: 0 0 1rem;
+    font-weight: 700;
+}
+
+.dd-quick-links__grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+}
+
+.dd-quick-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    background: var(--dd-bg);
+    border: 1px solid var(--dd-border);
+    border-radius: 8px;
+    padding: .55rem 1rem;
+    font-size: .875rem;
+    font-weight: 600;
+    color: var(--dd-dark);
+    text-decoration: none;
+    transition: all .2s;
+}
+
+.dd-quick-link:hover {
+    background: var(--dd-primary);
+    border-color: var(--dd-primary);
+    color: #fff;
+}
+
+/* ── Setup Checklist ────────────────────────────────────── */
+.dd-setup-checklist {
+    background: #fff;
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius);
+    padding: 1.25rem 1.5rem;
+    box-shadow: var(--dd-shadow);
+}
+
+.dd-setup-checklist h2 {
+    font-size: 1rem;
+    color: var(--dd-dark);
+    margin: 0 0 1rem;
+    font-weight: 700;
+}
+
+.dd-checklist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.dd-checklist__item {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .6rem 0;
+    border-bottom: 1px solid var(--dd-border);
+    font-size: .9rem;
+}
+
+.dd-checklist__item:last-child { border-bottom: none; }
+
+.dd-checklist__item--done { color: #888; }
+
+.dd-checklist__item a {
+    color: var(--dd-primary);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.dd-checklist__item a:hover { text-decoration: underline; }
+
+/* ── Coming Soon Panel ──────────────────────────────────── */
+.dd-coming-soon {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: #fff;
+    border: 2px dashed var(--dd-border);
+    border-radius: var(--dd-radius);
+    color: #888;
+}
+
+.dd-coming-soon span { font-size: 3rem; display: block; margin-bottom: 1rem; }
+.dd-coming-soon h2   { color: var(--dd-dark); font-size: 1.3rem; margin: 0 0 .5rem; }
+.dd-coming-soon p    { font-size: .9rem; margin: 0; }

@@ -1,0 +1,384 @@
+/* =============================================================
+   Dish Dash – Frontend Styles  |  assets/css/frontend.css
+   ============================================================= */
+
+/* ── Variables ── */
+.dd-menu-wrap {
+    --dd-accent:        #e8832a;
+    --dd-accent-light:  #fde8d0;
+    --dd-text:          #1a1a1a;
+    --dd-muted:         #666;
+    --dd-border:        #e8e0d5;
+    --dd-bg-card:       #ffffff;
+    --dd-radius:        12px;
+    --dd-shadow:        0 4px 24px rgba(0,0,0,.08);
+    --dd-cols:          3;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    color: var(--dd-text);
+    padding: 2rem 0;
+}
+
+/* ── Filter bar ── */
+.dd-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid var(--dd-border);
+    padding-bottom: 1rem;
+}
+
+.dd-filter-btn {
+    background: none;
+    border: 2px solid var(--dd-border);
+    border-radius: 999px;
+    color: var(--dd-muted);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: .85rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    padding: .4rem 1.1rem;
+    text-transform: uppercase;
+    transition: all .2s ease;
+}
+
+.dd-filter-btn:hover,
+.dd-filter-btn.active {
+    background: var(--dd-accent);
+    border-color: var(--dd-accent);
+    color: #fff;
+}
+
+/* ── Grid ── */
+.dd-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--dd-cols, 3), 1fr);
+    gap: 1.75rem;
+}
+
+.dd-menu-wrap[data-columns="1"] { --dd-cols: 1; }
+.dd-menu-wrap[data-columns="2"] { --dd-cols: 2; }
+.dd-menu-wrap[data-columns="3"] { --dd-cols: 3; }
+.dd-menu-wrap[data-columns="4"] { --dd-cols: 4; }
+
+/* ── Card ── */
+.dd-menu-card {
+    background: var(--dd-bg-card);
+    border: 1px solid var(--dd-border);
+    border-radius: var(--dd-radius);
+    box-shadow: var(--dd-shadow);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.dd-menu-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 36px rgba(0,0,0,.13);
+}
+
+.dd-menu-card.dd-hidden { display: none; }
+
+/* ── Card image ── */
+.dd-card-image {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--dd-accent-light);
+}
+
+.dd-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform .4s ease;
+}
+
+.dd-menu-card:hover .dd-card-image img { transform: scale(1.05); }
+
+/* ── Badges ── */
+.dd-badge {
+    position: absolute;
+    top: .75rem;
+    right: .75rem;
+    border-radius: 999px;
+    font-family: sans-serif;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .06em;
+    padding: .3rem .75rem;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--dd-accent);
+}
+.dd-badge--popular      { background: #e05a2b; }
+.dd-badge--new          { background: #2b7ae0; }
+.dd-badge--spicy        { background: #d01f1f; }
+.dd-badge--vegan        { background: #2e9e5b; }
+.dd-badge--gluten-free  { background: #8a6bb1; }
+.dd-badge--chef-special { background: #b5860d; }
+
+/* ── Prep time chip ── */
+.dd-prep-time {
+    position: absolute;
+    bottom: .6rem;
+    left: .6rem;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-family: sans-serif;
+    font-size: .72rem;
+    padding: .25rem .6rem;
+    border-radius: 999px;
+}
+
+/* ── Card body ── */
+.dd-card-body {
+    padding: 1.25rem 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.dd-card-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 .25rem;
+    color: var(--dd-text);
+    line-height: 1.3;
+}
+
+.dd-card-category {
+    font-size: .75rem;
+    font-family: sans-serif;
+    font-weight: 600;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--dd-accent);
+    margin: 0 0 .75rem;
+}
+
+.dd-card-desc {
+    font-size: .92rem;
+    color: var(--dd-muted);
+    line-height: 1.6;
+    flex: 1;
+    margin-bottom: .75rem;
+}
+.dd-card-desc p { margin: 0; }
+
+.dd-card-allergens {
+    font-size: .75rem;
+    font-family: sans-serif;
+    color: var(--dd-muted);
+    background: #faf7f4;
+    border-radius: 6px;
+    padding: .4rem .6rem;
+    margin: 0 0 .75rem;
+}
+.dd-card-allergens span { font-weight: 700; margin-right: .3rem; }
+
+/* ── Card footer: price + button ── */
+.dd-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    gap: .75rem;
+}
+
+.dd-price {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--dd-accent);
+}
+
+.dd-price-original {
+    font-size: 1rem;
+    color: var(--dd-muted);
+    text-decoration: line-through;
+    margin-right: .3rem;
+}
+
+.dd-price-sale {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #d01f1f;
+}
+
+.dd-add-to-cart {
+    background: var(--dd-accent);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    font-family: sans-serif;
+    font-size: .82rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    padding: .55rem 1rem;
+    text-transform: uppercase;
+    transition: background .2s ease, transform .1s ease;
+    white-space: nowrap;
+}
+.dd-add-to-cart:hover  { background: #c96d1a; }
+.dd-add-to-cart:active { transform: scale(.97); }
+
+/* ── No items ── */
+.dd-no-items {
+    text-align: center;
+    color: var(--dd-muted);
+    font-style: italic;
+    padding: 3rem 1rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) { .dd-menu-grid { --dd-cols: 2 !important; } }
+@media (max-width: 600px)  {
+    .dd-menu-grid { --dd-cols: 1 !important; }
+    .dd-filter-bar { gap: .4rem; }
+    .dd-filter-btn { font-size: .76rem; padding: .35rem .9rem; }
+}
+/* ══════════════════════════════════════════════════════════
+   GOOGLE REVIEWS SECTION
+   Add this to the bottom of assets/css/frontend.css
+══════════════════════════════════════════════════════════ */
+
+/* Grid layout */
+#ddReviewsGrid,
+#reviewsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 32px;
+}
+
+@media (max-width: 900px) {
+    #ddReviewsGrid,
+    #reviewsGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 580px) {
+    #ddReviewsGrid,
+    #reviewsGrid { grid-template-columns: 1fr; }
+}
+
+/* Review card */
+.dd-review-card {
+    background: #fff;
+    border: 1px solid #ede6db;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: box-shadow 0.2s;
+}
+
+.dd-review-card:hover {
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.10);
+}
+
+/* Stars */
+.dd-review-stars {
+    display: flex;
+    gap: 3px;
+}
+
+.dd-review-star {
+    font-size: 18px;
+    color: #ddd;
+    line-height: 1;
+}
+
+.dd-review-star.filled {
+    color: #C8960C;
+}
+
+/* Review text */
+.dd-review-text {
+    font-size: 14px;
+    line-height: 1.75;
+    color: #4a3728;
+    margin: 0;
+    flex: 1;
+}
+
+/* Footer (avatar + name + time) */
+.dd-review-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px solid #f0ece6;
+}
+
+.dd-review-photo {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid #ede6db;
+}
+
+.dd-review-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--dd-primary, #E8832A);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.dd-review-author {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--dd-dark, #1E3A5F);
+    line-height: 1.3;
+}
+
+.dd-review-time {
+    display: block;
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 2px;
+}
+
+/* ── Skeleton loading state ───────────────────── */
+.dd-review-card--skeleton {
+    pointer-events: none;
+    gap: 12px;
+}
+
+.dd-review-skel {
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        #f0ece6 25%,
+        #e8e2db 50%,
+        #f0ece6 75%
+    );
+    background-size: 200% 100%;
+    animation: dd-shimmer 1.5s infinite;
+}
+
+.dd-review-skel--stars  { height: 18px; width: 110px; }
+.dd-review-skel--line   { height: 13px; width: 100%; }
+.dd-review-skel--short  { width: 68%; }
+.dd-review-skel--author { height: 13px; width: 90px; margin-top: 6px; }
+
+@keyframes dd-shimmer {
+    0%   { background-position:  200% 0; }
+    100% { background-position: -200% 0; }
+}
