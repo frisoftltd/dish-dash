@@ -1,0 +1,127 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Dish Dash — Menu Page (Desktop redesign v3.1.7)
+   Mobile layout is intentionally unstyled here; existing mobile CSS applies.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Hide desktop layout on mobile, hide mobile layout on desktop */
+.dd-menu-page--desktop { display: none; }
+.dd-menu-page--mobile  { display: block; }
+
+@media (min-width: 901px) {
+    .dd-menu-page--desktop { display: block; }
+    .dd-menu-page--mobile  { display: none; }
+
+    .dd-menu-page--desktop { padding: 48px 0 80px; background: #FAF7F2; }
+
+    /* ─── Category section ─────────────────────────────────────────── */
+    .dd-menu-cats { margin-bottom: 56px; position: relative; }
+    .dd-menu-cats__header {
+        display: flex; align-items: flex-end; justify-content: space-between;
+        gap: 24px; margin-bottom: 28px; flex-wrap: wrap;
+    }
+    .dd-menu-cats__eyebrow {
+        color: #8a7a66; font-size: 12px; letter-spacing: .18em;
+        text-transform: uppercase; font-weight: 600; margin-bottom: 6px;
+    }
+    .dd-menu-cats__title {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: clamp(28px, 3.5vw, 42px) !important;
+        margin: 0 !important; color: #1a0f08 !important;
+        font-weight: 600 !important; line-height: 1.15 !important;
+    }
+    .dd-menu-cats__arrows { display: flex; gap: 10px; align-self: flex-end; }
+    .dd-menu-cats__arrow {
+        width: 42px; height: 42px; border-radius: 50%;
+        border: 1px solid #EADfCE; background: #fff; color: #2b1d12;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,.04); transition: all .2s;
+    }
+    .dd-menu-cats__arrow:hover {
+        background: var(--brand, #6B1D1D); color: #fff;
+        border-color: var(--brand, #6B1D1D);
+    }
+
+    .dd-menu-cats__track {
+        display: flex; gap: 24px;
+        overflow-x: auto; overflow-y: hidden;
+        scroll-behavior: smooth;
+        padding: 8px 4px 12px;
+        scrollbar-width: none;
+    }
+    .dd-menu-cats__track::-webkit-scrollbar { display: none; }
+
+    .dd-menu-cat {
+        flex: 0 0 auto;
+        background: none; border: none; padding: 0; cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+        text-align: center;
+        transition: transform .2s;
+    }
+    .dd-menu-cat:hover { transform: translateY(-2px); }
+
+    .dd-menu-cat__circle {
+        width: 96px; height: 96px; border-radius: 50%;
+        overflow: hidden; position: relative;
+        border: 2px solid #EADfCE;
+        background: #f5ede2;
+        display: flex; align-items: center; justify-content: center;
+        transition: border-color .2s, box-shadow .2s;
+    }
+    .dd-menu-cat__circle img {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+    }
+    .dd-menu-cat__initial {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 36px; color: var(--brand, #6B1D1D); font-weight: 600;
+    }
+    .dd-menu-cat__all-label {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 26px; color: var(--brand, #6B1D1D); font-weight: 600;
+    }
+    .dd-menu-cat__name {
+        font-size: 13px; color: #2b1d12; font-weight: 500;
+        max-width: 110px; line-height: 1.3;
+    }
+    .dd-menu-cat.is-active .dd-menu-cat__circle {
+        border-color: var(--brand, #6B1D1D);
+        box-shadow: 0 0 0 3px rgba(107, 29, 29, .12);
+    }
+    .dd-menu-cat.is-active .dd-menu-cat__name {
+        color: var(--brand, #6B1D1D); font-weight: 700;
+    }
+
+    /* ─── Products grid ────────────────────────────────────────────── */
+    .dd-menu-grid-section { margin-top: 16px; }
+    .dd-menu-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+    }
+
+    /* ─── Load more button ─────────────────────────────────────────── */
+    .dd-menu-loadmore-wrap {
+        display: flex; justify-content: center; margin-top: 40px;
+    }
+    .dd-menu-loadmore {
+        background: var(--brand, #6B1D1D); color: #fff;
+        border: none; border-radius: 999px;
+        padding: 14px 36px; font-size: 14px; font-weight: 600;
+        letter-spacing: .04em; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 12px;
+        transition: background .2s, transform .15s;
+    }
+    .dd-menu-loadmore:hover {
+        background: #4f1414; transform: translateY(-1px);
+    }
+    .dd-menu-loadmore.is-loading { opacity: .7; cursor: wait; }
+    .dd-menu-loadmore__spinner { display: none; }
+    .dd-menu-loadmore.is-loading .dd-menu-loadmore__spinner {
+        display: inline-block;
+        width: 14px; height: 14px;
+        border: 2px solid rgba(255,255,255,.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: dd-spin .8s linear infinite;
+    }
+    @keyframes dd-spin { to { transform: rotate(360deg); } }
+}

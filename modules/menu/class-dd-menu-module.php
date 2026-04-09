@@ -2,9 +2,8 @@
 /**
  * Dish Dash – Menu Module
  *
- * Handles menu display shortcodes only.
- * Assets loaded by DD_Template_Module.
- * Tracking handled by DD_Tracking_Module.
+ * Handles menu display shortcodes and (v3.1.7+) the desktop menu page
+ * AJAX endpoints and conditional asset enqueuing.
  *
  * @package DishDash
  * @since   2.2.0
@@ -22,7 +21,115 @@ class DD_Menu_Module extends DD_Module {
         add_shortcode( 'dish_dash_reserve',  [ $this, 'shortcode_reserve' ] );
         add_shortcode( 'dish_dash_track',    [ $this, 'shortcode_track' ] );
         add_shortcode( 'dish_dash_account',  [ $this, 'shortcode_account' ] );
+
+        // Desktop menu page: conditional asset enqueue
+        add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_menu_assets' ] );
+
+        // Desktop menu page: AJAX product loader
+        add_action( 'wp_ajax_dd_menu_load_products',        [ $this, 'ajax_load_products' ] );
+        add_action( 'wp_ajax_nopriv_dd_menu_load_products', [ $this, 'ajax_load_products' ] );
     }
+
+    // ─────────────────────────────────────────
+    //  DESKTOP MENU PAGE — ASSET ENQUEUE
+    // ─────────────────────────────────────────
+
+    public function enqueue_menu_assets(): void {
+        if ( ! $this->is_menu_page() ) {
+            return;
+        }
+
+        wp_enqueue_style(
+            'dd-menu-page',
+            DD_ASSETS_URL . 'css/menu-page.css',
+            [],
+            DD_VERSION
+        );
+
+        wp_enqueue_script(
+            'dd-menu-page',
+            DD_ASSETS_URL . 'js/menu-page.js',
+            [],
+            DD_VERSION,
+            true
+        );
+
+        wp_localize_script( 'dd-menu-page', 'DDMenu', [
+            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'dd_menu_nonce' ),
+        ] );
+    }
+
+    private function is_menu_page(): bool {
+        if ( ! is_page() ) return false;
+        // Primary: stored page ID (most reliable)
+        $page_id = get_option( 'dish_dash_menu_page_id' );
+        if ( $page_id && is_page( (int) $page_id ) ) return true;
+        // Fallback: page slug matches common menu slugs
+        $slug = get_post_field( 'post_name' );
+        return in_array( $slug, [ 'restaurant-menu', 'menu' ], true );
+    }
+
+    // ─────────────────────────────────────────
+    //  DESKTOP MENU PAGE — AJAX PRODUCT LOADER
+    // ─────────────────────────────────────────
+
+    public function ajax_load_products(): void {
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+        if ( ! wp_verify_nonce( $nonce, 'dd_menu_nonce' ) ) {
+            wp_send_json_error( [ 'message' => 'Security check failed' ], 403 );
+        }
+
+        $cat_slug = isset( $_POST['cat_slug'] ) ? sanitize_title( wp_unslash( $_POST['cat_slug'] ) ) : '';
+        $page     = isset( $_POST['page'] ) ? max( 1, (int) $_POST['page'] ) : 1;
+        $per_page = 8;
+
+        $args = [
+            'post_type'      => 'product',
+            'posts_per_page' => $per_page,
+            'paged'          => $page,
+            'post_status'    => 'publish',
+            'orderby'        => 'date',
+            'order'          => 'DESC',
+        ];
+
+        if ( $cat_slug !== '' ) {
+            $args['tax_query'] = [
+                [
+                    'taxonomy' => 'product_cat',
+                    'field'    => 'slug',
+                    'terms'    => $cat_slug,
+                ],
+            ];
+        }
+
+        $query = new WP_Query( $args );
+
+        ob_start();
+        if ( $query->have_posts() ) {
+            while ( $query->have_posts() ) {
+                $query->the_post();
+                $product = wc_get_product( get_the_ID() );
+                if ( $product ) {
+                    include DD_TEMPLATES_DIR . 'partials/product-card.php';
+                }
+            }
+            wp_reset_postdata();
+        }
+        $html = ob_get_clean();
+
+        $has_more = $page < $query->max_num_pages;
+
+        wp_send_json_success( [
+            'html'     => $html,
+            'has_more' => $has_more,
+            'page'     => $page,
+        ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  SHORTCODES
+    // ─────────────────────────────────────────
 
     public function shortcode( $atts ): string {
         $atts = shortcode_atts( [

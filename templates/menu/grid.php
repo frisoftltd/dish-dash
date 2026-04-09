@@ -2,9 +2,8 @@
 /**
  * Dish Dash – Menu Page Template
  *
- * Simple mobile-first list layout.
- * Transparent search bar + category filter pills + add to cart.
- * Tracking data attributes for DD_Tracking_Module.
+ * Desktop: category circles carousel + AJAX product grid (v3.1.7)
+ * Mobile:  existing list-row layout (unchanged)
  *
  * Variables from DD_Menu_Module::shortcode():
  *   $items        WP_Query
@@ -13,7 +12,7 @@
  *   $product_cats array[ product_id => WP_Term[] ]
  *
  * @package DishDash
- * @since   2.5.33
+ * @since   3.1.7
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -26,6 +25,105 @@ $show_search = $atts['show_search'] !== 'no';
 
 $nonce = wp_create_nonce( 'dd_add_to_cart' );
 ?>
+
+<!-- ═══ DESKTOP LAYOUT (v3.1.7) ══════════════════════════════════════ -->
+<div class="dd-menu-page dd-menu-page--desktop">
+    <div class="dd-container">
+
+        <!-- Category circles carousel -->
+        <section class="dd-menu-cats">
+            <header class="dd-menu-cats__header">
+                <div>
+                    <div class="dd-menu-cats__eyebrow">Browse by category</div>
+                    <h2 class="dd-menu-cats__title">Choose your craving</h2>
+                </div>
+                <div class="dd-menu-cats__arrows">
+                    <button type="button" class="dd-menu-cats__arrow" id="ddMenuCatsPrev" aria-label="Previous categories">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </button>
+                    <button type="button" class="dd-menu-cats__arrow" id="ddMenuCatsNext" aria-label="Next categories">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </button>
+                </div>
+            </header>
+
+            <div class="dd-menu-cats__track" id="ddMenuCatsTrack">
+                <!-- "All" pseudo-category -->
+                <button type="button" class="dd-menu-cat dd-menu-cat--all is-active" data-cat-slug="">
+                    <span class="dd-menu-cat__circle">
+                        <span class="dd-menu-cat__all-label">All</span>
+                    </span>
+                    <span class="dd-menu-cat__name">All Dishes</span>
+                </button>
+
+                <?php
+                $dd_menu_cats = get_terms( [
+                    'taxonomy'   => 'product_cat',
+                    'hide_empty' => true,
+                    'exclude'    => [ get_option( 'default_product_cat' ) ],
+                    'orderby'    => 'name',
+                    'order'      => 'ASC',
+                ] );
+                if ( ! is_wp_error( $dd_menu_cats ) && ! empty( $dd_menu_cats ) ) :
+                    foreach ( $dd_menu_cats as $cat ) :
+                        $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
+                        $thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : '';
+                ?>
+                    <button type="button" class="dd-menu-cat" data-cat-slug="<?php echo esc_attr( $cat->slug ); ?>">
+                        <span class="dd-menu-cat__circle">
+                            <?php if ( $thumb_url ) : ?>
+                                <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy">
+                            <?php else : ?>
+                                <span class="dd-menu-cat__initial"><?php echo esc_html( strtoupper( mb_substr( $cat->name, 0, 1 ) ) ); ?></span>
+                            <?php endif; ?>
+                        </span>
+                        <span class="dd-menu-cat__name"><?php echo esc_html( $cat->name ); ?></span>
+                    </button>
+                <?php
+                    endforeach;
+                endif;
+                ?>
+            </div>
+        </section>
+
+        <!-- Products grid -->
+        <section class="dd-menu-grid-section">
+            <div class="dd-menu-grid" id="ddMenuGrid" data-current-cat="">
+                <?php
+                $dd_initial_query = new WP_Query( [
+                    'post_type'      => 'product',
+                    'posts_per_page' => 8,
+                    'post_status'    => 'publish',
+                    'orderby'        => 'date',
+                    'order'          => 'DESC',
+                ] );
+                if ( $dd_initial_query->have_posts() ) {
+                    while ( $dd_initial_query->have_posts() ) {
+                        $dd_initial_query->the_post();
+                        $product = wc_get_product( get_the_ID() );
+                        if ( $product ) {
+                            include DD_TEMPLATES_DIR . 'partials/product-card.php';
+                        }
+                    }
+                    wp_reset_postdata();
+                }
+                $dd_initial_has_more = $dd_initial_query->max_num_pages > 1;
+                ?>
+            </div>
+
+            <div class="dd-menu-loadmore-wrap"<?php echo $dd_initial_has_more ? '' : ' style="display:none;"'; ?>>
+                <button type="button" class="dd-menu-loadmore" id="ddMenuLoadMore" data-page="1">
+                    <span class="dd-menu-loadmore__text">Load more</span>
+                    <span class="dd-menu-loadmore__spinner" aria-hidden="true"></span>
+                </button>
+            </div>
+        </section>
+
+    </div>
+</div>
+
+<!-- ═══ MOBILE LAYOUT (unchanged) ════════════════════════════════════ -->
+<div class="dd-menu-page dd-menu-page--mobile">
 
 <div class="dd-menu-page" style="--dd-primary:<?php echo esc_attr($primary); ?>;--dd-dark:<?php echo esc_attr($dark); ?>;">
 
@@ -155,7 +253,9 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
     </div>
     <?php endif; ?>
 
-</div><!-- /.dd-menu-page -->
+</div><!-- /.dd-menu-page (mobile inner) -->
+
+</div><!-- /.dd-menu-page--mobile -->
 
 <style>
 .dd-menu-page {
