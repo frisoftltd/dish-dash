@@ -696,181 +696,264 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
     $dd_review_debug['final_count'] = count( $dd_review_items );
 ?>
 <!-- DD Reviews Debug: <?php echo esc_html( wp_json_encode( $dd_review_debug ) ); ?> -->
-<section class="dd-section" id="reviews">
+<section class="dd-section dd-greviews-section" id="reviews">
     <div class="dd-container">
-        <div class="dd-section__top" style="margin-bottom:24px;">
-            <div>
-                <div class="dd-section__label">Loved by guests</div>
-                <h2 class="dd-section__title dd-serif"><?php echo esc_html( $dd_reviews_title ); ?></h2>
-            </div>
-            <?php if ( count( $dd_review_items ) > 1 ) : ?>
-            <div class="dd-grev-arrows">
-                <button type="button" class="dd-grev-arrow" id="ddGrevPrev" aria-label="Previous reviews">&#8592;</button>
-                <button type="button" class="dd-grev-arrow" id="ddGrevNext" aria-label="Next reviews">&#8594;</button>
-            </div>
-            <?php endif; ?>
+        <div class="dd-greviews-header">
+            <div class="dd-greviews-eyebrow">Loved by guests</div>
+            <h2 class="dd-greviews-title"><?php echo esc_html( $dd_reviews_title ); ?></h2>
         </div>
 
-        <div class="dd-grev-track" id="ddGrevTrack">
-            <?php foreach ( $dd_review_items as $r ) :
-                $initial = strtoupper( mb_substr( $r['author'], 0, 1 ) );
-                $rating  = max( 1, min( 5, (int) $r['rating'] ) );
-                $text    = trim( (string) $r['text'] );
-                $is_long = mb_strlen( $text ) > 180;
-            ?>
-            <article class="dd-grev-card">
-                <header class="dd-grev-card__top">
-                    <?php if ( $r['photo'] ) : ?>
-                        <img src="<?php echo esc_url( $r['photo'] ); ?>"
-                             alt="<?php echo esc_attr( $r['author'] ); ?>"
-                             class="dd-grev-card__avatar"
-                             loading="lazy"
-                             referrerpolicy="no-referrer">
-                    <?php else : ?>
-                        <div class="dd-grev-card__avatar dd-grev-card__avatar--letter"><?php echo esc_html( $initial ); ?></div>
-                    <?php endif; ?>
+        <div class="dd-greviews-wrap">
+            <?php if ( count( $dd_review_items ) > 1 ) : ?>
+            <button type="button" class="dd-greviews-arrow dd-greviews-arrow--prev" id="ddGrevPrev" aria-label="Previous reviews">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+            <button type="button" class="dd-greviews-arrow dd-greviews-arrow--next" id="ddGrevNext" aria-label="Next reviews">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <?php endif; ?>
 
-                    <div class="dd-grev-card__who">
-                        <div class="dd-grev-card__name">
-                            <span class="dd-grev-card__name-text"><?php echo esc_html( $r['author'] ); ?></span>
-                            <svg class="dd-grev-card__verified" viewBox="0 0 24 24" aria-hidden="true">
-                                <path fill="#1A73E8" d="M12 2 9.6 4.4 6.2 4l-.7 3.4L2 9.6 4 12.6l-1 3.5 3.4.4L8.6 19l3.4-1.6L15.4 19l1.2-2.4 3.4-.4-1-3.5 2-3-3.4-2.2L17 4l-3.4.4z"/>
-                                <path fill="#fff" d="m10.6 14.6-2.2-2.2 1-1 1.2 1.2 3.4-3.4 1 1z"/>
-                            </svg>
-                        </div>
-                        <?php if ( $r['time'] ) : ?>
-                        <div class="dd-grev-card__time"><?php echo esc_html( $r['time'] ); ?></div>
+            <div class="dd-greviews-track" id="ddGrevTrack">
+                <?php foreach ( $dd_review_items as $r ) :
+                    $author  = trim( (string) $r['author'] );
+                    if ( $author === '' ) { $author = 'Google User'; }
+                    $initial = strtoupper( mb_substr( $author, 0, 1 ) );
+                    $rating  = max( 1, min( 5, (int) $r['rating'] ) );
+                    $text    = trim( (string) $r['text'] );
+                    $is_long = mb_strlen( $text ) > 160;
+                ?>
+                <article class="dd-greview-card">
+                    <div class="dd-greview-card__head">
+                        <?php if ( ! empty( $r['photo'] ) ) : ?>
+                            <img src="<?php echo esc_url( $r['photo'] ); ?>"
+                                 alt="<?php echo esc_attr( $author ); ?>"
+                                 class="dd-greview-card__avatar"
+                                 loading="lazy"
+                                 referrerpolicy="no-referrer"
+                                 onerror="this.outerHTML='<div class=\'dd-greview-card__avatar dd-greview-card__avatar--letter\'><?php echo esc_js( $initial ); ?></div>';">
+                        <?php else : ?>
+                            <div class="dd-greview-card__avatar dd-greview-card__avatar--letter"><?php echo esc_html( $initial ); ?></div>
                         <?php endif; ?>
+
+                        <div class="dd-greview-card__meta">
+                            <div class="dd-greview-card__name"><?php echo esc_html( $author ); ?></div>
+                            <?php if ( ! empty( $r['time'] ) ) : ?>
+                                <div class="dd-greview-card__time"><?php echo esc_html( $r['time'] ); ?></div>
+                            <?php endif; ?>
+                        </div>
+
+                        <svg class="dd-greview-card__google" viewBox="0 0 48 48" aria-label="Google review">
+                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+                            <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C41 35.5 44 30.2 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+                        </svg>
                     </div>
 
-                    <!-- Google G logo -->
-                    <svg class="dd-grev-card__google" viewBox="0 0 48 48" aria-label="Google review">
-                        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
-                        <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C41 35.5 44 30.2 44 24c0-1.3-.1-2.4-.4-3.5z"/>
-                    </svg>
-                </header>
+                    <div class="dd-greview-card__stars" aria-label="<?php echo esc_attr( $rating ); ?> stars">
+                        <?php for ( $s = 0; $s < $rating; $s++ ) echo '<span>&#9733;</span>'; ?>
+                    </div>
 
-                <div class="dd-grev-card__stars" aria-label="<?php echo esc_attr( $rating ); ?> stars">
-                    <?php for ( $s = 0; $s < $rating; $s++ ) echo '&#9733;'; ?>
-                </div>
+                    <div class="dd-greview-card__text<?php echo $is_long ? ' is-collapsible' : ''; ?>" data-collapsed="1">
+                        <?php echo nl2br( esc_html( $text ) ); ?>
+                    </div>
 
-                <div class="dd-grev-card__text<?php echo $is_long ? ' is-collapsible' : ''; ?>" data-collapsed="1">
-                    <p><?php echo nl2br( esc_html( $text ) ); ?></p>
-                </div>
-
-                <?php if ( $is_long ) : ?>
-                <button type="button" class="dd-grev-card__more">Read more</button>
-                <?php endif; ?>
-            </article>
-            <?php endforeach; ?>
+                    <?php if ( $is_long ) : ?>
+                        <button type="button" class="dd-greview-card__more">Read more</button>
+                    <?php endif; ?>
+                </article>
+                <?php endforeach; ?>
+            </div>
         </div>
     </div>
 </section>
 
 <style>
-/* ══ GOOGLE REVIEWS — CARDS + CAROUSEL ══════════════════════════════════ */
-#reviews .dd-section__top { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; }
-
-.dd-grev-arrows { display:flex; gap:10px; }
-.dd-grev-arrow {
-    width:44px; height:44px; border-radius:50%;
-    border:1.5px solid var(--dd-line, #EADfCE);
-    background:#fff; color:#2b1d12;
-    font-size:18px; cursor:pointer;
-    display:grid; place-items:center;
-    transition:all .2s;
+/* ══ GOOGLE REVIEWS — scoped + defensive ════════════════════════════════ */
+.dd-greviews-section { padding: 60px 0; background: transparent; }
+.dd-greviews-header { text-align: center; margin-bottom: 32px; padding: 0 16px; }
+.dd-greviews-eyebrow {
+    color: #8a7a66; font-size: 12px; letter-spacing: .18em;
+    text-transform: uppercase; font-weight: 600; margin-bottom: 10px;
 }
-.dd-grev-arrow:hover:not(:disabled) { background:var(--brand, #6B1D1D); color:#fff; border-color:var(--brand, #6B1D1D); }
-.dd-grev-arrow:disabled { opacity:.35; cursor:not-allowed; }
-
-.dd-grev-track {
-    display:flex; gap:18px;
-    overflow-x:auto; overflow-y:hidden;
-    scroll-snap-type:x mandatory;
-    scroll-behavior:smooth;
-    padding:6px 4px 20px;
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
-}
-.dd-grev-track::-webkit-scrollbar { display:none; }
-
-.dd-grev-card {
-    flex:0 0 320px;
-    scroll-snap-align:start;
-    background:#fff;
-    border:1px solid var(--dd-line, #EADfCE);
-    border-radius:18px;
-    padding:20px 20px 18px;
-    box-shadow:0 2px 8px rgba(43,29,18,.04);
-    display:flex; flex-direction:column;
-    transition:box-shadow .2s, transform .2s;
-}
-.dd-grev-card:hover { box-shadow:0 6px 18px rgba(43,29,18,.08); transform:translateY(-2px); }
-
-.dd-grev-card__top {
-    display:grid;
-    grid-template-columns:auto 1fr auto;
-    gap:12px;
-    align-items:center;
-    margin-bottom:12px;
-}
-.dd-grev-card__avatar {
-    width:42px; height:42px; border-radius:50%;
-    object-fit:cover; background:#e8e8e8;
-    flex-shrink:0;
-}
-.dd-grev-card__avatar--letter {
-    display:grid; place-items:center;
-    background:var(--brand, #6B1D1D);
-    color:#fff; font-weight:700; font-size:16px;
-}
-.dd-grev-card__who { min-width:0; overflow:hidden; }
-.dd-grev-card__name {
-    display:flex; align-items:center; gap:5px;
-    font-weight:700; color:#2b1d12; font-size:14px;
-    line-height:1.2;
-}
-.dd-grev-card__name-text {
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    max-width:100%;
-}
-.dd-grev-card__verified { width:14px; height:14px; flex-shrink:0; }
-.dd-grev-card__time { font-size:12px; color:#8a7a66; margin-top:2px; }
-.dd-grev-card__google { width:20px; height:20px; flex-shrink:0; }
-
-.dd-grev-card__stars {
-    color:var(--dd-gold, #C9A24A);
-    font-size:16px; letter-spacing:1px;
-    margin-bottom:8px;
+.dd-greviews-title {
+    font-family: 'Cormorant Garamond', Georgia, serif !important;
+    font-size: clamp(28px, 4vw, 44px) !important;
+    margin: 0 !important; color: #1a0f08 !important;
+    font-weight: 600 !important; line-height: 1.15 !important;
 }
 
-.dd-grev-card__text {
-    color:#4F4137;
-    font-size:14px; line-height:1.6;
-    flex:1;
+.dd-greviews-wrap { position: relative; }
+
+.dd-greviews-track {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 20px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    padding: 8px 4px 24px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    list-style: none;
+    margin: 0;
 }
-.dd-grev-card__text p { margin:0; }
-.dd-grev-card__text.is-collapsible[data-collapsed="1"] {
-    display:-webkit-box;
-    -webkit-line-clamp:5;
-    -webkit-box-orient:vertical;
-    overflow:hidden;
+.dd-greviews-track::-webkit-scrollbar { display: none; }
+
+.dd-greview-card {
+    flex: 0 0 300px !important;
+    width: 300px !important;
+    max-width: 300px !important;
+    scroll-snap-align: start;
+    background: #ffffff !important;
+    border: 1px solid #EADfCE !important;
+    border-radius: 16px !important;
+    padding: 20px !important;
+    box-shadow: 0 2px 10px rgba(43, 29, 18, .05) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 230px;
+    box-sizing: border-box !important;
+    transition: box-shadow .2s, transform .2s;
+}
+.dd-greview-card:hover {
+    box-shadow: 0 8px 22px rgba(43, 29, 18, .1) !important;
+    transform: translateY(-2px);
 }
 
-.dd-grev-card__more {
-    margin-top:10px;
-    background:none; border:none; padding:0;
-    color:var(--brand, #6B1D1D);
-    font-weight:700; font-size:13px;
-    cursor:pointer; align-self:flex-start;
+.dd-greview-card__head {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+    width: 100%;
 }
-.dd-grev-card__more:hover { text-decoration:underline; }
+.dd-greview-card__avatar {
+    width: 46px !important;
+    height: 46px !important;
+    border-radius: 50% !important;
+    object-fit: cover;
+    background: #e8e8e8;
+    flex: 0 0 46px !important;
+    display: block;
+    margin: 0 !important;
+}
+.dd-greview-card__avatar--letter {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: var(--brand, #6B1D1D) !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 18px !important;
+    line-height: 1 !important;
+}
+.dd-greview-card__meta {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow: hidden;
+}
+.dd-greview-card__name {
+    font-weight: 700 !important;
+    color: #2b1d12 !important;
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: 0 !important;
+}
+.dd-greview-card__time {
+    font-size: 12px !important;
+    color: #8a7a66 !important;
+    margin-top: 3px !important;
+    line-height: 1.2 !important;
+}
+.dd-greview-card__google {
+    width: 22px !important;
+    height: 22px !important;
+    flex: 0 0 22px !important;
+    display: block !important;
+}
 
-@media (max-width:640px) {
-    .dd-grev-card { flex:0 0 85%; }
-    .dd-grev-arrows { display:none; }
+.dd-greview-card__stars {
+    color: #FBBC04 !important;
+    font-size: 16px;
+    letter-spacing: 2px;
+    margin: 0 0 10px 0 !important;
+    line-height: 1;
+    display: block !important;
+}
+.dd-greview-card__stars span { display: inline-block; }
+
+.dd-greview-card__text {
+    color: #3a2e25 !important;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+    flex: 1 1 auto !important;
+    margin: 0 !important;
+    display: block;
+}
+.dd-greview-card__text.is-collapsible[data-collapsed="1"] {
+    display: -webkit-box !important;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.dd-greview-card__more {
+    margin-top: 10px;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--brand, #6B1D1D);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    align-self: flex-start;
+}
+.dd-greview-card__more:hover { text-decoration: underline; }
+
+/* Side arrows like the reference design */
+.dd-greviews-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid #EADfCE;
+    background: #ffffff;
+    color: #2b1d12;
+    cursor: pointer;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .08);
+    transition: all .2s;
+    padding: 0;
+}
+.dd-greviews-arrow:hover:not(:disabled) {
+    background: var(--brand, #6B1D1D);
+    color: #ffffff;
+    border-color: var(--brand, #6B1D1D);
+}
+.dd-greviews-arrow:disabled { opacity: .35; cursor: not-allowed; }
+.dd-greviews-arrow--prev { left: -10px; }
+.dd-greviews-arrow--next { right: -10px; }
+
+@media (max-width: 900px) {
+    .dd-greviews-arrow--prev { left: 0; }
+    .dd-greviews-arrow--next { right: 0; }
+}
+@media (max-width: 640px) {
+    .dd-greviews-section { padding: 40px 0; }
+    .dd-greview-card { flex: 0 0 84% !important; width: 84% !important; max-width: 84% !important; }
+    .dd-greviews-arrow { display: none !important; }
+    .dd-greviews-header { text-align: left; }
 }
 </style>
 
@@ -879,31 +962,28 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
     var track = document.getElementById('ddGrevTrack');
     if (!track) return;
 
-    /* Read more / show less */
     track.addEventListener('click', function (e) {
-        var btn = e.target.closest('.dd-grev-card__more');
+        var btn = e.target.closest('.dd-greview-card__more');
         if (!btn) return;
-        var card = btn.closest('.dd-grev-card');
-        var txt  = card.querySelector('.dd-grev-card__text');
+        var card = btn.closest('.dd-greview-card');
+        var txt  = card.querySelector('.dd-greview-card__text');
         var collapsed = txt.getAttribute('data-collapsed') === '1';
         txt.setAttribute('data-collapsed', collapsed ? '0' : '1');
         btn.textContent = collapsed ? 'Show less' : 'Read more';
     });
 
-    /* Slider arrows */
     var prev = document.getElementById('ddGrevPrev');
     var next = document.getElementById('ddGrevNext');
 
     function scrollByCard(dir) {
-        var card = track.querySelector('.dd-grev-card');
+        var card = track.querySelector('.dd-greview-card');
         if (!card) return;
-        var step = card.offsetWidth + 18;
+        var step = card.offsetWidth + 20;
         track.scrollBy({ left: dir * step, behavior: 'smooth' });
     }
     if (prev) prev.addEventListener('click', function () { scrollByCard(-1); });
     if (next) next.addEventListener('click', function () { scrollByCard(1); });
 
-    /* Disable arrows at edges */
     function updateArrows() {
         if (!prev || !next) return;
         prev.disabled = track.scrollLeft <= 2;
@@ -911,7 +991,7 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
     }
     track.addEventListener('scroll', updateArrows, { passive: true });
     window.addEventListener('resize', updateArrows);
-    setTimeout(updateArrows, 50);
+    setTimeout(updateArrows, 100);
 })();
 </script>
 <?php endif; ?>
