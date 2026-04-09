@@ -544,10 +544,50 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
     $dd_review_source   = get_option( 'dd_reviews_source', 'manual' );
     $dd_review_count    = max( 1, (int) get_option( 'dd_reviews_count', 6 ) );
     $dd_review_min_rate = max( 1, (int) get_option( 'dd_reviews_min_rating', 4 ) );
-    $dd_review_items    = array(); // [{author, photo, time, rating, text}]
+    $dd_review_items    = array(); // [{author, photo, time, rating, text, star_only}]
+    $dd_review_debug    = array(); // diagnostic info for HTML comment
+
+    // ─── Helper: deep cast any value (incl. nested stdClass) to plain assoc array
+    if ( ! function_exists( 'dd_to_array' ) ) {
+        function dd_to_array( $value ) {
+            if ( is_object( $value ) ) {
+                $value = (array) $value;
+            }
+            if ( is_array( $value ) ) {
+                foreach ( $value as $k => $v ) {
+                    $value[ $k ] = dd_to_array( $v );
+                }
+            }
+            return $value;
+        }
+    }
+
+    // ─── Helper: pull a string text out of any known field shape
+    if ( ! function_exists( 'dd_extract_review_text' ) ) {
+        function dd_extract_review_text( $r ) {
+            // Direct string fields the various Google APIs use
+            $string_fields = array( 'text', 'review_text', 'comment', 'original_text', 'originalText' );
+            foreach ( $string_fields as $f ) {
+                if ( isset( $r[ $f ] ) && is_string( $r[ $f ] ) && trim( $r[ $f ] ) !== '' ) {
+                    return trim( $r[ $f ] );
+                }
+            }
+            // Object/array fields with a nested text key
+            $object_fields = array( 'text', 'originalText', 'original_text' );
+            foreach ( $object_fields as $f ) {
+                if ( isset( $r[ $f ] ) && is_array( $r[ $f ] ) ) {
+                    foreach ( array( 'text', 'originalText', 'value' ) as $sub ) {
+                        if ( isset( $r[ $f ][ $sub ] ) && is_string( $r[ $f ][ $sub ] ) && trim( $r[ $f ][ $sub ] ) !== '' ) {
+                            return trim( $r[ $f ][ $sub ] );
+                        }
+                    }
+                }
+            }
+            return '';
+        }
+    }
 
     // ─── 1. Try Google Places API ─────────────────────────────────────────
-    $dd_review_debug = array(); // diagnostic info for HTML comment
     if ( $dd_review_source === 'google' ) {
         $place_id = trim( get_option( 'dd_reviews_google_place_id', '' ) );
         $api_key  = trim( get_option( 'dd_reviews_google_api_key', '' ) );
@@ -557,10 +597,17 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         $dd_review_debug['has_api_key'] = $api_key ? 'yes' : 'no';
 
         if ( $place_id && $api_key ) {
-            // v3.1.2: bumped cache key to v4 to kick out v3 cache (which
-            // may contain star-only reviews that now get filtered differently).
-            $cache_key = 'dd_grev_v4_' . md5( $place_id . '|' . $api_key );
-            $cached    = get_transient( $cache_key );
+            // v3.1.4: bumped cache key to v5 to bust v4 cache (which had
+            // text-extraction issues with nested stdClass objects).
+            $cache_key = 'dd_grev_v5_' . md5( $place_id . '|' . $api_key );
+
+            // Manual cache buster — append ?dd_refresh_reviews=1 to homepage URL
+            if ( isset( $_GET['dd_refresh_reviews'] ) && current_user_can( 'manage_options' ) ) {
+                delete_transient( $cache_key );
+                $dd_review_debug['cache_busted'] = 'yes';
+            }
+
+            $cached = get_transient( $cache_key );
 
             if ( $cached === false ) {
                 $url = add_query_arg( array(
@@ -586,6 +633,7 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
                         if ( ! empty( $body['status'] ) && $body['status'] === 'OK' && ! empty( $body['result']['reviews'] ) ) {
                             $cached = $body['result']['reviews'];
                             set_transient( $cache_key, $cached, 12 * HOUR_IN_SECONDS );
+                            $dd_review_debug['cache'] = 'fresh';
                         } elseif ( isset( $body['error_message'] ) ) {
                             $dd_review_debug['api_error'] = $body['error_message'];
                         }
@@ -597,53 +645,57 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
 
             if ( is_array( $cached ) ) {
                 $dd_review_debug['cached_items']  = count( $cached );
-                $dd_review_debug['skipped_empty'] = 0;
+                $dd_review_debug['skipped_rate'] = 0;
+                $dd_review_debug['star_only']    = 0;
+
+                $first_dump_done = false;
                 foreach ( $cached as $r ) {
-                    // Defensive: handle case where transient was stored as stdClass.
-                    $r = (array) $r;
+                    // Deep-cast: convert ALL nested stdClass objects to assoc arrays.
+                    // This is the key fix — (array) only casts the outer level.
+                    $r = dd_to_array( $r );
+                    if ( ! is_array( $r ) ) continue;
 
-                    $rating = (int) ( isset( $r['rating'] ) ? $r['rating'] : 0 );
-                    if ( $rating < $dd_review_min_rate ) continue;
-
-                    // Normalize text field — Google Places API legacy returns
-                    // 'text' as a string. New Places API (v1) returns it as
-                    // an object with a 'text' sub-key. Handle both.
-                    $text = '';
-                    if ( isset( $r['text'] ) ) {
-                        if ( is_string( $r['text'] ) ) {
-                            $text = $r['text'];
-                        } elseif ( is_array( $r['text'] ) && isset( $r['text']['text'] ) ) {
-                            $text = $r['text']['text'];
-                        }
+                    // Diagnostic: dump first review's structure for inspection
+                    if ( ! $first_dump_done ) {
+                        $dd_review_debug['first_keys'] = array_keys( $r );
+                        $dd_review_debug['first_text_type'] = isset( $r['text'] ) ? gettype( $r['text'] ) : 'missing';
+                        $first_dump_done = true;
                     }
-                    $text = trim( (string) $text );
 
-                    // Skip star-only reviews with no written content —
-                    // they produce empty-looking cards.
-                    if ( $text === '' ) {
-                        $dd_review_debug['skipped_empty']++;
+                    // Rating — handle multiple field names
+                    $rating = (int) ( $r['rating'] ?? $r['starRating'] ?? $r['star_rating'] ?? 0 );
+                    if ( $rating > 0 && $rating < $dd_review_min_rate ) {
+                        $dd_review_debug['skipped_rate']++;
                         continue;
                     }
 
-                    // Normalize author — legacy uses 'author_name', new API
-                    // uses 'authorAttribution.displayName'.
+                    // Text — try every known field shape
+                    $text = dd_extract_review_text( $r );
+
+                    // Author — handle every known field name
                     $author = '';
                     if ( ! empty( $r['author_name'] ) && is_string( $r['author_name'] ) ) {
                         $author = $r['author_name'];
                     } elseif ( ! empty( $r['authorAttribution']['displayName'] ) ) {
                         $author = $r['authorAttribution']['displayName'];
+                    } elseif ( ! empty( $r['author']['displayName'] ) ) {
+                        $author = $r['author']['displayName'];
+                    } elseif ( ! empty( $r['author'] ) && is_string( $r['author'] ) ) {
+                        $author = $r['author'];
                     }
                     if ( ! $author ) $author = 'Google User';
 
-                    // Normalize photo
+                    // Photo
                     $photo = '';
                     if ( ! empty( $r['profile_photo_url'] ) && is_string( $r['profile_photo_url'] ) ) {
                         $photo = $r['profile_photo_url'];
                     } elseif ( ! empty( $r['authorAttribution']['photoUri'] ) ) {
                         $photo = $r['authorAttribution']['photoUri'];
+                    } elseif ( ! empty( $r['author']['photoUri'] ) ) {
+                        $photo = $r['author']['photoUri'];
                     }
 
-                    // Normalize time ago
+                    // Time ago
                     $time = '';
                     if ( ! empty( $r['relative_time_description'] ) ) {
                         $time = $r['relative_time_description'];
@@ -651,12 +703,19 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
                         $time = $r['relativePublishTimeDescription'];
                     }
 
+                    if ( $text === '' ) {
+                        $dd_review_debug['star_only']++;
+                    }
+
+                    // ALLOW star-only reviews — they still show name, rating, and Google branding.
+                    // Better than fake "Happy Customer" reviews.
                     $dd_review_items[] = array(
-                        'author' => $author,
-                        'photo'  => $photo,
-                        'time'   => $time,
-                        'rating' => $rating > 0 ? $rating : 5,
-                        'text'   => $text,
+                        'author'    => $author,
+                        'photo'     => $photo,
+                        'time'      => $time,
+                        'rating'    => $rating > 0 ? $rating : 5,
+                        'text'      => $text,
+                        'star_only' => $text === '',
                     );
                 }
                 $dd_review_debug['normalized_items'] = count( $dd_review_items );
@@ -664,38 +723,43 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         }
     }
 
-    // ─── 2. Fallback: manual reviews ──────────────────────────────────────
-    if ( empty( $dd_review_items ) ) {
+    // ─── 2. Fallback: manual reviews — ONLY if source is not google ───────
+    if ( empty( $dd_review_items ) && $dd_review_source !== 'google' ) {
         $manual_reviews = json_decode( get_option( 'dd_reviews_manual', '[]' ), true );
         if ( ! empty( $manual_reviews ) && is_array( $manual_reviews ) ) {
             foreach ( array_filter( $manual_reviews ) as $txt ) {
                 $dd_review_items[] = array(
-                    'author' => 'Happy Customer',
-                    'photo'  => '',
-                    'time'   => '',
-                    'rating' => 5,
-                    'text'   => $txt,
+                    'author'    => 'Happy Customer',
+                    'photo'     => '',
+                    'time'      => '',
+                    'rating'    => 5,
+                    'text'      => $txt,
+                    'star_only' => false,
                 );
             }
         }
     }
 
-    // ─── 3. Final fallback: defaults ──────────────────────────────────────
-    if ( empty( $dd_review_items ) ) {
+    // ─── 3. Final default fallback — ONLY if source is not google ─────────
+    if ( empty( $dd_review_items ) && $dd_review_source !== 'google' ) {
         $dd_review_items = array(
             array( 'author' => 'Amina K.', 'photo' => '', 'time' => '', 'rating' => 5,
-                   'text' => 'The menu feels elegant and very easy to browse. Ordering was fast and smooth.' ),
+                   'text' => 'The menu feels elegant and very easy to browse. Ordering was fast and smooth.', 'star_only' => false ),
             array( 'author' => 'David M.', 'photo' => '', 'time' => '', 'rating' => 5,
-                   'text' => 'The categories make it simple to find dishes without feeling overwhelmed by choice.' ),
+                   'text' => 'The categories make it simple to find dishes without feeling overwhelmed by choice.', 'star_only' => false ),
             array( 'author' => 'Priya S.', 'photo' => '', 'time' => '', 'rating' => 5,
-                   'text' => 'Beautiful visuals, premium feel, and the checkout is clear and easy to trust.' ),
+                   'text' => 'Beautiful visuals, premium feel, and the checkout is clear and easy to trust.', 'star_only' => false ),
         );
     }
 
     $dd_review_items = array_slice( $dd_review_items, 0, $dd_review_count );
     $dd_review_debug['final_count'] = count( $dd_review_items );
+
+    // If google was selected but we got nothing at all, hide the section silently
+    $dd_render_reviews = ! empty( $dd_review_items );
 ?>
 <!-- DD Reviews Debug: <?php echo esc_html( wp_json_encode( $dd_review_debug ) ); ?> -->
+<?php if ( $dd_render_reviews ) : ?>
 <section class="dd-section dd-greviews-section" id="reviews">
     <div class="dd-container">
         <div class="dd-greviews-header">
@@ -754,12 +818,13 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
                         <?php for ( $s = 0; $s < $rating; $s++ ) echo '<span>&#9733;</span>'; ?>
                     </div>
 
+                    <?php if ( $text !== '' ) : ?>
                     <div class="dd-greview-card__text<?php echo $is_long ? ' is-collapsible' : ''; ?>" data-collapsed="1">
                         <?php echo nl2br( esc_html( $text ) ); ?>
                     </div>
-
                     <?php if ( $is_long ) : ?>
                         <button type="button" class="dd-greview-card__more">Read more</button>
+                    <?php endif; ?>
                     <?php endif; ?>
                 </article>
                 <?php endforeach; ?>
@@ -767,6 +832,7 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         </div>
     </div>
 </section>
+<?php endif; /* dd_render_reviews */ ?>
 
 <style>
 /* ══ GOOGLE REVIEWS — scoped + defensive ════════════════════════════════ */
