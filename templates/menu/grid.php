@@ -28,10 +28,11 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
 <!-- ═══ DESKTOP LAYOUT (v3.1.7) ══════════════════════════════════════ -->
 <div class="dd-menu-page dd-menu-page--desktop">
-    <div class="dd-container">
+    <div class="dd-menu-container">
 
         <!-- Category circles carousel -->
         <section class="dd-menu-cats">
+            <div class="dd-menu-cats__inner">
             <header class="dd-menu-cats__header">
                 <div>
                     <div class="dd-menu-cats__eyebrow">Browse by category</div>
@@ -83,7 +84,8 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
                     endforeach;
                 endif;
                 ?>
-            </div>
+            </div><!-- .dd-menu-cats__track -->
+            </div><!-- .dd-menu-cats__inner -->
         </section>
 
         <!-- Products grid -->
