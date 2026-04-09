@@ -3,7 +3,7 @@
  * Plugin Name:       Dish Dash
  * Plugin URI:        https://frisoftltd.com/dish-dash
  * Description:       A complete restaurant ordering & management system built on WordPress and WooCommerce.
- * Version:           3.1.4
+ * Version:           3.1.5
  * Author:            Fri Soft Ltd
  * Author URI:        https://frisoft.rw
  * License:           GPL-2.0+
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────
-define( 'DD_VERSION',         '3.1.4' );
+define( 'DD_VERSION',         '3.1.5' );
 define( 'DD_PLUGIN_FILE',     __FILE__ );
 define( 'DD_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'DD_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
@@ -80,7 +80,7 @@ add_action( 'admin_notices', function () {
     }
 } );
 
-// ─────────────────────────────────────────────
+// ────────────────────────────────���────────────
 //  THEME INSTALLER
 // ─────────────────────────────────────────────
 require_once DD_PLUGIN_DIR . 'dishdash-core/class-dd-theme-installer.php';
@@ -135,3 +135,24 @@ register_activation_hook( __FILE__, function () {
 register_deactivation_hook( __FILE__, function () {
     flush_rewrite_rules();
 } );
+
+// ─────────────────────────────────────────────
+//  OPCACHE RESET ON UPDATE
+//  Prevents "Cannot redeclare class" fatals after
+//  WordPress plugin auto-updates by clearing the
+//  PHP opcode cache when Dish Dash is updated.
+// ─────────────────────────────────────────────
+add_action( 'upgrader_process_complete', function ( $upgrader, $hook_extra ) {
+    if ( empty( $hook_extra['type'] ) || $hook_extra['type'] !== 'plugin' ) {
+        return;
+    }
+    if ( empty( $hook_extra['plugins'] ) || ! is_array( $hook_extra['plugins'] ) ) {
+        return;
+    }
+    if ( ! in_array( DD_PLUGIN_BASENAME, $hook_extra['plugins'], true ) ) {
+        return;
+    }
+    if ( function_exists( 'opcache_reset' ) ) {
+        opcache_reset();
+    }
+}, 10, 2 );
