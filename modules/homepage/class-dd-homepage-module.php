@@ -11,6 +11,8 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+if ( ! class_exists( 'DD_Homepage_Module' ) ) :
+
 class DD_Homepage_Module extends DD_Module {
 
     protected string $id = 'homepage';
@@ -783,8 +785,8 @@ class DD_Homepage_Module extends DD_Module {
                                 <div class="dd-hp-field">
                                     <label><?php esc_html_e( 'Number of Reviews to Show', 'dish-dash' ); ?></label>
                                     <select name="dd_reviews_count" class="dd-hp-select">
-                                        <?php foreach ( [ 3, 4, 5, 6 ] as $n ) : ?>
-                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_reviews_count', $n, 3 ); ?>><?php echo $n; ?></option>
+                                        <?php foreach ( range( 3, 20 ) as $n ) : ?>
+                                            <option value="<?php echo $n; ?>" <?php $this->select( 'dd_reviews_count', $n, 6 ); ?>><?php echo $n; ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
@@ -960,3 +962,5 @@ class DD_Homepage_Module extends DD_Module {
         <?php
     }
 }
+
+endif; // class_exists DD_Homepage_Module

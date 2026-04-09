@@ -587,7 +587,13 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         }
     }
 
-    // ─── 1. Try Google Places API ─────────────────────────────────────────
+    // ─── 1. Fetch + accumulate Google reviews into a persistent pool ─────
+    //
+    // Google Places API (legacy) returns max 5 reviews per request. To grow
+    // beyond 5 we fetch twice per refresh (newest + most_relevant), dedupe,
+    // and merge into a pool stored in wp_options. Pool grows over time as
+    // new customers leave reviews. Refreshed every 24 hours.
+    //
     if ( $dd_review_source === 'google' ) {
         $place_id = trim( get_option( 'dd_reviews_google_place_id', '' ) );
         $api_key  = trim( get_option( 'dd_reviews_google_api_key', '' ) );
@@ -596,160 +602,187 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         $dd_review_debug['has_place']   = $place_id ? 'yes' : 'no';
         $dd_review_debug['has_api_key'] = $api_key ? 'yes' : 'no';
 
-        if ( $place_id && $api_key ) {
-            // v3.1.4: bumped cache key to v5 to bust v4 cache (which had
-            // text-extraction issues with nested stdClass objects).
-            $cache_key = 'dd_grev_v5_' . md5( $place_id . '|' . $api_key );
-
-            // Manual cache buster — append ?dd_refresh_reviews=1 to homepage URL
-            if ( isset( $_GET['dd_refresh_reviews'] ) && current_user_can( 'manage_options' ) ) {
-                delete_transient( $cache_key );
-                $dd_review_debug['cache_busted'] = 'yes';
+        if ( ! function_exists( 'dd_to_array' ) ) {
+            function dd_to_array( $value ) {
+                if ( is_object( $value ) ) $value = (array) $value;
+                if ( is_array( $value ) ) {
+                    foreach ( $value as $k => $v ) $value[ $k ] = dd_to_array( $v );
+                }
+                return $value;
             }
+        }
 
-            $cached = get_transient( $cache_key );
-
-            if ( $cached === false ) {
-                $url = add_query_arg( array(
-                    'place_id'                => $place_id,
-                    'fields'                  => 'reviews',
-                    'reviews_sort'            => 'newest',
-                    'reviews_no_translations' => 'true',
-                    'language'                => 'en',
-                    'key'                     => $api_key,
-                ), 'https://maps.googleapis.com/maps/api/place/details/json' );
-
-                $resp = wp_remote_get( $url, array( 'timeout' => 10 ) );
-
-                if ( is_wp_error( $resp ) ) {
-                    $dd_review_debug['fetch'] = 'wp_error: ' . $resp->get_error_message();
-                } else {
-                    $dd_review_debug['http_code'] = wp_remote_retrieve_response_code( $resp );
-                    if ( 200 === (int) $dd_review_debug['http_code'] ) {
-                        $body = json_decode( wp_remote_retrieve_body( $resp ), true );
-                        $dd_review_debug['api_status'] = isset( $body['status'] ) ? $body['status'] : 'no_status';
-                        $dd_review_debug['review_cnt'] = isset( $body['result']['reviews'] ) ? count( $body['result']['reviews'] ) : 0;
-
-                        if ( ! empty( $body['status'] ) && $body['status'] === 'OK' && ! empty( $body['result']['reviews'] ) ) {
-                            $cached = $body['result']['reviews'];
-                            set_transient( $cache_key, $cached, 12 * HOUR_IN_SECONDS );
-                            $dd_review_debug['cache'] = 'fresh';
-                        } elseif ( isset( $body['error_message'] ) ) {
-                            $dd_review_debug['api_error'] = $body['error_message'];
+        if ( ! function_exists( 'dd_extract_review_text' ) ) {
+            function dd_extract_review_text( $r ) {
+                $strings = [ 'text', 'review_text', 'comment', 'original_text', 'originalText' ];
+                foreach ( $strings as $f ) {
+                    if ( isset( $r[ $f ] ) && is_string( $r[ $f ] ) && trim( $r[ $f ] ) !== '' ) {
+                        return trim( $r[ $f ] );
+                    }
+                }
+                $objects = [ 'text', 'originalText', 'original_text' ];
+                foreach ( $objects as $f ) {
+                    if ( isset( $r[ $f ] ) && is_array( $r[ $f ] ) ) {
+                        foreach ( [ 'text', 'originalText', 'value' ] as $sub ) {
+                            if ( isset( $r[ $f ][ $sub ] ) && is_string( $r[ $f ][ $sub ] ) && trim( $r[ $f ][ $sub ] ) !== '' ) {
+                                return trim( $r[ $f ][ $sub ] );
+                            }
                         }
                     }
                 }
-            } else {
-                $dd_review_debug['cache'] = 'hit';
+                return '';
             }
+        }
 
-            if ( is_array( $cached ) ) {
-                $dd_review_debug['cached_items']  = count( $cached );
-                $dd_review_debug['skipped_rate'] = 0;
-                $dd_review_debug['star_only']    = 0;
+        if ( ! function_exists( 'dd_normalize_google_review' ) ) {
+            function dd_normalize_google_review( $r ) {
+                $r = dd_to_array( $r );
+                if ( ! is_array( $r ) ) return null;
 
-                $first_dump_done = false;
-                foreach ( $cached as $r ) {
-                    // Deep-cast: convert ALL nested stdClass objects to assoc arrays.
-                    // This is the key fix — (array) only casts the outer level.
-                    $r = dd_to_array( $r );
-                    if ( ! is_array( $r ) ) continue;
+                $rating = (int) ( $r['rating'] ?? $r['starRating'] ?? $r['star_rating'] ?? 0 );
+                $text   = dd_extract_review_text( $r );
 
-                    // Diagnostic: dump first review's structure for inspection
-                    if ( ! $first_dump_done ) {
-                        $dd_review_debug['first_keys'] = array_keys( $r );
-                        $dd_review_debug['first_text_type'] = isset( $r['text'] ) ? gettype( $r['text'] ) : 'missing';
-                        $first_dump_done = true;
-                    }
-
-                    // Rating — handle multiple field names
-                    $rating = (int) ( $r['rating'] ?? $r['starRating'] ?? $r['star_rating'] ?? 0 );
-                    if ( $rating > 0 && $rating < $dd_review_min_rate ) {
-                        $dd_review_debug['skipped_rate']++;
-                        continue;
-                    }
-
-                    // Text — try every known field shape
-                    $text = dd_extract_review_text( $r );
-
-                    // Author — handle every known field name
-                    $author = '';
-                    if ( ! empty( $r['author_name'] ) && is_string( $r['author_name'] ) ) {
-                        $author = $r['author_name'];
-                    } elseif ( ! empty( $r['authorAttribution']['displayName'] ) ) {
-                        $author = $r['authorAttribution']['displayName'];
-                    } elseif ( ! empty( $r['author']['displayName'] ) ) {
-                        $author = $r['author']['displayName'];
-                    } elseif ( ! empty( $r['author'] ) && is_string( $r['author'] ) ) {
-                        $author = $r['author'];
-                    }
-                    if ( ! $author ) $author = 'Google User';
-
-                    // Photo
-                    $photo = '';
-                    if ( ! empty( $r['profile_photo_url'] ) && is_string( $r['profile_photo_url'] ) ) {
-                        $photo = $r['profile_photo_url'];
-                    } elseif ( ! empty( $r['authorAttribution']['photoUri'] ) ) {
-                        $photo = $r['authorAttribution']['photoUri'];
-                    } elseif ( ! empty( $r['author']['photoUri'] ) ) {
-                        $photo = $r['author']['photoUri'];
-                    }
-
-                    // Time ago
-                    $time = '';
-                    if ( ! empty( $r['relative_time_description'] ) ) {
-                        $time = $r['relative_time_description'];
-                    } elseif ( ! empty( $r['relativePublishTimeDescription'] ) ) {
-                        $time = $r['relativePublishTimeDescription'];
-                    }
-
-                    if ( $text === '' ) {
-                        $dd_review_debug['star_only']++;
-                    }
-
-                    // ALLOW star-only reviews — they still show name, rating, and Google branding.
-                    // Better than fake "Happy Customer" reviews.
-                    $dd_review_items[] = array(
-                        'author'    => $author,
-                        'photo'     => $photo,
-                        'time'      => $time,
-                        'rating'    => $rating > 0 ? $rating : 5,
-                        'text'      => $text,
-                        'star_only' => $text === '',
-                    );
+                $author = '';
+                if ( ! empty( $r['author_name'] ) && is_string( $r['author_name'] ) ) {
+                    $author = $r['author_name'];
+                } elseif ( ! empty( $r['authorAttribution']['displayName'] ) ) {
+                    $author = $r['authorAttribution']['displayName'];
+                } elseif ( ! empty( $r['author']['displayName'] ) ) {
+                    $author = $r['author']['displayName'];
                 }
-                $dd_review_debug['normalized_items'] = count( $dd_review_items );
+                if ( ! $author ) $author = 'Google User';
+
+                $photo = '';
+                if ( ! empty( $r['profile_photo_url'] ) && is_string( $r['profile_photo_url'] ) ) {
+                    $photo = $r['profile_photo_url'];
+                } elseif ( ! empty( $r['authorAttribution']['photoUri'] ) ) {
+                    $photo = $r['authorAttribution']['photoUri'];
+                } elseif ( ! empty( $r['author']['photoUri'] ) ) {
+                    $photo = $r['author']['photoUri'];
+                }
+
+                $time = '';
+                if ( ! empty( $r['relative_time_description'] ) ) {
+                    $time = $r['relative_time_description'];
+                } elseif ( ! empty( $r['relativePublishTimeDescription'] ) ) {
+                    $time = $r['relativePublishTimeDescription'];
+                }
+
+                $timestamp = 0;
+                if ( ! empty( $r['time'] ) && is_numeric( $r['time'] ) ) {
+                    $timestamp = (int) $r['time'];
+                } elseif ( ! empty( $r['publishTime'] ) ) {
+                    $timestamp = strtotime( $r['publishTime'] ) ?: 0;
+                }
+
+                return [
+                    'author'    => $author,
+                    'photo'     => $photo,
+                    'time'      => $time,
+                    'rating'    => $rating > 0 ? $rating : 5,
+                    'text'      => $text,
+                    'star_only' => $text === '',
+                    '_ts'       => $timestamp,
+                    '_hash'     => md5( strtolower( $author ) . '|' . strtolower( substr( $text, 0, 200 ) ) ),
+                ];
             }
         }
-    }
 
-    // ─── 2. Fallback: manual reviews — ONLY if source is not google ───────
-    if ( empty( $dd_review_items ) && $dd_review_source !== 'google' ) {
-        $manual_reviews = json_decode( get_option( 'dd_reviews_manual', '[]' ), true );
-        if ( ! empty( $manual_reviews ) && is_array( $manual_reviews ) ) {
-            foreach ( array_filter( $manual_reviews ) as $txt ) {
-                $dd_review_items[] = array(
-                    'author'    => 'Happy Customer',
-                    'photo'     => '',
-                    'time'      => '',
-                    'rating'    => 5,
-                    'text'      => $txt,
-                    'star_only' => false,
-                );
+        if ( ! function_exists( 'dd_fetch_google_reviews' ) ) {
+            function dd_fetch_google_reviews( $place_id, $api_key, $sort, &$debug ) {
+                $url = add_query_arg( [
+                    'place_id'                => $place_id,
+                    'fields'                  => 'reviews',
+                    'reviews_sort'            => $sort,
+                    'reviews_no_translations' => 'true',
+                    'language'                => 'en',
+                    'key'                     => $api_key,
+                ], 'https://maps.googleapis.com/maps/api/place/details/json' );
+
+                $resp = wp_remote_get( $url, [ 'timeout' => 10 ] );
+                if ( is_wp_error( $resp ) ) {
+                    $debug[ "fetch_{$sort}" ] = 'wp_error: ' . $resp->get_error_message();
+                    return [];
+                }
+                $code = (int) wp_remote_retrieve_response_code( $resp );
+                $debug[ "http_{$sort}" ] = $code;
+                if ( $code !== 200 ) return [];
+
+                $body = json_decode( wp_remote_retrieve_body( $resp ), true );
+                $debug[ "status_{$sort}" ] = $body['status'] ?? 'no_status';
+                if ( empty( $body['status'] ) || $body['status'] !== 'OK' ) {
+                    if ( isset( $body['error_message'] ) ) {
+                        $debug[ "error_{$sort}" ] = $body['error_message'];
+                    }
+                    return [];
+                }
+                return $body['result']['reviews'] ?? [];
             }
         }
-    }
 
-    // ─── 3. Final default fallback — ONLY if source is not google ─────────
-    if ( empty( $dd_review_items ) && $dd_review_source !== 'google' ) {
-        $dd_review_items = array(
-            array( 'author' => 'Amina K.', 'photo' => '', 'time' => '', 'rating' => 5,
-                   'text' => 'The menu feels elegant and very easy to browse. Ordering was fast and smooth.', 'star_only' => false ),
-            array( 'author' => 'David M.', 'photo' => '', 'time' => '', 'rating' => 5,
-                   'text' => 'The categories make it simple to find dishes without feeling overwhelmed by choice.', 'star_only' => false ),
-            array( 'author' => 'Priya S.', 'photo' => '', 'time' => '', 'rating' => 5,
-                   'text' => 'Beautiful visuals, premium feel, and the checkout is clear and easy to trust.', 'star_only' => false ),
-        );
+        if ( $place_id && $api_key ) {
+            $pool_key       = 'dd_reviews_google_pool';
+            $last_fetch_key = 'dd_reviews_google_last_fetch';
+            $pool           = get_option( $pool_key, [] );
+            if ( ! is_array( $pool ) ) $pool = [];
+            $last_fetch     = (int) get_option( $last_fetch_key, 0 );
+            $refresh_every  = DAY_IN_SECONDS;
+
+            $force_refresh = isset( $_GET['dd_refresh_reviews'] ) && current_user_can( 'manage_options' );
+
+            $should_refresh = $force_refresh || ( time() - $last_fetch ) >= $refresh_every;
+            $dd_review_debug['pool_size_before'] = count( $pool );
+            $dd_review_debug['should_refresh']   = $should_refresh ? 'yes' : 'no';
+
+            if ( $should_refresh ) {
+                $raw_newest   = dd_fetch_google_reviews( $place_id, $api_key, 'newest', $dd_review_debug );
+                $raw_relevant = dd_fetch_google_reviews( $place_id, $api_key, 'most_relevant', $dd_review_debug );
+                $raw_all      = array_merge( $raw_newest, $raw_relevant );
+
+                $dd_review_debug['fetched_raw'] = count( $raw_all );
+
+                $by_hash = [];
+                foreach ( $pool as $item ) {
+                    if ( is_array( $item ) && ! empty( $item['_hash'] ) ) {
+                        $by_hash[ $item['_hash'] ] = $item;
+                    }
+                }
+
+                foreach ( $raw_all as $raw ) {
+                    $normalized = dd_normalize_google_review( $raw );
+                    if ( $normalized === null ) continue;
+                    $by_hash[ $normalized['_hash'] ] = $normalized;
+                }
+
+                $pool = array_values( $by_hash );
+
+                usort( $pool, function ( $a, $b ) {
+                    if ( $a['star_only'] !== $b['star_only'] ) {
+                        return $a['star_only'] ? 1 : -1;
+                    }
+                    return ( $b['_ts'] ?? 0 ) <=> ( $a['_ts'] ?? 0 );
+                } );
+
+                $pool = array_slice( $pool, 0, 100 );
+
+                update_option( $pool_key, $pool, false );
+                update_option( $last_fetch_key, time(), false );
+
+                $dd_review_debug['pool_size_after'] = count( $pool );
+                $dd_review_debug['cache']           = 'refreshed';
+            } else {
+                $dd_review_debug['cache']           = 'pool';
+                $dd_review_debug['next_refresh_in'] = $refresh_every - ( time() - $last_fetch );
+            }
+
+            foreach ( $pool as $item ) {
+                if ( ! is_array( $item ) ) continue;
+                if ( (int) $item['rating'] < $dd_review_min_rate ) continue;
+                unset( $item['_ts'], $item['_hash'] );
+                $dd_review_items[] = $item;
+            }
+            $dd_review_debug['after_filter'] = count( $dd_review_items );
+        }
     }
 
     $dd_review_items = array_slice( $dd_review_items, 0, $dd_review_count );
