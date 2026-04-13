@@ -1,1 +1,38 @@
 
+name: Create Release ZIP
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create plugin zip
+        run: |
+          mkdir -p /tmp/build/dish-dash
+          rsync -av \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='node_modules' \
+            --exclude='*.md' \
+            --exclude='tests' \
+            ./ /tmp/build/dish-dash/
+          cd /tmp/build
+          zip -r dish-dash.zip dish-dash
+          mv dish-dash.zip $GITHUB_WORKSPACE/dish-dash.zip
+
+      - name: Upload zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dish-dash.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
