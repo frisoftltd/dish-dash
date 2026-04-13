@@ -62,7 +62,6 @@
                 }
                 if (replace) {
                     grid.innerHTML = data.data.html;
-                    grid.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 } else {
                     grid.insertAdjacentHTML('beforeend', data.data.html);
                 }

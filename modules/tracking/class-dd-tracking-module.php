@@ -29,9 +29,9 @@ class DD_Tracking_Module extends DD_Module {
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
         // AJAX — public (works for both logged-in and guests)
-        DD_Ajax::register( 'dd_track_event',          [ $this, 'ajax_track_event' ],          false );
-        DD_Ajax::register( 'dd_get_recent_searches',  [ $this, 'ajax_get_recent_searches' ],  false );
-        DD_Ajax::register( 'dd_get_search_products',  [ $this, 'ajax_get_search_products' ],  false );
+        DD_Ajax::register( 'dd_track_event',          [ $this, 'ajax_track_event' ]          );
+        DD_Ajax::register( 'dd_get_recent_searches',  [ $this, 'ajax_get_recent_searches' ]  );
+        DD_Ajax::register( 'dd_get_search_products',  [ $this, 'ajax_get_search_products' ]  );
     }
 
     // ─────────────────────────────────────────
