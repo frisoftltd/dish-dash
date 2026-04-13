@@ -7,6 +7,14 @@
 .dd-menu-page--desktop { display: none; }
 .dd-menu-page--mobile  { display: block; }
 
+/* Centered container — root-level so it applies regardless of breakpoint */
+.dd-menu-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
 @media (min-width: 901px) {
     .dd-menu-page--desktop { display: block; }
     .dd-menu-page--mobile  { display: none; }
@@ -14,14 +22,6 @@
     .dd-menu-page--desktop {
         padding: 56px 0 96px;
         background: #FAF7F2;
-    }
-
-    /* Scoped container — centered, max 1200px */
-    .dd-menu-container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 32px;
-        box-sizing: border-box;
     }
 
     /* ─── Category section (white card) ────────────────────────────── */
@@ -172,7 +172,14 @@
        These rules override the homepage default sizes without touching
        the homepage card appearance. */
     .dd-menu-grid .dd-dish-card {
-        border-radius: 14px !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;
+        transition: all 0.25s ease !important;
+    }
+    .dd-menu-grid .dd-dish-card:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+        transform: translateY(-2px) !important;
     }
     .dd-menu-grid .dd-dish-card__media,
     .dd-menu-grid .dd-dish-card__img,
@@ -184,7 +191,7 @@
         object-fit: cover !important;
     }
     .dd-menu-grid .dd-dish-card__body {
-        padding: 16px 16px 18px !important;
+        padding: 12px 14px 14px !important;
     }
     .dd-menu-grid .dd-dish-card__title {
         font-size: 16px !important;
@@ -192,7 +199,9 @@
         margin-bottom: 8px !important;
     }
     .dd-menu-grid .dd-price {
-        font-size: 15px !important;
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        color: #E8832A !important;
     }
 
     /* ─── Load more button ─────────────────────────────────────────── */
