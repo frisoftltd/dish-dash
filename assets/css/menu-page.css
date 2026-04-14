@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════════════════
-   Dish Dash — Menu Page (Desktop redesign v3.1.7)
+   Dish Dash — Menu Page (Desktop redesign v3.1.7+)
    Mobile layout is intentionally unstyled here; existing mobile CSS applies.
    ══════════════════════════════════════════════════════════════════════ */
 
@@ -20,20 +20,20 @@
     .dd-menu-page--mobile  { display: none; }
 
     .dd-menu-page--desktop {
-        padding: 40px 0 40px;
+        padding: 48px 0 48px;
         background: #FAF7F2;
     }
 
     /* ─── Category section (white card) ────────────────────────────── */
     .dd-menu-cats {
-        margin-bottom: 48px;
+        margin-bottom: 32px;
     }
     .dd-menu-cats__inner {
         background: #ffffff;
         border: 1px solid #EADfCE;
         border-radius: 18px;
         padding: 32px 36px 28px;
-        box-shadow: 0 2px 12px rgba(43, 29, 18, .04);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
         overflow: visible !important;
     }
     .dd-menu-cats__header {
@@ -64,13 +64,14 @@
         display: flex;
         gap: 8px;
         align-self: flex-end;
+        flex-shrink: 0;
     }
     .dd-menu-cats__arrow {
-        width: 38px;
-        height: 38px;
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        border: 1px solid #EADfCE;
-        background: #fff;
+        border: 1px solid var(--dd-line, #EADfCE);
+        background: var(--dd-surface, #FBF7F1);
         color: #2b1d12;
         cursor: pointer;
         display: flex;
@@ -78,11 +79,16 @@
         justify-content: center;
         transition: all .2s;
         padding: 0;
+        flex-shrink: 0;
     }
     .dd-menu-cats__arrow:hover {
         background: var(--brand, #6B1D1D);
         color: #fff;
         border-color: var(--brand, #6B1D1D);
+    }
+    .dd-menu-cats__arrow:disabled {
+        opacity: 0.4;
+        cursor: default;
     }
 
     .dd-menu-cats__track {
@@ -96,7 +102,7 @@
     }
     .dd-menu-cats__track::-webkit-scrollbar { display: none; }
 
-    /* ─── Single category circle (smaller, cleaner) ────────────────── */
+    /* ─── Single category circle ──────────────────────────────────── */
     .dd-menu-cat {
         flex: 0 0 auto;
         background: none;
@@ -159,19 +165,42 @@
         font-weight: 700;
     }
 
-    /* ─── Products grid (tighter, centered, smaller cards) ──────── */
+    /* ─── Grid section heading ──────────────────────────────────── */
+    .dd-menu-grid-header {
+        margin-bottom: 24px;
+    }
+    .dd-menu-grid-eyebrow {
+        display: block;
+        color: #E8832A;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+        font-family: 'Inter', system-ui, sans-serif;
+    }
+    .dd-menu-grid-title {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: clamp(22px, 2.5vw, 32px);
+        font-weight: 600;
+        color: #1a0f08;
+        margin: 0;
+        line-height: 1.15;
+    }
+
+    /* ─── Products grid ─────────────────────────────────────────── */
     .dd-menu-grid-section {
-        margin-top: 8px;
+        margin-top: 0;
     }
     .dd-menu-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
+        column-gap: 24px;
+        row-gap: 32px;
     }
 
-    /* Scope-down the shared card when used inside the menu grid.
-       These rules override the homepage default sizes without touching
-       the homepage card appearance (homepage relies on 290px fixed width). */
+    /* Card overrides — scoped to .dd-menu-grid only.
+       Homepage .dd-dish-card (290px fixed) is untouched. */
     .dd-menu-grid .dd-dish-card {
         min-width: 0 !important;
         max-width: 100% !important;
@@ -184,40 +213,49 @@
         transition: all 0.25s ease !important;
     }
     .dd-menu-grid .dd-dish-card:hover {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
-        transform: translateY(-2px) !important;
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12) !important;
+        transform: translateY(-3px) !important;
     }
     .dd-menu-grid .dd-dish-card__media,
     .dd-menu-grid .dd-dish-card__img,
     .dd-menu-grid .dd-dish-card__image {
-        height: 190px !important;
+        aspect-ratio: 4 / 3 !important;
+        height: auto !important;
+        overflow: hidden !important;
     }
     .dd-menu-grid .dd-dish-card__media img {
-        height: 190px !important;
+        width: 100% !important;
+        height: 100% !important;
         object-fit: cover !important;
     }
     .dd-menu-grid .dd-dish-card__body {
         padding: 14px 16px !important;
     }
+    .dd-menu-grid .dd-dish-card__title {
+        font-family: 'Cormorant Garamond', Georgia, serif !important;
+        font-size: 1.15rem !important;
+        font-weight: 500 !important;
+        line-height: 1.3 !important;
+        color: var(--dd-text, #221B19) !important;
+        margin-bottom: 8px !important;
+    }
     .dd-menu-grid .dd-dish-card__footer {
         flex-wrap: wrap !important;
         gap: 8px !important;
     }
-    .dd-menu-grid .dd-dish-card__footer .dd-add-btn {
-        flex-shrink: 0 !important;
-    }
-    .dd-menu-grid .dd-dish-card__title {
-        font-size: 16px !important;
-        line-height: 1.3 !important;
-        margin-bottom: 8px !important;
-    }
     .dd-menu-grid .dd-price {
-        font-size: 16px !important;
-        font-weight: 800 !important;
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
         color: #E8832A !important;
     }
+    .dd-menu-grid .dd-dish-card__footer .dd-add-btn {
+        padding: 8px 16px !important;
+        font-size: 13px !important;
+        font-weight: 600 !important;
+        flex-shrink: 0 !important;
+    }
 
-    /* ─── Load more button ─────────────────────────────────────────── */
+    /* ─── Load more button ─────────────────────────────────────── */
     .dd-menu-loadmore-wrap {
         display: flex;
         justify-content: center;

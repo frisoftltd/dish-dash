@@ -7,6 +7,7 @@
     var catTrack     = document.getElementById('ddMenuCatsTrack');
     var catPrev      = document.getElementById('ddMenuCatsPrev');
     var catNext      = document.getElementById('ddMenuCatsNext');
+    var gridTitle    = document.getElementById('ddMenuGridTitle');
 
     // ── Arrow scroll — no DDMenu dependency, init immediately ──────────
     function scrollCats(dir) {
@@ -33,6 +34,17 @@
         btn.classList.add('is-active');
 
         var slug = btn.getAttribute('data-cat-slug') || '';
+
+        // Update grid section heading to reflect active category
+        if (gridTitle) {
+            if (slug === '') {
+                gridTitle.textContent = 'All Dishes';
+            } else {
+                var nameEl = btn.querySelector('.dd-menu-cat__name');
+                gridTitle.textContent = nameEl ? nameEl.textContent.trim() : 'All Dishes';
+            }
+        }
+
         grid.setAttribute('data-current-cat', slug);
         loadMore.setAttribute('data-page', '1');
 

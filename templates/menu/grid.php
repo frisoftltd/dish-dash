@@ -90,6 +90,10 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
         <!-- Products grid -->
         <section class="dd-menu-grid-section">
+            <div class="dd-menu-grid-header">
+                <span class="dd-menu-grid-eyebrow">Our Menu</span>
+                <h2 class="dd-menu-grid-title" id="ddMenuGridTitle">All Dishes</h2>
+            </div>
             <div class="dd-menu-grid" id="ddMenuGrid" data-current-cat="">
                 <?php
                 $dd_initial_query = new WP_Query( [
@@ -261,7 +265,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
 <style>
 .dd-menu-page {
-    max-width: 800px;
+    max-width: 100%;
     margin: 0 auto;
     padding: 0 0 40px;
     font-family: 'Inter', system-ui, sans-serif;
