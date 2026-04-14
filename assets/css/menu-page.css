@@ -170,8 +170,13 @@
 
     /* Scope-down the shared card when used inside the menu grid.
        These rules override the homepage default sizes without touching
-       the homepage card appearance. */
+       the homepage card appearance (homepage relies on 290px fixed width). */
     .dd-menu-grid .dd-dish-card {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        flex-shrink: 1 !important;
+        scroll-snap-align: unset !important;
         border-radius: 12px !important;
         overflow: hidden !important;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06) !important;

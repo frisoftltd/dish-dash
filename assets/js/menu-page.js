@@ -8,6 +8,18 @@
     var catPrev      = document.getElementById('ddMenuCatsPrev');
     var catNext      = document.getElementById('ddMenuCatsNext');
 
+    // ── Arrow scroll — no DDMenu dependency, init immediately ──────────
+    function scrollCats(dir) {
+        if (!catTrack) return;
+        var item = catTrack.querySelector('.dd-menu-cat');
+        if (!item) return;
+        var step = (item.offsetWidth + 24) * 3;
+        catTrack.scrollBy({ left: dir * step, behavior: 'smooth' });
+    }
+    if (catPrev) catPrev.addEventListener('click', function () { scrollCats(-1); });
+    if (catNext) catNext.addEventListener('click', function () { scrollCats(1); });
+
+    // ── AJAX features require DDMenu localization ──────────────────────
     if (!grid || !loadMore || !catTrack) return;
     if (typeof DDMenu === 'undefined') return;
 
@@ -34,14 +46,6 @@
         loadProducts(slug, page, false);
     });
 
-    function scrollCats(dir) {
-        var item = catTrack.querySelector('.dd-menu-cat');
-        if (!item) return;
-        var step = (item.offsetWidth + 24) * 3;
-        catTrack.scrollBy({ left: dir * step, behavior: 'smooth' });
-    }
-    if (catPrev) catPrev.addEventListener('click', function () { scrollCats(-1); });
-    if (catNext) catNext.addEventListener('click', function () { scrollCats(1); });
 
     function loadProducts(catSlug, page, replace) {
         loadMore.classList.add('is-loading');
