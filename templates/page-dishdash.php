@@ -325,12 +325,11 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
                 $thumb_url = $thumb_id
                     ? wp_get_attachment_image_url( $thumb_id, 'medium' )
                     : '';  // No fallback — show initials placeholder via CSS
-                $cat_url   = get_term_link( $cat );
             ?>
                 <button class="dd-cat-card<?php echo $i === 0 ? ' active' : ''; ?>"
                         data-slug="<?php echo esc_attr( $cat->slug ); ?>"
                         data-name="<?php echo esc_attr( $cat->name ); ?>"
-                        data-url="<?php echo esc_url( is_wp_error( $cat_url ) ? '#' : $cat_url ); ?>">
+                        data-url="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat->slug ) ); ?>">
                     <div class="dd-cat-card__circle">
                         <?php if ( $thumb_url ) : ?>
                         <img src="<?php echo esc_url( $thumb_url ); ?>"

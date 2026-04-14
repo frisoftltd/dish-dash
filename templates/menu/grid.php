@@ -24,6 +24,17 @@ $show_filter = $atts['show_filter'] !== 'no';
 $show_search = $atts['show_search'] !== 'no';
 
 $nonce = wp_create_nonce( 'dd_add_to_cart' );
+
+// ─── Deep-link category filter from ?cat= URL param ───────────────────────
+$dd_deeplink_slug = isset( $_GET['cat'] ) ? sanitize_title( wp_unslash( $_GET['cat'] ) ) : '';
+$dd_deeplink_term = $dd_deeplink_slug
+    ? get_term_by( 'slug', $dd_deeplink_slug, 'product_cat' )
+    : false;
+if ( ! $dd_deeplink_term || is_wp_error( $dd_deeplink_term ) ) {
+    $dd_deeplink_slug = '';
+    $dd_deeplink_term = false;
+}
+$dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All Dishes';
 ?>
 
 <!-- ═══ DESKTOP LAYOUT (v3.1.7) ══════════════════════════════════════ -->
@@ -50,7 +61,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
 
             <div class="dd-menu-cats__track" id="ddMenuCatsTrack">
                 <!-- "All" pseudo-category -->
-                <button type="button" class="dd-menu-cat dd-menu-cat--all is-active" data-cat-slug="">
+                <button type="button" class="dd-menu-cat dd-menu-cat--all<?php echo ! $dd_deeplink_slug ? ' is-active' : ''; ?>" data-cat-slug="">
                     <span class="dd-menu-cat__circle">
                         <span class="dd-menu-cat__all-label">All</span>
                     </span>
@@ -70,7 +81,7 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
                         $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
                         $thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : '';
                 ?>
-                    <button type="button" class="dd-menu-cat" data-cat-slug="<?php echo esc_attr( $cat->slug ); ?>">
+                    <button type="button" class="dd-menu-cat<?php echo $dd_deeplink_slug === $cat->slug ? ' is-active' : ''; ?>" data-cat-slug="<?php echo esc_attr( $cat->slug ); ?>">
                         <span class="dd-menu-cat__circle">
                             <?php if ( $thumb_url ) : ?>
                                 <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy">
@@ -92,17 +103,25 @@ $nonce = wp_create_nonce( 'dd_add_to_cart' );
         <section class="dd-menu-grid-section">
             <div class="dd-menu-grid-header">
                 <span class="dd-menu-grid-eyebrow">Our Menu</span>
-                <h2 class="dd-menu-grid-title" id="ddMenuGridTitle">All Dishes</h2>
+                <h2 class="dd-menu-grid-title" id="ddMenuGridTitle"><?php echo $dd_grid_title; ?></h2>
             </div>
-            <div class="dd-menu-grid" id="ddMenuGrid" data-current-cat="">
+            <div class="dd-menu-grid" id="ddMenuGrid" data-current-cat="<?php echo esc_attr( $dd_deeplink_slug ); ?>">
                 <?php
-                $dd_initial_query = new WP_Query( [
+                $dd_initial_args = [
                     'post_type'      => 'product',
                     'posts_per_page' => 8,
                     'post_status'    => 'publish',
                     'orderby'        => 'date',
                     'order'          => 'DESC',
-                ] );
+                ];
+                if ( $dd_deeplink_slug ) {
+                    $dd_initial_args['tax_query'] = [ [
+                        'taxonomy' => 'product_cat',
+                        'field'    => 'slug',
+                        'terms'    => $dd_deeplink_slug,
+                    ] ];
+                }
+                $dd_initial_query = new WP_Query( $dd_initial_args );
                 if ( $dd_initial_query->have_posts() ) {
                     while ( $dd_initial_query->have_posts() ) {
                         $dd_initial_query->the_post();

@@ -24,6 +24,36 @@
     if (!grid || !loadMore || !catTrack) return;
     if (typeof DDMenu === 'undefined') return;
 
+    // ── Sync JS state with ?cat= URL param (server pre-filtered) ──────
+    (function () {
+        var params   = new URLSearchParams(window.location.search);
+        var catParam = params.get('cat') || '';
+        if (!catParam) return;
+
+        // Server already set data-current-cat in HTML; confirm it matches.
+        grid.setAttribute('data-current-cat', catParam);
+
+        // Fire one category_view tracking event for deep-link traffic.
+        var trackCfg = window.DDTrackConfig || {};
+        if (trackCfg.ajaxUrl) {
+            var body = new URLSearchParams({
+                action:      'dd_track_event',
+                nonce:       trackCfg.nonce      || '',
+                session_id:  trackCfg.sessionId  || '',
+                event_type:  'view_category',
+                product_id:  '',
+                category_id: '',
+                meta:        JSON.stringify({ slug: catParam, source: 'deep_link' }),
+            });
+            fetch(trackCfg.ajaxUrl, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    body.toString(),
+                keepalive: true,
+            }).catch(function () {});
+        }
+    })();
+
     catTrack.addEventListener('click', function (e) {
         var btn = e.target.closest('.dd-menu-cat');
         if (!btn) return;
