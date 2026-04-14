@@ -1,12 +1,45 @@
 /**
- * Dish Dash — Theme CSS
- * Matches the dishdash_UI.html mockup exactly.
- * All classes prefixed dd- to avoid conflicts with WordPress / Astra / WooCommerce.
+ * File:    assets/css/theme.css
+ * Purpose: The primary stylesheet for the DishDash full page template
+ *          (templates/page-dishdash.php) — defines all CSS custom properties,
+ *          the complete component library (.dd-btn, .dd-header, .dd-hero,
+ *          .dd-dish-card, .dd-cat-card, .dd-summary, .dd-floating-cart,
+ *          .dd-bottom-nav, .dd-product-modal, .dd-auth-modal, smart search
+ *          components), and all responsive breakpoints.
  *
- * @package DishDash
- * @since   2.2.0
+ * Used by templates:
+ *   - templates/page-dishdash.php (primary consumer)
+ *   - All pages with global header injection (via DD_Template_Module)
+ *
+ * Enqueued by:
+ *   - modules/template/class-dd-template-module.php → enqueue_frontend_assets()
+ *
+ * Key CSS custom properties defined on :root:
+ *   --brand, --brand-dark, --dd-bg, --dd-surface, --dd-surface-2,
+ *   --dd-gold, --dd-gold-soft, --dd-line, --dd-hero,
+ *   (--brand and --brand-dark set dynamically from dish_dash_primary_color)
+ *
+ * Key class groups defined:
+ *   Utilities: .dd-page, .dd-container, .dd-scroll-row, .dd-hide-scrollbar,
+ *              .dd-serif, .dd-gold
+ *   Buttons:   .dd-btn (+ --brand, --outline, --soft, --light, --gold, --sm, --block)
+ *   Header:    .dd-header, .dd-brand, .dd-nav, .dd-cart-top, .dd-cart-badge,
+ *              .dd-menu-toggle, .dd-nav-drawer
+ *   Hero:      .dd-hero, .dd-hero__* (grid, title, actions, chips, card, img, overlay)
+ *   Cards:     .dd-dish-card, .dd-cat-card (homepage scroll-row cards)
+ *   Sections:  .dd-section, .dd-section__*
+ *   Summary:   .dd-summary, .dd-summary__*
+ *   Cart/Nav:  .dd-floating-cart, .dd-bottom-nav
+ *   Search:    .dd-ss__* (dropdown, suggestions, result cards)
+ *   Modal:     .dd-product-modal, .dd-pm__*
+ *   Auth:      .dd-auth-modal, .dd-auth-field, .dd-auth-*
+ *   Mobile:    .dd-mobile-search-trigger, .dd-mobile-search-panel
+ *
+ * Responsive breakpoints:
+ *   1100px (tablet), 860px (mobile), 680px (small mobile)
+ *
+ * Last modified: v3.1.13
  */
-
 /* ─────────────────────────────────────────────────────────────
    GOOGLE FONTS — Loaded here so they apply on ALL pages
 ───────────────────────────────────────────────────────────── */

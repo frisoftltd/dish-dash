@@ -1,10 +1,36 @@
 <?php
 /**
- * Dish Dash – Admin Module
+ * File:    admin/class-dd-admin.php
+ * Module:  DD_Admin (extends DD_Module)
+ * Purpose: Registers the top-level Dish Dash admin menu and all stub
+ *          sub-menu items. Feature submenus (Orders, Settings, etc.)
+ *          are registered independently by their own modules.
  *
- * Only registers core admin menu items.
- * Each feature module registers its own submenu.
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - DD_ASSETS_URL, DD_VERSION constants
+ *   - admin/pages/dashboard.php (loaded via render_dashboard())
+ *   - admin/pages/coming-soon.php (loaded for stub pages)
+ *
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates DD_Admin)
+ *
+ * Hooks registered:
+ *   - admin_menu          → register_admin_menus()
+ *   - admin_enqueue_scripts → enqueue_admin_assets()
+ *
+ * Admin pages owned:
+ *   dish-dash (Dashboard), dish-dash-menu (redirect to CPT editor),
+ *   dish-dash-reservations, dish-dash-delivery, dish-dash-branches,
+ *   dish-dash-pos, dish-dash-analytics (all coming-soon stubs)
+ *
+ * Assets enqueued:
+ *   assets/css/admin.css, assets/js/admin.js
+ *   Localizes: window.dishDashAdmin (ajaxUrl, nonce, restUrl, version)
+ *
+ * Last modified: v3.1.13
  */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class DD_Admin extends DD_Module {

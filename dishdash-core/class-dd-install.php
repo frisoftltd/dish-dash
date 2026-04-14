@@ -1,9 +1,33 @@
 <?php
 /**
- * DD_Install
+ * File:    dishdash-core/class-dd-install.php
+ * Module:  DD_Install (static class)
+ * Purpose: Handles plugin activation — creates/upgrades DB tables via
+ *          dbDelta(), creates WP user roles, sets default options, and
+ *          flushes rewrite rules.  Safe to run multiple times.
  *
- * Handles plugin activation, deactivation, and database schema creation.
- * Uses dbDelta() so the schema is always kept up to date on upgrades.
+ * Dependencies (this file needs):
+ *   - ABSPATH, dbDelta() (wp-admin/includes/upgrade.php)
+ *   - DD_VERSION constant
+ *   - $wpdb global
+ *
+ * Dependents (files that need this):
+ *   - dish-dash.php  (calls DD_Install::run() on register_activation_hook)
+ *
+ * DB tables created/updated:
+ *   dishdash_branches, dishdash_orders, dishdash_order_items,
+ *   dishdash_delivery_zones, dishdash_tables, dishdash_reservations,
+ *   dishdash_pos_sessions, dishdash_analytics,
+ *   dishdash_user_events, dishdash_user_profiles
+ *
+ * WP roles created:
+ *   dd_restaurant_manager, dd_branch_manager, dd_cashier,
+ *   dd_delivery_driver, dd_kitchen_staff
+ *
+ * Hooks fired:
+ *   - dish_dash_activated (on successful activation)
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

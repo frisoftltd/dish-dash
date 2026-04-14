@@ -1,8 +1,32 @@
 <?php
 /**
- * Product card partial — shared between homepage Featured Dishes
- * and menu grid. Expects $product (WC_Product) in scope.
+ * File:    templates/partials/product-card.php
+ * Purpose: Reusable product card partial — renders a single .dd-dish-card
+ *          article for use in homepage Featured Dishes and Selected Category
+ *          scroll rows. NOT used by the menu page grid (which uses .dd-menu-card).
+ *
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - WooCommerce: $product must be a WC_Product instance
+ *   - wc_placeholder_img_src() (fallback image, optional)
+ *   - wp_create_nonce('dd_add_to_cart') for the add button
+ *
+ * Dependents (files that need this):
+ *   - templates/page-dishdash.php (included in Featured Dishes + Selected Category loops)
+ *
+ * Variables expected in scope:
+ *   $product (WC_Product — required), $tag (string — optional badge label)
+ *
+ * Outputs:
+ *   <article class="dd-dish-card" data-id data-filter data-img data-price data-desc>
+ *
+ * Key CSS classes:
+ *   .dd-dish-card, .dd-dish-card__media, .dd-dish-card__body,
+ *   .dd-dish-card__title, .dd-dish-card__footer, .dd-price, .dd-add-btn
+ *
+ * Last modified: v3.1.13
  */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 if ( ! isset( $product ) || ! ( $product instanceof WC_Product ) ) return;
 

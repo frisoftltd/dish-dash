@@ -1,12 +1,45 @@
 /**
- * Dish Dash — Frontend JS
- * Handles all interactivity for the DishDash page template.
- * Works with pre-rendered PHP category rows and WooCommerce AJAX cart.
+ * File:    assets/js/frontend.js
+ * Purpose: All interactivity for the DishDash full page template
+ *          (templates/page-dishdash.php) — sticky header scroll shrink,
+ *          mobile nav drawer, hero chip filters, category tab navigation
+ *          with AJAX product loading, featured dish scroll rows, reserve
+ *          form, product modal, cart badge updates, and summary sidebar.
  *
- * @package DishDash
- * @since   2.2.0
+ * DOM elements required:
+ *   - #ddCartCount, #ddFloatingCount, #ddBottomBadge, #ddSumBadge (cart badges)
+ *   - #ddSummaryList, #ddSumSubtotal, #ddSumTotal (summary sidebar)
+ *   - #ddSearchDropdown, #ddSearch (smart search — also handled by search.js)
+ *   - #ddMenuGrid, #ddMenuLoadMore, #ddMenuCatsTrack (menu page elements)
+ *   - .dd-header (.scrolled class added on scroll)
+ *   - .dd-menu-toggle, .dd-nav-drawer, .dd-drawer-overlay (mobile nav)
+ *   - .dd-filter-btn--active (homepage filter chips)
+ *   - .dd-dish-card (product cards, click → opens product modal)
+ *   - .dd-add-btn (add-to-cart on homepage cards)
+ *   - .dd-product-modal, .dd-product-modal.open (product detail modal)
+ *
+ * Localized data needed (wp_localize_script):
+ *   - window.dishDash  (ajaxUrl, nonce, cartUrl, checkoutUrl, currency_symbol,
+ *     currency_position, primaryColor, menuPageId)
+ *   - window.DD  (firstCat, deliveryFee, cartCount — set inline in template)
+ *
+ * AJAX endpoints called:
+ *   - admin-ajax.php?action=dd_cart_add
+ *   - admin-ajax.php?action=dd_cart_get
+ *   - admin-ajax.php?action=dd_menu_load_products
+ *
+ * Custom events listened to:
+ *   - dd:open-modal  (detail: { productId }) — fired by search.js
+ *
+ * Custom events fired:
+ *   - dd:filter-cards  (detail: { query }) — listened by search.js
+ *
+ * Dependents:
+ *   - modules/template/class-dd-template-module.php (enqueues this)
+ *   - templates/page-dishdash.php (relies on this for all interactivity)
+ *
+ * Last modified: v3.1.13
  */
-
 (function () {
     'use strict';
 

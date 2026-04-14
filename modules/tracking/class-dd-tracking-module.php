@@ -1,15 +1,43 @@
 <?php
 /**
- * Dish Dash – Tracking Module
+ * File:    modules/tracking/class-dd-tracking-module.php
+ * Module:  DD_Tracking_Module (extends DD_Module)
+ * Purpose: Records user behaviour events (product views, searches, cart
+ *          actions, orders) into dishdash_user_events and maintains
+ *          per-session profiles in dishdash_user_profiles.
+ *          Provides AJAX endpoints consumed by assets/js/tracking.js.
  *
- * Records all user behavior events into dishdash_user_events
- * and keeps dishdash_user_profiles up to date.
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - DD_Ajax::register() for AJAX handlers
+ *   - $wpdb global (dishdash_user_events, dishdash_user_profiles tables)
+ *   - assets/js/tracking.js (enqueued by this module)
  *
- * Completely independent — communicates only via hooks.
- * No UI, no admin page. Pure data layer.
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates this module)
  *
- * @package DishDash
- * @since   2.5.33
+ * Hooks registered:
+ *   - wp_enqueue_scripts → enqueue_assets() (frontend only)
+ *
+ * AJAX actions registered:
+ *   dd_track_event (public), dd_get_recent_searches (public),
+ *   dd_get_search_products (public)
+ *
+ * Allowed event types:
+ *   view_product, view_category, search, add_to_cart, remove_from_cart,
+ *   order, reorder, page_view
+ *
+ * DB tables owned:
+ *   {prefix}dishdash_user_events, {prefix}dishdash_user_profiles
+ *
+ * Session cookie: dd_session (90-day TTL)
+ *
+ * Localized data (window.DDTrackConfig):
+ *   ajaxUrl, nonce, sessionId
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

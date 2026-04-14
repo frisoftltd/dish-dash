@@ -1,4 +1,31 @@
 <?php
+/**
+ * File:    admin/pages/settings.php
+ * Purpose: Renders and saves the Dish Dash general settings page
+ *          (currency, tax, minimum order, order prefix, API keys,
+ *          and feature toggles for pickup/delivery/dine-in/pos).
+ *
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - WordPress update_option(), check_admin_referer()
+ *   - DD_Settings class (optional, settings also saved directly)
+ *
+ * Dependents (files that need this):
+ *   - modules/template/class-dd-template-module.php  (loaded via render_settings())
+ *
+ * WP options written:
+ *   dish_dash_currency_symbol, dish_dash_currency_position,
+ *   dish_dash_tax_rate, dish_dash_tax_label, dish_dash_min_order,
+ *   dish_dash_order_prefix, dish_dash_google_maps_key,
+ *   dish_dash_claude_api_key, dish_dash_enable_pickup,
+ *   dish_dash_enable_delivery, dish_dash_enable_dinein,
+ *   dish_dash_enable_reservations, dish_dash_enable_pos
+ *
+ * Nonce action: dd_settings_save
+ *
+ * Last modified: v3.1.13
+ */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 // Save settings

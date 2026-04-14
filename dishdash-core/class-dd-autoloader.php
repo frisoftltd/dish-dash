@@ -1,13 +1,23 @@
 <?php
 /**
- * DD_Autoloader
+ * File:    dishdash-core/class-dd-autoloader.php
+ * Module:  DD_Autoloader (static utility class)
+ * Purpose: PSR-4-style class autoloader — maps DD_* class names to file
+ *          paths by scanning known module directories. Registered with PHP's
+ *          SPL autoload stack via DD_Autoloader::register().
  *
- * PSR-4-style autoloader for Dish Dash classes.
+ * Dependencies (this file needs):
+ *   - DD_PATH constant (plugin root path)
+ *   - ABSPATH (WordPress core)
  *
- * Naming convention:
- *   Class name:  DD_Menu_CPT
- *   File name:   class-dd-menu-cpt.php
- *   Location:    anywhere under DD_PATH (searched recursively via the map)
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dishdash.php (calls DD_Autoloader::register())
+ *   - dish-dash.php (may call register() before singleton boot)
+ *
+ * Naming convention enforced:
+ *   class-dd-menu-cpt.php  →  DD_Menu_CPT
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

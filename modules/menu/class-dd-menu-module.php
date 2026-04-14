@@ -1,13 +1,43 @@
 <?php
 /**
- * Dish Dash – Menu Module
+ * File:    modules/menu/class-dd-menu-module.php
+ * Module:  DD_Menu_Module (extends DD_Module)
+ * Purpose: Registers all frontend shortcodes and the dd_menu_load_products
+ *          AJAX handler for paginated product grid loading on the menu page.
+ *          Does NOT own any CSS, JS, or DB tables.
  *
- * Handles menu display shortcodes and (v3.1.7+) the desktop menu page
- * AJAX endpoints and conditional asset enqueuing.
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - WooCommerce: product post type, product_cat taxonomy,
+ *     wc_get_product(), WC_Product
+ *   - templates/menu/grid.php       (rendered by [dish_dash_menu])
+ *   - templates/cart/cart.php       (rendered by [dish_dash_cart])
+ *   - templates/checkout/checkout.php (rendered by [dish_dash_checkout])
  *
- * @package DishDash
- * @since   2.2.0
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates this module)
+ *
+ * Shortcodes registered:
+ *   [dish_dash_menu], [dish_dash_cart], [dish_dash_checkout],
+ *   [dish_dash_reserve], [dish_dash_track] ⚠️, [dish_dash_account] ⚠️
+ *   (⚠️ also registered by DD_Orders_Module — last one wins, see ARCHITECTURE.md)
+ *
+ * AJAX actions registered:
+ *   dd_menu_load_products (public — paginated product grid for desktop menu page)
+ *
+ * Hooks fired:
+ *   - dish_dash_before_menu_render(args)
+ *   - apply_filters('dish_dash_menu_query_args', args)
+ *
+ * WP options read:
+ *   dish_dash_menu_page_id, dish_dash_primary_color,
+ *   dish_dash_dark_color, dish_dash_restaurant_name
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
  */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class DD_Menu_Module extends DD_Module {

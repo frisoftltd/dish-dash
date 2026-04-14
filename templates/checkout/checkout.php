@@ -1,3 +1,33 @@
+<?php
+/**
+ * File:    templates/checkout/checkout.php
+ * Purpose: Checkout form template — collects order type (delivery/pickup/
+ *          dine-in), delivery address, customer details, payment method,
+ *          and special instructions. Submits via dd_place_order AJAX.
+ *          Theme override: /your-theme/dish-dash/checkout/checkout.php
+ *
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - assets/css/cart.css (shares checkout styles)
+ *   - assets/js/cart.js   (form binding, AJAX submit)
+ *   - DD_Settings (via wp_localize_script data)
+ *
+ * Dependents (files that need this):
+ *   - modules/menu/class-dd-menu-module.php ([dish_dash_checkout] shortcode)
+ *
+ * Form fields: order_type, delivery_street, delivery_city,
+ *   delivery_postcode, customer_name, customer_phone, customer_email,
+ *   special_instructions, payment_method
+ *
+ * AJAX action called: dd_place_order
+ *
+ * Key CSS classes:
+ *   .dd-checkout-wrap, .dd-checkout-form, .dd-order-types,
+ *   .dd-order-type-btn, .dd-submit-btn, .dd-checkout-summary
+ *
+ * Last modified: v3.1.13
+ */
+?>
 
 <?php
 /**

@@ -1,12 +1,26 @@
 <?php
 /**
- * Dish Dash – AJAX Router
+ * File:    dishdash-core/class-dd-ajax.php
+ * Module:  DD_Ajax (static utility class)
+ * Purpose: Centralized AJAX registration and nonce verification — modules
+ *          call DD_Ajax::register() instead of add_action('wp_ajax_*') directly.
  *
- * Central handler that routes wp_ajax_ and wp_ajax_nopriv_
- * requests to the correct module method.
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core)
+ *   - wp_ajax_* hooks (WordPress core)
  *
- * Modules register their AJAX actions here by calling
- * DD_Ajax::register() from their init() method.
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php  (loads DD_Cart::register_ajax via this)
+ *   - modules/orders/class-dd-cart.php   (calls DD_Ajax::register for cart actions)
+ *   - modules/orders/class-dd-orders-module.php
+ *   - modules/homepage/class-dd-homepage-module.php
+ *   - modules/tracking/class-dd-tracking-module.php
+ *
+ * Static methods:
+ *   - register(action, callback, nopriv=true)
+ *   - verify_nonce(field='nonce', action='dish_dash_frontend')
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

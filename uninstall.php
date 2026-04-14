@@ -1,9 +1,19 @@
 <?php
 /**
- * Dish Dash – Uninstaller
+ * File:    uninstall.php
+ * Purpose: Runs when the plugin is DELETED from Plugins → Delete.
+ *          Drops all custom DB tables, deletes all dish_dash_ options,
+ *          removes CPT posts, and removes custom user roles — but only
+ *          if the admin has opted in via dish_dash_remove_data_on_uninstall.
  *
- * Runs when the plugin is DELETED (not just deactivated) from
- * Plugins → Delete. Removes all plugin data if the admin opted in.
+ * Dependencies (this file needs):
+ *   - WP_UNINSTALL_PLUGIN constant (WordPress core, guards execution)
+ *   - $wpdb global (WordPress core)
+ *
+ * Dependents (files that need this):
+ *   - WordPress core (called automatically on plugin deletion)
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {

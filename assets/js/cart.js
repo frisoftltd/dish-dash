@@ -1,7 +1,42 @@
-/* ============================================================
-   Dish Dash — Cart & Checkout JS
-   File: assets/js/cart.js
-   ============================================================ */
+/**
+ * File:    assets/js/cart.js
+ * Purpose: Client-side cart engine and checkout form binding — opens/closes
+ *          the cart sidebar, renders cart items from AJAX responses, handles
+ *          quantity controls and item removal, and submits the checkout form
+ *          via dd_place_order AJAX.
+ *
+ * DOM elements required:
+ *   - .dd-add-to-cart-btn   (product "Add" buttons — shared with frontend.js)
+ *   - .dd-cart-trigger      (floating cart button)
+ *   - .dd-cart-overlay      (backdrop)
+ *   - .dd-cart-sidebar      (.dd-cart-sidebar--open toggled to show)
+ *   - .dd-cart-close        (close button)
+ *   - .dd-cart-items        (items container, re-rendered on every update)
+ *   - .dd-cart-summary      (totals section)
+ *   - .dd-cart-checkout-btn (checkout link)
+ *   - .dd-checkout-form     (checkout page form)
+ *   - .dd-order-type-btn    (delivery/pickup/dine-in selector)
+ *
+ * Localized data needed (wp_localize_script):
+ *   - window.dishDash  (ajaxUrl, nonce, cartUrl, checkoutUrl, currency_symbol,
+ *     currency_position)  — localized by DD_Template_Module
+ *
+ * AJAX endpoints called:
+ *   - admin-ajax.php?action=dd_cart_add
+ *   - admin-ajax.php?action=dd_cart_update
+ *   - admin-ajax.php?action=dd_cart_remove
+ *   - admin-ajax.php?action=dd_cart_get
+ *   - admin-ajax.php?action=dd_cart_clear
+ *   - admin-ajax.php?action=dd_place_order
+ *
+ * Custom events fired:   None
+ * Custom events listened: None
+ *
+ * Dependents:
+ *   - modules/template/class-dd-template-module.php (enqueues this)
+ *
+ * Last modified: v3.1.13
+ */
 (function () {
     'use strict';
 

@@ -1,10 +1,19 @@
-
 <?php
 /**
- * Dish Dash Theme — Singular Template
- * Handles single posts, pages, WooCommerce pages.
+ * File:    theme/dish-dash-theme/singular.php
+ * Purpose: Theme singular template — handles single posts, WooCommerce
+ *          product pages, and other singular views not caught by page.php.
+ *          Outputs the_content() inside a max-width centered wrapper.
  *
- * @package DishDashTheme
+ * Dependencies (this file needs):
+ *   - get_header() → theme/dish-dash-theme/header.php
+ *   - get_footer() → theme/dish-dash-theme/footer.php
+ *   - WordPress: have_posts(), the_post(), the_content()
+ *
+ * Dependents (files that need this):
+ *   - WordPress template hierarchy (loaded for single posts, WC products)
+ *
+ * Last modified: v3.1.13
  */
 
 get_header();

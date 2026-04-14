@@ -1,9 +1,23 @@
 <?php
 /**
- * DD_Requirements
+ * File:    dishdash-core/class-dd-requirements.php
+ * Module:  DD_Requirements (static class)
+ * Purpose: Runs before anything else loads — checks PHP version, WordPress
+ *          version, and WooCommerce activation. Shows admin notices if
+ *          requirements are not met and aborts plugin boot.
  *
- * Checks PHP version, WordPress version, and WooCommerce before the plugin
- * loads anything else. Shows an admin notice if requirements are not met.
+ * Dependencies (this file needs):
+ *   - DD_MIN_PHP, DD_MIN_WP constants
+ *   - WordPress get_option('active_plugins') (WC detection)
+ *
+ * Dependents (files that need this):
+ *   - dish-dash.php (calls DD_Requirements::check() before booting)
+ *
+ * Constants consumed:
+ *   - DD_MIN_PHP (minimum PHP version, e.g. '8.0')
+ *   - DD_MIN_WP  (minimum WordPress version, e.g. '6.0')
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

@@ -1,11 +1,32 @@
 <?php
 /**
- * Dish Dash – Settings API Wrapper
+ * File:    dishdash-core/class-dd-settings.php
+ * Module:  DD_Settings (static class)
+ * Purpose: Centralized wp_options wrapper — all keys auto-prefixed with
+ *          dish_dash_ so modules never hardcode option names directly.
  *
- * Central place to read/write all plugin settings.
- * Use DD_Settings::get() throughout the codebase instead
- * of calling get_option() directly — keeps all option keys
- * in one place and makes future changes easier.
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core)
+ *   - WordPress get_option / update_option
+ *
+ * Dependents (files that need this):
+ *   - modules/orders/class-dd-cart.php        (reads tax_rate)
+ *   - modules/orders/class-dd-orders-module.php (reads currency, order_prefix)
+ *   - modules/template/class-dd-template-module.php (reads primary_color etc.)
+ *   - dishdash-core/class-dd-helpers.php       (via dd_price(), dd_is_enabled())
+ *
+ * Static methods:
+ *   DD_Settings::get(key, default), DD_Settings::set(key, value),
+ *   DD_Settings::get_public_settings()
+ *
+ * Managed option keys (prefix dish_dash_ omitted):
+ *   currency, currency_symbol, currency_position, tax_rate, tax_label,
+ *   min_order, order_prefix, order_counter, google_maps_key,
+ *   claude_api_key, enable_pickup, enable_delivery, enable_dinein,
+ *   enable_reservations, enable_pos, menu_page_id, cart_page_id,
+ *   checkout_page_id, track_page_id, primary_color, dark_color, restaurant_name
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

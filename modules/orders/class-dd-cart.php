@@ -1,3 +1,37 @@
+<?php
+/**
+ * File:    modules/orders/class-dd-cart.php
+ * Module:  DD_Cart (static class — not a DD_Module)
+ * Purpose: Server-side cart engine. Stores cart state in WP transients
+ *          (3-day TTL). Provides AJAX handlers for all cart operations.
+ *          Uses a per-session cookie (dd_session) for guest identification.
+ *
+ * Dependencies (this file needs):
+ *   - DD_Ajax::register() (dishdash-core/class-dd-ajax.php)
+ *   - DD_Settings::get('tax_rate') for totals calculation
+ *   - WordPress transient API (set/get/delete_transient)
+ *
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (calls DD_Cart::register_ajax())
+ *   - assets/js/cart.js  (calls these AJAX actions from browser)
+ *   - assets/js/frontend.js (calls dd_cart_add, dd_cart_get)
+ *
+ * AJAX actions registered:
+ *   dd_cart_add, dd_cart_update, dd_cart_remove,
+ *   dd_cart_get, dd_cart_clear (all public)
+ *
+ * Cart storage:
+ *   Logged-in: transient dd_cart_user_{user_id} (3-day TTL)
+ *   Guest:     transient dd_cart_{session_id}   (3-day TTL)
+ *   Session:   cookie dd_session (32-char hash, 7-day TTL)
+ *
+ * Cart item key: MD5 of product_id + variation + addons JSON
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
+ */
+?>
 
 <?php
 /**

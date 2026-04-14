@@ -1,8 +1,28 @@
-/* ══════════════════════════════════════════════════════════════════════
-   Dish Dash — Menu Page (Desktop redesign v3.1.7+)
-   Mobile layout is intentionally unstyled here; existing mobile CSS applies.
-   ══════════════════════════════════════════════════════════════════════ */
-
+/**
+ * File:    assets/css/menu-page.css
+ * Purpose: Styles for the /restaurant-menu/ page desktop layout (v3.1.7+) —
+ *          shows the category carousel and AJAX product grid. Mobile layout
+ *          is intentionally unstyled here (existing menu.css applies).
+ *          Loaded ONLY when on the menu page (dish_dash_menu_page_id).
+ *
+ * Used by templates:
+ *   - templates/menu/grid.php  (.dd-menu-page--desktop block)
+ *
+ * Enqueued by:
+ *   - modules/template/class-dd-template-module.php (conditional on menu page)
+ *
+ * Key classes defined:
+ *   .dd-menu-page--desktop, .dd-menu-page--mobile (responsive toggles),
+ *   .dd-menu-container, .dd-menu-cats, .dd-menu-cat,
+ *   .dd-menu-cat__circle, .dd-menu-cat__name, .dd-menu-cat.is-active,
+ *   .dd-menu-grid-section, .dd-menu-grid-header,
+ *   .dd-menu-grid-title, .dd-menu-loadmore
+ *
+ * Depends on CSS variables from theme.css:
+ *   --brand, --brand-dark, --dd-gold, --dd-surface, --dd-line
+ *
+ * Last modified: v3.1.13
+ */
 /* Hide desktop layout on mobile, hide mobile layout on desktop */
 .dd-menu-page--desktop { display: none; }
 .dd-menu-page--mobile  { display: block; }

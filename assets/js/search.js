@@ -1,14 +1,42 @@
 /**
- * Dish Dash — Search Module
+ * File:    assets/js/search.js
+ * Purpose: Completely self-contained smart search module — handles the
+ *          desktop header search bar and mobile expandable search panel.
+ *          Reads products from DOM elements on page load, fetches from
+ *          server via dd_get_search_products for non-homepage contexts,
+ *          shows recent searches from dd_get_recent_searches AJAX,
+ *          and highlights matching terms in results.
  *
- * Completely self-contained. Zero dependencies on frontend.js.
- * Handles: desktop search bar + mobile expandable search.
- * Communicates with other modules via custom DOM events only:
- *   → fires   'dd:open-modal' (detail: { productId })
- *   → fires   'dd:filter-cards' (detail: { query })
+ * DOM elements required:
+ *   - .dd-ss__bar          (search bar wrapper — desktop)
+ *   - .dd-ss__input        (search text input)
+ *   - .dd-ss__dropdown     (results dropdown, toggled .open)
+ *   - .dd-ss__results-grid (product result cards container)
+ *   - .dd-menu-search-wrap (focus-within expandable wrapper)
+ *   - .dd-mobile-search-trigger (mobile search open button)
+ *   - .dd-mobile-search-panel   (mobile search panel, toggled .open)
+ *   - .dd-mobile-search-overlay (mobile backdrop)
+ *   - .dd-mobile-search-close   (mobile close button)
+ *   - .dd-dish-card, .dd-menu-item (product cards — reads product data from DOM)
  *
- * @package DishDash
- * @since   2.5.97
+ * Localized data needed:
+ *   - window.DD  (ajaxUrl, nonce)  — localized by DD_Template_Module
+ *
+ * AJAX endpoints called:
+ *   - admin-ajax.php?action=dd_get_search_products
+ *   - admin-ajax.php?action=dd_get_recent_searches
+ *
+ * Custom events fired:
+ *   - dd:open-modal  (detail: { productId }) — listened by frontend.js
+ *
+ * Custom events listened to:
+ *   - dd:filter-cards  (detail: { query }) — fired by frontend.js
+ *
+ * Dependents:
+ *   - modules/template/class-dd-template-module.php (enqueues this)
+ *   - templates/page-dishdash.php (search DOM elements rendered here)
+ *
+ * Last modified: v3.1.13
  */
 (function () {
     'use strict';

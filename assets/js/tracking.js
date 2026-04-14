@@ -1,20 +1,34 @@
 /**
- * Dish Dash — Behavior Tracking
+ * File:    assets/js/tracking.js
+ * Purpose: Silent user behaviour tracker — sends events to the server
+ *          for product views, category views, searches, cart actions,
+ *          and page views. Works on both the homepage and menu page.
+ *          Completely non-blocking; all requests use fetch with keepalive.
  *
- * Sends user events to the server silently.
- * Works on homepage AND menu page.
- * Never blocks UI — all tracking is fire-and-forget.
+ * DOM elements required:
+ *   - None (purely AJAX-driven, no DOM mutations)
  *
- * Events tracked:
- *   view_product   — product card enters viewport
- *   view_category  — user clicks a category filter
- *   search         — user types in search box
- *   add_to_cart    — user clicks Add to Cart
+ * Localized data needed (wp_localize_script):
+ *   - window.DDTrackConfig  (ajaxUrl, nonce, sessionId)
+ *     Localized by DD_Tracking_Module::enqueue_assets()
  *
- * @package DishDash
- * @since   2.5.33
+ * AJAX endpoints called:
+ *   - admin-ajax.php?action=dd_track_event
+ *     (event_type, product_id, category_id, meta JSON)
+ *
+ * Custom events fired:   None
+ * Custom events listened: None
+ *
+ * Public API (window.DDTrack):
+ *   DDTrack.event(type, productId, categoryId, meta)
+ *
+ * Dependents:
+ *   - modules/tracking/class-dd-tracking-module.php (enqueues this)
+ *   - assets/js/menu-page.js (reads window.DDTrackConfig for category events)
+ *   - assets/js/frontend.js  (calls DDTrack.event for homepage interactions)
+ *
+ * Last modified: v3.1.13
  */
-
 (function () {
     'use strict';
 

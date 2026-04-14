@@ -1,8 +1,35 @@
-/* ============================================================
-   Dish Dash — Frontend Menu JS
-   File: assets/js/menu.js
-   Vanilla JS, no dependencies.
-   ============================================================ */
+/**
+ * File:    assets/js/menu.js
+ * Purpose: Client-side category filter and live search for the
+ *          [dish_dash_menu] shortcode widget. Filters .dd-menu-card
+ *          elements by toggling .dd-hidden via data-category and
+ *          data-title attributes — no AJAX required.
+ *
+ * ⚠️  TECH DEBT: This file maintains a separate localStorage cart
+ *     (key: "dd_cart") that does NOT sync with the server-side
+ *     DD_Cart transient system used by cart.js. See ARCHITECTURE.md DEBT-002.
+ *
+ * DOM elements required:
+ *   - .dd-menu-wrap      (root container, data-columns attribute)
+ *   - .dd-filter-btn     (category filter buttons, data-filter attribute)
+ *   - .dd-menu-card      (product cards, data-category + data-title attributes)
+ *   - .dd-search-input   (live search input)
+ *   - .dd-add-to-cart-btn (add buttons, data-id/data-name/data-price/data-image)
+ *   - .dd-cart-count     (badge elements updated after add)
+ *   - .dd-no-results     (empty state, shown when filter matches 0 cards)
+ *
+ * Localized data needed: None (fully standalone, no wp_localize_script)
+ *
+ * Custom events fired:
+ *   - dd_cart_updated (dispatched on document after cart state changes)
+ *
+ * Custom events listened: None
+ *
+ * Dependents:
+ *   - modules/menu/class-dd-menu-module.php (enqueues this on menu shortcode pages)
+ *
+ * Last modified: v3.1.13
+ */
 (function () {
     'use strict';
 

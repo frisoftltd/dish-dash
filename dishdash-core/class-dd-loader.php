@@ -1,7 +1,32 @@
 <?php
 /**
- * Dish Dash – Core Loader
+ * File:    dishdash-core/class-dd-loader.php
+ * Module:  DD_Loader (singleton)
+ * Purpose: Bootstraps the entire plugin — loads core files, instantiates
+ *          and initialises every module in a guaranteed order, then fires
+ *          the dish_dash_loaded action to signal third-party code.
+ *
+ * Dependencies (this file needs):
+ *   - All module classes (via autoloader): DD_Admin, DD_Template_Module,
+ *     DD_Homepage_Module, DD_Auth_Module, DD_Customers_Module,
+ *     DD_Tracking_Module, DD_Menu_Module, DD_Orders_Module
+ *   - DD_Cart (loaded separately via DD_Cart::register_ajax())
+ *   - dishdash-core/class-dd-helpers.php (require_once)
+ *   - dishdash-core/class-dd-hooks.php
+ *
+ * Dependents (files that need this):
+ *   - dish-dash.php (calls DD_Loader::instance()->boot() on plugins_loaded)
+ *
+ * Boot sequence:
+ *   load_core_files → register_modules → DD_Cart::register_ajax
+ *   → init_modules → load_textdomain → do_action('dish_dash_loaded')
+ *
+ * Hooks fired:
+ *   - dish_dash_loaded (after all modules initialised)
+ *
+ * Last modified: v3.1.13
  */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class DD_Loader {

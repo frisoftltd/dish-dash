@@ -13,6 +13,29 @@
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * WC requires at least: 7.0
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * File:    dish-dash.php
+ * Purpose: Plugin entry point — defines all constants, registers the SPL
+ *          autoloader, bootstraps the GitHub updater, and boots DD_Loader
+ *          on the plugins_loaded hook.
+ *
+ * Dependencies (this file needs):
+ *   - dishdash-core/class-dd-github-updater.php  (required directly)
+ *   - dishdash-core/class-dd-loader.php          (via autoloader)
+ *   - dishdash-core/class-dd-requirements.php    (via autoloader)
+ *   - dishdash-core/class-dd-theme-installer.php (via autoloader)
+ *   - dishdash-core/class-dd-install.php         (via autoloader, activation hook)
+ *
+ * Dependents (files that need this):
+ *   - Every other plugin file (reads DD_VERSION, DD_PLUGIN_DIR, DD_ASSETS_URL etc.)
+ *
+ * Constants defined:
+ *   DD_VERSION, DD_PLUGIN_FILE, DD_PLUGIN_DIR, DD_PLUGIN_URL,
+ *   DD_PLUGIN_BASENAME, DD_MODULES_DIR, DD_TEMPLATES_DIR,
+ *   DD_ASSETS_URL, DD_GITHUB_REPO, DD_GITHUB_TOKEN
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

@@ -1,3 +1,30 @@
+<?php
+/**
+ * File:    admin/pages/template-settings.php
+ * Purpose: Renders and saves the Template / Branding settings page —
+ *          restaurant name, logo, brand colors, hero content, address,
+ *          phone, opening hours, and social media links.
+ *
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - WordPress update_option(), check_admin_referer(), sanitize_text_field()
+ *
+ * Dependents (files that need this):
+ *   - modules/template/class-dd-template-module.php (loaded via a render method)
+ *
+ * WP options written:
+ *   dish_dash_restaurant_name, dish_dash_logo_url,
+ *   dish_dash_primary_color, dish_dash_dark_color,
+ *   dish_dash_hero_title, dish_dash_hero_subtitle, dish_dash_hero_image,
+ *   dish_dash_address, dish_dash_phone, dish_dash_contact_email,
+ *   dish_dash_opening_hours, dish_dash_facebook, dish_dash_instagram,
+ *   dish_dash_whatsapp, dish_dash_twitter, dish_dash_tiktok
+ *
+ * Nonce action: dd_template_settings_save
+ *
+ * Last modified: v3.1.13
+ */
+?>
 
 <?php
 /**

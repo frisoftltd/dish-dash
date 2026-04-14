@@ -1,11 +1,31 @@
 <?php
 /**
- * DD_Frontend
+ * File:    frontend/class-dd-frontend.php
+ * Module:  DD_Frontend
+ * Purpose: Boots the public-facing side — enqueues frontend CSS/JS,
+ *          localizes dishDashFront for AJAX, and fires
+ *          dish_dash_register_shortcodes for modules to self-register.
+ *          Also provides the static DD_Frontend::get_template() loader
+ *          with theme-override support.
  *
- * Boots the public-facing side of Dish Dash:
- * - Registers shortcodes
- * - Enqueues front-end CSS / JS
- * - Sets up the template override system
+ * Dependencies (this file needs):
+ *   - DD_ASSETS_URL, DD_VERSION, DD_TEMPLATES constants
+ *   - assets/css/frontend.css, assets/js/frontend.js (enqueued)
+ *
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dishdash.php (instantiates DD_Frontend)
+ *
+ * Hooks registered:
+ *   - wp_enqueue_scripts → enqueue_assets()
+ *   - init               → register_shortcodes() (fires dish_dash_register_shortcodes)
+ *
+ * Localized data (window.dishDashFront):
+ *   ajaxUrl, restUrl, nonce, currency, i18n messages
+ *
+ * Template loader:
+ *   DD_Frontend::get_template(template, args) — checks theme/dish-dash/ first
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

@@ -1,3 +1,37 @@
+/**
+ * File:    assets/js/menu-page.js
+ * Purpose: AJAX-driven category navigation and paginated product grid
+ *          loading for the desktop menu page (/restaurant-menu/).
+ *          Also syncs initial state from the ?cat= URL deep-link param.
+ *          Arrow scroll (prev/next) initialises without requiring DDMenu.
+ *
+ * DOM elements required:
+ *   - #ddMenuGrid        (product grid container, data-current-cat attribute)
+ *   - #ddMenuLoadMore    (load-more button, data-page attribute)
+ *   - #ddMenuCatsTrack   (category carousel scroll container)
+ *   - #ddMenuCatsPrev, #ddMenuCatsNext  (arrow buttons)
+ *   - #ddMenuGridTitle   (grid section heading, updated on category click)
+ *   - .dd-menu-cat       (category buttons, data-cat-slug attribute)
+ *
+ * Localized data needed (wp_localize_script):
+ *   - window.DDMenu  (ajaxUrl, nonce, action='dd_menu_load_products', perPage)
+ *     Localized by DD_Menu_Module::enqueue_menu_assets()
+ *
+ * AJAX endpoints called:
+ *   - admin-ajax.php?action=dd_menu_load_products  (cat_slug, page, per_page)
+ *
+ * Custom events fired:   None
+ * Custom events listened: None
+ *
+ * Dependencies:
+ *   - window.DDTrackConfig (optional — from tracking.js, used for category view events)
+ *
+ * Dependents:
+ *   - modules/menu/class-dd-menu-module.php (enqueues this on menu page)
+ *   - templates/menu/grid.php (DOM elements rendered here)
+ *
+ * Last modified: v3.1.13
+ */
 (function () {
     'use strict';
 

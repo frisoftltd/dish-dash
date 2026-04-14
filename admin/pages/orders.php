@@ -1,7 +1,31 @@
 <?php
 /**
- * Admin Page: Orders
+ * File:    admin/pages/orders.php
+ * Purpose: Renders the Orders admin page — filterable order table with
+ *          status tabs, order details columns, and inline AJAX status
+ *          update buttons.
+ *
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - $wpdb global (queries dishdash_orders, dishdash_order_items)
+ *   - jQuery (loaded by WordPress core in admin)
+ *
+ * Dependents (files that need this):
+ *   - modules/orders/class-dd-orders-module.php (loaded via render_orders())
+ *
+ * AJAX actions called (from inline script):
+ *   - dd_update_status (admin-only, requires dd_manage_orders capability)
+ *
+ * DB tables read:
+ *   {prefix}dishdash_orders, {prefix}dishdash_order_items
+ *
+ * Status tabs:
+ *   all, pending, confirmed, preparing, ready, out_for_delivery,
+ *   delivered, cancelled
+ *
+ * Last modified: v3.1.13
  */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $orders_module = DD_Loader::instance()->get_module( 'DD_Orders_Module' );

@@ -1,7 +1,29 @@
 <?php
 /**
- * Admin Page: Dashboard
+ * File:    admin/pages/dashboard.php
+ * Purpose: Renders the Dish Dash admin dashboard — KPI cards (orders,
+ *          revenue, pending, menu items), quick action links, and the
+ *          3-step setup checklist.
+ *
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - $wpdb global (order/revenue counts)
+ *   - WordPress get_option() (dish_dash_menu_page_id, dish_dash_google_maps_key)
+ *   - WordPress wp_count_posts('dd_menu_item')
+ *
+ * Dependents (files that need this):
+ *   - admin/class-dd-admin.php (loaded via render_dashboard())
+ *
+ * WP options read:
+ *   dish_dash_menu_page_id, dish_dash_google_maps_key
+ *
+ * CSS classes used:
+ *   .dd-admin-wrap, .dd-admin-header, .dd-kpi-grid, .dd-kpi-card,
+ *   .dd-quick-links, .dd-setup-checklist
+ *
+ * Last modified: v3.1.13
  */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 ?>
 <div class="wrap dd-admin-wrap">

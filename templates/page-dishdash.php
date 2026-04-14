@@ -1,12 +1,39 @@
 <?php
 /**
+ * File:    templates/page-dishdash.php
  * Template Name: DishDash
  * Template Post Type: page
  *
- * Full-page restaurant template — bypasses Astra header/footer.
+ * Purpose: The full restaurant homepage template — outputs a complete HTML
+ *          document, bypassing the active WordPress theme entirely. Contains
+ *          all 13 page sections (header, hero, quick-order, categories,
+ *          featured dishes, filter chips, reserve, selected category,
+ *          reviews, footer, cart drawer, floating cart, mobile bottom nav)
+ *          plus the product modal and auth modal.
  *
- * @package DishDash
- * @since   2.2.0
+ * Dependencies (this file needs):
+ *   - DD_Template_Module (registers this as a page template via theme_page_templates)
+ *   - assets/css/theme.css, assets/css/cart.css (enqueued by Template_Module)
+ *   - assets/js/frontend.js, assets/js/cart.js (enqueued by Template_Module)
+ *   - assets/js/search.js, assets/js/tracking.js
+ *   - WooCommerce: product_cat taxonomy, wc_get_product()
+ *   - All dish_dash_* and dd_* WordPress options (homepage section content)
+ *   - dishdash-core/class-dd-helpers.php (dd_cart_url, dd_menu_url etc.)
+ *
+ * Dependents (files that need this):
+ *   - modules/template/class-dd-template-module.php (loaded via template_include filter)
+ *   - WordPress page editor (selectable as "DishDash" page template)
+ *
+ * CSS variables set dynamically:
+ *   --brand (dish_dash_primary_color), --brand-dark (dish_dash_dark_color),
+ *   --dd-hero-overlay-color, --dd-hero-overlay-opacity
+ *
+ * Key CSS classes (root):
+ *   .dd-page (body), .dd-header, .dd-hero, .dd-summary,
+ *   .dd-cart-drawer, .dd-floating-cart, .dd-bottom-nav,
+ *   .dd-product-modal, .dd-auth-modal
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

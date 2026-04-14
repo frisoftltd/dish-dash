@@ -1,22 +1,26 @@
 <?php
 /**
- * Dish Dash – GitHub Auto-Updater
+ * File:    dishdash-core/class-dd-github-updater.php
+ * Module:  DD_GitHub_Updater
+ * Purpose: Hooks into WordPress's plugin update system and checks GitHub
+ *          Releases for newer versions. Enables one-click updates from
+ *          Plugins → Update Now without a WordPress.org listing.
  *
- * Connects to a GitHub repository and allows the plugin to be
- * updated directly from the WordPress Plugins dashboard,
- * exactly like a WordPress.org plugin update.
+ * Dependencies (this file needs):
+ *   - DD_GITHUB_REPO constant (set in dish-dash.php)
+ *   - DD_GITHUB_TOKEN constant (optional, for private repos)
+ *   - WordPress plugin update transients (core)
  *
- * HOW IT WORKS:
- * 1. You push new code to GitHub and create a Release with a version tag (e.g. v1.0.1)
- * 2. WordPress checks for updates every 12 hours (or when you click "Check Again")
- * 3. If GitHub has a newer version than what's installed, WordPress shows "Update Available"
- * 4. You click "Update Now" and it downloads the zip from GitHub and installs it
+ * Dependents (files that need this):
+ *   - dish-dash.php (requires this file directly + calls $dd_updater->init())
  *
- * SETUP:
- * 1. Create a GitHub repository (e.g. frisoftltd/dish-dash)
- * 2. Push all plugin files to the repo
- * 3. Set DD_GITHUB_REPO constant in dish-dash.php to 'username/repo-name'
- * 4. For private repos, also set DD_GITHUB_TOKEN with a Personal Access Token
+ * Hooks registered:
+ *   - pre_set_site_transient_update_plugins  (check for new version)
+ *   - plugins_api                            (return package info)
+ *   - upgrader_process_complete              (opcache reset after update)
+ *   - admin_init                             (manual "Check for Updates" trigger)
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

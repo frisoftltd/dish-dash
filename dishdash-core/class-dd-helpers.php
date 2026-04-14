@@ -1,9 +1,28 @@
 <?php
 /**
- * Dish Dash – Global Helper Functions
+ * File:    dishdash-core/class-dd-helpers.php
+ * Purpose: Global procedural helper functions available everywhere in the
+ *          plugin — all wrapped in if(!function_exists()) guards.
  *
- * Procedural helpers available everywhere in the plugin.
- * Prefix all functions with dd_ to avoid conflicts.
+ * Dependencies (this file needs):
+ *   - DD_Settings class (for dd_price currency lookup)
+ *   - $wpdb global (for dd_get_branches, dd_get_branch)
+ *   - ABSPATH (WordPress core)
+ *
+ * Dependents (files that need this):
+ *   - Loaded by dishdash-core/class-dd-loader.php during boot
+ *   - Used by modules/orders/class-dd-orders-module.php (dd_generate_order_number,
+ *     dd_order_status_transitions, dd_price, dd_valid_order_type)
+ *   - Used by modules/homepage/class-dd-homepage-module.php (dd_is_enabled)
+ *   - Used by templates/page-dishdash.php (dd_cart_url, dd_menu_url etc.)
+ *
+ * Functions defined:
+ *   dd_price(), dd_generate_order_number(), dd_get_branches(), dd_get_branch(),
+ *   dd_get_current_branch_id(), dd_is_enabled(), dd_valid_order_type(),
+ *   dd_order_status_transitions(), dd_order_status_label(), dd_log(),
+ *   dd_menu_url(), dd_cart_url(), dd_checkout_url(), dd_track_url()
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

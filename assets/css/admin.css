@@ -1,8 +1,26 @@
-/* ============================================================
-   Dish Dash — Admin Styles
-   File: assets/css/admin.css
-   ============================================================ */
-
+/**
+ * File:    assets/css/admin.css
+ * Purpose: Minimal admin panel styles for elements that can't be delivered
+ *          inline (currently a thin wrapper; most admin styles are still
+ *          delivered inline from DD_Admin::get_admin_styles()).
+ *
+ * Used by templates:
+ *   - admin/pages/dashboard.php
+ *   - admin/pages/orders.php
+ *   - admin/pages/coming-soon.php
+ *
+ * Enqueued by:
+ *   - admin/class-dd-admin.php → enqueue_admin_assets()
+ *
+ * Key classes defined:
+ *   .dd-admin-wrap, .dd-admin-header, .dd-logo-icon,
+ *   .dd-kpi-grid, .dd-kpi-card, .dd-quick-links,
+ *   .dd-setup-checklist, .dd-coming-soon
+ *
+ * Depends on CSS variables from: None (self-contained admin styles)
+ *
+ * Last modified: v3.1.13
+ */
 /* ── Variables ──────────────────────────────────────────── */
 :root {
     --dd-primary:      #E8832A;

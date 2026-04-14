@@ -1,9 +1,30 @@
-
-/* ============================================================
-   Dish Dash — Cart & Checkout Styles
-   File: assets/css/cart.css
-   ============================================================ */
-
+/**
+ * File:    assets/css/cart.css
+ * Purpose: All styles for the cart sidebar, cart page, and checkout form —
+ *          including the slide-in drawer, cart items, totals, order-type
+ *          selector, form fields, submit button, and feedback notices.
+ *
+ * Used by templates:
+ *   - templates/cart/cart.php     (.dd-cart-sidebar, .dd-cart-items, etc.)
+ *   - templates/checkout/checkout.php (.dd-checkout-wrap, .dd-order-types, etc.)
+ *
+ * Enqueued by:
+ *   - modules/template/class-dd-template-module.php → enqueue_frontend_assets()
+ *
+ * Key classes defined:
+ *   .dd-cart-trigger, .dd-cart-count, .dd-cart-overlay,
+ *   .dd-cart-sidebar, .dd-cart-sidebar--open, .dd-cart-item,
+ *   .dd-cart-summary, .dd-cart-checkout-btn,
+ *   .dd-checkout-wrap, .dd-checkout-form, .dd-form-group,
+ *   .dd-order-type-btn, .dd-submit-btn,
+ *   .dd-notice, .dd-notice--success, .dd-notice--error
+ *
+ * Depends on CSS variables from theme.css:
+ *   --brand (via var(--dd-primary) alias), --dd-dark, --dd-gold,
+ *   --dd-line, --dd-surface, --dd-danger
+ *
+ * Last modified: v3.1.13
+ */
 /* ── Variables ──────────────────────────────────────────── */
 :root {
     --dd-primary:      #E8832A;

@@ -1,9 +1,34 @@
 <?php
 /**
- * Dish Dash – Abstract Module Base Class
+ * File:    dishdash-core/class-dd-module.php
+ * Module:  DD_Module (abstract base class)
+ * Purpose: Defines the contract every feature module must implement.
+ *          Provides shared utilities for options, asset enqueuing,
+ *          and template rendering with theme-override support.
  *
- * Every Dish Dash module extends this class. It enforces a
- * consistent interface and provides shared utilities.
+ * Dependencies (this file needs):
+ *   - DD_PLUGIN_DIR, DD_ASSETS_URL constants
+ *   - ABSPATH (WordPress core)
+ *
+ * Dependents (all extend this class):
+ *   - admin/class-dd-admin.php
+ *   - modules/auth/class-dd-auth-module.php
+ *   - modules/customers/class-dd-customers-module.php
+ *   - modules/homepage/class-dd-homepage-module.php
+ *   - modules/menu/class-dd-menu-module.php
+ *   - modules/orders/class-dd-orders-module.php
+ *   - modules/template/class-dd-template-module.php
+ *   - modules/tracking/class-dd-tracking-module.php
+ *
+ * Key methods:
+ *   init() [abstract], get_option(), update_option(),
+ *   enqueue_style(), enqueue_script(),
+ *   render_template(), get_template()
+ *
+ * Option scoping:
+ *   get_option('key') reads dish_dash_{module_id}_key from wp_options
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

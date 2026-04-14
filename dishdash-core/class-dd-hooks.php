@@ -1,10 +1,31 @@
 <?php
 /**
- * Dish Dash – Central Hook Manager
+ * File:    dishdash-core/class-dd-hooks.php
+ * Module:  DD_Hooks
+ * Purpose: Registers global WordPress hooks that don't belong to any
+ *          specific feature module (rewrite flush, plugin action links).
+ *          Also serves as the canonical documentation of all custom
+ *          Dish Dash actions and filters.
  *
- * Registers global WordPress hooks that don't belong
- * to any single module. Also documents all custom
- * Dish Dash actions and filters as a reference.
+ * Dependencies (this file needs):
+ *   - DD_PLUGIN_BASENAME constant
+ *   - ABSPATH (WordPress core)
+ *
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates DD_Hooks during boot)
+ *
+ * Hooks registered:
+ *   - init → maybe_flush_rewrite_rules()
+ *   - plugin_action_links_{basename} → adds Dashboard + Settings links
+ *
+ * Custom hooks documented here (fired elsewhere):
+ *   Actions: dish_dash_loaded, dish_dash_order_placed,
+ *            dish_dash_order_status_changed, dish_dash_order_delivered,
+ *            dish_dash_reservation_created, dish_dash_before_menu_render
+ *   Filters: dish_dash_menu_query_args, dish_dash_order_data,
+ *            dish_dash_delivery_fee, dish_dash_price, dish_dash_email_template
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

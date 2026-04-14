@@ -1,3 +1,47 @@
+<?php
+/**
+ * File:    modules/orders/class-dd-orders-module.php
+ * Module:  DD_Orders_Module (extends DD_Module)
+ * Purpose: Full order lifecycle management — placing orders, status
+ *          transitions, email notifications, REST API routes, WooCommerce
+ *          payment bridge (links WC order IDs to Dish Dash orders),
+ *          and the Orders admin page.
+ *
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - DD_Ajax::register() for AJAX handlers
+ *   - $wpdb global (dishdash_orders, dishdash_order_items tables)
+ *   - dishdash-core/class-dd-helpers.php (dd_generate_order_number, dd_price)
+ *   - WooCommerce: woocommerce_order_status_* hooks (payment bridge)
+ *
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates this module)
+ *   - assets/js/cart.js (calls dd_place_order, dd_get_order, dd_cancel_order)
+ *   - admin/pages/orders.php (loaded via render_orders())
+ *
+ * Hooks registered:
+ *   - rest_api_init, admin_menu, admin_enqueue_scripts
+ *   - woocommerce_order_status_completed → wc_payment_completed()
+ *   - woocommerce_order_status_cancelled → wc_payment_cancelled()
+ *
+ * AJAX actions registered:
+ *   dd_place_order (public), dd_get_order (public),
+ *   dd_cancel_order (public), dd_update_status (admin only)
+ *
+ * REST routes: GET/PUT /dish-dash/v1/orders[/{id}[/status]] (admin only)
+ *
+ * Hooks fired:
+ *   dish_dash_order_placed, dish_dash_order_status_changed,
+ *   dish_dash_order_delivered
+ *
+ * DB tables owned:
+ *   {prefix}dishdash_orders, {prefix}dishdash_order_items
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
+ */
+?>
 
 <?php
 /**

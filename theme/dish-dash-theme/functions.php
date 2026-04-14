@@ -1,12 +1,30 @@
 <?php
 /**
- * Dish Dash Theme — Functions
+ * File:    theme/dish-dash-theme/functions.php
+ * Purpose: Minimal blank theme setup — declares theme supports (title-tag,
+ *          post-thumbnails, WooCommerce gallery, body-open), enqueues
+ *          Google Fonts, strips conflicting WP block styles, and injects
+ *          base CSS reset inline. Shows a notice if the Dish Dash plugin
+ *          is not active.
  *
- * Minimal theme setup. All functionality
- * is provided by the Dish Dash plugin.
+ * Dependencies (this file needs):
+ *   - WordPress after_setup_theme, wp_enqueue_scripts, wp_head, wp_body_open hooks
+ *   - DD_VERSION constant (checked in plugin-notice, optional)
  *
- * @package DishDashTheme
- * @version 1.0.0
+ * Dependents (files that need this):
+ *   - WordPress (auto-loaded as theme functions file)
+ *   - All theme template files (index.php, page.php, singular.php, etc.)
+ *
+ * Hooks registered:
+ *   - after_setup_theme → dish_dash_theme_setup()
+ *   - wp_enqueue_scripts (priority 100) → dish_dash_theme_enqueue_styles()
+ *   - wp_head → dish_dash_theme_inline_styles()
+ *   - wp_body_open → dish_dash_theme_plugin_notice()
+ *
+ * Google Fonts loaded:
+ *   Cormorant Garamond (500/600/700/italic 600), Inter (400/500/600/700)
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

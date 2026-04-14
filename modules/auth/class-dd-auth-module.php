@@ -1,13 +1,45 @@
 <?php
 /**
- * Dish Dash – Auth Module
+ * File:    modules/auth/class-dd-auth-module.php
+ * Module:  DD_Auth_Module (extends DD_Module)
+ * Purpose: Custom login, registration, Google OAuth 2.0, email verification,
+ *          and SMTP configuration. Injects an auth modal on every frontend
+ *          page and an email-verified banner when needed.
  *
- * Custom login + registration with Google OAuth.
- * Injects modal HTML on all pages via wp_footer.
- * Handles AJAX login/register + Google OAuth flow.
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - WordPress: wp_signon(), wp_insert_user(), phpmailer_init hook
+ *   - Google OAuth endpoints (external HTTP calls)
  *
- * @package DishDash
- * @since   2.5.69
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates this module)
+ *
+ * Hooks registered:
+ *   - admin_menu, admin_init, admin_enqueue_scripts
+ *   - wp_head (priority 5) → inject_auth_data()
+ *   - wp_footer → inject_auth_modal() + inject_verify_banner()
+ *   - wp_body_open → (via Template_Module header injection)
+ *   - phpmailer_init → configure_smtp()
+ *   - init → handle_google_oauth() + handle_email_verification()
+ *   - wp_ajax_nopriv_dd_login, wp_ajax_dd_login, wp_ajax_nopriv_dd_register,
+ *     wp_ajax_dd_register, wp_ajax_dd_logout, wp_ajax_dd_test_email
+ *
+ * AJAX actions registered:
+ *   dd_login (public), dd_register (public), dd_logout (logged-in),
+ *   dd_test_email (admin only)
+ *
+ * Admin page: dish-dash-auth
+ *
+ * WP options owned:
+ *   dd_google_client_id, dd_google_client_secret,
+ *   dd_smtp_host, dd_smtp_port, dd_smtp_username, dd_smtp_password,
+ *   dd_smtp_encryption, dd_noreply_email, dd_from_name
+ *
+ * User meta written: dd_email_verified, dd_google_id
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

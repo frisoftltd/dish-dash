@@ -1,9 +1,28 @@
 <?php
 /**
- * DD_Rest_API
+ * File:    api/class-dd-rest-api.php
+ * Module:  DD_Rest_API (singleton)
+ * Purpose: Registers the dish-dash/v1 REST API namespace and provides
+ *          standardised success/error response helpers. Fires
+ *          dish_dash_register_rest_routes so modules can add their own routes.
  *
- * Registers the Dish Dash REST API namespace and loads endpoint controllers.
- * All routes live under:  /wp-json/dish-dash/v1/
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - WordPress rest_api_init hook, WP_REST_Response, WP_Error
+ *
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dishdash.php (instantiates DD_Rest_API)
+ *   - modules/orders/class-dd-orders-module.php (registers routes via the hook)
+ *
+ * Hooks registered:
+ *   - rest_api_init → registers namespace + fires dish_dash_register_rest_routes
+ *
+ * Hooks fired:
+ *   - dish_dash_register_rest_routes(namespace) — modules add their routes here
+ *
+ * REST namespace: dish-dash/v1
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

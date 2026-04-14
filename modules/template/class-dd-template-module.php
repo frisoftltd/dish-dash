@@ -1,11 +1,49 @@
 <?php
 /**
- * Dish Dash – Template Module
+ * File:    modules/template/class-dd-template-module.php
+ * Module:  DD_Template_Module (extends DD_Module)
+ * Purpose: Owns the full-page template (page-dishdash.php), the global
+ *          header/footer injection on all Dish Dash pages, frontend asset
+ *          enqueuing, nav menu registration, and theme conflict removal.
+ *          Also owns the Plugin Settings admin page.
  *
- * Handles all frontend template settings:
- * branding, hero, contact, social media.
- * Also injects cart sidebar globally on frontend.
- * Completely independent module.
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - templates/page-dishdash.php  (page template file)
+ *   - templates/cart/cart.php      (injected into wp_footer)
+ *   - assets/css/theme.css, assets/css/cart.css, assets/css/menu-page.css
+ *   - assets/js/frontend.js, assets/js/cart.js, assets/js/search.js,
+ *     assets/js/tracking.js
+ *   - admin/pages/settings.php, admin/pages/template-settings.php
+ *
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates this module)
+ *
+ * Hooks registered:
+ *   - admin_menu, admin_init, admin_enqueue_scripts
+ *   - theme_page_templates (filter), template_include (filter)
+ *   - after_setup_theme → register_nav_menus()
+ *   - wp_enqueue_scripts → enqueue_frontend_assets() + remove_theme_conflicts()
+ *   - wp_footer → inject_cart_sidebar() + inject_global_footer() + inject_product_modal()
+ *   - wp_body_open → inject_global_header()
+ *   - wp_head → inject_global_header_styles()
+ *   - init → remove_theme_header_hooks()
+ *
+ * Nav menu locations: dd-primary (main nav), dd-footer (footer nav)
+ *
+ * Global header injected on pages:
+ *   /reserve-table/, /cart-dd/, /checkout-dd/, /restaurant-menu/,
+ *   /my-account/, /my-restaurant-account/, /track-order/
+ *
+ * Localized JS data (window.dishDash):
+ *   ajaxUrl, nonce, cartUrl, checkoutUrl, trackUrl, currency settings,
+ *   page IDs, primaryColor
+ *
+ * Admin page: dish-dash-settings
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

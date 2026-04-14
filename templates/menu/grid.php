@@ -1,18 +1,35 @@
 <?php
 /**
- * Dish Dash – Menu Page Template
+ * File:    templates/menu/grid.php
+ * Purpose: Menu display template — desktop view shows a category carousel
+ *          + AJAX-loaded product grid (v3.1.7+); mobile view shows a
+ *          searchable, filterable product list. Rendered by [dish_dash_menu]
+ *          shortcode.
+ *          Theme override: /your-theme/dish-dash/menu/grid.php
  *
- * Desktop: category circles carousel + AJAX product grid (v3.1.7)
- * Mobile:  existing list-row layout (unchanged)
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - WooCommerce: $items (WP_Query), wc_get_product(), WC_Product
+ *   - assets/css/menu-page.css (desktop layout)
+ *   - assets/css/menu.css      (product card styles)
+ *   - assets/js/frontend.js    (category click → AJAX, product modal)
+ *   - DD_Settings via window.dishDash (ajaxUrl, nonce, primary color)
  *
- * Variables from DD_Menu_Module::shortcode():
- *   $items        WP_Query
- *   $categories   WP_Term[]
- *   $atts         shortcode attributes
- *   $product_cats array[ product_id => WP_Term[] ]
+ * Dependents (files that need this):
+ *   - modules/menu/class-dd-menu-module.php (shortcode renders this)
  *
- * @package DishDash
- * @since   3.1.7
+ * Variables expected in scope:
+ *   $items (WP_Query), $categories (WP_Term[]),
+ *   $atts (shortcode attributes), $product_cats (product_id => WP_Term[])
+ *
+ * AJAX action consumed: dd_menu_load_products
+ *
+ * Key CSS classes:
+ *   .dd-menu-page--desktop, .dd-menu-page--mobile,
+ *   .dd-menu-container, .dd-menu-cats, .dd-menu-cat.is-active,
+ *   .dd-menu-grid-section, .dd-menu-grid
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

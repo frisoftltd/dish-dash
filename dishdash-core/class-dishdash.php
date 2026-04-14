@@ -1,11 +1,28 @@
 <?php
 /**
- * DishDash
+ * File:    dishdash-core/class-dishdash.php
+ * Module:  DishDash (main singleton — alternative boot path)
+ * Purpose: Alternative main plugin singleton used by older boot path.
+ *          Loads core services (DD_Admin, DD_Rest_API, DD_Frontend),
+ *          registers and boots modules, loads text domain, and fires
+ *          dish_dash_loaded. (See also class-dd-loader.php for current path.)
  *
- * The main plugin singleton. Responsible for:
- *  - Loading core services (hooks, settings)
- *  - Registering and booting each module
- *  - Loading text domain for translations
+ * Dependencies (this file needs):
+ *   - DD_FILE, DD_ASSETS_URL, DD_TEMPLATES constants
+ *   - DD_Admin, DD_Rest_API, DD_Frontend (via autoloader)
+ *   - DD_Module_Menu (registered module)
+ *
+ * Dependents (files that need this):
+ *   - dish-dash.php (may call DishDash::instance()->boot() on plugins_loaded)
+ *
+ * Hooks fired:
+ *   - dish_dash_loaded        (after all modules booted)
+ *   - dish_dash_register_shortcodes (fired by DD_Frontend)
+ *
+ * Global helper:
+ *   dish_dash() → DishDash::instance()
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

@@ -1,17 +1,31 @@
-
-/*
-Theme Name:  Dish Dash
-Theme URI:   https://github.com/frisoftltd/dish-dash
-Author:      Fri Soft Ltd
-Author URI:  https://frisoftltd.com
-Description: The official blank theme for the Dish Dash restaurant plugin. Install this theme alongside the Dish Dash plugin for a zero-conflict, fully branded restaurant experience. Do not use without the Dish Dash plugin.
-Version:     1.0.0
-License:     GNU General Public License v2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
-Text Domain: dish-dash-theme
-Tags:        restaurant, food, ordering, blank, minimal
-*/
-
+/**
+ * Theme Name:  Dish Dash
+ * Theme URI:   https://github.com/frisoftltd/dish-dash
+ * Author:      Fri Soft Ltd
+ * Author URI:  https://frisoftltd.com
+ * Description: The official blank theme for the Dish Dash restaurant plugin.
+ *              Install alongside the Dish Dash plugin for zero-conflict,
+ *              fully branded restaurant experience.
+ *              Do NOT use without the Dish Dash plugin.
+ * Version:     1.0.0
+ * License:     GNU General Public License v2 or later
+ * License URI: http://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain: dish-dash-theme
+ * Tags:        restaurant, food, ordering, blank, minimal
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * File:    theme/dish-dash-theme/style.css
+ * Purpose: WordPress theme identity file — intentionally blank beyond the
+ *          required theme header. All styles are provided by the Dish Dash
+ *          plugin via assets/css/theme.css and assets/css/cart.css.
+ *          Do NOT add styles here.
+ *
+ * Enqueued by: Nothing (WordPress reads meta only; no styles to load)
+ *
+ * Depends on: Nothing
+ *
+ * Last modified: v3.1.13
+ */
 /*
  * This theme is intentionally blank.
  * All styles are provided by the Dish Dash plugin.

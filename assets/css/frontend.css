@@ -1,7 +1,29 @@
-/* =============================================================
-   Dish Dash – Frontend Styles  |  assets/css/frontend.css
-   ============================================================= */
-
+/**
+ * File:    assets/css/frontend.css
+ * Purpose: Styles for the [dish_dash_menu] shortcode widget when used
+ *          outside the full page template — defines CSS custom properties
+ *          on .dd-menu-wrap and styles for filter bar, menu grid, and
+ *          product cards in a serif-font shortcode context.
+ *
+ * Used by templates:
+ *   - [dish_dash_menu] shortcode output (rendered by DD_Menu_Module)
+ *
+ * Enqueued by:
+ *   - frontend/class-dd-frontend.php → enqueue_assets() (global frontend)
+ *
+ * Key classes defined:
+ *   .dd-menu-wrap (with CSS vars), .dd-filter-bar, .dd-filter-btn,
+ *   .dd-menu-grid, .dd-menu-card (within .dd-menu-wrap scope)
+ *
+ * Note: Several classes here (.dd-filter-bar, .dd-menu-card etc.) overlap
+ *   with menu.css definitions. frontend.css uses a serif font base;
+ *   menu.css uses Nunito. On pages where both load, menu.css wins
+ *   (loaded later).
+ *
+ * Depends on CSS variables from: None (defines its own on .dd-menu-wrap)
+ *
+ * Last modified: v3.1.13
+ */
 /* ── Variables ── */
 .dd-menu-wrap {
     --dd-accent:        #e8832a;

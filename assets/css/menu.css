@@ -1,6 +1,33 @@
-/* ============================================================
-   Dish Dash — Menu Styles v2.1
-   ============================================================ */
+/**
+ * File:    assets/css/menu.css
+ * Purpose: Product card styles for the [dish_dash_menu] shortcode widget
+ *          and the mobile menu page layout — grid container, card layout,
+ *          image aspect ratio, badges, price display, and Add button.
+ *          Also styles the filter bar and search input above the grid.
+ *
+ * Used by templates:
+ *   - templates/menu/grid.php  (both desktop grid and mobile list)
+ *   - [dish_dash_menu] shortcode output
+ *
+ * Enqueued by:
+ *   - modules/menu/class-dd-menu-module.php → enqueue_menu_assets()
+ *     (conditionally on pages where the shortcode is used)
+ *
+ * Key classes defined:
+ *   .dd-menu-wrap, .dd-menu-search, .dd-search-input, .dd-search-icon,
+ *   .dd-filter-bar, .dd-filter-btn, .dd-filter-btn--active,
+ *   .dd-menu-grid, .dd-menu-card, .dd-card-image,
+ *   .dd-badge (+ variants: --on-sale, --popular, --new, --spicy, --vegan, --gluten-free),
+ *   .dd-card-body, .dd-card-title, .dd-card-footer,
+ *   .dd-price, .dd-price--original, .dd-price--sale,
+ *   .dd-add-to-cart-btn, .dd-empty-menu, .dd-no-results
+ *
+ * Depends on CSS variables:
+ *   --dd-primary, --dd-dark, --dd-muted, --dd-border, --dd-bg-card,
+ *   --dd-radius, --dd-shadow, --dd-danger (defined on .dd-menu-wrap itself)
+ *
+ * Last modified: v3.1.13
+ */
 @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
 
 .dd-menu-wrap {

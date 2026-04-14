@@ -1,3 +1,29 @@
+<?php
+/**
+ * File:    dishdash-core/class-dd-theme-installer.php
+ * Module:  DD_Theme_Installer (static class)
+ * Purpose: On plugin activation, copies the bundled Dish Dash blank theme
+ *          from theme/dish-dash-theme/ into WordPress's themes directory
+ *          and switches the active theme to it automatically.
+ *
+ * Dependencies (this file needs):
+ *   - DD_PLUGIN_DIR constant
+ *   - WP_CONTENT_DIR constant (WordPress core)
+ *   - WordPress switch_theme(), wp_get_theme() functions
+ *
+ * Dependents (files that need this):
+ *   - dish-dash.php (calls DD_Theme_Installer on admin_init / activation)
+ *
+ * Hooks registered:
+ *   - admin_notices → shows install success/error notice
+ *
+ * Bundled theme location:
+ *   theme/dish-dash-theme/   (inside plugin)
+ *   → wp-content/themes/dish-dash-theme/  (copied on activation)
+ *
+ * Last modified: v3.1.13
+ */
+?>
 
 <?php
 /**

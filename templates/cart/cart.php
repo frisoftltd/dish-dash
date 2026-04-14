@@ -1,8 +1,26 @@
 <?php
 /**
- * Template: Cart Sidebar
- * Override: /your-theme/dish-dash/cart/cart.php
+ * File:    templates/cart/cart.php
+ * Purpose: Cart sidebar template — renders the slide-in cart drawer
+ *          with item list, quantity controls, totals, and checkout button.
+ *          Theme override: /your-theme/dish-dash/cart/cart.php
+ *
+ * Dependencies (this file needs):
+ *   - ABSPATH (WordPress core guard)
+ *   - assets/css/cart.css (loaded by DD_Template_Module)
+ *   - assets/js/cart.js (populates items dynamically via AJAX)
+ *
+ * Dependents (files that need this):
+ *   - modules/menu/class-dd-menu-module.php ([dish_dash_cart] shortcode)
+ *   - modules/template/class-dd-template-module.php (inject_cart_sidebar())
+ *
+ * Key CSS classes:
+ *   .dd-cart-overlay, .dd-cart-sidebar, .dd-cart-sidebar--open,
+ *   .dd-cart-items, .dd-cart-summary, .dd-cart-checkout-btn
+ *
+ * Last modified: v3.1.13
  */
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 ?>
 <div class="dd-cart-overlay"></div>

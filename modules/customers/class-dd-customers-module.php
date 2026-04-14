@@ -1,14 +1,36 @@
 <?php
 /**
- * Dish Dash – Customers Module
+ * File:    modules/customers/class-dd-customers-module.php
+ * Module:  DD_Customers_Module (extends DD_Module)
+ * Purpose: Customer CRM dashboard — lists all WP users with calculated
+ *          spend, order count, reservation count, and tier status
+ *          (New / Regular / VIP / Champion). Allows editing customer
+ *          profile meta from the admin.
  *
- * Full customer management dashboard:
- * - Dashboard stats (total customers, revenue, new this month, avg spend)
- * - Customer list with status, spend, orders, reservations
- * - Status system: New / Regular / VIP / Champion
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - WordPress: get_users(), get_user_meta()
+ *   - WooCommerce: wc_get_orders() (optional, degrades gracefully)
+ *   - {prefix}dishdash_reservations table (read-only)
  *
- * @package DishDash
- * @since   2.5.81
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates this module)
+ *
+ * Hooks registered:
+ *   - admin_menu, admin_enqueue_scripts
+ *   - wp_ajax_dd_save_customer (admin only)
+ *
+ * AJAX actions registered:
+ *   dd_save_customer (admin only — updates dd_phone, dd_address, dd_birthday)
+ *
+ * Admin page: dish-dash-customers
+ *
+ * Customer tiers:
+ *   New (0 orders), Regular (≥1), VIP (≥50,000 RWF), Champion (≥200,000 RWF)
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;

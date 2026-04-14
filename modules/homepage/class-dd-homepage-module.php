@@ -1,12 +1,38 @@
 <?php
 /**
- * Dish Dash – Homepage Settings Module
+ * File:    modules/homepage/class-dd-homepage-module.php
+ * Module:  DD_Homepage_Module (extends DD_Module)
+ * Purpose: Admin settings for all 7 homepage sections (Header, Hero,
+ *          Browse by Category, Featured Dishes, Selected Category,
+ *          Google Reviews, Footer). Provides an AJAX endpoint to
+ *          proxy Google Places API review data.
  *
- * Admin settings for all 7 homepage sections.
- * All data stored in wp_options, read by page-dishdash.php.
+ * Dependencies (this file needs):
+ *   - DD_Module base class
+ *   - DD_Ajax::register() for dd_get_reviews
+ *   - WooCommerce product_cat taxonomy (category multi-select)
+ *   - Google Places API (external HTTP call, optional)
  *
- * @package DishDash
- * @since   2.5.0
+ * Dependents (files that need this):
+ *   - dishdash-core/class-dd-loader.php (instantiates this module)
+ *   - templates/page-dishdash.php (reads all dd_* and dish_dash_* options)
+ *
+ * Hooks registered:
+ *   - admin_menu, admin_init (save_settings), admin_enqueue_scripts
+ *
+ * AJAX actions registered:
+ *   dd_get_reviews (public — Google Places review proxy)
+ *
+ * Admin page: dish-dash-homepage
+ *
+ * WP options owned (selected):
+ *   dd_header_*, dish_dash_hero_*, dd_hero_*, dd_categories_*,
+ *   dd_featured_*, dd_selcat_*, dd_reserve_bg_image,
+ *   dd_reviews_*, dd_footer_*, dish_dash_opening_hours
+ *
+ * Depends on (modules): NONE — architecture rule
+ *
+ * Last modified: v3.1.13
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
