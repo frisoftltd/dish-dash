@@ -20,7 +20,7 @@
     .dd-menu-page--mobile  { display: none; }
 
     .dd-menu-page--desktop {
-        padding: 56px 0 96px;
+        padding: 40px 0 40px;
         background: #FAF7F2;
     }
 
@@ -34,6 +34,7 @@
         border-radius: 18px;
         padding: 32px 36px 28px;
         box-shadow: 0 2px 12px rgba(43, 29, 18, .04);
+        overflow: visible !important;
     }
     .dd-menu-cats__header {
         display: flex;
@@ -196,7 +197,14 @@
         object-fit: cover !important;
     }
     .dd-menu-grid .dd-dish-card__body {
-        padding: 12px 14px 14px !important;
+        padding: 14px 16px !important;
+    }
+    .dd-menu-grid .dd-dish-card__footer {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+    .dd-menu-grid .dd-dish-card__footer .dd-add-btn {
+        flex-shrink: 0 !important;
     }
     .dd-menu-grid .dd-dish-card__title {
         font-size: 16px !important;
