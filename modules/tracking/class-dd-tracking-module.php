@@ -53,6 +53,9 @@ class DD_Tracking_Module extends DD_Module {
     const COOKIE_TTL = 90 * DAY_IN_SECONDS;
 
     public function init(): void {
+        // Run idempotent schema upgrade for existing installs.
+        $this->maybe_upgrade_schema();
+
         // Enqueue tracking.js on all frontend pages
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
@@ -233,15 +236,16 @@ class DD_Tracking_Module extends DD_Module {
         $wpdb->insert(
             $wpdb->prefix . 'dishdash_user_events',
             [
-                'user_id'     => $user_id,
-                'session_id'  => $session_id,
-                'event_type'  => $event_type,
-                'product_id'  => $product_id,
-                'category_id' => $category_id,
-                'meta'        => $meta,
-                'created_at'  => current_time( 'mysql' ),
+                'user_id'        => $user_id,
+                'session_id'     => $session_id,
+                'event_type'     => $event_type,
+                'product_id'     => $product_id,
+                'category_id'    => $category_id,
+                'meta'           => $meta,
+                'schema_version' => self::schema_version_for( $event_type ),
+                'created_at'     => current_time( 'mysql' ),
             ],
-            [ '%d', '%s', '%s', '%d', '%d', '%s', '%s' ]
+            [ '%d', '%s', '%s', '%d', '%d', '%s', '%d', '%s' ]
         );
     }
 
@@ -367,15 +371,85 @@ class DD_Tracking_Module extends DD_Module {
         $wpdb->insert(
             $wpdb->prefix . 'dishdash_user_events',
             [
-                'user_id'     => $user_id,
-                'session_id'  => $session_id,
-                'event_type'  => $event_type,
-                'product_id'  => $product_id,
-                'category_id' => $category_id,
-                'meta'        => $meta_json,
-                'created_at'  => current_time( 'mysql' ),
+                'user_id'        => $user_id,
+                'session_id'     => $session_id,
+                'event_type'     => $event_type,
+                'product_id'     => $product_id,
+                'category_id'    => $category_id,
+                'meta'           => $meta_json,
+                'schema_version' => self::schema_version_for( $event_type ),
+                'created_at'     => current_time( 'mysql' ),
             ],
-            [ '%d', '%s', '%s', '%d', '%d', '%s', '%s' ]
+            [ '%d', '%s', '%s', '%d', '%d', '%s', '%d', '%s' ]
         );
+    }
+
+    // ─────────────────────────────────────────
+    //  SCHEMA VERSION HELPER
+    //  Maps event_type → DISHDASH_SCHEMA_* constant.
+    //  Returns 1 as a safe fallback for any unknown type.
+    // ─────────────────────────────────────────
+    private static function schema_version_for( string $event_type ): int {
+        static $map = null;
+        if ( $map === null ) {
+            $map = [
+                'view_product'     => DISHDASH_SCHEMA_VIEW_EVENT,
+                'view_category'    => DISHDASH_SCHEMA_VIEW_EVENT,
+                'page_view'        => DISHDASH_SCHEMA_VIEW_EVENT,
+                'search'           => DISHDASH_SCHEMA_SEARCH_EVENT,
+                'add_to_cart'      => DISHDASH_SCHEMA_CART_EVENT,
+                'remove_from_cart' => DISHDASH_SCHEMA_CART_EVENT,
+                'order'            => DISHDASH_SCHEMA_ORDER_EVENT,
+                'reorder'          => DISHDASH_SCHEMA_ORDER_EVENT,
+            ];
+        }
+        return $map[ $event_type ] ?? 1;
+    }
+
+    // ─────────────────────────────────────────
+    //  IDEMPOTENT SCHEMA MIGRATION
+    //  Adds schema_version column + composite index
+    //  to existing installs that pre-date this column.
+    //  Safe to call on every boot — fast-bails via
+    //  wp_options after the first successful run.
+    // ─────────────────────────────────────────
+    private function maybe_upgrade_schema(): void {
+        global $wpdb;
+
+        // Fast bail — option is set once the column is confirmed present.
+        if ( get_option( 'dd_uev_has_schema_version' ) ) {
+            return;
+        }
+
+        $table = $wpdb->prefix . 'dishdash_user_events';
+
+        // Bail if the table doesn't exist yet — fresh install will get the
+        // column via the CREATE TABLE in install.php (dbDelta).
+        if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) ) !== $table ) {
+            return;
+        }
+
+        // Column already present (e.g. re-activation after fresh install)?
+        // Warm the option cache and bail.
+        if ( $wpdb->get_row( "SHOW COLUMNS FROM `{$table}` LIKE 'schema_version'" ) ) {
+            update_option( 'dd_uev_has_schema_version', '1' );
+            return;
+        }
+
+        // Add the column immediately after meta.
+        $wpdb->query(
+            "ALTER TABLE `{$table}`
+             ADD COLUMN `schema_version` SMALLINT UNSIGNED NOT NULL DEFAULT 1 AFTER `meta`"
+        );
+
+        // Add the composite index if it doesn't exist yet.
+        if ( ! $wpdb->get_row( "SHOW INDEX FROM `{$table}` WHERE Key_name = 'idx_event_type_schema'" ) ) {
+            $wpdb->query(
+                "ALTER TABLE `{$table}`
+                 ADD KEY `idx_event_type_schema` (`event_type`, `schema_version`)"
+            );
+        }
+
+        update_option( 'dd_uev_has_schema_version', '1' );
     }
 }

@@ -55,6 +55,22 @@ define( 'DD_TEMPLATES_DIR',   DD_PLUGIN_DIR . 'templates/' );
 define( 'DD_ASSETS_URL',      DD_PLUGIN_URL . 'assets/' );
 
 // ─────────────────────────────────────────────
+//  TRACKING SCHEMA VERSIONS
+//  One constant per event-type group.
+//  Bump the matching constant (and only that one)
+//  when the meta JSON shape for that group changes.
+//  event groups:
+//    VIEW  — view_product, view_category, page_view
+//    SEARCH — search
+//    CART  — add_to_cart, remove_from_cart
+//    ORDER — order, reorder
+// ─────────────────────────────────────────────
+define( 'DISHDASH_SCHEMA_VIEW_EVENT',   1 );
+define( 'DISHDASH_SCHEMA_SEARCH_EVENT', 1 );
+define( 'DISHDASH_SCHEMA_CART_EVENT',   1 );
+define( 'DISHDASH_SCHEMA_ORDER_EVENT',  1 );
+
+// ─────────────────────────────────────────────
 //  GITHUB UPDATER CONFIGURATION
 // ─────────────────────────────────────────────
 define( 'DD_GITHUB_REPO',  'frisoftltd/dish-dash' );
