@@ -37,7 +37,10 @@
  *
  * Depends on (modules): NONE — architecture rule
  *
- * Last modified: v3.1.13
+ * Last modified: v3.1.14
+ *
+ * Event schemas loaded at runtime from:
+ *   modules/tracking/event-schemas.php
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -52,7 +55,21 @@ class DD_Tracking_Module extends DD_Module {
     /** Cookie lifetime — 90 days */
     const COOKIE_TTL = 90 * DAY_IN_SECONDS;
 
+    /**
+     * Loaded once on init — holds the event metadata schema definitions
+     * from modules/tracking/event-schemas.php.
+     * v3.1.16 will use this to enforce schemas at write-time.
+     *
+     * @var array<string, array>
+     */
+    private static array $event_schemas = [];
+
     public function init(): void {
+        // Load event schema definitions (documentation now, enforced in v3.1.16).
+        if ( empty( self::$event_schemas ) ) {
+            self::$event_schemas = require __DIR__ . '/event-schemas.php';
+        }
+
         // Run idempotent schema upgrade for existing installs.
         $this->maybe_upgrade_schema();
 
