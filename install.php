@@ -235,23 +235,27 @@ class DD_Install {
         // event_type values: view_product, view_category, search,
         //                    add_to_cart, remove_from_cart, order,
         //                    reorder, page_view
+        // schema_version: version of the meta JSON shape for this event_type.
+        //   Bump DISHDASH_SCHEMA_*_EVENT constants when the meta shape changes.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_user_events (
-                id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                user_id     BIGINT UNSIGNED          DEFAULT NULL,
-                session_id  VARCHAR(64)     NOT NULL DEFAULT '',
-                event_type  VARCHAR(50)     NOT NULL DEFAULT '',
-                product_id  BIGINT UNSIGNED          DEFAULT NULL,
-                category_id BIGINT UNSIGNED          DEFAULT NULL,
-                meta        JSON                     DEFAULT NULL,
-                created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                id             BIGINT UNSIGNED     NOT NULL AUTO_INCREMENT,
+                user_id        BIGINT UNSIGNED              DEFAULT NULL,
+                session_id     VARCHAR(64)         NOT NULL DEFAULT '',
+                event_type     VARCHAR(50)         NOT NULL DEFAULT '',
+                product_id     BIGINT UNSIGNED              DEFAULT NULL,
+                category_id    BIGINT UNSIGNED              DEFAULT NULL,
+                meta           JSON                         DEFAULT NULL,
+                schema_version SMALLINT UNSIGNED   NOT NULL DEFAULT 1,
+                created_at     DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 KEY         user_id (user_id),
                 KEY         session_id (session_id),
                 KEY         event_type (event_type),
                 KEY         product_id (product_id),
                 KEY         category_id (category_id),
-                KEY         created_at (created_at)
+                KEY         created_at (created_at),
+                KEY         idx_event_type_schema (event_type, schema_version)
             ) $charset;
         " );
 
