@@ -12,24 +12,32 @@
  *   if event.schema_version >= 2: parse new metadata format
  *   else: parse legacy format
  *
- * Last modified: v3.1.14
+ * Last modified: v3.1.17
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/*
+ * Schema contract:
+ * - 'required' = keys that MUST be inside the `meta` JSON column for this event type
+ * - 'optional' = keys that MAY be inside `meta`
+ * - Dedicated DB columns (product_id, category_id, user_id, session_id) are NOT listed here
+ *   — they are row-level fields, not metadata fields
+ * - Validation strips any meta keys not in required ∪ optional before DB insert
+ */
 return [
     'view_product' => [
         'current_version' => DISHDASH_SCHEMA_VIEW_EVENT,
         'metadata_schema' => [
-            'required' => ['product_id'],
+            'required' => [],
             'optional' => ['source', 'position'],
         ],
     ],
     'view_category' => [
         'current_version' => DISHDASH_SCHEMA_VIEW_EVENT,
         'metadata_schema' => [
-            'required' => ['category_id'],
-            'optional' => ['source', 'slug'],
+            'required' => ['slug'],
+            'optional' => ['name', 'source'],
         ],
     ],
     'search' => [
@@ -42,15 +50,15 @@ return [
     'add_to_cart' => [
         'current_version' => DISHDASH_SCHEMA_CART_EVENT,
         'metadata_schema' => [
-            'required' => ['product_id', 'quantity'],
+            'required' => ['qty'],
             'optional' => ['price', 'source'],
         ],
     ],
     'remove_from_cart' => [
         'current_version' => DISHDASH_SCHEMA_CART_EVENT,
         'metadata_schema' => [
-            'required' => ['product_id', 'quantity'],
-            'optional' => [],
+            'required' => [],
+            'optional' => ['product_id', 'qty'],
         ],
     ],
     'order' => [
