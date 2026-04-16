@@ -134,6 +134,14 @@ class DD_Admin extends DD_Module {
             'manage_options', 'dish-dash-settings',
             [ $this, 'render_settings' ]
         );
+
+        // Tools (Event Health Check + future diagnostics)
+        add_submenu_page( 'dish-dash',
+            __( 'Tools', 'dish-dash' ),
+            __( '🔧 Tools', 'dish-dash' ),
+            'manage_options', 'dish-dash-tools',
+            [ $this, 'render_tools' ]
+        );
     }
 
     public function enqueue_admin_assets( string $hook ): void {
@@ -494,5 +502,9 @@ class DD_Admin extends DD_Module {
 
     public function render_settings(): void {
         include DD_PLUGIN_DIR . 'admin/pages/settings.php';
+    }
+
+    public function render_tools(): void {
+        include DD_PLUGIN_DIR . 'admin/pages/event-health.php';
     }
 }

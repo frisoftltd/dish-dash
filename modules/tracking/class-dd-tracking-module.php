@@ -37,7 +37,12 @@
  *
  * Depends on (modules): NONE — architecture rule
  *
- * Last modified: v3.1.14
+ * Validation:
+ *   validate_event_metadata() checks meta against schemas at write-time.
+ *   Controlled by DD_EVENT_VALIDATION_MODE constant (warn|strict|disabled).
+ *   health_check() runs a 24h diagnostic for the admin Tools page.
+ *
+ * Last modified: v3.1.16
  *
  * Event schemas loaded at runtime from:
  *   modules/tracking/event-schemas.php
@@ -65,7 +70,7 @@ class DD_Tracking_Module extends DD_Module {
     private static array $event_schemas = [];
 
     public function init(): void {
-        // Load event schema definitions (documentation now, enforced in v3.1.16).
+        // Load event schema definitions — enforced as of v3.1.16.
         if ( empty( self::$event_schemas ) ) {
             self::$event_schemas = require __DIR__ . '/event-schemas.php';
         }
@@ -239,6 +244,9 @@ class DD_Tracking_Module extends DD_Module {
 
     // ─────────────────────────────────────────
     //  RECORD EVENT
+    //  $meta arrives as a JSON string (or null).
+    //  Decoded to array for validation, then the
+    //  cleaned shape is re-encoded for INSERT.
     // ─────────────────────────────────────────
     private function record_event(
         ?int $user_id,
@@ -249,6 +257,38 @@ class DD_Tracking_Module extends DD_Module {
         ?string $meta
     ): void {
         global $wpdb;
+
+        $mode = defined( 'DD_EVENT_VALIDATION_MODE' ) ? DD_EVENT_VALIDATION_MODE : 'warn';
+
+        if ( $mode !== 'disabled' ) {
+            // Decode JSON string → array for validation.
+            $meta_array = [];
+            if ( $meta !== null ) {
+                $decoded    = json_decode( $meta, true );
+                $meta_array = is_array( $decoded ) ? $decoded : [];
+            }
+
+            $validation = self::validate_event_metadata( $event_type, $meta_array );
+
+            if ( ! $validation['valid'] ) {
+                error_log( sprintf(
+                    'DD_Tracking: metadata validation failed for [%s] — errors: %s — meta: %s',
+                    $event_type,
+                    implode( '; ', $validation['errors'] ),
+                    wp_json_encode( $meta_array )
+                ) );
+
+                if ( $mode === 'strict' ) {
+                    return; // Drop the event; never surfaces to the user.
+                }
+                // 'warn': log and insert original meta unchanged.
+            } else {
+                // Re-encode only the allowed keys (strips unexpected fields).
+                $meta = ! empty( $validation['cleaned_meta'] )
+                    ? wp_json_encode( $validation['cleaned_meta'] )
+                    : null;
+            }
+        }
 
         $wpdb->insert(
             $wpdb->prefix . 'dishdash_user_events',
@@ -372,6 +412,7 @@ class DD_Tracking_Module extends DD_Module {
     //  PUBLIC STATIC API
     //  Call from other modules via PHP:
     //  DD_Tracking_Module::track('order', null, null, ['order_id' => 123]);
+    //  $meta arrives as a raw PHP array — validated directly (no decode step).
     // ─────────────────────────────────────────
     public static function track(
         string $event_type,
@@ -383,7 +424,32 @@ class DD_Tracking_Module extends DD_Module {
 
         $user_id    = get_current_user_id() ?: null;
         $session_id = self::get_session_id();
-        $meta_json  = ! empty( $meta ) ? wp_json_encode( $meta ) : null;
+
+        $mode           = defined( 'DD_EVENT_VALIDATION_MODE' ) ? DD_EVENT_VALIDATION_MODE : 'warn';
+        $meta_to_insert = $meta;
+
+        if ( $mode !== 'disabled' ) {
+            $validation = self::validate_event_metadata( $event_type, $meta );
+
+            if ( ! $validation['valid'] ) {
+                error_log( sprintf(
+                    'DD_Tracking: metadata validation failed for [%s] — errors: %s — meta: %s',
+                    $event_type,
+                    implode( '; ', $validation['errors'] ),
+                    wp_json_encode( $meta )
+                ) );
+
+                if ( $mode === 'strict' ) {
+                    return; // Drop the event; never surfaces to the user.
+                }
+                // 'warn': log and insert original meta unchanged.
+            } else {
+                // Insert only the allowed keys (strips unexpected fields).
+                $meta_to_insert = $validation['cleaned_meta'];
+            }
+        }
+
+        $meta_json = ! empty( $meta_to_insert ) ? wp_json_encode( $meta_to_insert ) : null;
 
         $wpdb->insert(
             $wpdb->prefix . 'dishdash_user_events',
@@ -399,6 +465,183 @@ class DD_Tracking_Module extends DD_Module {
             ],
             [ '%d', '%s', '%s', '%d', '%d', '%s', '%d', '%s' ]
         );
+    }
+
+    // ─────────────────────────────────────────
+    //  VALIDATE EVENT METADATA
+    //
+    //  Validates $meta (PHP array) against the
+    //  schema for $event_type loaded from
+    //  modules/tracking/event-schemas.php.
+    //
+    //  Returns:
+    //    valid        — bool
+    //    errors       — string[] (empty on success)
+    //    cleaned_meta — array stripped to allowed keys
+    //
+    //  Fail-open rule: if $event_schemas is empty
+    //  (file missing / load error), logs a warning
+    //  and returns valid=true so tracking never
+    //  silently breaks due to a schemas file bug.
+    // ─────────────────────────────────────────
+    private static function validate_event_metadata(
+        string $event_type,
+        array $meta
+    ): array {
+        // Fail-open: schemas not loaded — allow event unchanged.
+        if ( empty( self::$event_schemas ) ) {
+            error_log(
+                'DD_Tracking: event-schemas not loaded — skipping validation for [' . $event_type . ']'
+            );
+            return [ 'valid' => true, 'errors' => [], 'cleaned_meta' => $meta ];
+        }
+
+        // Reject unknown event types.
+        if ( ! isset( self::$event_schemas[ $event_type ] ) ) {
+            return [
+                'valid'        => false,
+                'errors'       => [ "Unknown event type: {$event_type}" ],
+                'cleaned_meta' => [],
+            ];
+        }
+
+        $schema   = self::$event_schemas[ $event_type ]['metadata_schema'];
+        $required = $schema['required'] ?? [];
+        $optional = $schema['optional'] ?? [];
+        $allowed  = array_merge( $required, $optional );
+        $errors   = [];
+
+        // Check required fields are present in meta.
+        foreach ( $required as $field ) {
+            if ( ! array_key_exists( $field, $meta ) ) {
+                $errors[] = "Missing required field: {$field}";
+            }
+        }
+
+        // Strip any keys not declared in required or optional.
+        $cleaned_meta = array_intersect_key( $meta, array_flip( $allowed ) );
+
+        return [
+            'valid'        => empty( $errors ),
+            'errors'       => $errors,
+            'cleaned_meta' => $cleaned_meta,
+        ];
+    }
+
+    // ─────────────────────────────────────────
+    //  HEALTH CHECK  (called by admin Tools page)
+    //
+    //  Queries the last 24 hours of events and
+    //  returns five diagnostic metrics:
+    //    total               — total event count
+    //    by_type             — count per event_type
+    //    schema_mismatches   — rows with wrong schema_version
+    //    validation_failures — rows failing strict validation
+    //    top_errors          — top 5 error messages by count
+    //    sample_size         — how many rows were validated
+    // ─────────────────────────────────────────
+    public static function health_check(): array {
+        global $wpdb;
+
+        // Lazy-load schemas so health_check() works even when called
+        // before init() (e.g. directly from an admin page request).
+        if ( empty( self::$event_schemas ) ) {
+            $file = __DIR__ . '/event-schemas.php';
+            if ( file_exists( $file ) ) {
+                self::$event_schemas = require $file;
+            }
+        }
+
+        $table = $wpdb->prefix . 'dishdash_user_events';
+        $since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+
+        // ── 1. Total events ───────────────────
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $total = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COUNT(*) FROM {$table} WHERE created_at >= %s",
+            $since
+        ) );
+
+        // ── 2. Events by type ─────────────────
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $type_rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT event_type, COUNT(*) AS cnt
+             FROM   {$table}
+             WHERE  created_at >= %s
+             GROUP  BY event_type
+             ORDER  BY cnt DESC",
+            $since
+        ) );
+        $by_type = [];
+        foreach ( $type_rows ?: [] as $row ) {
+            $by_type[ $row->event_type ] = (int) $row->cnt;
+        }
+
+        // ── 3. Schema version mismatches ─────
+        $version_map = [
+            'view_product'     => DISHDASH_SCHEMA_VIEW_EVENT,
+            'view_category'    => DISHDASH_SCHEMA_VIEW_EVENT,
+            'page_view'        => DISHDASH_SCHEMA_VIEW_EVENT,
+            'search'           => DISHDASH_SCHEMA_SEARCH_EVENT,
+            'add_to_cart'      => DISHDASH_SCHEMA_CART_EVENT,
+            'remove_from_cart' => DISHDASH_SCHEMA_CART_EVENT,
+            'order'            => DISHDASH_SCHEMA_ORDER_EVENT,
+            'reorder'          => DISHDASH_SCHEMA_ORDER_EVENT,
+        ];
+        $schema_mismatches = 0;
+        foreach ( $version_map as $etype => $expected_v ) {
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $schema_mismatches += (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table}
+                 WHERE  created_at  >= %s
+                   AND  event_type  =  %s
+                   AND  schema_version != %d",
+                $since,
+                $etype,
+                $expected_v
+            ) );
+        }
+
+        // ── 4 & 5. Validation sample ─────────
+        // Cap at 500 rows to stay well within request time budget.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $sample = $wpdb->get_results( $wpdb->prepare(
+            "SELECT event_type, meta FROM {$table}
+             WHERE  created_at >= %s
+             LIMIT  500",
+            $since
+        ) );
+
+        $validation_failures = 0;
+        $error_tally         = [];
+
+        foreach ( $sample ?: [] as $row ) {
+            $meta_array = [];
+            if ( ! empty( $row->meta ) ) {
+                $decoded    = json_decode( $row->meta, true );
+                $meta_array = is_array( $decoded ) ? $decoded : [];
+            }
+
+            $result = self::validate_event_metadata( $row->event_type, $meta_array );
+            if ( ! $result['valid'] ) {
+                $validation_failures++;
+                foreach ( $result['errors'] as $err ) {
+                    $error_tally[ $err ] = ( $error_tally[ $err ] ?? 0 ) + 1;
+                }
+            }
+        }
+
+        arsort( $error_tally );
+        $top_errors = array_slice( $error_tally, 0, 5, true );
+
+        return [
+            'total'               => $total,
+            'by_type'             => $by_type,
+            'schema_mismatches'   => $schema_mismatches,
+            'validation_failures' => $validation_failures,
+            'sample_size'         => count( $sample ?: [] ),
+            'top_errors'          => $top_errors,
+        ];
     }
 
     // ─────────────────────────────────────────

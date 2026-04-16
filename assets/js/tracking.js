@@ -27,7 +27,7 @@
  *   - assets/js/menu-page.js (reads window.DDTrackConfig for category events)
  *   - assets/js/frontend.js  (calls DDTrack.event for homepage interactions)
  *
- * Last modified: v3.1.13
+ * Last modified: v3.1.16
  */
 (function () {
     'use strict';
@@ -180,8 +180,19 @@
         });
     }
 
+    /* ── PAGE VIEW ──────────────────────────────────────────────────────── */
+    // Fires once on page load. Provides url (required) and referrer (optional)
+    // so the meta column matches the page_view schema defined in event-schemas.php.
+    function setupPageView() {
+        fire( 'page_view', null, null, {
+            url:      window.location.href,
+            referrer: document.referrer || null,
+        });
+    }
+
     /* ── INIT ───────────────────────────────────────────────────────────── */
     function init() {
+        setupPageView();
         setupProductViews();
         setupCategoryTracking();
         setupSearchTracking();
@@ -196,12 +207,13 @@
 
     // Expose for manual tracking from other scripts
     window.DDTrack = {
-        event: fire,
+        event:        fire,
         viewProduct:  function(id, catId)     { fire('view_product',  id,   catId, null); },
         viewCategory: function(catId, slug)    { fire('view_category', null, catId, { slug: slug }); },
         addToCart:    function(id, catId)      { fire('add_to_cart',   id,   catId, { qty: 1 }); },
         search:       function(query)          { fire('search', null, null, { query: query }); },
         order:        function(orderId, total) { fire('order',  null, null, { order_id: orderId, total: total }); },
+        pageView:     function()               { fire('page_view', null, null, { url: window.location.href, referrer: document.referrer || null }); },
     };
 
 })();

@@ -3,7 +3,7 @@
  * Plugin Name:       Dish Dash
  * Plugin URI:        https://frisoftltd.com/dish-dash
  * Description:       A complete restaurant ordering & management system built on WordPress and WooCommerce.
- * Version:           3.1.15
+ * Version:           3.1.16
  * Author:            Fri Soft Ltd
  * Author URI:        https://frisoft.rw
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@
  *   DD_PLUGIN_BASENAME, DD_MODULES_DIR, DD_TEMPLATES_DIR,
  *   DD_ASSETS_URL, DD_GITHUB_REPO, DD_GITHUB_TOKEN
  *
- * Last modified: v3.1.15
+ * Last modified: v3.1.16
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -45,7 +45,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────
-define( 'DD_VERSION',         '3.1.15' );
+define( 'DD_VERSION',         '3.1.16' );
 define( 'DD_PLUGIN_FILE',     __FILE__ );
 define( 'DD_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'DD_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
@@ -69,6 +69,20 @@ define( 'DISHDASH_SCHEMA_VIEW_EVENT',   1 );
 define( 'DISHDASH_SCHEMA_SEARCH_EVENT', 1 );
 define( 'DISHDASH_SCHEMA_CART_EVENT',   1 );
 define( 'DISHDASH_SCHEMA_ORDER_EVENT',  1 );
+
+// ─────────────────────────────────────────────
+//  TRACKING EVENT METADATA VALIDATION MODE
+//  Controls how DD_Tracking_Module handles meta
+//  that fails schema validation at write-time.
+//
+//  'warn'     — Log failures, insert event anyway (default — safe for all envs)
+//  'strict'   — Log failures, DROP the event (enforce data quality)
+//  'disabled' — No validation, no logging (instant rollback option)
+//
+//  Ship at 'warn'. Watch error_log for false positives, then flip to
+//  'strict' once logs confirm all real events pass validation.
+// ─────────────────────────────────────────────
+define( 'DD_EVENT_VALIDATION_MODE', 'warn' );
 
 // ─────────────────────────────────────────────
 //  GITHUB UPDATER CONFIGURATION
