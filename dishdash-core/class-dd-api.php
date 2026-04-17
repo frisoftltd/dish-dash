@@ -297,6 +297,16 @@ class DD_API {
         return self::get_category( $slug );
     }
 
+    /**
+     * Convenience alias for get_all_categories().
+     * Used by templates (grid.php) and the mobile JS data layer.
+     *
+     * @return array  Array of normalized category arrays.
+     */
+    public static function get_categories(): array {
+        return self::get_all_categories();
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     //  EVENT METHODS
     // ─────────────────────────────────────────────────────────────────────────
