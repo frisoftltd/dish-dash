@@ -88,11 +88,12 @@ WooCommerce (payment processing)
 
 ### Roles
 
+### Roles
 | Role | Responsibilities |
 |---|---|
-| **Claude** (planning AI) | Planning, design, reasoning, engineering, review, release notes |
-| **DeepSeek** (coding AI) | Investigation, coding, complete file changes, reporting findings |
-| **Developer** (human) | GitHub commits, releases, deployment, testing, feedback |
+| **Claude** (claude.ai) | Planning, design, review, release notes |
+| **Claude Code** (terminal) | Investigation, coding, git commits, push |
+| **Developer** (human) | GitHub releases, deployment, testing, feedback |
 
 ### The Loop
 
@@ -376,3 +377,13 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-14 | docs only | Architecture docs (5 files), file headers (56 files) |
 | 2026-04-14/16 | v3.1.14 → v3.1.17 | Python-migration foundation (schema versioning, DD_API, validation, health check, schema alignment) |
 | **NEXT** | **v3.2.0+** | **Mobile version of /restaurant-menu/** |
+
+
+## ⚡ Claude Code Operating Rules
+
+1. Always start in Plan Mode: `claude --permission-mode plan`
+2. Analyze first, never edit without approval
+3. Use @mentions for exact files — never read whole codebase
+4. Run /compact between tasks
+5. After every task: git add + commit + push origin HEAD:main
+6. Be concise — root cause, files changed, test steps only
