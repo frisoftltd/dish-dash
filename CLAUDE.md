@@ -386,4 +386,8 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 3. Use @mentions for exact files — never read whole codebase
 4. Run /compact between tasks
 5. After every task: git add + commit + push origin HEAD:main
+<<<<<<< Updated upstream
 6. Be concise — root cause, files changed, test steps only
+=======
+6. Be concise — root cause, files changed, test steps only
+>>>>>>> Stashed changes
