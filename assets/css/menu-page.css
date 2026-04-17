@@ -24,8 +24,8 @@
  * Last modified: v3.1.13
  */
 /* Hide desktop layout on mobile, hide mobile layout on desktop */
-.dd-menu-page--desktop { display: none; }
-@media (min-width: 768px) { .dd-mobile-app { display: none; } }
+.dd-menu-page--desktop { display: none !important; }
+@media (min-width: 768px) { .dd-mobile-app { display: none !important; } }
 
 @media (max-width: 767px) {
   /* Hide desktop wrapper on mobile */
