@@ -29,7 +29,7 @@
  *   .dd-menu-container, .dd-menu-cats, .dd-menu-cat.is-active,
  *   .dd-menu-grid-section, .dd-menu-grid
  *
- * Last modified: v3.1.13
+ * Last modified: v3.1.18
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -164,436 +164,174 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
     </div>
 </div>
 
-<!-- ═══ MOBILE LAYOUT (unchanged) ════════════════════════════════════ -->
-<div class="dd-menu-page dd-menu-page--mobile">
+<!-- ═══ NEW MOBILE LAYOUT (3-screen app) ═══════════════════════════════ -->
+<div class="dd-mobile-app" aria-hidden="true">
 
-<div class="dd-menu-page" style="--dd-primary:<?php echo esc_attr($primary); ?>;--dd-dark:<?php echo esc_attr($dark); ?>;">
+  <!-- SCREEN 1: Category List -->
+  <div class="dd-mobile-screen dd-mobile-screen--categories is-active" role="main">
 
-    <?php if ( $show_search || $show_filter ) : ?>
-    <!-- ── Controls ───────────────────────────────────────────── -->
-    <div class="dd-menu-controls">
+    <!-- Header -->
+    <div class="dd-mobile-header">
+      <span class="dd-mobile-header__title">Menu</span>
+      <a href="/cart/" class="dd-mobile-header__cart-icon" aria-label="Cart">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <span class="dd-mobile-cart-badge">0</span>
+      </a>
+    </div>
 
-        <?php if ( $show_search ) : ?>
-        <div class="dd-menu-search-wrap">
-            <span class="dd-menu-search-icon">&#128269;</span>
-            <input
-                type="search"
-                id="ddMenuSearch"
-                class="dd-menu-search-input"
-                placeholder="Search dishes..."
-                autocomplete="off"
-                aria-label="Search dishes">
-            <button class="dd-menu-search-clear" id="ddMenuSearchClear" aria-label="Clear search" style="display:none;">&#10005;</button>
+    <!-- Hero text -->
+    <div class="dd-mobile-hero">
+      <h1>Choose Your Food <span class="dd-mobile-hero__today">Today</span></h1>
+    </div>
+
+    <!-- Search bar -->
+    <div class="dd-mobile-search">
+      <input type="text" placeholder="Find your favourite food" class="dd-mobile-search__input" />
+      <button class="dd-mobile-search__filter-btn" aria-label="Filter">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      </button>
+    </div>
+
+    <!-- Category list -->
+    <div class="dd-mobile-section-label">Food Category</div>
+    <ul class="dd-mobile-category-list" id="dd-mobile-cat-list">
+      <?php foreach ( $categories as $cat ) : 
+        $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
+        $thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : '';
+      ?>
+      <li class="dd-mobile-category-item" data-cat-id="<?php echo $cat->term_id; ?>" data-cat-slug="<?php echo $cat->slug; ?>">
+        <div class="dd-mobile-category-item__image">
+          <img src="<?php echo $thumb_url; ?>" alt="<?php echo $cat->name; ?>" loading="lazy" />
         </div>
-        <?php endif; ?>
-
-        <?php if ( $show_filter && ! empty( $categories ) ) : ?>
-        <div class="dd-menu-filters" id="ddMenuFilters" role="tablist" aria-label="Filter by category">
-            <button class="dd-menu-filter-btn active"
-                    data-slug=""
-                    data-term-id=""
-                    role="tab"
-                    aria-selected="true">
-                All
-            </button>
-            <?php foreach ( $categories as $cat ) : ?>
-            <button class="dd-menu-filter-btn"
-                    data-slug="<?php echo esc_attr( $cat->slug ); ?>"
-                    data-term-id="<?php echo esc_attr( $cat->term_id ); ?>"
-                    role="tab"
-                    aria-selected="false">
-                <?php echo esc_html( $cat->name ); ?>
-                <span class="dd-menu-filter-count"><?php echo (int) $cat->count; ?></span>
-            </button>
-            <?php endforeach; ?>
+        <div class="dd-mobile-category-item__info">
+          <span class="dd-mobile-category-item__name"><?php echo $cat->name; ?></span>
+          <span class="dd-mobile-category-item__count"><?php echo $cat->count; ?> Items</span>
         </div>
-        <?php endif; ?>
+        <span class="dd-mobile-category-item__arrow">›</span>
+      </li>
+      <?php endforeach; ?>
+    </ul>
+  </div><!-- /screen--categories -->
 
-    </div>
-    <?php endif; ?>
-
-    <!-- ── Count ──────────────────────────────────────────────── -->
-    <div class="dd-menu-meta">
-        <span id="ddMenuCount"><?php echo (int) $items->found_posts; ?></span> dishes
-    </div>
-
-    <!-- ── Product list ───────────────────────────────────────── -->
-    <?php if ( $items->have_posts() ) : ?>
-    <div class="dd-menu-list" id="ddMenuList">
-
-        <?php while ( $items->have_posts() ) : $items->the_post();
-            global $product;
-            if ( ! $product ) $product = wc_get_product( get_the_ID() );
-            if ( ! $product )  continue;
-
-            $id        = $product->get_id();
-            $name      = $product->get_name();
-            $raw_price = (float) $product->get_price();
-            $price     = $raw_price ? 'RWF ' . number_format( $raw_price, 0, '.', ',' ) : '';
-
-            $short = $product->get_short_description();
-            $long  = $product->get_description();
-            $desc  = wp_trim_words( strip_tags( $short ?: $long ), 12, '...' );
-
-            $img_id  = $product->get_image_id();
-            $img_url = $img_id
-                ? wp_get_attachment_image_url( $img_id, 'thumbnail' )
-                : ( function_exists('wc_placeholder_img_src') ? wc_placeholder_img_src('thumbnail') : '' );
-
-            $item_cats    = $product_cats[ $id ] ?? [];
-            $cat_slugs    = implode( ',', array_column( $item_cats, 'slug' ) );
-            $first_cat_id = ! empty( $item_cats ) ? $item_cats[0]->term_id : '';
-        ?>
-
-        <article class="dd-menu-item"
-                 data-id="<?php echo esc_attr( $id ); ?>"
-                 data-name="<?php echo esc_attr( strtolower( $name ) ); ?>"
-                 data-slugs="<?php echo esc_attr( $cat_slugs ); ?>"
-                 data-cat-id="<?php echo esc_attr( $first_cat_id ); ?>">
-
-            <?php if ( $img_url ) : ?>
-            <div class="dd-menu-item__img">
-                <img src="<?php echo esc_url( $img_url ); ?>"
-                     alt="<?php echo esc_attr( $name ); ?>"
-                     loading="lazy"
-                     width="80" height="80">
-            </div>
-            <?php endif; ?>
-
-            <div class="dd-menu-item__body">
-                <h3 class="dd-menu-item__name"><?php echo esc_html( $name ); ?></h3>
-                <?php if ( $desc ) : ?>
-                <p class="dd-menu-item__desc"><?php echo esc_html( $desc ); ?></p>
-                <?php endif; ?>
-                <div class="dd-menu-item__footer">
-                    <span class="dd-menu-item__price"><?php echo esc_html( $price ); ?></span>
-                    <button class="dd-btn dd-btn--brand dd-btn--sm dd-add-btn dd-menu-add-btn"
-                            data-id="<?php echo esc_attr( $id ); ?>"
-                            data-nonce="<?php echo esc_attr( $nonce ); ?>"
-                            aria-label="Add <?php echo esc_attr( $name ); ?> to cart">
-                        + Add
-                    </button>
-                </div>
-            </div>
-
-        </article>
-
-        <?php endwhile; wp_reset_postdata(); ?>
-
+  <!-- SCREEN 2: Product List -->
+  <div class="dd-mobile-screen dd-mobile-screen--products" role="main" aria-hidden="true">
+    <!-- Header -->
+    <div class="dd-mobile-header">
+      <button class="dd-mobile-header__back" id="dd-mobile-back-to-cats" aria-label="Back">‹</button>
+      <span class="dd-mobile-header__title">Menu</span>
+      <div class="dd-mobile-header__actions">
+        <button class="dd-mobile-header__search-btn" aria-label="Search">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <a href="/cart/" class="dd-mobile-header__cart-icon" aria-label="Cart">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          <span class="dd-mobile-cart-badge">0</span>
+        </a>
+      </div>
     </div>
 
-    <div class="dd-menu-empty" id="ddMenuEmpty" style="display:none;">
-        <span>&#128372;</span>
-        <p>No dishes found.</p>
-        <button class="dd-btn dd-btn--outline" id="ddMenuReset">Show all dishes</button>
+    <!-- Category pill tabs (horizontal scroll, no arrows) -->
+    <div class="dd-mobile-cat-pills" id="dd-mobile-cat-pills">
+      <?php foreach ( $categories as $i => $cat ) : ?>
+        <button class="dd-mobile-cat-pill<?php echo $i === 0 ? ' is-active' : ''; ?>" data-cat-id="<?php echo $cat->term_id; ?>">
+          <?php echo $cat->name; ?>
+        </button>
+      <?php endforeach; ?>
     </div>
 
-    <?php else : ?>
-    <div class="dd-menu-empty">
-        <span>&#128372;</span>
-        <p>No dishes available yet.</p>
+    <!-- Product cards list -->
+    <ul class="dd-mobile-product-list" id="dd-mobile-product-list">
+      <!-- Rendered dynamically via JS from DD_API data -->
+    </ul>
+  </div><!-- /screen--products -->
+
+  <!-- SCREEN 3: Single Product -->
+  <div class="dd-mobile-screen dd-mobile-screen--single" role="main" aria-hidden="true">
+    <!-- Hero image fills top ~45% of screen -->
+    <div class="dd-mobile-single__hero">
+      <img src="" alt="" id="dd-mobile-single-hero-img" />
+      <button class="dd-mobile-single__back" id="dd-mobile-back-to-products" aria-label="Back">‹</button>
+      <button class="dd-mobile-single__heart" id="dd-mobile-single-heart" aria-label="Favourite">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+      <!-- Quantity selector overlaid bottom-right of image -->
+      <div class="dd-mobile-single__qty">
+        <button class="dd-mobile-single__qty-btn dd-mobile-single__qty-btn--minus" id="dd-mobile-qty-minus">−</button>
+        <span class="dd-mobile-single__qty-count" id="dd-mobile-qty-count">1</span>
+        <button class="dd-mobile-single__qty-btn dd-mobile-single__qty-btn--plus" id="dd-mobile-qty-plus">+</button>
+      </div>
     </div>
-    <?php endif; ?>
 
-</div><!-- /.dd-menu-page (mobile inner) -->
+    <!-- Content panel (scrollable) -->
+    <div class="dd-mobile-single__content">
+      <div class="dd-mobile-single__title-row">
+        <div>
+          <h2 class="dd-mobile-single__name" id="dd-mobile-single-name"></h2>
+          <div class="dd-mobile-single__meta">
+            <span class="dd-mobile-single__rating" id="dd-mobile-single-rating"></span>
+            <span class="dd-mobile-single__prep-time" id="dd-mobile-single-prep"></span>
+          </div>
+        </div>
+        <div class="dd-mobile-single__price" id="dd-mobile-single-price"></div>
+      </div>
 
-</div><!-- /.dd-menu-page--mobile -->
+      <!-- WooCommerce Attributes (only renders if product has attributes) -->
+      <div class="dd-mobile-single__attributes" id="dd-mobile-single-attrs"></div>
 
-<style>
-.dd-menu-page {
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 0 0 40px;
-    font-family: 'Inter', system-ui, sans-serif;
-}
+      <!-- Description -->
+      <div class="dd-mobile-single__description-wrap">
+        <h3 class="dd-mobile-single__section-label">Description</h3>
+        <p class="dd-mobile-single__description" id="dd-mobile-single-desc"></p>
+        <button class="dd-mobile-single__read-more" id="dd-mobile-read-more">Read more</button>
+      </div>
 
-/* Controls sticky bar */
-.dd-menu-controls {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: transparent;
-    padding: 12px 0 8px;
-    margin-bottom: 4px;
-}
+      <!-- Add to Cart -->
+      <button class="dd-mobile-single__add-to-cart" id="dd-mobile-add-to-cart">
+        Add To Cart <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      </button>
+    </div>
+  </div><!-- /screen--single -->
 
-/* Search — transparent, no white box */
-.dd-menu-search-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-    background: transparent;
-    border: 1.5px solid rgba(107, 29, 29, 0.18);
-    border-radius: 999px;
-    padding: 0 16px;
-    height: 50px;
-    margin-bottom: 12px;
-    transition: border-color .2s, box-shadow .2s;
-}
-.dd-menu-search-wrap:focus-within {
-    border-color: var(--dd-primary, #6B1D1D);
-    box-shadow: 0 0 0 3px rgba(107,29,29,.07);
-}
-.dd-menu-search-icon {
-    font-size: 16px;
-    margin-right: 8px;
-    opacity: .4;
-    flex-shrink: 0;
-}
-.dd-menu-search-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    padding: 0;
-    font-size: 15px;
-    color: #221B19;
-    min-width: 0;
-    -webkit-appearance: none;
-    appearance: none;
-}
-.dd-menu-search-input::placeholder { color: #aaa; }
-.dd-menu-search-input::-webkit-search-cancel-button { display: none; }
-.dd-menu-search-clear {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 13px;
-    color: #aaa;
-    padding: 4px;
-    flex-shrink: 0;
-}
+  <!-- Fixed Bottom Navigation (always visible on mobile) -->
+  <nav class="dd-bottom-nav" role="navigation" aria-label="Main navigation">
+    <a href="/" class="dd-bottom-nav__item" data-page="home">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </a>
+    <a href="/restaurant-menu/" class="dd-bottom-nav__item dd-bottom-nav__item--active" data-page="menu">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span>Menu</span>
+    </a>
+    <a href="/cart/" class="dd-bottom-nav__item" data-page="cart">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+      <span class="dd-bottom-nav__badge" id="dd-bottom-nav-cart-count">0</span>
+      <span>My Cart</span>
+    </a>
+    <a href="/my-account/" class="dd-bottom-nav__item" data-page="profile">
+      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </a>
+  </nav>
 
-/* Filter pills */
-.dd-menu-filters {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-}
-.dd-menu-filters::-webkit-scrollbar { display: none; }
+</div><!-- /dd-mobile-app -->
 
-.dd-menu-filter-btn {
-    flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 7px 16px;
-    border-radius: 999px;
-    border: 1.5px solid rgba(107,29,29,0.12);
-    background: transparent;
-    font-size: 13px;
-    font-weight: 600;
-    color: #4a3728;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all .18s;
-    font-family: 'Inter', system-ui, sans-serif;
-}
-.dd-menu-filter-btn:hover {
-    border-color: var(--dd-primary, #6B1D1D);
-    color: var(--dd-primary, #6B1D1D);
-}
-.dd-menu-filter-btn.active {
-    background: transparent;
-    border-color: var(--dd-primary, #6B1D1D);
-    color: var(--dd-primary, #6B1D1D);
-    font-weight: 700;
-}
-.dd-menu-filter-count {
-    font-size: 11px;
-    opacity: .65;
-}
+<?php
+// ─── Pass data to JS ───────────────────────────────────────────────────────
+$_dd_user_id        = get_current_user_id();
+$_dd_is_logged_in   = is_user_logged_in();
+$_dd_user_favorites = $_dd_is_logged_in
+    ? (array) get_user_meta( $_dd_user_id, 'dd_favorites', true )
+    : [];
 
-/* Meta */
-.dd-menu-meta {
-    font-size: 12px;
-    color: #999;
-    padding: 4px 0 12px;
-    font-weight: 500;
-}
-
-/* List container */
-.dd-menu-list {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    background: rgba(107,29,29,0.08);
-    border-radius: 16px;
-    overflow: hidden;
-    border: 1px solid rgba(107,29,29,0.08);
-}
-
-/* Item row */
-.dd-menu-item {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    background: #fff;
-    padding: 14px 16px;
-    transition: background .15s;
-}
-.dd-menu-item:hover { background: #fdfaf7; }
-.dd-menu-item[hidden] { display: none !important; }
-
-/* Image */
-.dd-menu-item__img {
-    flex-shrink: 0;
-    width: 72px;
-    height: 72px;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #f5efe6;
-}
-.dd-menu-item__img img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-/* Body */
-.dd-menu-item__body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-.dd-menu-item__name {
-    font-size: 15px;
-    font-weight: 700;
-    color: #221B19;
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.dd-menu-item__desc {
-    font-size: 12px;
-    color: #999;
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.dd-menu-item__footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 6px;
-    gap: 8px;
-}
-.dd-menu-item__price {
-    font-size: 14px;
-    font-weight: 800;
-    color: var(--dd-primary, #6B1D1D);
-}
-.dd-menu-add-btn {
-    flex-shrink: 0;
-    padding: 7px 16px !important;
-    font-size: 13px !important;
-    border-radius: 999px !important;
-}
-
-/* Empty state */
-.dd-menu-empty {
-    text-align: center;
-    padding: 48px 20px;
-    color: #999;
-}
-.dd-menu-empty span { font-size: 48px; display: block; margin-bottom: 12px; }
-.dd-menu-empty p { font-size: 15px; margin: 0 0 16px; }
-
-@media (max-width: 480px) {
-    .dd-menu-item__img { width: 60px; height: 60px; }
-    .dd-menu-item__name { font-size: 14px; }
-    .dd-menu-item { padding: 12px; gap: 10px; }
-}
-</style>
-
-<script>
-(function() {
-    var list    = document.getElementById('ddMenuList');
-    var filters = document.getElementById('ddMenuFilters');
-    var search  = document.getElementById('ddMenuSearch');
-    var clearBtn= document.getElementById('ddMenuSearchClear');
-    var countEl = document.getElementById('ddMenuCount');
-    var emptyEl = document.getElementById('ddMenuEmpty');
-    var resetBtn= document.getElementById('ddMenuReset');
-
-    if (!list) return;
-
-    var allItems     = Array.from(list.querySelectorAll('.dd-menu-item'));
-    var activeSlug   = '';
-    var activeSearch = '';
-
-    function updateCount() {
-        var visible = allItems.filter(function(i) { return !i.hidden; }).length;
-        if (countEl) countEl.textContent = visible;
-        if (emptyEl) emptyEl.style.display = visible === 0 ? '' : 'none';
-    }
-
-    function applyFilters() {
-        allItems.forEach(function(item) {
-            var slugs = (item.dataset.slugs || '').split(',');
-            var name  = item.dataset.name || '';
-            var catOk = !activeSlug || slugs.indexOf(activeSlug) !== -1;
-            var srcOk = !activeSearch || name.indexOf(activeSearch) !== -1;
-            item.hidden = !(catOk && srcOk);
-        });
-        updateCount();
-    }
-
-    if (filters) {
-        filters.addEventListener('click', function(e) {
-            var btn = e.target.closest('.dd-menu-filter-btn');
-            if (!btn) return;
-            Array.from(filters.querySelectorAll('.dd-menu-filter-btn')).forEach(function(b) {
-                b.classList.remove('active');
-                b.setAttribute('aria-selected', 'false');
-            });
-            btn.classList.add('active');
-            btn.setAttribute('aria-selected', 'true');
-            activeSlug = btn.dataset.slug || '';
-            applyFilters();
-        });
-    }
-
-    if (search) {
-        search.addEventListener('input', function() {
-            activeSearch = this.value.trim().toLowerCase();
-            if (clearBtn) clearBtn.style.display = activeSearch ? '' : 'none';
-            applyFilters();
-        });
-    }
-
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function() {
-            if (search) { search.value = ''; search.focus(); }
-            activeSearch = '';
-            this.style.display = 'none';
-            applyFilters();
-        });
-    }
-
-    if (resetBtn) {
-        resetBtn.addEventListener('click', function() {
-            activeSlug = activeSearch = '';
-            if (search) search.value = '';
-            if (clearBtn) clearBtn.style.display = 'none';
-            if (filters) {
-                Array.from(filters.querySelectorAll('.dd-menu-filter-btn')).forEach(function(b, i) {
-                    b.classList.toggle('active', i === 0);
-                    b.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
-                });
-            }
-            applyFilters();
-        });
-    }
-
-    updateCount();
-})();
-</script>
+wp_localize_script( 'dd-menu-page', 'DD_MOBILE_DATA', [
+    'categories'     => DD_API::get_categories(),
+    'products'       => DD_API::get_products( [ 'limit' => -1 ] ),
+    'cart_url'       => wc_get_cart_url(),
+    'account_url'    => get_permalink( get_option( 'woocommerce_myaccount_page_id' ) ),
+    'home_url'       => home_url( '/' ),
+    'nonce'          => wp_create_nonce( 'dd_mobile_nonce' ),
+    'ajax_url'       => admin_url( 'admin-ajax.php' ),
+    'is_logged_in'   => $_dd_is_logged_in,
+    'user_favorites' => array_values( array_filter( array_map( 'intval', $_dd_user_favorites ) ) ),
+    'cart_count'     => function_exists( 'WC' ) ? (int) WC()->cart->get_cart_contents_count() : 0,
+] );

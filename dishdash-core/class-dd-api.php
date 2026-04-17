@@ -526,15 +526,39 @@ class DD_API {
             $product->get_gallery_image_ids()
         ) ) );
 
-        $raw_terms  = get_the_terms( $product->get_id(), 'product_cat' ) ?: [];
-        $categories = array_values( array_map(
+        $raw_terms    = get_the_terms( $product->get_id(), 'product_cat' ) ?: [];
+        $categories   = array_values( array_map(
             fn( WP_Term $t ) => [ 'id' => $t->term_id, 'slug' => $t->slug, 'name' => $t->name ],
             $raw_terms
         ) );
+        $category_ids = array_values( array_map( fn( WP_Term $t ) => $t->term_id, $raw_terms ) );
 
         $currency   = DD_Settings::get( 'currency_symbol', 'RWF' );
         $created_dt = $product->get_date_created();
         $updated_dt = $product->get_date_modified();
+
+        // Prep time — stored as custom post meta by DD_Menu_Module.
+        $prep_time = (int) get_post_meta( $product->get_id(), '_dd_prep_time', true );
+
+        // Rating — WooCommerce average rating (string → float).
+        $rating = (float) $product->get_average_rating();
+
+        // is_simple — true when product type is 'simple' (no variant selection required).
+        $is_simple = $product->is_type( 'simple' );
+
+        // Attributes — normalized for mobile UI variant pickers.
+        $raw_attributes = $product->get_attributes();
+        $attributes     = [];
+        foreach ( $raw_attributes as $attr ) {
+            if ( ! $attr->get_visible() ) continue;
+            $options = $attr->is_taxonomy()
+                ? wc_get_product_terms( $product->get_id(), $attr->get_name(), [ 'fields' => 'names' ] )
+                : $attr->get_options();
+            $attributes[] = [
+                'name'    => wc_attribute_label( $attr->get_name(), $product ),
+                'options' => array_values( (array) $options ),
+            ];
+        }
 
         return [
             'id'                  => $product->get_id(),
@@ -549,10 +573,15 @@ class DD_API {
             'image_thumbnail_url' => $image_thumbnail_url,
             'gallery_urls'        => $gallery_urls,
             'categories'          => $categories,
+            'category_ids'        => $category_ids,
             'in_stock'            => $product->is_in_stock(),
             'permalink'           => (string) get_permalink( $product->get_id() ),
             'created_at'          => $created_dt ? $created_dt->format( 'c' ) : '',
             'updated_at'          => $updated_dt ? $updated_dt->format( 'c' ) : '',
+            'prep_time'           => $prep_time ?: null,
+            'rating'              => $rating,
+            'is_simple'           => $is_simple,
+            'attributes'          => $attributes,
         ];
     }
 

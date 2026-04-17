@@ -58,6 +58,91 @@ class DD_Menu_Module extends DD_Module {
         // Desktop menu page: AJAX product loader
         add_action( 'wp_ajax_dd_menu_load_products',        [ $this, 'ajax_load_products' ] );
         add_action( 'wp_ajax_nopriv_dd_menu_load_products', [ $this, 'ajax_load_products' ] );
+
+        // Prep Time meta field — product edit screen
+        add_action( 'woocommerce_product_options_general_product_data', [ $this, 'render_prep_time_field' ] );
+        add_action( 'woocommerce_process_product_meta',                  [ $this, 'save_prep_time_field' ] );
+
+        // Mobile: save favorites AJAX endpoint
+        add_action( 'wp_ajax_dd_save_favorites',        [ $this, 'ajax_save_favorites' ] );
+        add_action( 'wp_ajax_nopriv_dd_save_favorites', [ $this, 'ajax_save_favorites' ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  PREP TIME META FIELD
+    // ─────────────────────────────────────────
+
+    /**
+     * Render the Prep Time input on the WooCommerce product General tab.
+     * Stored as post meta under _dd_prep_time (minutes, integer).
+     */
+    public function render_prep_time_field(): void {
+        global $post;
+        $prep_time = get_post_meta( $post->ID, '_dd_prep_time', true );
+        woocommerce_wp_text_input( [
+            'id'          => '_dd_prep_time',
+            'label'       => __( 'Prep Time (minutes)', 'dish-dash' ),
+            'description' => __( 'Estimated preparation time shown on the mobile menu.', 'dish-dash' ),
+            'desc_tip'    => true,
+            'type'        => 'number',
+            'value'       => $prep_time ? esc_attr( $prep_time ) : '',
+            'custom_attributes' => [
+                'min'  => '1',
+                'step' => '1',
+            ],
+        ] );
+    }
+
+    /**
+     * Save the Prep Time meta value when the product is saved.
+     *
+     * @param int $post_id  WooCommerce product post ID.
+     */
+    public function save_prep_time_field( int $post_id ): void {
+        $prep_time = isset( $_POST['_dd_prep_time'] ) ? absint( $_POST['_dd_prep_time'] ) : 0;
+        if ( $prep_time > 0 ) {
+            update_post_meta( $post_id, '_dd_prep_time', $prep_time );
+        } else {
+            delete_post_meta( $post_id, '_dd_prep_time' );
+        }
+    }
+
+    // ─────────────────────────────────────────
+    //  MOBILE: SAVE FAVORITES AJAX
+    // ─────────────────────────────────────────
+
+    /**
+     * AJAX handler for dd_save_favorites.
+     * Persists the user's favorited product IDs to user meta (logged-in)
+     * or a session transient (guest).
+     * Accepts: nonce, favorites (JSON array of product IDs).
+     */
+    public function ajax_save_favorites(): void {
+        $nonce = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+        if ( ! wp_verify_nonce( $nonce, 'dd_mobile_nonce' ) ) {
+            wp_send_json_error( [ 'message' => 'Security check failed' ], 403 );
+        }
+
+        $raw_favorites = isset( $_POST['favorites'] ) ? wp_unslash( $_POST['favorites'] ) : '[]';
+        $favorites     = json_decode( $raw_favorites, true );
+
+        if ( ! is_array( $favorites ) ) {
+            wp_send_json_error( [ 'message' => 'Invalid favorites data' ], 400 );
+        }
+
+        // Sanitize: only allow positive integers
+        $favorites = array_values( array_filter( array_map( 'absint', $favorites ) ) );
+
+        if ( is_user_logged_in() ) {
+            // Persist to user meta for logged-in users
+            update_user_meta( get_current_user_id(), 'dd_favorites', $favorites );
+        } else {
+            // Persist to a session transient for guests (keyed by session cookie)
+            $session_key = 'dd_fav_' . md5( $_COOKIE['dd_session'] ?? wp_generate_uuid4() );
+            set_transient( $session_key, $favorites, DAY_IN_SECONDS );
+        }
+
+        wp_send_json_success( [ 'favorites' => $favorites ] );
     }
 
     // ─────────────────────────────────────────
