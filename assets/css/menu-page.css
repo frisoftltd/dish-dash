@@ -641,6 +641,41 @@
   /* dd-bottom-badge: hide when count is 0 */
   .dd-bottom-badge[data-count="0"] { display: none; }
 
+  /* ── Screen 2 header: back + centered logo + spacer ── */
+  .dd-mobile-header--with-back {
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* ── Screen 3: Related products ── */
+  .dd-mobile-single__related { margin-top: 24px; padding-bottom: 16px; }
+  .dd-mobile-single__related-title { padding: 0 20px 12px; }
+  .dd-mobile-related-list {
+    list-style: none; margin: 0; padding: 0 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .dd-mobile-related-card {
+    display: flex; align-items: center; gap: 12px;
+    background: #fff; border-radius: 14px; padding: 10px;
+    cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .dd-mobile-related-card__img-wrap {
+    width: 70px; height: 70px; border-radius: 10px;
+    overflow: hidden; flex-shrink: 0; background: #f0e8de;
+  }
+  .dd-mobile-related-card__img-wrap img {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .dd-mobile-related-card__info {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .dd-mobile-related-card__name {
+    font-size: 14px; font-weight: 600; color: #1a1a1a; line-height: 1.3;
+  }
+  .dd-mobile-related-card__price {
+    font-size: 13px; font-weight: 700; color: #E8832A;
+  }
+
   /* Hide .dd-mobile-app on desktop (redundant safety) */
   /* This rule lives INSIDE the @media block — already scoped */
 }

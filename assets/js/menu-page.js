@@ -429,6 +429,13 @@ class DDMobileMenu {
     }
 
     showProductDetails(productId) {
+        // Always fully initialise currentProduct before any early return
+        this.currentProduct = {
+            id: parseInt(productId),
+            selectedAttributes: {},
+            requiredSelections: 0
+        };
+
         if (!this.products) return;
 
         const product = this.products.find(p => p.id === parseInt(productId));
@@ -490,6 +497,49 @@ class DDMobileMenu {
         }
 
         this.showScreen('single');
+        this.renderRelatedProducts(product);
+    }
+
+    renderRelatedProducts(product) {
+        const relatedContainer = document.getElementById('dd-mobile-related');
+        const relatedList = document.getElementById('dd-mobile-related-list');
+        if (!relatedList || !this.products) return;
+
+        const sameCat = this.products.filter(p =>
+            p.id !== parseInt(product.id) &&
+            p.category_ids.some(id => product.category_ids.includes(id))
+        );
+        const shuffled = sameCat.sort(() => Math.random() - 0.5).slice(0, 8);
+
+        if (shuffled.length === 0) {
+            relatedContainer.style.display = 'none';
+            return;
+        }
+        relatedContainer.style.display = '';
+
+        relatedList.innerHTML = shuffled.map(p => `
+            <li class="dd-mobile-related-card" data-id="${p.id}">
+                <div class="dd-mobile-related-card__img-wrap">
+                    <img src="${p.image_url || p.image_thumbnail_url || ''}"
+                         alt="${p.name}" loading="lazy"
+                         onerror="this.style.opacity='0'" />
+                </div>
+                <div class="dd-mobile-related-card__info">
+                    <span class="dd-mobile-related-card__name">${p.name}</span>
+                    <span class="dd-mobile-related-card__price">RWF ${p.price.toLocaleString()}</span>
+                </div>
+            </li>
+        `).join('');
+
+        // Clone to remove any previously attached listeners before re-adding
+        const newList = relatedList.cloneNode(true);
+        relatedList.parentNode.replaceChild(newList, relatedList);
+        newList.addEventListener('click', (e) => {
+            const card = e.target.closest('.dd-mobile-related-card');
+            if (!card) return;
+            this.currentProduct = { id: card.dataset.id, selectedAttributes: {} };
+            this.showProductDetails(card.dataset.id);
+        });
     }
 
     toggleFavorite(productId) {
@@ -534,6 +584,7 @@ class DDMobileMenu {
         fetch(DD_MOBILE_DATA.ajax_url, { method: 'POST', body: formData })
             .then(r => r.json())
             .then(data => {
+                console.log('[DD Cart] response:', JSON.stringify(data));
                 if (btn) {
                     btn.disabled = false;
                     btn.innerHTML = 'Add To Cart <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>';
@@ -548,12 +599,19 @@ class DDMobileMenu {
                 }
             })
             .catch(err => {
+                console.error('[DD Cart] fetch error:', err);
                 if (btn) { btn.disabled = false; }
-                console.error('Add to cart error', err);
             });
     }
 
     addToCart() {
+        console.log('[DD Cart] currentProduct:', JSON.stringify(this.currentProduct));
+        console.log('[DD Cart] ajax_url:', DD_MOBILE_DATA.ajax_url);
+        console.log('[DD Cart] cart_nonce:', DD_MOBILE_DATA.cart_nonce);
+        if (!this.currentProduct || !this.currentProduct.id) {
+            console.error('[DD Cart] No current product set');
+            return;
+        }
         const qty = parseInt(this.elements.singleProduct.qtyCount.textContent);
         this.addToCartById(
             this.currentProduct.id,

@@ -224,15 +224,19 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
 
   <!-- SCREEN 2: Product List -->
   <div class="dd-mobile-screen dd-mobile-screen--products" role="main" aria-hidden="true">
-    <!-- Header: back button + restaurant name + search button (no cart icon) -->
-    <div class="dd-mobile-header">
+    <!-- Header: back button + centered logo + spacer for balance -->
+    <div class="dd-mobile-header dd-mobile-header--with-back">
       <button class="dd-mobile-header__back" id="dd-mobile-back-to-cats" aria-label="Back">‹</button>
-      <span class="dd-mobile-header__title">Menu</span>
-      <div class="dd-mobile-header__actions">
-        <button class="dd-mobile-header__search-btn" aria-label="Search">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </button>
+      <div class="dd-mobile-header__logo-wrap">
+        <?php if ( $dd_mob_logo ) : ?>
+          <img src="<?php echo esc_url( $dd_mob_logo ); ?>"
+               alt="<?php echo esc_attr( $dd_mob_name ); ?>"
+               class="dd-mobile-header__logo-img" />
+        <?php else : ?>
+          <span class="dd-mobile-header__initials"><?php echo esc_html( $dd_mob_initials ); ?></span>
+        <?php endif; ?>
       </div>
+      <div style="width:44px"></div>
     </div>
 
     <!-- Category pill tabs (horizontal scroll, no arrows) -->
@@ -294,6 +298,12 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
       <button class="dd-mobile-single__add-to-cart" id="dd-mobile-add-to-cart">
         Add To Cart <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
       </button>
+
+      <!-- Related Products -->
+      <div class="dd-mobile-single__related" id="dd-mobile-related">
+        <h3 class="dd-mobile-single__section-label dd-mobile-single__related-title">You might also like</h3>
+        <ul class="dd-mobile-related-list" id="dd-mobile-related-list"></ul>
+      </div>
     </div>
   </div><!-- /screen--single -->
 
