@@ -327,6 +327,13 @@ class DDMobileMenu {
                 if (label) {
                     this.currentProduct.selectedAttributes[label] = pill.textContent.trim();
                 }
+
+                const totalSelected = Object.keys(this.currentProduct.selectedAttributes).length;
+                const addBtn = this.elements.singleProduct.addToCart;
+                if (addBtn && totalSelected >= (this.currentProduct.requiredSelections || 0)) {
+                    addBtn.disabled = false;
+                    addBtn.classList.remove('is-disabled');
+                }
             });
         }
 
@@ -460,22 +467,25 @@ class DDMobileMenu {
                 `;
             }).join('');
 
-            // Reset selectedAttributes and auto-select first pill in each group
+            // Reset selectedAttributes — require user to select before adding
             this.currentProduct.selectedAttributes = {};
-            setTimeout(() => {
-                singleProduct.attrs.querySelectorAll('.dd-mobile-attr-group').forEach(group => {
-                    const firstPill = group.querySelector('.dd-mobile-attr-pill');
-                    if (firstPill) {
-                        firstPill.classList.add('is-active');
-                        const label = group.querySelector('.dd-mobile-attr-group__label')?.textContent?.trim();
-                        if (label) this.currentProduct.selectedAttributes[label] = firstPill.textContent.trim();
-                    }
-                });
-            }, 0);
+            this.currentProduct.requiredSelections = product.attributes.length;
+
+            const addBtn = this.elements.singleProduct.addToCart;
+            if (addBtn) {
+                addBtn.disabled = true;
+                addBtn.classList.add('is-disabled');
+            }
         } else {
             singleProduct.attrs.innerHTML = '';
             if (this.currentProduct) {
                 this.currentProduct.selectedAttributes = {};
+                this.currentProduct.requiredSelections = 0;
+            }
+            const addBtn = this.elements.singleProduct.addToCart;
+            if (addBtn) {
+                addBtn.disabled = false;
+                addBtn.classList.remove('is-disabled');
             }
         }
 
@@ -571,14 +581,10 @@ class DDMobileMenu {
 
     updateCartCount(count) {
         this.cartCount = count;
-
-        if (this.elements.cartBadge) {
-            this.elements.cartBadge.textContent = count;
-        }
-
-        if (this.elements.bottomNavCart) {
-            this.elements.bottomNavCart.textContent = count;
-            this.elements.bottomNavCart.dataset.count = count;
+        const badge = document.getElementById('dd-bottom-nav-cart-count');
+        if (badge) {
+            badge.textContent = count;
+            badge.dataset.count = count;
         }
     }
 

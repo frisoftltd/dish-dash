@@ -177,14 +177,15 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
   <!-- SCREEN 1: Category List -->
   <div class="dd-mobile-screen dd-mobile-screen--categories is-active" role="main">
 
-    <!-- Branded header (logo + restaurant name, no cart icon) -->
+    <!-- Branded header (logo only, no restaurant name) -->
     <div class="dd-mobile-header dd-mobile-header--branded">
       <?php if ( $dd_mob_logo ) : ?>
-        <img src="<?php echo esc_url( $dd_mob_logo ); ?>" alt="<?php echo esc_attr( $dd_mob_name ); ?>" class="dd-mobile-header__logo-img" />
+        <div class="dd-mobile-header__logo-wrap">
+          <img src="<?php echo esc_url( $dd_mob_logo ); ?>" alt="<?php echo esc_attr( $dd_mob_name ); ?>" class="dd-mobile-header__logo-img" />
+        </div>
       <?php else : ?>
         <span class="dd-mobile-header__initials"><?php echo esc_html( $dd_mob_initials ); ?></span>
       <?php endif; ?>
-      <span class="dd-mobile-header__restaurant-name"><?php echo esc_html( $dd_mob_name ); ?></span>
     </div>
 
     <!-- Hero text -->
@@ -226,7 +227,7 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
     <!-- Header: back button + restaurant name + search button (no cart icon) -->
     <div class="dd-mobile-header">
       <button class="dd-mobile-header__back" id="dd-mobile-back-to-cats" aria-label="Back">‹</button>
-      <span class="dd-mobile-header__title"><?php echo esc_html( $dd_mob_name ); ?></span>
+      <span class="dd-mobile-header__title">Menu</span>
       <div class="dd-mobile-header__actions">
         <button class="dd-mobile-header__search-btn" aria-label="Search">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -297,23 +298,23 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
   </div><!-- /screen--single -->
 
   <!-- Fixed Bottom Navigation (always visible on mobile) -->
-  <nav class="dd-bottom-nav" role="navigation" aria-label="Main navigation">
-    <a href="/" class="dd-bottom-nav__item" data-page="home">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+  <nav class="dd-bottom-nav" id="ddBottomNav">
+    <a href="/" class="dd-bottom-link" data-target="home">
+      <span class="dd-bottom-link__icon">&#127968;</span>
       <span>Home</span>
     </a>
-    <a href="/restaurant-menu/" class="dd-bottom-nav__item dd-bottom-nav__item--active" data-page="menu">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    <a href="/restaurant-menu/" class="dd-bottom-link active" data-target="menu">
+      <span class="dd-bottom-link__icon">&#127859;</span>
       <span>Menu</span>
     </a>
-    <a href="/cart/" class="dd-bottom-nav__item" data-page="cart">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-      <span class="dd-bottom-nav__badge" id="dd-bottom-nav-cart-count">0</span>
-      <span>My Cart</span>
+    <a href="/reservations/" class="dd-bottom-link" data-target="reserve">
+      <span class="dd-bottom-link__icon">&#127860;</span>
+      <span>Reserve</span>
     </a>
-    <a href="/my-account/" class="dd-bottom-nav__item" data-page="profile">
-      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      <span>Profile</span>
+    <a href="<?php echo esc_url( wc_get_cart_url() ); ?>" class="dd-bottom-link" data-target="cart">
+      <span class="dd-bottom-link__icon">&#128722;</span>
+      <span>Cart</span>
+      <span class="dd-bottom-badge" id="dd-bottom-nav-cart-count"><?php echo (int) ( function_exists( 'WC' ) ? WC()->cart->get_cart_contents_count() : 0 ); ?></span>
     </a>
   </nav>
 
