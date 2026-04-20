@@ -164,19 +164,27 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
     </div>
 </div>
 
+<?php
+// ─── Mobile header variables ──────────────────────────────────────────────
+$dd_mob_logo     = get_option( 'dish_dash_logo_url', '' );
+$dd_mob_name     = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+$dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
+?>
+
 <!-- ═══ NEW MOBILE LAYOUT (3-screen app) ═══════════════════════════════ -->
 <div class="dd-mobile-app" aria-hidden="true">
 
   <!-- SCREEN 1: Category List -->
   <div class="dd-mobile-screen dd-mobile-screen--categories is-active" role="main">
 
-    <!-- Header -->
-    <div class="dd-mobile-header">
-      <span class="dd-mobile-header__title">Menu</span>
-      <a href="/cart/" class="dd-mobile-header__cart-icon" aria-label="Cart">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-        <span class="dd-mobile-cart-badge">0</span>
-      </a>
+    <!-- Branded header (logo + restaurant name, no cart icon) -->
+    <div class="dd-mobile-header dd-mobile-header--branded">
+      <?php if ( $dd_mob_logo ) : ?>
+        <img src="<?php echo esc_url( $dd_mob_logo ); ?>" alt="<?php echo esc_attr( $dd_mob_name ); ?>" class="dd-mobile-header__logo-img" />
+      <?php else : ?>
+        <span class="dd-mobile-header__initials"><?php echo esc_html( $dd_mob_initials ); ?></span>
+      <?php endif; ?>
+      <span class="dd-mobile-header__restaurant-name"><?php echo esc_html( $dd_mob_name ); ?></span>
     </div>
 
     <!-- Hero text -->
@@ -195,7 +203,7 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
     <!-- Category list -->
     <div class="dd-mobile-section-label">Food Category</div>
     <ul class="dd-mobile-category-list" id="dd-mobile-cat-list">
-      <?php foreach ( $categories as $cat ) : 
+      <?php foreach ( $categories as $cat ) :
         $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
         $thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : '';
       ?>
@@ -215,18 +223,14 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
 
   <!-- SCREEN 2: Product List -->
   <div class="dd-mobile-screen dd-mobile-screen--products" role="main" aria-hidden="true">
-    <!-- Header -->
+    <!-- Header: back button + restaurant name + search button (no cart icon) -->
     <div class="dd-mobile-header">
       <button class="dd-mobile-header__back" id="dd-mobile-back-to-cats" aria-label="Back">‹</button>
-      <span class="dd-mobile-header__title">Menu</span>
+      <span class="dd-mobile-header__title"><?php echo esc_html( $dd_mob_name ); ?></span>
       <div class="dd-mobile-header__actions">
         <button class="dd-mobile-header__search-btn" aria-label="Search">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
-        <a href="/cart/" class="dd-mobile-header__cart-icon" aria-label="Cart">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-          <span class="dd-mobile-cart-badge">0</span>
-        </a>
       </div>
     </div>
 
@@ -249,7 +253,7 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
   <div class="dd-mobile-screen dd-mobile-screen--single" role="main" aria-hidden="true">
     <!-- Hero image fills top ~45% of screen -->
     <div class="dd-mobile-single__hero">
-      <img src="" alt="" id="dd-mobile-single-hero-img" />
+      <img src="" alt="" id="dd-mobile-single-hero-img" onerror="this.style.display='none'" />
       <button class="dd-mobile-single__back" id="dd-mobile-back-to-products" aria-label="Back">‹</button>
       <button class="dd-mobile-single__heart" id="dd-mobile-single-heart" aria-label="Favourite">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
@@ -324,14 +328,17 @@ $_dd_user_favorites = $_dd_is_logged_in
     : [];
 
 wp_localize_script( 'dd-menu-page', 'DD_MOBILE_DATA', [
-    'categories'     => DD_API::get_categories(),
-    'products'       => DD_API::get_products( [ 'limit' => -1 ] ),
-    'cart_url'       => wc_get_cart_url(),
-    'account_url'    => get_permalink( get_option( 'woocommerce_myaccount_page_id' ) ),
-    'home_url'       => home_url( '/' ),
-    'nonce'          => wp_create_nonce( 'dd_mobile_nonce' ),
-    'ajax_url'       => admin_url( 'admin-ajax.php' ),
-    'is_logged_in'   => $_dd_is_logged_in,
-    'user_favorites' => array_values( array_filter( array_map( 'intval', $_dd_user_favorites ) ) ),
-    'cart_count'     => function_exists( 'WC' ) ? (int) WC()->cart->get_cart_contents_count() : 0,
+    'categories'      => DD_API::get_categories(),
+    'products'        => DD_API::get_products( [ 'limit' => -1 ] ),
+    'cart_url'        => wc_get_cart_url(),
+    'account_url'     => get_permalink( get_option( 'woocommerce_myaccount_page_id' ) ),
+    'home_url'        => home_url( '/' ),
+    'nonce'           => wp_create_nonce( 'dd_mobile_nonce' ),
+    'cart_nonce'      => wp_create_nonce( 'dish_dash_frontend' ),
+    'ajax_url'        => admin_url( 'admin-ajax.php' ),
+    'is_logged_in'    => $_dd_is_logged_in,
+    'user_favorites'  => array_values( array_filter( array_map( 'intval', $_dd_user_favorites ) ) ),
+    'cart_count'      => function_exists( 'WC' ) ? (int) WC()->cart->get_cart_contents_count() : 0,
+    'logo_url'        => get_option( 'dish_dash_logo_url', '' ),
+    'restaurant_name' => get_option( 'dish_dash_restaurant_name', 'Khana Khazana' ),
 ] );
