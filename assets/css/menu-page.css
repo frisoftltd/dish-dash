@@ -648,7 +648,11 @@
   }
 
   /* ── Screen 3: Related products ── */
-  .dd-mobile-single__related { margin-top: 24px; padding-bottom: 16px; }
+  .dd-mobile-single__related {
+    margin-top: 32px;
+    padding: 16px 0 24px;
+    border-top: 1px solid #ede8e0;
+  }
   .dd-mobile-single__related-title { padding: 0 20px 12px; }
   .dd-mobile-related-list {
     list-style: none; margin: 0; padding: 0 20px;
