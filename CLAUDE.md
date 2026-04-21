@@ -3,7 +3,7 @@ markdown# 🧠 Dish Dash — Session Context & Workflow
 > **This file is the single source of truth for every AI coding session.**
 > Read this ENTIRELY before doing any work. Updated after every release.
 >
-> Last updated: v3.1.17 (2026-04-16)
+> Last updated: v3.2.12 (2026-04-21)
 
 ---
 
@@ -56,10 +56,10 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.1.17 |
-| **Current phase** | Phase 2 — Template System (completing mobile) |
-| **Next task** | Mobile version of `/restaurant-menu/` |
-| **Last working state** | Desktop menu page polished, deep links working, tracking validated, DD_API live, schema enforcement at 0% failure |
+| **Deployed version** | v3.2.12 |
+| **Current phase** | Phase 3 — Cart, Orders, Delivery |
+| **Next task** | Unified cart system across all pages (homepage drawer + menu page + bottom nav) |
+| **Last working state** | Mobile 3-screen menu complete (categories, product list, single product). Images, attribute pills, related products, branded header all working. Add to cart AJAX fires and items are stored (confirmed via console) but cart badge does not update and cart page shows empty — full cart unification deferred to Phase 3 |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server347.web-hosting.com (user: khansqtg) |
@@ -240,8 +240,8 @@ dish-dash/
 | Phase | Status | Description | AI Tracking to Add |
 |---|---|---|---|
 | **Phase 1** | ✅ | Foundation (plugin, GitHub updater, WooCommerce integration) | — |
-| **Phase 2** | 🔄 | Template System (header, hero, footer, branding, **MOBILE**) | Track: viewed products, clicked categories, search queries |
-| **Phase 3** | ⏳ | Cart, Orders, Delivery & WhatsApp (cart, checkout, orders, emails, WhatsApp notifications, zone-based delivery pricing, auto delivery calculation) | Save: order content, time, frequency, user location, delivery preferences |
+| **Phase 2** | ✅ | Template System (header, hero, footer, branding, mobile 3-screen menu) | Track: viewed products, clicked categories, search queries |
+| **Phase 3** | 🔄 | Cart, Orders, Delivery & WhatsApp (unified cart across all pages, checkout, orders, emails, WhatsApp notifications, zone-based delivery pricing, auto delivery calculation) | Save: order content, time, frequency, user location, delivery preferences |
 | **Phase 4** | ⏳ | Reservations (table booking, notifications) | Track: booking time patterns, group size → future: suggest time slots |
 | **Phase 5** | ⏳ | Backend Dashboard (admin analytics, insights) | Show: top products, peak hours, repeat customers, suggested combos |
 | **Phase 6** | ⏳ | Analytics + AI (Python microservice, behavior engine, recommendations) | AI Rules Engine, User Profile Engine, Smart Nudges |
@@ -376,7 +376,8 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-13/14 | v3.1.9 → v3.1.13 | Menu page fixes (width, arrows, padding, cards, deep links), GitHub Actions restored, `main` branch discipline |
 | 2026-04-14 | docs only | Architecture docs (5 files), file headers (56 files) |
 | 2026-04-14/16 | v3.1.14 → v3.1.17 | Python-migration foundation (schema versioning, DD_API, validation, health check, schema alignment) |
-| **NEXT** | **v3.2.0+** | **Mobile version of /restaurant-menu/** |
+| 2026-04-20/21 | v3.2.5 → v3.2.12 | Mobile 3-screen UI complete: category list, product list, single product, branded headers, product images fixed, attribute pills interactive, related products, cart AJAX wired (items add successfully), bottom nav unified |
+| **NEXT** | **v3.3.0+** | **Phase 3 — Unified cart system: same cart drawer and session across homepage and menu page, cart badge live on all pages, checkout flow, order emails, WhatsApp notifications** |
 
 
 ## ⚡ Claude Code Operating Rules
@@ -386,8 +387,4 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 3. Use @mentions for exact files — never read whole codebase
 4. Run /compact between tasks
 5. After every task: git add + commit + push origin HEAD:main
-<<<<<<< Updated upstream
 6. Be concise — root cause, files changed, test steps only
-=======
-6. Be concise — root cause, files changed, test steps only
->>>>>>> Stashed changes
