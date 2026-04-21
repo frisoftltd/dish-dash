@@ -539,6 +539,7 @@ class DDMobileMenu {
             if (!card) return;
             this.currentProduct = { id: card.dataset.id, selectedAttributes: {} };
             this.showProductDetails(card.dataset.id);
+            document.querySelector('.dd-mobile-screen--single').scrollTo({ top: 0, behavior: 'smooth' });
         });
     }
 
