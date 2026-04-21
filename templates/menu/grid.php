@@ -317,7 +317,7 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
       <span class="dd-bottom-link__icon">&#127859;</span>
       <span>Menu</span>
     </a>
-    <a href="/reservations/" class="dd-bottom-link" data-target="reserve">
+    <a href="/reserve/" class="dd-bottom-link" data-target="reserve">
       <span class="dd-bottom-link__icon">&#127860;</span>
       <span>Reserve</span>
     </a>
