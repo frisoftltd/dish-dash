@@ -57,9 +57,10 @@ WooCommerce (payment processing)
 | Field | Value |
 |---|---|
 | **Deployed version** | v3.2.12 |
-| **Current phase** | Phase 3 — Cart, Orders, Delivery |
-| **Next task** | Unified cart system across all pages (homepage drawer + menu page + bottom nav) |
-| **Last working state** | Mobile 3-screen menu complete (categories, product list, single product). Images, attribute pills, related products, branded header all working. Add to cart AJAX fires and items are stored (confirmed via console) but cart badge does not update and cart page shows empty — full cart unification deferred to Phase 3 |
+| **Current phase** | Phase 3 — Cart, Orders & Delivery |
+| **Current sub-phase** | 3A — The Cart (starting now) |
+| **Next task** | v3.2.13 — Cart panel UI + floating button |
+| **Last working state** | Phase 2 complete. Mobile 3-screen menu live. Desktop menu polished. Deep links working. Tracking validated. DD_API live. Schema enforcement at 0% failure. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server347.web-hosting.com (user: khansqtg) |
@@ -241,7 +242,7 @@ dish-dash/
 |---|---|---|---|
 | **Phase 1** | ✅ | Foundation (plugin, GitHub updater, WooCommerce integration) | — |
 | **Phase 2** | ✅ | Template System (header, hero, footer, branding, mobile 3-screen menu) | Track: viewed products, clicked categories, search queries |
-| **Phase 3** | 🔄 | Cart, Orders, Delivery & WhatsApp (unified cart across all pages, checkout, orders, emails, WhatsApp notifications, zone-based delivery pricing, auto delivery calculation) | Save: order content, time, frequency, user location, delivery preferences |
+| **Phase 3** | 🔄 | Cart, Orders, Delivery & WhatsApp — broken into 4 sub-phases (see Phase 3 Sub-Phases section below) | Save: order content, time, frequency, user WhatsApp identity, delivery preferences, cart behavior, open-hour visit patterns |
 | **Phase 4** | ⏳ | Reservations (table booking, notifications) | Track: booking time patterns, group size → future: suggest time slots |
 | **Phase 5** | ⏳ | Backend Dashboard (admin analytics, insights) | Show: top products, peak hours, repeat customers, suggested combos |
 | **Phase 6** | ⏳ | Analytics + AI (Python microservice, behavior engine, recommendations) | AI Rules Engine, User Profile Engine, Smart Nudges |
@@ -250,6 +251,231 @@ dish-dash/
 | **Phase 9** | ⏳ | SaaS Platform (multi-tenant hosting, subscription billing, white-label branding for other restaurants) | — |
 
 **Note:** POS Terminal (in-restaurant ordering) comes AFTER MVP is tested with real customers and we know exactly what restaurants need. Not scheduled as a fixed phase yet.
+
+---
+
+## 📦 Phase 3 Sub-Phases — Cart, Orders & Delivery
+
+Phase 3 is built in 4 independent sub-phases. Each sub-phase leaves the site more functional than before — never broken, never half-working.
+
+---
+
+### Sub-Phase 3A — The Cart (v3.2.13 → v3.2.15)
+**Goal:** Customers can build a cart on any page. Real cart behavior data starts flowing.
+
+| Release | What ships |
+|---|---|
+| **v3.2.13** | Cart panel UI + floating button + delivery progress bar nudge |
+| **v3.2.14** | Cart AJAX — add/remove/update quantities, live totals |
+| **v3.2.15** | Cart persistence + reconciliation (server cart = single source of truth) |
+
+**Tracking events added:** `remove_from_cart`, `cart_open`, `cart_abandon`, `cart_quantity_change`
+
+**Cart source of truth rule (STRICT):**
+- UI (JS) = local convenience cache only
+- Server (WooCommerce session) = only real truth
+- Every cart panel open MUST reconcile against server cart
+- Never trust local state alone — always verify against server on open
+
+**Delivery progress bar nudge (in cart panel):**
+When order total is below free delivery threshold, show live progress:
+🛵 Add 3,500 RWF more for FREE delivery
+[████████░░] 6,500 / 10,000 RWF
+When threshold is crossed, update instantly:
+✅ You unlocked FREE delivery!
+
+---
+
+### Sub-Phase 3B — Orders (v3.2.16 → v3.2.17)
+**Goal:** Restaurant can take real orders. End-to-end order flow without leaving the menu page.
+
+| Release | What ships |
+|---|---|
+| **v3.2.16** | Checkout panel (name, WhatsApp, address, payment method selection) |
+| **v3.2.17** | Order creation + threshold-based delivery fee calculation |
+
+**Checkout form fields:**
+- Full Name (required)
+- WhatsApp Number (required — primary customer identity)
+- Delivery Address (required)
+- Payment Method: Pay Now / Pay on Delivery (radio)
+
+**Customer identity rule:**
+WhatsApp number is the primary customer identity in DishDash. On every order:
+1. Check `wp_dishdash_customers` for that WhatsApp number
+2. If found → link order to existing customer, update stats
+3. If not found → create new customer record
+
+**Delivery fee logic (threshold-based, no geocoding):**
+Order total < dd_free_delivery_threshold  →  charge dd_delivery_fee
+Order total ≥ dd_free_delivery_threshold  →  free delivery
+
+**Payment flow rules (STRICT):**
+- Pay on Delivery: WC order created → tracking fired → notifications sent → confirmation shown
+- Pay Now: WC order created → payment gateway → SUCCESS: notifications sent → confirmation shown / FAILED: show retry, NO notification sent
+- Notifications NEVER fire before WC order is fully created and confirmed
+
+**Tracking events added:** `checkout_start`, `order` (already schema-defined)
+
+---
+
+### Sub-Phase 3C — Notifications (v3.2.18 → v3.2.19)
+**Goal:** Admin and customer both notified instantly after every confirmed order. Birthday data collection begins.
+
+| Release | What ships |
+|---|---|
+| **v3.2.18** | WhatsApp notifications — admin message + customer confirmation (Mode A) |
+| **v3.2.19** | Birthday link flow — second WhatsApp message sent 2 min after first order only |
+
+**Notification sequence (STRICT ORDER — never deviate):**
+
+WooCommerce order created → order ID confirmed
+Tracking event fired
+Admin WhatsApp notification sent (wa.me)
+Customer WhatsApp confirmation sent (wa.me)
+Confirmation screen shown to customer
+
+
+**Admin WhatsApp message format:**
+🔔 New Order #1042 — Khana Khazana
+──────────────────────────────
+1× Chicken Tikka       4,500 RWF
+2× Naan                1,000 RWF
+──────────────────────────────
+Subtotal:              5,500 RWF
+Delivery:              1,500 RWF
+TOTAL:                 7,000 RWF
+Payment: Pay on Delivery
+📍 Kacyiru, Kigali
+📞 +250 78 000 0000
+👤 Jean Pierre
+
+**Customer WhatsApp message format:**
+✅ Order Confirmed! — Khana Khazana
+──────────────────────────────
+Order #1042
+Estimated time: 30–45 minutes
+Payment: Pay on Delivery
+Questions? Call us: +250 78 000 0000
+
+**Birthday flow (first order only — never repeats):**
+- 2 minutes after order confirmation, send second WhatsApp:
+🎁 One more thing, [Name]!
+We'd love to surprise you on your birthday.
+Share it here (10 sec):
+👉 dishdash.khanakhazana.rw/birthday/?c=TOKEN
+— Khana Khazana 🍽
+- TOKEN = unique, single-use, expires in 30 days
+- Birthday page: two dropdowns (month + day), one button — no login required
+- On submit: save to `wp_dishdash_customers.birthday`, mark token as used
+- Flag `dd_birthday_asked = true` on customer record so message never sends twice
+
+**WhatsApp Mode A now, Mode B later:**
+- Mode A = wa.me links (current)
+- Mode B = WhatsApp Business API (future Phase 3.5, requires Meta verification)
+- Architecture must make Mode B a drop-in swap — no restructuring required
+
+---
+
+### Sub-Phase 3D — Hours & Polish (v3.2.20 → v3.2.21)
+**Goal:** Restaurant controls when it accepts orders. Customers always know what to do, even when closed.
+
+| Release | What ships |
+|---|---|
+| **v3.2.20** | Open/closed hours system — settings + all 3 UI states |
+| **v3.2.21** | "Remind me when open" data capture + reorder flow |
+
+**Hours settings (per-day, with optional split sessions):**
+Each day has:
+- Open / Closed toggle
+- Session 1: open time → close time
+- Optional "+ Add break" → Session 2: open time → close time
+
+Example (split day):
+Tuesday  [✅ Open]  11:00–15:00   +   17:00–22:00
+
+**Three UI states:**
+
+State 1 — Open (normal): No banner. Full ordering available.
+
+State 2 — Closing soon (within `dd_closing_soon_minutes`, default 30 min):
+⏰ We close at 10:00 PM — Order now to avoid missing out
+
+State 3 — Closed (outside all sessions):
+    🌙  We're Closed Right Now
+    Khana Khazana is open:
+    Monday – Sunday  11:00 AM – 10:00 PM
+    We reopen in  6h 42m
+    [Browse the Menu]   [📲 Message Us]
+
+State 3B — Between split sessions (mid-day break):
+    😴  We're on a break
+    Back open at 5:00 PM — in 1h 23m
+    [Browse the Menu]   [📲 Message Us]
+
+**"Add to Cart" button when closed → changes to:**
+[🔔 Remind me when you open]
+Tapping saves: product_id + customer WhatsApp if available. Seeds Phase 6 re-engagement.
+
+**Tracking events added:** `remind_me_open` (product_id, scheduled_open_time)
+
+---
+
+### Phase 3 Settings Reference
+
+All new wp_options keys added in Phase 3:
+
+**Delivery:**
+| Key | Description | Default |
+|---|---|---|
+| `dd_free_delivery_threshold` | Order total for free delivery (RWF) | 10000 |
+| `dd_delivery_fee` | Flat delivery fee below threshold (RWF) | 1500 |
+| `dd_delivery_eta` | Estimated delivery time shown to customer | "30–45 minutes" |
+
+**WhatsApp:**
+| Key | Description |
+|---|---|
+| `dd_whatsapp_admin` | Restaurant WhatsApp number (receives order notifications) |
+
+**Hours:**
+| Key | Description | Default |
+|---|---|---|
+| `dd_opening_hours` | JSON: per-day schedule with optional split sessions | — |
+| `dd_closing_soon_minutes` | Minutes before close to show warning banner | 30 |
+| `dd_timezone` | Timezone for hours calculation | Africa/Kigali |
+
+---
+
+### Phase 3 New DB Columns
+
+**`wp_dishdash_customers` additions:**
+- `whatsapp` VARCHAR(20) — primary identity field
+- `birthday` DATE NULL — collected via post-order WhatsApp flow
+- `dd_birthday_asked` TINYINT(1) DEFAULT 0 — prevents duplicate birthday messages
+- `delivery_address` TEXT NULL — last used address (pre-fill on next order)
+
+**New table: `wp_dishdash_birthday_tokens`**
+```sql
+id          INT AUTO_INCREMENT PRIMARY KEY
+token       VARCHAR(64) UNIQUE
+customer_id INT
+used        TINYINT(1) DEFAULT 0
+expires_at  DATETIME
+created_at  DATETIME
+```
+
+**`wp_dishdash_delivery_zones` (future-proofed, created now):**
+```sql
+id          INT AUTO_INCREMENT PRIMARY KEY
+name        VARCHAR(100)
+zone_type   VARCHAR(20) DEFAULT 'radius'  ← keeps door open for polygons later
+radius_km   DECIMAL(8,2)
+fee         INT
+eta_minutes INT
+is_active   TINYINT(1)
+created_at  DATETIME
+```
+Note: threshold-based delivery is used in Phase 3. This table is created now but not used until complex zone delivery is needed.
 
 ---
 
@@ -300,7 +526,12 @@ These are the 4 systems that make DishDash "smart." They are NOT built yet — w
 | `search` | tracking.js (keydown) | ✅ Live, validated |
 | `add_to_cart` | tracking.js (click) | ✅ Live, validated |
 | `page_view` | tracking.js (setupPageView) | ✅ Live, validated |
-| `remove_from_cart` | Not wired yet | ⏳ Planned |
+| `remove_from_cart` | cart.js | ⏳ Phase 3A |
+| `cart_open` | cart.js | ⏳ Phase 3A |
+| `cart_abandon` | cart.js (beforeunload) | ⏳ Phase 3A |
+| `cart_quantity_change` | cart.js | ⏳ Phase 3A |
+| `checkout_start` | checkout.js | ⏳ Phase 3B |
+| `remind_me_open` | frontend.js | ⏳ Phase 3D |
 | `order` | DDTrack.order() | ✅ Schema defined |
 | `reorder` | PHP only | ✅ Schema defined |
 
@@ -377,7 +608,8 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-14 | docs only | Architecture docs (5 files), file headers (56 files) |
 | 2026-04-14/16 | v3.1.14 → v3.1.17 | Python-migration foundation (schema versioning, DD_API, validation, health check, schema alignment) |
 | 2026-04-20/21 | v3.2.5 → v3.2.12 | Mobile 3-screen UI complete: category list, product list, single product, branded headers, product images fixed, attribute pills interactive, related products, cart AJAX wired (items add successfully), bottom nav unified |
-| **NEXT** | **v3.3.0+** | **Phase 3 — Unified cart system: same cart drawer and session across homepage and menu page, cart badge live on all pages, checkout flow, order emails, WhatsApp notifications** |
+| 2026-04-16/21 | v3.2.0 → v3.2.12 | Phase 2 complete: mobile 3-screen menu live, cart badge UI |
+| **NEXT** | **v3.2.13** | **Sub-Phase 3A begins: Cart panel UI + floating button** |
 
 
 ## ⚡ Claude Code Operating Rules

@@ -89,7 +89,7 @@ class DD_Template_Module extends DD_Module {
     public function inject_cart_sidebar(): void {
         if ( is_admin() ) return;
 
-        // Skip on full page template — it has its own cart drawer + floating cart
+        // Skip on full page template — it has its own cart drawer
         if ( is_page() ) {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
             if ( 'page-dishdash.php' === $meta ) return;
@@ -97,51 +97,29 @@ class DD_Template_Module extends DD_Module {
 
         $checkout_url  = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' );
         $dd_cart_count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
+
+        // Cart drawer + floating button — single source of truth
+        require_once DD_PLUGIN_DIR . 'templates/cart/cart.php';
         ?>
-
-        <!-- ══ CART DRAWER ══════════════════════════════════════ -->
-        <div class="dd-cart-overlay" id="ddCartOverlay"></div>
-        <aside class="dd-cart-drawer" id="ddCartDrawer" aria-label="Shopping cart">
-            <div class="dd-cart-drawer__header">
-                <span class="dd-cart-drawer__title">Your cart</span>
-                <button class="dd-cart-drawer__close" id="ddCloseCart">Close &#10005;</button>
-            </div>
-            <div class="dd-cart-drawer__body" id="ddDrawerBody">
-                <div class="dd-cart-drawer__empty">Your cart is empty.</div>
-            </div>
-            <div class="dd-cart-drawer__footer">
-                <div class="dd-cart-drawer__totals">
-                    <div class="dd-cart-drawer__row"><span>Subtotal</span><span id="ddDrawerSubtotal">RWF 0</span></div>
-                    <div class="dd-cart-drawer__row"><span>Delivery</span><span id="ddDrawerDelivery">RWF 2,000</span></div>
-                    <div class="dd-cart-drawer__row dd-cart-drawer__row--main"><span>Total</span><span id="ddDrawerTotal">RWF 0</span></div>
-                </div>
-                <a href="<?php echo esc_url( $checkout_url ); ?>"
-                   class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Checkout now</a>
-            </div>
-        </aside>
-
-        <!-- ══ FLOATING CART ════════════════════════════════════ -->
-        <button class="dd-floating-cart" id="ddFloatingCart" aria-label="Open cart">
-            <span>&#128722;</span>
-            <span class="dd-floating-cart__text">Cart</span>
-            <span class="dd-cart-badge" id="ddFloatingCount"><?php echo esc_html( $dd_cart_count ); ?></span>
-        </button>
 
         <!-- ══ MOBILE BOTTOM NAV ════════════════════════════════ -->
         <nav class="dd-bottom-nav" id="ddBottomNav">
-            <a href="<?php echo esc_url( home_url('/') ); ?>" class="dd-bottom-link">
+            <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-bottom-link">
                 <span class="dd-bottom-link__icon">&#127968;</span><span>Home</span>
             </a>
-            <a href="<?php echo esc_url( home_url('/restaurant-menu/') ); ?>" class="dd-bottom-link">
+            <a href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>" class="dd-bottom-link">
                 <span class="dd-bottom-link__icon">&#127859;</span><span>Menu</span>
             </a>
-            <a href="<?php echo esc_url( home_url('/reserve-table/') ); ?>" class="dd-bottom-link">
+            <a href="<?php echo esc_url( home_url( '/reserve-table/' ) ); ?>" class="dd-bottom-link">
                 <span class="dd-bottom-link__icon">&#127860;</span><span>Reserve</span>
             </a>
             <button class="dd-bottom-link" id="ddBottomCartBtn" type="button">
                 <span class="dd-bottom-link__icon">&#128722;</span>
                 <span>Cart</span>
-                <span class="dd-bottom-badge" id="ddBottomBadge"><?php echo esc_html( $dd_cart_count ); ?></span>
+                <span class="dd-bottom-badge" id="ddBottomBadge"
+                      style="<?php echo $dd_cart_count > 0 ? '' : 'display:none'; ?>">
+                    <?php echo esc_html( $dd_cart_count ); ?>
+                </span>
             </button>
         </nav>
         <?php
@@ -196,6 +174,14 @@ class DD_Template_Module extends DD_Module {
         wp_enqueue_script( 'dish-dash-search',   $plugin_url . '/assets/js/search.js',   [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [ 'dish-dash-search' ], DD_VERSION, true );
         wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
+        wp_localize_script( 'dish-dash-cart', 'ddCartData', [
+            'threshold'    => (int) get_option( 'dd_free_delivery_threshold', 10000 ),
+            'delivery_fee' => (int) get_option( 'dd_delivery_fee',            1500  ),
+            'ajax_url'     => admin_url( 'admin-ajax.php' ),
+            'nonce'        => wp_create_nonce( 'dish_dash_frontend' ),
+            'checkout_url' => function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' ),
+            'currency'     => DD_Settings::get( 'currency_symbol', 'RWF' ),
+        ] );
 
         // Inject CSS variables + footer background via WordPress inline style system
         // This is guaranteed to output after theme.css and override correctly

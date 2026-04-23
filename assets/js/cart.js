@@ -1,341 +1,284 @@
 /**
  * File:    assets/js/cart.js
- * Purpose: Client-side cart engine and checkout form binding — opens/closes
- *          the cart sidebar, renders cart items from AJAX responses, handles
- *          quantity controls and item removal, and submits the checkout form
- *          via dd_place_order AJAX.
+ * Purpose: Cart drawer open/close, server cart fetch on open, badge updates,
+ *          and delivery nudge bar. v3.2.13 — UI layer only (read-only cart).
+ *          Quantity controls and item removal come in v3.2.14.
  *
- * DOM elements required:
- *   - .dd-add-to-cart-btn   (product "Add" buttons — shared with frontend.js)
- *   - .dd-cart-trigger      (floating cart button)
- *   - .dd-cart-overlay      (backdrop)
- *   - .dd-cart-sidebar      (.dd-cart-sidebar--open toggled to show)
- *   - .dd-cart-close        (close button)
- *   - .dd-cart-items        (items container, re-rendered on every update)
- *   - .dd-cart-summary      (totals section)
- *   - .dd-cart-checkout-btn (checkout link)
- *   - .dd-checkout-form     (checkout page form)
- *   - .dd-order-type-btn    (delivery/pickup/dine-in selector)
+ * Config object (wp_localize_script → ddCartData):
+ *   threshold    — free delivery threshold in RWF (default 10000)
+ *   delivery_fee — flat delivery fee below threshold (default 1500)
+ *   ajax_url     — admin-ajax.php URL
+ *   nonce        — dish_dash_frontend nonce
+ *   checkout_url — URL to checkout page
+ *   currency     — currency symbol/code (default 'RWF')
  *
- * Localized data needed (wp_localize_script):
- *   - window.dishDash  (ajaxUrl, nonce, cartUrl, checkoutUrl, currency_symbol,
- *     currency_position)  — localized by DD_Template_Module
+ * DOM IDs targeted:
+ *   #ddCartOverlay, #ddCartDrawer, #ddCartClose
+ *   #ddCartItems, #ddCartNudge, #ddNudgeFill, #ddNudgeRemaining
+ *   #ddCartSubtotal, #ddCartCheckout
+ *   #ddCartBtn, #ddCartBtnCount     — floating button (desktop)
+ *   #ddBottomCartBtn, #ddBottomBadge — bottom nav (mobile)
+ *   #ddCartTopBtn, #ddCartCount      — header cart button
  *
- * AJAX endpoints called:
- *   - admin-ajax.php?action=dd_cart_add
- *   - admin-ajax.php?action=dd_cart_update
- *   - admin-ajax.php?action=dd_cart_remove
- *   - admin-ajax.php?action=dd_cart_get
- *   - admin-ajax.php?action=dd_cart_clear
- *   - admin-ajax.php?action=dd_place_order
+ * Tracking events fired:
+ *   cart_open — on every panel open
  *
- * Custom events fired:   None
- * Custom events listened: None
+ * Public API:
+ *   window.DDCart.open()    — open the drawer
+ *   window.DDCart.close()   — close the drawer
+ *   window.DDCart.refresh() — re-fetch cart and re-render
  *
  * Dependents:
- *   - modules/template/class-dd-template-module.php (enqueues this)
+ *   modules/template/class-dd-template-module.php (enqueues this)
  *
- * Last modified: v3.1.13
+ * Last modified: v3.2.13
  */
 (function () {
     'use strict';
 
-    const DD = window.dishDash || {};
+    /* ── CONFIG ─────────────────────────────────────────────── */
+    var cfg         = window.ddCartData || {};
+    var THRESHOLD   = parseInt( cfg.threshold,    10 ) || 10000;
+    var AJAX_URL    = cfg.ajax_url    || '/wp-admin/admin-ajax.php';
+    var NONCE       = cfg.nonce       || '';
+    var CURRENCY    = cfg.currency    || 'RWF';
 
-    /* ── CART STATE ─────────────────────────────────────── */
-    let cart = { items: [], count: 0, subtotal: 0, tax: 0, total: 0 };
+    /* ── INIT ───────────────────────────────────────────────── */
+    document.addEventListener( 'DOMContentLoaded', function () {
+        fetchCart( false ); // silent fetch on load to update badges only
+        bindEvents();
+    } );
 
-    /* ── INIT ───────────────────────────────────────────── */
-    document.addEventListener('DOMContentLoaded', function () {
-        fetchCart();
-        bindMenuButtons();
-        bindCartEvents();
-        bindCheckoutEvents();
-    });
+    /* ── EVENT BINDING ──────────────────────────────────────── */
+    function bindEvents() {
 
-    /* ── FETCH CART FROM SERVER ─────────────────────────── */
-    function fetchCart() {
-        ajax('dd_cart_get', {}, function (data) {
-            cart = data;
-            renderCart();
-            updateCartCount();
-        });
+        document.addEventListener( 'click', function ( e ) {
+
+            // Open triggers: floating button, bottom nav, header button
+            if ( e.target.closest( '#ddCartBtn' )       ||
+                 e.target.closest( '#ddBottomCartBtn' ) ||
+                 e.target.closest( '#ddCartTopBtn' ) ) {
+                openCart();
+                return;
+            }
+
+            // Close triggers: overlay, close button
+            if ( e.target.closest( '#ddCartClose' ) ||
+                 e.target.id === 'ddCartOverlay'    ||
+                 e.target.classList.contains( 'dd-cart-drawer-overlay' ) ) {
+                closeCart();
+                return;
+            }
+
+            // Disabled checkout: block navigation
+            var checkout = e.target.closest( '#ddCartCheckout' );
+            if ( checkout && checkout.classList.contains( 'dd-cart-drawer__checkout--disabled' ) ) {
+                e.preventDefault();
+            }
+        } );
+
+        // Keyboard close
+        document.addEventListener( 'keydown', function ( e ) {
+            if ( e.key === 'Escape' ) closeCart();
+        } );
     }
 
-    /* ── BIND ADD TO CART BUTTONS ───────────────────────── */
-    function bindMenuButtons() {
-        document.addEventListener('click', function (e) {
-            const btn = e.target.closest('.dd-add-to-cart-btn');
-            if (!btn) return;
+    /* ── OPEN ───────────────────────────────────────────────── */
+    function openCart() {
+        var overlay = document.getElementById( 'ddCartOverlay' );
+        var drawer  = document.getElementById( 'ddCartDrawer' );
+        if ( ! drawer ) return;
 
-            e.preventDefault();
-            const item = {
-                id:    btn.dataset.id,
-                name:  btn.dataset.name,
-                price: btn.dataset.price,
-                image: btn.dataset.image || '',
-                qty:   1,
-            };
+        drawer.classList.add( 'dd-cart-drawer--open' );
+        if ( overlay ) overlay.classList.add( 'dd-cart-drawer-overlay--visible' );
+        document.body.classList.add( 'dd-cart-open' );
 
-            ajax('dd_cart_add', item, function (data) {
-                cart = data;
-                renderCart();
-                updateCartCount();
-                showAddedFeedback(btn);
-                openCartSidebar();
-            });
-        });
+        // Re-fetch on every open so panel always reflects server cart
+        fetchCart( true );
+
+        // Tracking
+        trackEvent( 'cart_open', {} );
     }
 
-    /* ── BIND CART EVENTS ───────────────────────────────── */
-    function bindCartEvents() {
-        document.addEventListener('click', function (e) {
-
-            // Open cart sidebar
-            if (e.target.closest('.dd-cart-trigger')) {
-                openCartSidebar();
-            }
-
-            // Close cart sidebar
-            if (e.target.closest('.dd-cart-close') || e.target.classList.contains('dd-cart-overlay')) {
-                closeCartSidebar();
-            }
-
-            // Remove item
-            const removeBtn = e.target.closest('.dd-cart-item__remove');
-            if (removeBtn) {
-                const key = removeBtn.dataset.key;
-                ajax('dd_cart_remove', { key }, function (data) {
-                    cart = data;
-                    renderCart();
-                    updateCartCount();
-                });
-            }
-
-            // Checkout button in sidebar
-            if (e.target.closest('.dd-cart-checkout-btn')) {
-                window.location.href = DD.checkout_url || '/checkout-dd/';
-            }
-        });
-
-        // Quantity change
-        document.addEventListener('change', function (e) {
-            const input = e.target.closest('.dd-cart-item__qty');
-            if (!input) return;
-            const key = input.dataset.key;
-            const qty = parseInt(input.value, 10);
-            ajax('dd_cart_update', { key, qty }, function (data) {
-                cart = data;
-                renderCart();
-                updateCartCount();
-            });
-        });
+    /* ── CLOSE ──────────────────────────────────────────────── */
+    function closeCart() {
+        var overlay = document.getElementById( 'ddCartOverlay' );
+        var drawer  = document.getElementById( 'ddCartDrawer' );
+        if ( drawer )  drawer.classList.remove( 'dd-cart-drawer--open' );
+        if ( overlay ) overlay.classList.remove( 'dd-cart-drawer-overlay--visible' );
+        document.body.classList.remove( 'dd-cart-open' );
     }
 
-    /* ── RENDER CART SIDEBAR ────────────────────────────── */
-    function renderCart() {
-        const container = document.querySelector('.dd-cart-items');
-        const summary   = document.querySelector('.dd-cart-summary');
-        if (!container) return;
+    /* ── FETCH CART FROM SERVER ─────────────────────────────── */
+    function fetchCart( renderPanel ) {
+        ajax( 'dd_cart_get', {}, function ( data ) {
+            updateBadges( data.count );
+            if ( renderPanel ) {
+                renderItems( data.items );
+                updateNudge( data.total );
+                updateFooter( data );
+            }
+        } );
+    }
 
-        if (!cart.items || cart.items.length === 0) {
-            container.innerHTML = '<p class="dd-cart-empty">' + (DD.i18n?.emptyCart || 'Your cart is empty') + '</p>';
-            if (summary) summary.style.display = 'none';
+    /* ── RENDER ITEMS ───────────────────────────────────────── */
+    function renderItems( items ) {
+        var container = document.getElementById( 'ddCartItems' );
+        if ( ! container ) return;
+
+        if ( ! items || items.length === 0 ) {
+            container.innerHTML =
+                '<p class="dd-cart-drawer__empty">' +
+                    'Your cart is empty &mdash; add something delicious &#x1F37D;' +
+                '</p>';
             return;
         }
 
-        if (summary) summary.style.display = '';
+        container.innerHTML = items.map( function ( item ) {
+            var addonTotal = ( item.addons || [] ).reduce( function ( s, a ) { return s + a.price; }, 0 );
+            var lineTotal  = formatPrice( ( item.price + addonTotal ) * item.qty );
 
-        container.innerHTML = cart.items.map(function (item) {
-            const addonTotal = (item.addons || []).reduce((s, a) => s + a.price, 0);
-            const unitPrice  = item.price + addonTotal;
-            const sym        = DD.currency_symbol || '$';
-            const pos        = DD.currency_position || 'before';
-            const fmt        = (v) => pos === 'before' ? sym + parseFloat(v).toFixed(2) : parseFloat(v).toFixed(2) + sym;
-
-            const addonHtml = item.addons && item.addons.length
-                ? '<span class="dd-cart-item__addons">' + item.addons.map(a => a.name).join(', ') + '</span>'
-                : '';
-
-            return `
-            <div class="dd-cart-item" data-key="${item.key || ''}">
-                ${item.image ? `<img class="dd-cart-item__img" src="${item.image}" alt="${item.name}" loading="lazy">` : ''}
-                <div class="dd-cart-item__info">
-                    <span class="dd-cart-item__name">${item.name}</span>
-                    ${addonHtml}
-                    <span class="dd-cart-item__price">${fmt(unitPrice)}</span>
-                </div>
-                <div class="dd-cart-item__controls">
-                    <input class="dd-cart-item__qty" type="number" min="0" value="${item.qty}" data-key="${item.key || ''}">
-                    <button class="dd-cart-item__remove" data-key="${item.key || ''}" aria-label="Remove">✕</button>
-                </div>
-            </div>`;
-        }).join('');
-
-        // Update totals
-        const sym = DD.currency_symbol || '$';
-        const pos = DD.currency_position || 'before';
-        const fmt = (v) => pos === 'before' ? sym + parseFloat(v).toFixed(2) : parseFloat(v).toFixed(2) + sym;
-
-        const subtotalEl = document.querySelector('.dd-cart-subtotal');
-        const taxEl      = document.querySelector('.dd-cart-tax');
-        const totalEl    = document.querySelector('.dd-cart-total');
-
-        if (subtotalEl) subtotalEl.textContent = fmt(cart.subtotal);
-        if (taxEl)      taxEl.textContent      = fmt(cart.tax);
-        if (totalEl)    totalEl.textContent     = fmt(cart.total);
+            return '<div class="dd-cart-drawer__item">' +
+                ( item.image
+                    ? '<img class="dd-cart-drawer__item-img" src="' + escHtml( item.image ) + '" alt="' + escHtml( item.name ) + '" loading="lazy">'
+                    : '' ) +
+                '<div class="dd-cart-drawer__item-info">' +
+                    '<span class="dd-cart-drawer__item-name">' + escHtml( item.name ) + '</span>' +
+                    '<span class="dd-cart-drawer__item-qty">&times; ' + parseInt( item.qty, 10 ) + '</span>' +
+                '</div>' +
+                '<span class="dd-cart-drawer__item-price">' + lineTotal + '</span>' +
+            '</div>';
+        } ).join( '' );
     }
 
-    /* ── CART SIDEBAR OPEN / CLOSE ──────────────────────── */
-    function openCartSidebar() {
-        const sidebar = document.querySelector('.dd-cart-sidebar');
-        const overlay = document.querySelector('.dd-cart-overlay');
-        if (sidebar) sidebar.classList.add('dd-cart-sidebar--open');
-        if (overlay) overlay.classList.add('dd-cart-overlay--visible');
-        document.body.style.overflow = 'hidden';
-    }
+    /* ── NUDGE BAR ──────────────────────────────────────────── */
+    function updateNudge( total ) {
+        var nudge     = document.getElementById( 'ddCartNudge' );
+        var fill      = document.getElementById( 'ddNudgeFill' );
+        var remaining = document.getElementById( 'ddNudgeRemaining' );
+        if ( ! nudge ) return;
 
-    function closeCartSidebar() {
-        const sidebar = document.querySelector('.dd-cart-sidebar');
-        const overlay = document.querySelector('.dd-cart-overlay');
-        if (sidebar) sidebar.classList.remove('dd-cart-sidebar--open');
-        if (overlay) overlay.classList.remove('dd-cart-overlay--visible');
-        document.body.style.overflow = '';
-    }
+        total = parseFloat( total ) || 0;
 
-    /* ── CART COUNT BADGE ───────────────────────────────── */
-    function updateCartCount() {
-        document.querySelectorAll('.dd-cart-count').forEach(function (el) {
-            el.textContent = cart.count || 0;
-            el.style.display = (cart.count > 0) ? 'inline-flex' : 'none';
-        });
-    }
-
-    /* ── CHECKOUT FORM ──────────────────────────────────── */
-    function bindCheckoutEvents() {
-        const form = document.querySelector('.dd-checkout-form');
-        if (!form) return;
-
-        // Populate cart summary on checkout page
-        renderCheckoutSummary();
-
-        // Order type toggle
-        form.addEventListener('change', function (e) {
-            const radio = e.target.closest('input[name="order_type"]');
-            if (!radio) return;
-            toggleDeliverySection(radio.value === 'delivery');
-        });
-
-        // Submit
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            submitOrder(form);
-        });
-    }
-
-    function renderCheckoutSummary() {
-        const container = document.querySelector('.dd-checkout-items');
-        if (!container || !cart.items) return;
-
-        const sym = DD.currency_symbol || '$';
-        const pos = DD.currency_position || 'before';
-        const fmt = (v) => pos === 'before' ? sym + parseFloat(v).toFixed(2) : parseFloat(v).toFixed(2) + sym;
-
-        container.innerHTML = cart.items.map(function (item) {
-            return `<div class="dd-checkout-item">
-                <span class="dd-checkout-item__name">${item.name} × ${item.qty}</span>
-                <span class="dd-checkout-item__price">${fmt(item.price * item.qty)}</span>
-            </div>`;
-        }).join('');
-
-        const totalEl = document.querySelector('.dd-checkout-total');
-        if (totalEl) totalEl.textContent = fmt(cart.total);
-    }
-
-    function toggleDeliverySection(show) {
-        const section = document.querySelector('.dd-delivery-section');
-        if (section) section.style.display = show ? '' : 'none';
-    }
-
-    function submitOrder(form) {
-        const btn = form.querySelector('[type="submit"]');
-        if (btn) { btn.disabled = true; btn.textContent = 'Placing order…'; }
-
-        const data = {
-            customer_name:        form.querySelector('[name="customer_name"]')?.value || '',
-            customer_phone:       form.querySelector('[name="customer_phone"]')?.value || '',
-            customer_email:       form.querySelector('[name="customer_email"]')?.value || '',
-            order_type:           form.querySelector('input[name="order_type"]:checked')?.value || 'delivery',
-            special_instructions: form.querySelector('[name="special_instructions"]')?.value || '',
-            payment_method:       form.querySelector('[name="payment_method"]')?.value || 'cod',
-            items:                JSON.stringify(cart.items),
-            delivery_fee:         0,
-            branch_id:            DD.branch_id || 1,
-        };
-
-        ajax('dd_place_order', data, function (result) {
-            // Clear cart
-            cart = { items: [], count: 0, subtotal: 0, tax: 0, total: 0 };
-            updateCartCount();
-
-            // Redirect to tracking page
-            if (result.track_url) {
-                window.location.href = result.track_url;
-            } else {
-                showNotice('success', 'Order placed! Your order number is ' + result.order_number);
-            }
-        }, function (err) {
-            showNotice('error', err || 'Something went wrong. Please try again.');
-            if (btn) { btn.disabled = false; btn.textContent = 'Place Order'; }
-        });
-    }
-
-    /* ── HELPERS ────────────────────────────────────────── */
-    function ajax(action, data, onSuccess, onError) {
-        const body = new FormData();
-        body.append('action', action);
-        body.append('nonce', DD.nonce || '');
-        Object.entries(data).forEach(([k, v]) => body.append(k, v));
-
-        fetch(DD.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body })
-            .then(r => r.json())
-            .then(function (res) {
-                if (res.success) {
-                    onSuccess && onSuccess(res.data);
-                } else {
-                    onError && onError(res.data?.message);
-                }
-            })
-            .catch(function () {
-                onError && onError('Network error');
-            });
-    }
-
-    function showAddedFeedback(btn) {
-        const orig = btn.textContent;
-        btn.textContent = '✓ Added!';
-        btn.style.background = '#2e9e5b';
-        btn.disabled = true;
-        setTimeout(function () {
-            btn.textContent = orig;
-            btn.style.background = '';
-            btn.disabled = false;
-        }, 1200);
-    }
-
-    function showNotice(type, msg) {
-        let notice = document.querySelector('.dd-notice');
-        if (!notice) {
-            notice = document.createElement('div');
-            notice.className = 'dd-notice';
-            document.querySelector('.dd-checkout-form')?.prepend(notice);
+        if ( total <= 0 ) {
+            nudge.style.display = 'none';
+            return;
         }
-        notice.className = `dd-notice dd-notice--${type}`;
-        notice.textContent = msg;
-        notice.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        nudge.style.display = '';
+
+        if ( total >= THRESHOLD ) {
+            nudge.innerHTML =
+                '<p class="dd-nudge__label dd-nudge__label--success">' +
+                    '&#x2705; You unlocked FREE delivery!' +
+                '</p>';
+            return;
+        }
+
+        // Partially filled
+        var pct = Math.min( Math.round( ( total / THRESHOLD ) * 100 ), 99 );
+        if ( fill )      fill.style.width         = pct + '%';
+        if ( fill )      fill.parentNode.setAttribute( 'aria-valuenow', pct );
+        if ( remaining ) remaining.textContent     = formatNumber( THRESHOLD - total );
     }
 
-    // Expose cart API globally
-    window.DDCart = { open: openCartSidebar, close: closeCartSidebar, refresh: fetchCart };
+    /* ── FOOTER ─────────────────────────────────────────────── */
+    function updateFooter( data ) {
+        var subtotalEl = document.getElementById( 'ddCartSubtotal' );
+        var checkoutEl = document.getElementById( 'ddCartCheckout' );
+        var hasItems   = data.items && data.items.length > 0;
+
+        if ( subtotalEl ) {
+            subtotalEl.textContent = formatPrice( data.subtotal || 0 );
+        }
+
+        if ( checkoutEl ) {
+            checkoutEl.classList.toggle( 'dd-cart-drawer__checkout--disabled', ! hasItems );
+            checkoutEl.setAttribute( 'aria-disabled', hasItems ? 'false' : 'true' );
+            if ( hasItems ) {
+                checkoutEl.removeAttribute( 'tabindex' );
+            } else {
+                checkoutEl.setAttribute( 'tabindex', '-1' );
+            }
+        }
+    }
+
+    /* ── BADGES ─────────────────────────────────────────────── */
+    function updateBadges( count ) {
+        count = parseInt( count, 10 ) || 0;
+
+        // All badge element IDs to keep in sync
+        var badgeIds = [
+            'ddCartBtnCount',  // floating button
+            'ddBottomBadge',   // mobile bottom nav
+            'ddCartCount',     // header cart button
+        ];
+
+        badgeIds.forEach( function ( id ) {
+            var el = document.getElementById( id );
+            if ( ! el ) return;
+            el.textContent    = count;
+            el.style.display  = count > 0 ? '' : 'none';
+        } );
+
+        // Also update any .dd-cart-badge elements (generic class used in header)
+        document.querySelectorAll( '.dd-cart-badge' ).forEach( function ( el ) {
+            // Skip elements that already have a specific ID handled above
+            if ( el.id && badgeIds.indexOf( el.id ) !== -1 ) return;
+            el.textContent   = count;
+            el.style.display = count > 0 ? '' : 'none';
+        } );
+    }
+
+    /* ── TRACKING ───────────────────────────────────────────── */
+    function trackEvent( type, meta ) {
+        // Use DDTrack global if tracking.js has exposed it
+        if ( window.DDTrack && typeof window.DDTrack.fire === 'function' ) {
+            window.DDTrack.fire( type, meta );
+            return;
+        }
+        // Fallback: fire AJAX directly (non-blocking, best-effort)
+        var body = new FormData();
+        body.append( 'action',     'dd_track_event' );
+        body.append( 'nonce',      NONCE );
+        body.append( 'event_type', type );
+        body.append( 'meta',       JSON.stringify( meta || {} ) );
+        fetch( AJAX_URL, { method: 'POST', body: body } ).catch( function () {} );
+    }
+
+    /* ── AJAX HELPER ────────────────────────────────────────── */
+    function ajax( action, data, onSuccess ) {
+        var body = new FormData();
+        body.append( 'action', action );
+        body.append( 'nonce',  NONCE );
+        Object.keys( data ).forEach( function ( k ) { body.append( k, data[ k ] ); } );
+
+        fetch( AJAX_URL, { method: 'POST', body: body } )
+            .then( function ( r )   { return r.json(); } )
+            .then( function ( res ) { if ( res.success ) onSuccess( res.data ); } )
+            .catch( function ()     {} ); // silent — cart is enhancement, not critical path
+    }
+
+    /* ── FORMAT HELPERS ─────────────────────────────────────── */
+    function formatPrice( value ) {
+        return CURRENCY + ' ' + formatNumber( value );
+    }
+
+    function formatNumber( value ) {
+        return parseFloat( value ).toLocaleString( 'en-RW', { maximumFractionDigits: 0 } );
+    }
+
+    function escHtml( str ) {
+        var div = document.createElement( 'div' );
+        div.textContent = String( str || '' );
+        return div.innerHTML;
+    }
+
+    /* ── PUBLIC API ─────────────────────────────────────────── */
+    window.DDCart = {
+        open:    openCart,
+        close:   closeCart,
+        refresh: function () { fetchCart( true ); },
+    };
 
 })();
