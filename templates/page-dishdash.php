@@ -1074,51 +1074,7 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
 
 <!-- Footer injected globally by DD_Template_Module -->
 
-<!-- ══ CART DRAWER ═════════════════════════════════════════════════════════ -->
-<div class="dd-cart-overlay" id="ddCartOverlay"></div>
-<aside class="dd-cart-drawer" id="ddCartDrawer" aria-label="Shopping cart">
-    <div class="dd-cart-drawer__header">
-        <span class="dd-cart-drawer__title">Your cart</span>
-        <button class="dd-cart-drawer__close" id="ddCloseCart">Close &#10005;</button>
-    </div>
-    <div class="dd-cart-drawer__body" id="ddDrawerBody">
-        <div class="dd-cart-drawer__empty">Your cart is empty.</div>
-    </div>
-    <div class="dd-cart-drawer__footer">
-        <div class="dd-cart-drawer__totals">
-            <div class="dd-cart-drawer__row"><span>Subtotal</span><span id="ddDrawerSubtotal">RWF 0</span></div>
-            <div class="dd-cart-drawer__row"><span>Delivery</span><span id="ddDrawerDelivery">RWF 2,000</span></div>
-            <div class="dd-cart-drawer__row dd-cart-drawer__row--main"><span>Total</span><span id="ddDrawerTotal">RWF 0</span></div>
-        </div>
-        <a href="<?php echo esc_url( dd_checkout_url() ); ?>"
-           class="dd-btn dd-btn--brand dd-btn--block" style="margin-top:20px;">Checkout now</a>
-    </div>
-</aside>
-
-<!-- ══ FLOATING CART ═══════════════════════════════════════════════════════ -->
-<button class="dd-floating-cart" id="ddFloatingCart" aria-label="Open cart">
-    <span>&#128722;</span>
-    <span class="dd-floating-cart__text">Cart</span>
-    <span class="dd-cart-badge" id="ddFloatingCount"><?php echo esc_html( $dd_cart_count ); ?></span>
-</button>
-
-<!-- ══ MOBILE BOTTOM NAV ═══════════════════════════════════════════════════ -->
-<nav class="dd-bottom-nav" id="ddBottomNav">
-    <a href="#home"    class="dd-bottom-link active" data-target="home">
-        <span class="dd-bottom-link__icon">&#127968;</span><span>Home</span>
-    </a>
-    <a href="#menu"    class="dd-bottom-link" data-target="menu">
-        <span class="dd-bottom-link__icon">&#127859;</span><span>Menu</span>
-    </a>
-    <a href="#reserve" class="dd-bottom-link" data-target="reserve">
-        <span class="dd-bottom-link__icon">&#127860;</span><span>Reserve</span>
-    </a>
-    <button class="dd-bottom-link" id="ddBottomCartBtn" type="button">
-        <span class="dd-bottom-link__icon">&#128722;</span>
-        <span>Cart</span>
-        <span class="dd-bottom-badge" id="ddBottomBadge"><?php echo esc_html( $dd_cart_count ); ?></span>
-    </button>
-</nav>
+<?php require_once DD_PLUGIN_DIR . 'templates/cart/cart.php'; ?>
 
 <!-- ══ PRODUCT MODAL ══════════════════════════════════════════════════════ -->
 <div class="dd-product-modal" id="ddProductModal" role="dialog" aria-modal="true" aria-label="Product details">
@@ -1128,18 +1084,6 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         <div class="dd-product-modal__content" id="ddProductModalContent"></div>
     </div>
 </div>
-
-<!-- ══ JS DATA BRIDGE ══════════════════════════════════════════════════════ -->
-<script>
-window.DD = {
-    ajaxUrl:     '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
-    nonce:       '<?php echo esc_js( wp_create_nonce( 'dd_nonce' ) ); ?>',
-    checkoutUrl: '<?php echo esc_url( dd_checkout_url() ); ?>',
-    deliveryFee: <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
-    cartCount:   <?php echo (int) $dd_cart_count; ?>,
-    firstCat:    '<?php echo ! empty( $dd_cats ) ? esc_js( $dd_cats[0]->slug ) : ''; ?>'
-};
-</script>
 
 <?php wp_footer(); ?>
 </body>

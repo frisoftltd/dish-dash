@@ -89,12 +89,6 @@ class DD_Template_Module extends DD_Module {
     public function inject_cart_sidebar(): void {
         if ( is_admin() ) return;
 
-        // Skip on full page template — it has its own cart drawer
-        if ( is_page() ) {
-            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
-            if ( 'page-dishdash.php' === $meta ) return;
-        }
-
         $checkout_url  = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' );
         $dd_cart_count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
 

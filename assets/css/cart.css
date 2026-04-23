@@ -309,28 +309,57 @@ body.dd-cart-open {
     line-height: 1;
 }
 
-/* On mobile, the bottom nav handles cart access */
+/* ── Mobile: cart slides up from bottom ─────────────────────── */
 @media (max-width: 768px) {
-    .dd-cart-btn {
-        display: none;
-    }
-}
 
-/* ── Mobile drawer: slides up from bottom ───────────────────── */
-@media (max-width: 768px) {
     .dd-cart-drawer {
-        width: 100%;
-        height: 88vh;
         top: auto;
         bottom: 0;
+        left: 0;
         right: 0;
+        width: 100%;
+        height: 85vh;
+        max-height: 85vh;
         border-radius: 20px 20px 0 0;
-        transform: translateY(110%);
+        transform: translateY(100%);
         box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+        z-index: 9999; /* must sit above overlay (9998) */
     }
 
     .dd-cart-drawer--open {
         transform: translateY(0);
+    }
+
+    /* Sticky header keeps close button anchored while items scroll */
+    .dd-cart-drawer__header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: var(--dd-cart-red); /* explicit bg prevents content bleeding through */
+    }
+
+    /* Close button — large tap target on mobile */
+    .dd-cart-drawer__close {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    /* Overlay — covers everything behind the panel */
+    .dd-cart-drawer-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 9998;
+    }
+
+    /* Floating button hidden on mobile — bottom nav handles it */
+    .dd-cart-btn {
+        display: none !important;
     }
 }
 

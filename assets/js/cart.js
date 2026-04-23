@@ -54,18 +54,14 @@
 
         document.addEventListener( 'click', function ( e ) {
 
-            // Open triggers: floating button, bottom nav, header button
-            if ( e.target.closest( '#ddCartBtn' )       ||
-                 e.target.closest( '#ddBottomCartBtn' ) ||
-                 e.target.closest( '#ddCartTopBtn' ) ) {
+            // Open triggers — event delegation works for late-rendered elements
+            if ( e.target.closest( '#ddCartBtn, #ddBottomCartBtn, #ddCartTopBtn' ) ) {
                 openCart();
                 return;
             }
 
-            // Close triggers: overlay, close button
-            if ( e.target.closest( '#ddCartClose' ) ||
-                 e.target.id === 'ddCartOverlay'    ||
-                 e.target.classList.contains( 'dd-cart-drawer-overlay' ) ) {
+            // Close triggers
+            if ( e.target.closest( '#ddCartClose, .dd-cart-drawer-overlay' ) ) {
                 closeCart();
                 return;
             }
