@@ -89,30 +89,24 @@ WooCommerce (payment processing)
 
 ### Roles
 
-### Roles
 | Role | Responsibilities |
 |---|---|
-| **Claude** (claude.ai) | Planning, design, review, release notes |
-| **Claude Code** (terminal) | Investigation, coding, git commits, push |
-| **Developer** (human) | GitHub releases, deployment, testing, feedback |
+| **Claude** (claude.ai) | Architecture, root cause analysis, writing briefs |
+| **Claude Code** (terminal) | Investigation, file edits, git add + commit + push |
+| **Developer** (human) | Paste briefs to Claude Code, create GitHub release, deploy, test, report back |
 
-### The Loop
+### The Loop — NEVER SKIP STEPS
 
-Claude writes brief with investigation + coding instructions
-Developer pastes brief to DeepSeek
-DeepSeek investigates → reports findings → Developer pastes to Claude
-Claude reviews findings → approves or corrects
-DeepSeek codes → reports complete files → Developer pastes to Claude
-Claude reviews code report → gives release creation instructions
-Developer: commits to GitHub, creates release, deploys, tests
-Developer: screenshots/feedback to Claude
-Claude writes next brief → loop repeats
+1. **Claude writes Investigation Brief** → developer pastes to Claude Code
+2. **Claude Code investigates** → reports findings (no edits yet)
+3. **Developer pastes findings to Claude** → Claude diagnoses root cause
+4. **Claude writes Fix Brief** → developer pastes to Claude Code
+5. **Claude Code edits files** → runs `git add + commit + push origin HEAD:main`
+6. **Developer creates GitHub release** tag `vX.X.X` → deploys → tests
+7. **Developer reports result to Claude** (screenshot or description)
+8. **Claude writes next brief** → repeat from step 1
 
-
-### DeepSeek Session Setup
-
-Every DeepSeek session MUST start with:
-> Read `CLAUDE.md` from the repo root at github.com/frisoftltd/dish-dash before doing any work. This file contains the full project context, rules, architecture, and current state.
+### Claude Code Session Setup — ALWAYS START WITH
 
 ### Release Process
 
