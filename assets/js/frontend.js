@@ -22,6 +22,7 @@
  *   - window.dishDash  (ajaxUrl, nonce, cartUrl, checkoutUrl, currency_symbol,
  *     currency_position, primaryColor, menuPageId)
  *   - window.DD  (firstCat, deliveryFee, cartCount — set inline in template)
+ *   - window.ddCartData  (ajax_url, nonce — localized by cart module)
  *
  * AJAX endpoints called:
  *   - admin-ajax.php?action=dd_cart_add
@@ -38,7 +39,7 @@
  *   - modules/template/class-dd-template-module.php (enqueues this)
  *   - templates/page-dishdash.php (relies on this for all interactivity)
  *
- * Last modified: v3.1.13
+ * Last modified: v3.2.15
  */
 (function () {
     'use strict';
@@ -139,53 +140,17 @@
     }
 
     /* ══════════════════════════════════════════════════════════
-       CART DRAWER
+       CART HELPERS
     ══════════════════════════════════════════════════════════ */
-    function renderDrawer() {
-        const body = $('ddDrawerBody');
-        if (!body) return;
-
-        const subtotal = cartItems.reduce((s, i) => s + i.price * i.qty, 0);
-        const total    = subtotal + deliveryFee;
-
-        const subEl = $('ddDrawerSubtotal');
-        const totEl = $('ddDrawerTotal');
-        if (subEl) subEl.textContent = fmt(subtotal);
-        if (totEl) totEl.textContent = fmt(total);
-
-        if (!cartItems.length) {
-            body.innerHTML = '<div class="dd-cart-drawer__empty">Your cart is empty.</div>';
-            return;
-        }
-
-        body.innerHTML = `
-            <div class="dd-cart-drawer__items">
-                ${cartItems.map((item) => `
-                    <div class="dd-cart-drawer__item">
-                        <div>
-                            <h4>${escHtml(item.name)}</h4>
-                            <p>${item.qty} × ${fmt(item.price)}</p>
-                        </div>
-                        <button class="dd-btn dd-btn--sm dd-btn--light dd-rm-btn"
-                                data-id="${item.id}"
-                                style="padding:6px 12px;font-size:12px;">Remove</button>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-
-        // Bind remove buttons
-        $all('.dd-rm-btn', body).forEach((btn) => {
-            btn.addEventListener('click', () => removeFromCart(parseInt(btn.dataset.id, 10)));
-        });
-    }
-
     function openCart() {
         const overlay = $('ddCartOverlay');
         const drawer  = $('ddCartDrawer');
         if (overlay) overlay.classList.add('open');
         if (drawer)  drawer.classList.add('open');
-        renderDrawer();
+        // Cart rendering is owned by cart.js — DDCart.refresh() handles it
+        if (typeof window.DDCart !== 'undefined') {
+            window.DDCart.refresh();
+        }
     }
 
     function closeCart() {
@@ -198,49 +163,51 @@
     /* ══════════════════════════════════════════════════════════
        ADD TO CART — WooCommerce AJAX
     ══════════════════════════════════════════════════════════ */
-    function addToCart(productId, nonce, btn) {
-        if (!window.DD) return;
+    function addToCart(productId, quantity, btn) {
+        quantity = quantity || 1;
+
+        var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
+            ? window.ddCartData.ajax_url
+            : (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+        var nonce = (window.ddCartData && window.ddCartData.nonce)
+            ? window.ddCartData.nonce
+            : (window.DD && window.DD.nonce) || '';
 
         btn.classList.add('loading');
         btn.textContent = 'Adding…';
 
-        const body = new URLSearchParams({
-            action:     'dd_add_to_cart',
-            product_id: productId,
-            quantity:   1,
-            nonce:      nonce,
-        });
-
-        fetch(window.DD.ajaxUrl, {
+        fetch(ajaxUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body:   body.toString(),
+            body: new URLSearchParams({
+                action:     'dd_cart_add',
+                nonce:      nonce,
+                product_id: productId,
+                quantity:   quantity,
+            }),
         })
         .then((r) => r.json())
         .then((res) => {
             btn.classList.remove('loading');
-            btn.textContent = 'Add to cart';
 
             if (res.success) {
                 // Update badge from server response
                 const newCount = res.data && res.data.count !== undefined
                     ? res.data.count
-                    : cartCount + 1;
+                    : cartCount + quantity;
                 updateBadges(newCount);
 
-                // If server sends cart items, sync local state
+                // Sync local cart state if server sends items
                 if (res.data && res.data.items) {
                     cartItems = res.data.items;
-                } else {
-                    // Optimistic local update using card's name + price
-                    const card  = btn.closest('.dd-dish-card');
-                    const name  = card ? ($q('.dd-dish-card__title', card) || {}).textContent || '' : '';
-                    const price = card ? parseRWF(($q('.dd-price', card) || {}).textContent || '') : 0;
-                    addToLocalCart(productId, name, price);
                 }
 
                 renderSummary();
-                renderDrawer();
+
+                // Cart drawer rendering owned by cart.js
+                if (typeof window.DDCart !== 'undefined') {
+                    window.DDCart.refresh();
+                }
 
                 // Brief visual feedback
                 btn.textContent = '✓ Added!';
@@ -258,15 +225,20 @@
     }
 
     function removeFromCart(productId) {
-        if (!window.DD) return;
+        var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
+            ? window.ddCartData.ajax_url
+            : (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+        var nonce = (window.ddCartData && window.ddCartData.nonce)
+            ? window.ddCartData.nonce
+            : (window.DD && window.DD.nonce) || '';
 
-        fetch(window.DD.ajaxUrl, {
+        fetch(ajaxUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
                 action:     'dd_remove_from_cart',
                 product_id: productId,
-                nonce:      window.DD.nonce,
+                nonce:      nonce,
             }).toString(),
         })
         .then((r) => r.json())
@@ -282,7 +254,11 @@
                 }
 
                 renderSummary();
-                renderDrawer();
+
+                // Cart drawer rendering owned by cart.js
+                if (typeof window.DDCart !== 'undefined') {
+                    window.DDCart.refresh();
+                }
             }
         })
         .catch((e) => console.warn('[DishDash] Remove failed', e));
@@ -323,9 +299,8 @@
             btn.dataset.bound = '1';
 
             btn.addEventListener('click', () => {
-                const id    = parseInt(btn.dataset.id, 10);
-                const nonce = btn.dataset.nonce || (window.DD ? window.DD.nonce : '');
-                addToCart(id, nonce, btn);
+                const id = parseInt(btn.dataset.id, 10);
+                addToCart(id, 1, btn);
             });
         });
     }
@@ -664,11 +639,9 @@
        CART CONTROLS
     ══════════════════════════════════════════════════════════ */
     function setupCartControls() {
-        const openBtns = [$('ddCartTopBtn'), $('ddFloatingCart'), $('ddBottomCartBtn')];
+        // #ddFloatingCart and #ddCloseCart no longer exist — removed
+        const openBtns = [$('ddCartTopBtn'), $('ddBottomCartBtn')];
         openBtns.forEach((btn) => btn && btn.addEventListener('click', openCart));
-
-        const closeBtn = $('ddCloseCart');
-        if (closeBtn) closeBtn.addEventListener('click', closeCart);
 
         const overlay = $('ddCartOverlay');
         if (overlay) overlay.addEventListener('click', closeCart);
@@ -765,7 +738,6 @@
 
         // Initial summary render
         renderSummary();
-        renderDrawer();
 
         // Load Google Reviews
         loadReviews();
@@ -1158,7 +1130,8 @@
        PRODUCT MODAL
        Opens when user clicks a product in search results
        or anywhere else that calls openProductModal(id).
-       Reads product data from DOM — no extra AJAX needed.
+       Reads product data from DOM — AJAX fetch enriches with
+       attributes and ratings.
     ══════════════════════════════════════════════════════════ */
     function openProductModal(productId) {
         var modal   = $('ddProductModal');
@@ -1180,14 +1153,14 @@
             imgSrc = imgEl ? imgEl.src : '';
             var addBtn = card.querySelector('.dd-add-btn');
             nonce  = addBtn ? (addBtn.dataset.nonce || '') : '';
-            renderModal(productId, name, price, desc, imgSrc, nonce);
+            renderModal(productId, name, price, desc, imgSrc);
         } else {
             // 2. Request product data from search.js via custom event
             function onData(e) {
                 document.removeEventListener('dd:product-data', onData);
                 var p = e.detail;
                 if (!p) return;
-                renderModal(productId, p.name || '', p.price || '', p.desc || '', p.img || '', p.nonce || '');
+                renderModal(productId, p.name || '', p.price || '', p.desc || '', p.img || '');
             }
             document.addEventListener('dd:product-data', onData);
             document.dispatchEvent(new CustomEvent('dd:get-product', {
@@ -1196,37 +1169,50 @@
             return; // renderModal called async via event
         }
 
-    function renderModal(productId, name, price, desc, imgSrc, nonce) {
+    function renderModal(productId, name, price, desc, imgSrc) {
         var modal   = $('ddProductModal');
         var content = $('ddProductModalContent');
         if (!modal || !content) return;
 
+        // Fire tracking event on open
+        if (typeof DDTrack !== 'undefined') {
+            DDTrack.fire('view_product', productId, null, { source: 'modal' });
+        }
+
         content.innerHTML =
             '<div class="dd-pm__img-wrap">' +
-                (imgSrc ? '<img src="' + escHtml(imgSrc) + '" alt="' + escHtml(name) + '">' : '<div class="dd-pm__img-placeholder">&#127869;</div>') +
+                (imgSrc
+                    ? '<img src="' + escHtml(imgSrc) + '" alt="' + escHtml(name) + '" style="width:100%;border-radius:16px 16px 0 0;object-fit:cover;max-height:240px;display:block;">'
+                    : '<div class="dd-pm__img-placeholder">&#127869;</div>') +
             '</div>' +
             '<div class="dd-pm__body">' +
-                '<h2 class="dd-pm__name dd-serif">' + escHtml(name) + '</h2>' +
-                (desc ? '<p class="dd-pm__desc">' + escHtml(desc) + '</p>' : '') +
-                '<div class="dd-pm__footer">' +
-                    '<span class="dd-pm__price">' + escHtml(price) + '</span>' +
-                    '<div class="dd-pm__qty-wrap">' +
-                        '<button class="dd-pm__qty-btn" id="ddPmMinus" aria-label="Decrease">&#8722;</button>' +
-                        '<span class="dd-pm__qty" id="ddPmQty">1</span>' +
-                        '<button class="dd-pm__qty-btn" id="ddPmPlus" aria-label="Increase">&#43;</button>' +
+                '<h2 class="dd-pm__name dd-serif" style="font-size:1.3rem;font-weight:800;margin:0 0 0.35rem;color:#221B19;">' + escHtml(name) + '</h2>' +
+                '<div class="dd-pm__rating" id="ddPmRating" style="font-size:0.82rem;color:#7A6558;margin-bottom:0.4rem;min-height:18px;"></div>' +
+                '<div class="dd-pm__price" style="font-size:1.1rem;font-weight:800;color:#E8832A;margin-bottom:0.75rem;">' + escHtml(price) + '</div>' +
+                (desc ? '<p class="dd-pm__desc" style="font-size:0.88rem;color:#7A6558;margin:0 0 1rem;line-height:1.5;">' + escHtml(desc) + '</p>' : '') +
+                '<div class="dd-pm__attrs" id="ddPmAttrs" style="margin-bottom:0.75rem;"></div>' +
+                '<div class="dd-pm__notes-wrap" style="margin-bottom:1rem;">' +
+                    '<textarea id="ddPmNotes" placeholder="Add special instructions (optional)..." rows="2" ' +
+                        'style="width:100%;box-sizing:border-box;padding:0.6rem 0.85rem;border:2px solid #EAD9CE;border-radius:10px;font-size:0.85rem;font-family:inherit;resize:none;outline:none;background:#fff;color:#221B19;">' +
+                    '</textarea>' +
+                '</div>' +
+                '<div class="dd-pm__footer" style="display:flex;align-items:center;gap:12px;">' +
+                    '<div class="dd-pm__qty-wrap" style="display:flex;align-items:center;gap:8px;background:#F5EFE6;border-radius:999px;padding:4px 12px;">' +
+                        '<button class="dd-pm__qty-btn" id="ddPmMinus" aria-label="Decrease" ' +
+                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#65040d;font-weight:700;line-height:1;padding:2px 4px;">&#8722;</button>' +
+                        '<span class="dd-pm__qty" id="ddPmQty" style="font-weight:700;font-size:1rem;min-width:24px;text-align:center;">1</span>' +
+                        '<button class="dd-pm__qty-btn" id="ddPmPlus" aria-label="Increase" ' +
+                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#65040d;font-weight:700;line-height:1;padding:2px 4px;">&#43;</button>' +
                     '</div>' +
-                    '<button class="dd-btn dd-btn--brand dd-pm__add" ' +
-                        'id="ddPmAddBtn" ' +
-                        'data-id="' + escHtml(productId) + '" ' +
-                        'data-nonce="' + escHtml(nonce) + '">' +
-                        'Add to cart' +
+                    '<button id="ddPmAddBtn" data-id="' + escHtml(productId) + '" ' +
+                        'style="flex:1;background:#65040d;color:#fff;border:none;border-radius:999px;padding:0.75rem 1rem;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s;">' +
+                        'Add to Cart' +
                     '</button>' +
                 '</div>' +
-
             '</div>';
 
-        // Quantity controls
-        var qty = 1;
+        // Quantity stepper
+        var qty    = 1;
         var qtyEl  = $('ddPmQty');
         var minBtn = $('ddPmMinus');
         var plsBtn = $('ddPmPlus');
@@ -1243,23 +1229,31 @@
                 if (qtyEl) qtyEl.textContent = qty;
             });
         }
+
         if (pmAdd) {
+            pmAdd.addEventListener('mouseover', function() { this.style.background = '#4a0209'; });
+            pmAdd.addEventListener('mouseout',  function() { this.style.background = '#65040d'; });
+
             pmAdd.addEventListener('click', function() {
-                if (!window.DD) return;
+                var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
+                    ? window.ddCartData.ajax_url
+                    : (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+                var nonce = (window.ddCartData && window.ddCartData.nonce)
+                    ? window.ddCartData.nonce
+                    : (window.DD && window.DD.nonce) || '';
+
                 pmAdd.textContent = 'Adding…';
                 pmAdd.disabled = true;
 
-                var body = new URLSearchParams({
-                    action:     'dd_add_to_cart',
-                    product_id: productId,
-                    quantity:   qty,
-                    nonce:      nonce,
-                });
-
-                fetch(window.DD.ajaxUrl, {
+                fetch(ajaxUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: body.toString(),
+                    body: new URLSearchParams({
+                        action:     'dd_cart_add',
+                        nonce:      nonce,
+                        product_id: productId,
+                        quantity:   qty,
+                    }),
                 })
                 .then(function(r) { return r.json(); })
                 .then(function(res) {
@@ -1269,18 +1263,18 @@
                         updateBadges(newCount);
                         if (res.data && res.data.items) cartItems = res.data.items;
                         renderSummary();
-                        renderDrawer();
+                        if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
                         pmAdd.textContent = '✓ Added!';
                         setTimeout(function() {
                             closeProductModal();
                         }, 900);
                     } else {
-                        pmAdd.textContent = 'Add to cart';
+                        pmAdd.textContent = 'Add to Cart';
                         pmAdd.disabled = false;
                     }
                 })
                 .catch(function() {
-                    pmAdd.textContent = 'Add to cart';
+                    pmAdd.textContent = 'Add to Cart';
                     pmAdd.disabled = false;
                 });
             });
@@ -1290,7 +1284,7 @@
         modal.classList.add('open');
         document.body.style.overflow = 'hidden';
 
-        // Re-bind close button directly — most reliable approach
+        // Re-bind close button directly
         var cb = $('ddProductModalClose');
         if (cb) {
             cb.onclick = function(e) {
@@ -1298,8 +1292,86 @@
                 closeProductModal();
             };
         }
+
+        // Fetch richer product data — attributes + ratings (fails silently)
+        fetchProductEnrichment(productId);
     }
 
+    }
+
+    /* ── Enrich modal with attributes + ratings from server ── */
+    function fetchProductEnrichment(productId) {
+        var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
+            ? window.ddCartData.ajax_url
+            : (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+        var nonce = (window.ddCartData && window.ddCartData.nonce)
+            ? window.ddCartData.nonce
+            : (window.DD && window.DD.nonce) || '';
+
+        fetch(ajaxUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                action:     'dd_get_product',
+                product_id: productId,
+                nonce:      nonce,
+            }),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res.success || !res.data) return;
+            var p = res.data;
+
+            // Ratings
+            if (p.rating_count && p.average_rating) {
+                var ratingEl = $('ddPmRating');
+                if (ratingEl) {
+                    var stars = Math.min(5, Math.max(0, Math.round(parseFloat(p.average_rating))));
+                    var starHtml = '★'.repeat(stars) + '☆'.repeat(5 - stars);
+                    ratingEl.innerHTML =
+                        '<span style="color:#E8832A;">' + starHtml + '</span>' +
+                        '<span style="margin-left:5px;color:#7A6558;">(' + escHtml(String(p.rating_count)) + ' reviews)</span>';
+                }
+            }
+
+            // Attribute pills
+            if (p.attributes && p.attributes.length) {
+                var attrsEl = $('ddPmAttrs');
+                if (attrsEl) {
+                    var html = p.attributes.map(function(attr) {
+                        return '<div style="margin-bottom:0.6rem;">' +
+                            '<div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#7A6558;margin-bottom:0.35rem;">' +
+                                escHtml(attr.name) +
+                            '</div>' +
+                            '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+                            (attr.options || []).map(function(opt) {
+                                return '<button class="dd-pm__pill" data-attr="' + escHtml(attr.name) + '" data-value="' + escHtml(opt) + '" ' +
+                                    'style="background:#F5EFE6;border:2px solid #EAD9CE;border-radius:999px;padding:4px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;color:#221B19;transition:all 0.15s;">' +
+                                    escHtml(opt) +
+                                '</button>';
+                            }).join('') +
+                            '</div></div>';
+                    }).join('');
+                    attrsEl.innerHTML = html;
+
+                    // Interactive pill selection
+                    attrsEl.querySelectorAll('.dd-pm__pill').forEach(function(pill) {
+                        pill.addEventListener('click', function() {
+                            var attrName = this.dataset.attr;
+                            attrsEl.querySelectorAll('.dd-pm__pill[data-attr="' + attrName + '"]').forEach(function(p) {
+                                p.style.background = '#F5EFE6';
+                                p.style.borderColor = '#EAD9CE';
+                                p.style.color = '#221B19';
+                            });
+                            this.style.background = '#65040d';
+                            this.style.borderColor = '#65040d';
+                            this.style.color = '#fff';
+                        });
+                    });
+                }
+            }
+        })
+        .catch(function() { /* silently fail — basic info already shown */ });
     }
 
     function closeProductModal() {
