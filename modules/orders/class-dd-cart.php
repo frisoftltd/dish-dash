@@ -196,13 +196,30 @@ class DD_Cart {
 
     public static function ajax_add(): void {
         DD_Ajax::verify_nonce();
+
+        $product_id = (int) ( $_POST['product_id'] ?? $_POST['id'] ?? 0 );
+        $quantity   = max( 1, (int) ( $_POST['quantity'] ?? 1 ) );
+
+        if ( ! $product_id ) {
+            wp_send_json_error( 'Missing product_id' ); return;
+        }
+
+        $product = wc_get_product( $product_id );
+        if ( ! $product ) {
+            wp_send_json_error( 'Product not found' ); return;
+        }
+
+        $name  = $product->get_name();
+        $price = (float) $product->get_price();
+        $image = wp_get_attachment_url( $product->get_image_id() ) ?: wc_placeholder_img_src();
+
         $cart   = new self();
         $result = $cart->add( [
-            'id'        => absint( $_POST['id'] ?? 0 ),
-            'name'      => sanitize_text_field( $_POST['name'] ?? '' ),
-            'price'     => (float) ( $_POST['price'] ?? 0 ),
-            'qty'       => absint( $_POST['qty'] ?? 1 ),
-            'image'     => esc_url_raw( $_POST['image'] ?? '' ),
+            'id'        => $product_id,
+            'name'      => $name,
+            'price'     => $price,
+            'qty'       => $quantity,
+            'image'     => $image,
             'variation' => sanitize_text_field( $_POST['variation'] ?? '' ),
             'addons'    => json_decode( stripslashes( $_POST['addons'] ?? '[]' ), true ),
             'note'      => sanitize_textarea_field( $_POST['note'] ?? '' ),
