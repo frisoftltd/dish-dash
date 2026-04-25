@@ -638,7 +638,7 @@
 
         // Fire tracking event on open
         if (typeof DDTrack !== 'undefined') {
-            DDTrack.fire('view_product', productId, null, { source: 'modal' });
+            DDTrack.event('view_product', productId, null, { source: 'modal' });
         }
 
         content.innerHTML =
