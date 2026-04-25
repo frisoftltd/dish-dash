@@ -575,10 +575,7 @@
         loadReviews();
         setupProductModal();
 
-        // Listen for events from search.js (decoupled communication)
-        document.addEventListener('dd:open-modal', function(e) {
-            if (e.detail && e.detail.productId) openProductModal(e.detail.productId);
-        });
+        // Listen for dd:filter-cards from search.js
         document.addEventListener('dd:filter-cards', function(e) {
             filterDishCards(e.detail ? e.detail.query : '');
         });
@@ -616,15 +613,22 @@
             var imgSrc = imgEl ? imgEl.src : '';
             renderModal(productId, name, price, desc, imgSrc);
         } else {
-            // 2. Request product data from search.js via custom event
-            function onData(e) {
-                document.removeEventListener('dd:product-data', onData);
-                var p = e.detail;
-                if (!p) return;
-                renderModal(productId, p.name || '', p.price || '', p.desc || '', p.img || '');
-            }
-            document.addEventListener('dd:product-data', onData);
-            document.dispatchEvent(new CustomEvent('dd:get-product', { detail: { productId: productId } }));
+            // 2. No card in DOM — fetch directly from server (handles search results
+            //    on pages where products are not rendered in the DOM, e.g. /restaurant-menu/)
+            var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url) || (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+            var nonce   = (window.ddCartData && window.ddCartData.nonce)    || (window.DD && window.DD.nonce)   || '';
+            fetch(ajaxUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'dd_get_product', product_id: productId, nonce: nonce })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (!res.success || !res.data) return;
+                var p = res.data;
+                renderModal(productId, p.name || '', 'RWF ' + (p.price || ''), p.description || '', p.image || '');
+            })
+            .catch(function() {});
         }
 
     function renderModal(productId, name, price, desc, imgSrc) {
@@ -902,6 +906,18 @@
             .catch(() => {});
         }
     }
+
+    /* ══════════════════════════════════════════════════════════
+       SEARCH MODAL BRIDGE
+       Registered immediately (not inside DOMContentLoaded) so it
+       is ready before search.js fires dd:open-modal — avoids the
+       race condition where search.js boots first on DOMContentLoaded
+       and dispatches the event before frontend.js has registered.
+       openProductModal is a function declaration so it is hoisted.
+    ══════════════════════════════════════════════════════════ */
+    document.addEventListener('dd:open-modal', function(e) {
+        if (e.detail && e.detail.productId) openProductModal(e.detail.productId);
+    });
 
     /* ══════════════════════════════════════════════════════════
        BOOT
