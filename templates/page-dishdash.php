@@ -1076,15 +1076,6 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
 
 <?php require_once DD_PLUGIN_DIR . 'templates/cart/cart.php'; ?>
 
-<!-- ══ PRODUCT MODAL ══════════════════════════════════════════════════════ -->
-<div class="dd-product-modal" id="ddProductModal" role="dialog" aria-modal="true" aria-label="Product details">
-    <div class="dd-product-modal__overlay" id="ddProductModalOverlay"></div>
-    <div class="dd-product-modal__wrap">
-        <button class="dd-product-modal__close" id="ddProductModalClose" aria-label="Close" onclick="if(window.ddCloseModal)window.ddCloseModal();return false;">&#10005;</button>
-        <div class="dd-product-modal__content" id="ddProductModalContent"></div>
-    </div>
-</div>
-
-<?php wp_footer(); ?>
+<?php wp_footer(); /* inject_product_modal() runs here via wp_footer hook — do not add modal HTML again */ ?>
 </body>
 </html>
