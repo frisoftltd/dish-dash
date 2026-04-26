@@ -134,8 +134,10 @@ body.dd-cart-open {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 10px 16px;
     border-bottom: 1px solid var(--dd-cart-border);
+    min-height: unset;
+    height: auto;
 }
 
 .dd-cart-drawer__item:last-child {
@@ -155,7 +157,9 @@ body.dd-cart-open {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 6px;
+    min-width: 0;
+    height: auto;
 }
 
 .dd-cart-drawer__item-name {
@@ -542,8 +546,10 @@ body.dd-cart-open {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 8px;
+    justify-content: center;
+    gap: 6px;
     flex-shrink: 0;
+    height: auto;
 }
 
 .dd-cart-stepper {
