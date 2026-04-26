@@ -89,12 +89,35 @@
         t._hide = setTimeout(function() { t.style.opacity = '0'; }, 2500);
     }
 
-    /* ── Attribute pill CSS (injected once) ── */
+    /* ── Attribute pill + card hover CSS (injected once) ── */
     (function() {
         var style = document.createElement('style');
-        style.textContent =
-            '.dd-pm__attr-pill{padding:6px 14px;border:1.5px solid #e0d5c5;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;transition:all .2s;}' +
-            '.dd-pm__attr-pill.active{background:#65040d;color:#fff;border-color:#65040d;}';
+        style.textContent = [
+            '.dd-pm__attr-pill {',
+            '  display:inline-block;',
+            '  padding:6px 14px;',
+            '  border:1.5px solid #e0d5c5 !important;',
+            '  border-radius:20px !important;',
+            '  background:#fff !important;',
+            '  cursor:pointer;',
+            '  font-size:13px;',
+            '  font-family:inherit;',
+            '  transition:all .2s;',
+            '  margin:4px;',
+            '}',
+            '.dd-pm__attr-pill.active {',
+            '  background:#65040d !important;',
+            '  color:#fff !important;',
+            '  border-color:#65040d !important;',
+            '}',
+            '.dd-pm__attr-group { margin-bottom:12px; }',
+            '.dd-pm__attr-label { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#8a7a66; margin-bottom:6px; }',
+            '.dd-pm__attr-pills { display:flex; flex-wrap:wrap; gap:6px; }',
+            '.dd-dish-card { cursor:pointer; transition:transform .2s, box-shadow .2s; }',
+            '.dd-dish-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.12); }',
+            '.dd-menu-item { cursor:pointer; transition:transform .2s, box-shadow .2s; }',
+            '.dd-menu-item:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,0.12); }',
+        ].join('\n');
         document.head.appendChild(style);
     })();
 
@@ -249,20 +272,6 @@
     }
 
     /* ══════════════════════════════════════════════════════════
-       BIND ALL ADD-TO-CART BUTTONS (featured + category rows)
-    ══════════════════════════════════════════════════════════ */
-    function bindAddBtns(scope) {
-        $all('.dd-add-btn', scope).forEach((btn) => {
-            if (btn.dataset.bound) return;
-            btn.dataset.bound = '1';
-            btn.addEventListener('click', () => {
-                const id = parseInt(btn.dataset.id, 10);
-                addToCart(id, 1, btn);
-            });
-        });
-    }
-
-    /* ══════════════════════════════════════════════════════════
        CATEGORY SWITCHING
     ══════════════════════════════════════════════════════════ */
     function switchCategory(slug, name) {
@@ -281,8 +290,6 @@
 
         setupArrows('ddSelPrev', 'ddSelNext', 'ddCatRow-' + slug);
 
-        const activeRow = document.querySelector('.dd-cat-row[data-slug="' + slug + '"]');
-        if (activeRow) bindAddBtns(activeRow);
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -556,12 +563,6 @@
        INIT
     ══════════════════════════════════════════════════════════ */
     function init() {
-        const featRow = $('ddFeatRow');
-        if (featRow) bindAddBtns(featRow);
-
-        const firstRow = document.querySelector('.dd-cat-row:not([hidden])');
-        if (firstRow) bindAddBtns(firstRow);
-
         $all('.dd-cat-card').forEach((card) => {
             card.addEventListener('click', () => {
                 $all('.dd-cat-card').forEach((c) => c.classList.remove('active'));
@@ -889,9 +890,6 @@
         }
 
         document.addEventListener('click', function(e) {
-            // Ignore clicks on Add to Cart buttons — those add directly
-            if (e.target.closest('.dd-add-btn') || e.target.closest('.dd-btn--brand')) return;
-
             var card = e.target.closest('.dd-dish-card') || e.target.closest('.dd-menu-item');
             if (!card) return;
 
