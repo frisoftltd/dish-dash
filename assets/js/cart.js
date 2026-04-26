@@ -77,6 +77,51 @@
         document.addEventListener( 'keydown', function ( e ) {
             if ( e.key === 'Escape' ) closeCart();
         } );
+
+        // Qty increase
+        document.addEventListener( 'click', function ( e ) {
+            var btn = e.target.closest( '.dd-cart-plus' );
+            if ( ! btn ) return;
+            var key = btn.dataset.key;
+            var qtyEl = btn.closest( '.dd-cart-stepper' ).querySelector( '.dd-cart-stepper__qty' );
+            var newQty = parseInt( qtyEl.textContent, 10 ) + 1;
+            qtyEl.textContent = newQty;
+            ajax( 'dd_cart_update', { key: key, qty: newQty }, function ( data ) {
+                updateBadges( data.count );
+                updateNudge( data.total );
+                updateFooter( data );
+            } );
+        } );
+
+        // Qty decrease
+        document.addEventListener( 'click', function ( e ) {
+            var btn = e.target.closest( '.dd-cart-minus' );
+            if ( ! btn ) return;
+            var key = btn.dataset.key;
+            var qtyEl = btn.closest( '.dd-cart-stepper' ).querySelector( '.dd-cart-stepper__qty' );
+            var newQty = Math.max( 1, parseInt( qtyEl.textContent, 10 ) - 1 );
+            qtyEl.textContent = newQty;
+            ajax( 'dd_cart_update', { key: key, qty: newQty }, function ( data ) {
+                updateBadges( data.count );
+                updateNudge( data.total );
+                updateFooter( data );
+            } );
+        } );
+
+        // Remove item
+        document.addEventListener( 'click', function ( e ) {
+            var btn = e.target.closest( '.dd-cart-remove' );
+            if ( ! btn ) return;
+            var key = btn.dataset.key;
+            var item = btn.closest( '.dd-cart-drawer__item' );
+            if ( item ) item.style.opacity = '0.4';
+            ajax( 'dd_cart_remove', { key: key }, function ( data ) {
+                updateBadges( data.count );
+                updateNudge( data.total );
+                updateFooter( data );
+                fetchCart( true );
+            } );
+        } );
     }
 
     /* ── OPEN ───────────────────────────────────────────────── */
@@ -133,16 +178,24 @@
         container.innerHTML = items.map( function ( item ) {
             var addonTotal = ( item.addons || [] ).reduce( function ( s, a ) { return s + a.price; }, 0 );
             var lineTotal  = formatPrice( ( item.price + addonTotal ) * item.qty );
+            var key        = escHtml( item.key || item.id );
 
-            return '<div class="dd-cart-drawer__item">' +
+            return '<div class="dd-cart-drawer__item" data-key="' + key + '">' +
                 ( item.image
                     ? '<img class="dd-cart-drawer__item-img" src="' + escHtml( item.image ) + '" alt="' + escHtml( item.name ) + '" loading="lazy">'
-                    : '' ) +
+                    : '<div class="dd-cart-drawer__item-img dd-cart-drawer__item-img--placeholder">&#127869;</div>' ) +
                 '<div class="dd-cart-drawer__item-info">' +
                     '<span class="dd-cart-drawer__item-name">' + escHtml( item.name ) + '</span>' +
-                    '<span class="dd-cart-drawer__item-qty">&times; ' + parseInt( item.qty, 10 ) + '</span>' +
+                    '<div class="dd-cart-stepper">' +
+                        '<button class="dd-cart-stepper__btn dd-cart-minus" data-key="' + key + '" aria-label="Decrease">&#8722;</button>' +
+                        '<span class="dd-cart-stepper__qty">' + parseInt( item.qty, 10 ) + '</span>' +
+                        '<button class="dd-cart-stepper__btn dd-cart-plus" data-key="' + key + '" aria-label="Increase">&#43;</button>' +
+                    '</div>' +
                 '</div>' +
-                '<span class="dd-cart-drawer__item-price">' + lineTotal + '</span>' +
+                '<div class="dd-cart-drawer__item-right">' +
+                    '<span class="dd-cart-drawer__item-price">' + lineTotal + '</span>' +
+                    '<button class="dd-cart-remove" data-key="' + key + '" aria-label="Remove item">&#10005;</button>' +
+                '</div>' +
             '</div>';
         } ).join( '' );
     }
