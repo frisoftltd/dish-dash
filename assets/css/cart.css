@@ -135,7 +135,7 @@ body.dd-cart-open {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 16px;
+    padding: 10px 16px !important;
     border-bottom: 1px solid var(--dd-cart-border);
     min-height: unset;
     height: auto;
