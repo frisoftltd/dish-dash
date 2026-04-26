@@ -118,8 +118,9 @@ body.dd-cart-open {
 .dd-cart-drawer__items {
     flex: 1;
     overflow-y: auto;
-    padding: 1rem 1.4rem;
-    -webkit-overflow-scrolling: touch;
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .dd-cart-drawer__empty {
