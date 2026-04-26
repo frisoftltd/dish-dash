@@ -154,8 +154,13 @@ class DD_Cart {
         $tax_rate = (float) DD_Settings::get( 'tax_rate', 0 ) / 100;
         $tax      = round( $subtotal * $tax_rate, 2 );
 
+        $items = [];
+        foreach ( $cart as $key => $item ) {
+            $items[] = array_merge( $item, [ 'key' => $key ] );
+        }
+
         return [
-            'items'    => array_values( $cart ),
+            'items'    => $items,
             'count'    => $count,
             'subtotal' => round( $subtotal, 2 ),
             'tax'      => $tax,

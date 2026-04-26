@@ -90,6 +90,15 @@
                 updateBadges( data.count );
                 updateNudge( data.total );
                 updateFooter( data );
+                if ( data.items ) {
+                    data.items.forEach( function ( item ) {
+                        var itemEl = document.querySelector( '.dd-cart-drawer__item[data-key="' + item.key + '"]' );
+                        if ( itemEl ) {
+                            var priceEl = itemEl.querySelector( '.dd-cart-drawer__item-price' );
+                            if ( priceEl ) priceEl.textContent = formatPrice( item.price * item.qty );
+                        }
+                    } );
+                }
             } );
         } );
 
@@ -105,6 +114,15 @@
                 updateBadges( data.count );
                 updateNudge( data.total );
                 updateFooter( data );
+                if ( data.items ) {
+                    data.items.forEach( function ( item ) {
+                        var itemEl = document.querySelector( '.dd-cart-drawer__item[data-key="' + item.key + '"]' );
+                        if ( itemEl ) {
+                            var priceEl = itemEl.querySelector( '.dd-cart-drawer__item-price' );
+                            if ( priceEl ) priceEl.textContent = formatPrice( item.price * item.qty );
+                        }
+                    } );
+                }
             } );
         } );
 
