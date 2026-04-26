@@ -118,7 +118,7 @@ body.dd-cart-open {
 .dd-cart-drawer__items {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
 }

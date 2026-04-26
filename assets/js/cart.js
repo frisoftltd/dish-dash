@@ -328,7 +328,7 @@
 
     /* ── FORMAT HELPERS ─────────────────────────────────────── */
     function formatPrice( value ) {
-        return CURRENCY + ' ' + formatNumber( value );
+        return Math.round( value ).toLocaleString( 'en-US' ) + ' RWF';
     }
 
     function formatNumber( value ) {
