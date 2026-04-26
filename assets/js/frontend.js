@@ -72,6 +72,32 @@
         return parseInt((str || '').replace(/[^\d]/g, ''), 10) || 0;
     }
 
+    function showToast(msg) {
+        var t = document.getElementById('ddToast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'ddToast';
+            t.style.cssText = 'position:fixed;bottom:90px;right:20px;background:#65040d;color:#fff;' +
+                'padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;' +
+                'z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
+                'box-shadow:0 4px 16px rgba(0,0,0,0.2);';
+            document.body.appendChild(t);
+        }
+        t.textContent = msg;
+        t.style.opacity = '1';
+        clearTimeout(t._hide);
+        t._hide = setTimeout(function() { t.style.opacity = '0'; }, 2500);
+    }
+
+    /* ── Attribute pill CSS (injected once) ── */
+    (function() {
+        var style = document.createElement('style');
+        style.textContent =
+            '.dd-pm__attr-pill{padding:6px 14px;border:1.5px solid #e0d5c5;border-radius:20px;background:#fff;cursor:pointer;font-size:13px;transition:all .2s;}' +
+            '.dd-pm__attr-pill.active{background:#65040d;color:#fff;border-color:#65040d;}';
+        document.head.appendChild(style);
+    })();
+
     /* ══════════════════════════════════════════════════════════
        CART BADGE SYNC
     ══════════════════════════════════════════════════════════ */
@@ -171,6 +197,7 @@
                 if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
 
                 btn.textContent = '✓ Added!';
+                showToast('✓ Added to cart!');
                 setTimeout(() => { btn.textContent = 'Add to cart'; }, 1800);
 
             } else {
@@ -727,6 +754,7 @@
                         renderSummary();
                         if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
                         pmAdd.textContent = '✓ Added!';
+                        showToast('✓ Added to cart!');
                         setTimeout(function() { closeProductModal(); }, 900);
                     } else {
                         pmAdd.textContent = 'Add to Cart';
@@ -790,39 +818,52 @@
             }
 
             // Attribute pills
-            if (p.attributes && p.attributes.length) {
-                var attrsEl = $('ddPmAttrs');
-                if (attrsEl) {
-                    var html = p.attributes.map(function(attr) {
-                        return '<div style="margin-bottom:0.6rem;">' +
-                            '<div style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#7A6558;margin-bottom:0.35rem;">' +
-                                escHtml(attr.name) +
-                            '</div>' +
-                            '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
-                            (attr.options || []).map(function(opt) {
-                                return '<button class="dd-pm__pill" data-attr="' + escHtml(attr.name) + '" data-value="' + escHtml(opt) + '" ' +
-                                    'style="background:#F5EFE6;border:2px solid #EAD9CE;border-radius:999px;padding:4px 14px;font-size:0.82rem;font-weight:600;cursor:pointer;color:#221B19;transition:all 0.15s;">' +
-                                    escHtml(opt) +
-                                '</button>';
-                            }).join('') +
-                            '</div></div>';
-                    }).join('');
-                    attrsEl.innerHTML = html;
+            var attrsEl = document.getElementById('ddPmAttrs');
+            var addBtn  = document.getElementById('ddPmAddBtn');
 
-                    attrsEl.querySelectorAll('.dd-pm__pill').forEach(function(pill) {
-                        pill.addEventListener('click', function() {
-                            var attrName = this.dataset.attr;
-                            attrsEl.querySelectorAll('.dd-pm__pill[data-attr="' + attrName + '"]').forEach(function(p) {
-                                p.style.background  = '#F5EFE6';
-                                p.style.borderColor = '#EAD9CE';
-                                p.style.color       = '#221B19';
-                            });
-                            this.style.background  = '#65040d';
-                            this.style.borderColor = '#65040d';
-                            this.style.color       = '#fff';
-                        });
+            if (p.attributes && p.attributes.length > 0) {
+                // Disable Add to Cart until all attributes selected
+                if (addBtn) {
+                    addBtn.disabled = true;
+                    addBtn.style.opacity = '0.5';
+                    addBtn.style.cursor = 'not-allowed';
+                }
+
+                var html = '';
+                p.attributes.forEach(function(attr) {
+                    html += '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">';
+                    html += '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#7A6558;margin-bottom:0.35rem;">' + escHtml(attr.name) + '</div>';
+                    html += '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
+                    (attr.options || []).forEach(function(opt) {
+                        html += '<button type="button" class="dd-pm__attr-pill" data-attr="' + escHtml(attr.name) + '" data-val="' + escHtml(opt) + '">' + escHtml(opt) + '</button>';
+                    });
+                    html += '</div></div>';
+                });
+
+                if (attrsEl) attrsEl.innerHTML = html;
+
+                // Enable Add to Cart when all attribute groups have a selection
+                var selected = {};
+                var total    = p.attributes.length;
+
+                if (attrsEl) {
+                    attrsEl.addEventListener('click', function(e) {
+                        var pill = e.target.closest('.dd-pm__attr-pill');
+                        if (!pill) return;
+                        var attrName = pill.dataset.attr;
+                        attrsEl.querySelectorAll('.dd-pm__attr-pill[data-attr="' + attrName + '"]')
+                            .forEach(function(p) { p.classList.remove('active'); });
+                        pill.classList.add('active');
+                        selected[attrName] = pill.dataset.val;
+                        if (Object.keys(selected).length >= total && addBtn) {
+                            addBtn.disabled = false;
+                            addBtn.style.opacity = '1';
+                            addBtn.style.cursor = 'pointer';
+                        }
                     });
                 }
+            } else {
+                if (attrsEl) attrsEl.innerHTML = '';
             }
         })
         .catch(function() { /* silently fail — basic info already shown */ });
@@ -837,23 +878,25 @@
 
     function setupProductModal() {
         var modal = $('ddProductModal');
-        if (!modal) return;
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal || e.target.id === 'ddProductModalOverlay') closeProductModal();
+            });
 
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal || e.target.id === 'ddProductModalOverlay') closeProductModal();
-        });
-
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && modal.classList.contains('open')) closeProductModal();
-        });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && modal.classList.contains('open')) closeProductModal();
+            });
+        }
 
         document.addEventListener('click', function(e) {
-            if (e.target.closest('.dd-product-modal')) return;
-            var card = e.target.closest('.dd-dish-card');
+            // Ignore clicks on Add to Cart buttons — those add directly
+            if (e.target.closest('.dd-add-btn') || e.target.closest('.dd-btn--brand')) return;
+
+            var card = e.target.closest('.dd-dish-card') || e.target.closest('.dd-menu-item');
             if (!card) return;
-            if (e.target.closest('.dd-add-btn')) return;
-            var pid = card.dataset.id;
-            if (pid) openProductModal(pid);
+
+            var productId = card.dataset.id;
+            if (productId) openProductModal(productId);
         });
     }
 

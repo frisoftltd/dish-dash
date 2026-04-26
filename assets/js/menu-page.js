@@ -269,6 +269,13 @@ class DDMobileMenu {
                 // Otherwise open product detail
                 const card = e.target.closest('.dd-mobile-product-card');
                 if (!card) return;
+
+                // Desktop: use the shared product modal instead of mobile screen nav
+                if (window.innerWidth >= 768) {
+                    document.dispatchEvent(new CustomEvent('dd:open-modal', { detail: { productId: card.dataset.id } }));
+                    return;
+                }
+
                 this.currentProduct = {
                     id: card.dataset.id,
                     name: card.dataset.name,
