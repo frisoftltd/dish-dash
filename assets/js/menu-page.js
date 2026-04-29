@@ -256,14 +256,7 @@ class DDMobileMenu {
                 if (quickAdd) {
                     e.stopPropagation();
                     const card = quickAdd.closest('.dd-mobile-product-card');
-                    const productId = parseInt(card.dataset.id);
-                    const isSimple = card.dataset.isSimple === 'true';
-                    if (isSimple) {
-                        this.addToCartById(productId, 1);
-                    } else {
-                        // Variable product — open detail screen to let user pick options
-                        this.showProductDetails(card.dataset.id);
-                    }
+                    this.showProductDetails(card.dataset.id);
                     return;
                 }
                 // Otherwise open product detail
@@ -600,6 +593,8 @@ class DDMobileMenu {
                 if (data.success) {
                     const newCount = data.data?.count ?? data.data?.cart_count ?? (this.cartCount + qty);
                     this.updateCartCount(newCount);
+                    // Sync cart.js drawer and all badges
+                    if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
                 } else {
                     console.error('Add to cart failed', data);
                 }
@@ -645,11 +640,15 @@ class DDMobileMenu {
 
     updateCartCount(count) {
         this.cartCount = count;
-        const badge = document.getElementById('dd-bottom-nav-cart-count');
-        if (badge) {
-            badge.textContent = count;
-            badge.dataset.count = count;
-        }
+        // Update all badge elements used across cart.js and menu-page.js
+        const ids = ['dd-bottom-nav-cart-count', 'ddBottomBadge', 'ddCartCount', 'ddCartBtnCount'];
+        ids.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.textContent = count;
+                el.dataset.count = count;
+            }
+        });
     }
 
     saveFavorites() {

@@ -88,6 +88,8 @@ body.dd-cart-open {
     background: var(--dd-cart-red);
     color: #fff;
     flex-shrink: 0;
+    position: relative;
+    z-index: 10;
 }
 
 .dd-cart-drawer__title {
@@ -107,6 +109,9 @@ body.dd-cart-open {
     padding: 4px 6px;
     border-radius: 6px;
     transition: background 0.15s, color 0.15s;
+    position: relative;
+    z-index: 10;
+    pointer-events: all;
 }
 
 .dd-cart-drawer__close:hover {
