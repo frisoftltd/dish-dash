@@ -621,3 +621,11 @@ body.dd-cart-open {
     border-radius: 10px;
     font-size: 24px;
 }
+
+/* Prevent mobile app from intercepting cart touches */
+body.dd-cart-open .dd-mobile-app {
+    pointer-events: none !important;
+}
+body.dd-cart-open .dd-bottom-nav {
+    pointer-events: none !important;
+}
