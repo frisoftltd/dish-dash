@@ -419,7 +419,7 @@ class DDMobileMenu {
                             <span class="dd-mobile-product-card__price">RWF ${product.price.toLocaleString()}</span>
                             <button class="dd-mobile-product-card__quick-add"
                                     aria-label="Add ${product.name} to cart">
-                                + Add
+                                Add to Cart
                             </button>
                         </div>
                     </div>
@@ -593,8 +593,8 @@ class DDMobileMenu {
                 if (data.success) {
                     const newCount = data.data?.count ?? data.data?.cart_count ?? (this.cartCount + qty);
                     this.updateCartCount(newCount);
-                    // Sync cart.js drawer and all badges
                     if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
+                    if (typeof window.showToast === 'function') window.showToast('✓ Added to cart!');
                 } else {
                     console.error('Add to cart failed', data);
                 }

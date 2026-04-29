@@ -342,7 +342,7 @@ body.dd-cart-open {
         border-radius: 20px 20px 0 0;
         transform: translateY(100%);
         box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
-        z-index: 9999; /* must sit above overlay (9998) */
+        z-index: 10001 !important; /* above mobile-app (9999) and bottom-nav (10000) */
     }
 
     .dd-cart-drawer--open {
@@ -373,7 +373,7 @@ body.dd-cart-open {
         position: fixed;
         inset: 0;
         background: rgba(0, 0, 0, 0.5);
-        z-index: 9998;
+        z-index: 10000 !important; /* above mobile-app (9999) and bottom-nav (10000), below cart (10001) */
     }
 
     /* Floating button hidden on mobile — bottom nav handles it */

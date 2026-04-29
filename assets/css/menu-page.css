@@ -423,10 +423,6 @@
     transition: background 0.2s ease;
   }
   .dd-mobile-product-card__quick-add:active { background: #4a0209; }
-  /* Hide quick add for variable products */
-  .dd-mobile-product-card[data-is-simple="false"] .dd-mobile-product-card__quick-add {
-    display: none;
-  }
 
   /* ── Screen 3: Single Product ── */
   .dd-mobile-single__hero {

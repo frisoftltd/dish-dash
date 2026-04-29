@@ -88,6 +88,7 @@
         clearTimeout(t._hide);
         t._hide = setTimeout(function() { t.style.opacity = '0'; }, 2500);
     }
+    window.showToast = showToast;
 
     /* ── Attribute pill + card hover CSS (injected once) ── */
     (function() {
