@@ -47,6 +47,26 @@
     document.addEventListener( 'DOMContentLoaded', function () {
         fetchCart( false ); // silent fetch on load to update badges only
         bindEvents();
+
+        // iOS fix: bind touchend directly on close button
+        // (click delegation unreliable on position:fixed inside iOS Safari)
+        var closeBtn = document.getElementById( 'ddCartClose' );
+        if ( closeBtn ) {
+            closeBtn.addEventListener( 'touchend', function ( e ) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeCart();
+            }, { passive: false } );
+        }
+
+        // iOS fix: bind touchend on overlay
+        var overlay = document.getElementById( 'ddCartOverlay' );
+        if ( overlay ) {
+            overlay.addEventListener( 'touchend', function ( e ) {
+                e.preventDefault();
+                closeCart();
+            }, { passive: false } );
+        }
     } );
 
     /* ── EVENT BINDING ──────────────────────────────────────── */
