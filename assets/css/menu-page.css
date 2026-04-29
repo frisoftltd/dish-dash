@@ -634,9 +634,6 @@
     z-index: 10000;
     box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
   }
-  /* dd-bottom-badge: hide when count is 0 */
-  .dd-bottom-badge[data-count="0"] { display: none; }
-
   /* ── Screen 2 header: back + centered logo + spacer ── */
   .dd-mobile-header--with-back {
     justify-content: space-between;

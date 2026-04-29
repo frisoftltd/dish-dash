@@ -307,27 +307,6 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
     </div>
   </div><!-- /screen--single -->
 
-  <!-- Fixed Bottom Navigation (always visible on mobile) -->
-  <nav class="dd-bottom-nav" id="ddBottomNav">
-    <a href="/" class="dd-bottom-link" data-target="home">
-      <span class="dd-bottom-link__icon">&#127968;</span>
-      <span>Home</span>
-    </a>
-    <a href="/restaurant-menu/" class="dd-bottom-link active" data-target="menu">
-      <span class="dd-bottom-link__icon">&#127859;</span>
-      <span>Menu</span>
-    </a>
-    <a href="/reserve/" class="dd-bottom-link" data-target="reserve">
-      <span class="dd-bottom-link__icon">&#127860;</span>
-      <span>Reserve</span>
-    </a>
-    <a href="<?php echo esc_url( wc_get_cart_url() ); ?>" class="dd-bottom-link" data-target="cart">
-      <span class="dd-bottom-link__icon">&#128722;</span>
-      <span>Cart</span>
-      <span class="dd-bottom-badge" id="dd-bottom-nav-cart-count"><?php echo (int) ( function_exists( 'WC' ) ? WC()->cart->get_cart_contents_count() : 0 ); ?></span>
-    </a>
-  </nav>
-
 </div><!-- /dd-mobile-app -->
 
 <?php

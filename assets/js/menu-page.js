@@ -649,6 +649,7 @@ class DDMobileMenu {
             if (el) {
                 el.textContent = count;
                 el.dataset.count = count;
+                el.style.display = count > 0 ? '' : 'none';
             }
         });
     }
