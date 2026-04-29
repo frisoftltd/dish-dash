@@ -183,8 +183,14 @@
     function closeCart() {
         var overlay = document.getElementById( 'ddCartOverlay' );
         var drawer  = document.getElementById( 'ddCartDrawer' );
-        if ( drawer )  drawer.classList.remove( 'dd-cart-drawer--open' );
-        if ( overlay ) overlay.classList.remove( 'dd-cart-drawer-overlay--visible' );
+        if ( drawer ) {
+            drawer.classList.remove( 'dd-cart-drawer--open' );
+            drawer.classList.remove( 'open' );
+        }
+        if ( overlay ) {
+            overlay.classList.remove( 'dd-cart-drawer-overlay--visible' );
+            overlay.classList.remove( 'open' );
+        }
         document.body.classList.remove( 'dd-cart-open' );
     }
 

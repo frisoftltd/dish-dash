@@ -168,16 +168,16 @@
     function openCart() {
         const overlay = $('ddCartOverlay');
         const drawer  = $('ddCartDrawer');
-        if (overlay) overlay.classList.add('open');
-        if (drawer)  drawer.classList.add('open');
+        if (overlay) overlay.classList.add('dd-cart-drawer-overlay--visible');
+        if (drawer)  drawer.classList.add('dd-cart-drawer--open');
         if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
     }
 
     function closeCart() {
         const overlay = $('ddCartOverlay');
         const drawer  = $('ddCartDrawer');
-        if (overlay) overlay.classList.remove('open');
-        if (drawer)  drawer.classList.remove('open');
+        if (overlay) overlay.classList.remove('dd-cart-drawer-overlay--visible');
+        if (drawer)  drawer.classList.remove('dd-cart-drawer--open');
     }
 
     /* ══════════════════════════════════════════════════════════
