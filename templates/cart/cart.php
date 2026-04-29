@@ -50,7 +50,8 @@ if ( ! isset( $dd_cart_count ) ) {
             &#128722; <?php esc_html_e( 'Your Order', 'dish-dash' ); ?>
         </span>
         <button class="dd-cart-drawer__close" id="ddCartClose"
-                aria-label="<?php esc_attr_e( 'Close cart', 'dish-dash' ); ?>">
+                aria-label="<?php esc_attr_e( 'Close cart', 'dish-dash' ); ?>"
+                onclick="(function(){var d=document.getElementById('ddCartDrawer');var o=document.getElementById('ddCartOverlay');if(d)d.classList.remove('dd-cart-drawer--open');if(o)o.classList.remove('dd-cart-drawer-overlay--visible');document.body.classList.remove('dd-cart-open');})()">
             &#10005;
         </button>
     </div>

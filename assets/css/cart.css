@@ -366,6 +366,10 @@ body.dd-cart-open {
         height: 36px;
         font-size: 20px;
         cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        min-width: 44px;
+        min-height: 44px;
     }
 
     /* Overlay — covers everything behind the panel */
