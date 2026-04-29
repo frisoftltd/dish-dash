@@ -170,6 +170,7 @@
         const drawer  = $('ddCartDrawer');
         if (overlay) overlay.classList.add('dd-cart-drawer-overlay--visible');
         if (drawer)  drawer.classList.add('dd-cart-drawer--open');
+        document.body.classList.add('dd-cart-open');
         if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
     }
 
@@ -177,7 +178,11 @@
         const overlay = $('ddCartOverlay');
         const drawer  = $('ddCartDrawer');
         if (overlay) overlay.classList.remove('dd-cart-drawer-overlay--visible');
-        if (drawer)  drawer.classList.remove('dd-cart-drawer--open');
+        if (drawer)  {
+            drawer.classList.remove('dd-cart-drawer--open');
+            drawer.classList.remove('open');
+        }
+        document.body.classList.remove('dd-cart-open');
     }
 
     /* ══════════════════════════════════════════════════════════
