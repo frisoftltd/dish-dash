@@ -50,10 +50,40 @@ if ( ! isset( $dd_cart_count ) ) {
             &#128722; <?php esc_html_e( 'Your Order', 'dish-dash' ); ?>
         </span>
         <button class="dd-cart-drawer__close" id="ddCartClose"
-                aria-label="<?php esc_attr_e( 'Close cart', 'dish-dash' ); ?>"
-                onclick="(function(){var d=document.getElementById('ddCartDrawer');var o=document.getElementById('ddCartOverlay');if(d)d.classList.remove('dd-cart-drawer--open');if(o)o.classList.remove('dd-cart-drawer-overlay--visible');document.body.classList.remove('dd-cart-open');})()">
+                aria-label="<?php esc_attr_e( 'Close cart', 'dish-dash' ); ?>">
             &#10005;
         </button>
+
+        <script>
+        (function() {
+            function doClose() {
+                var d = document.getElementById('ddCartDrawer');
+                var o = document.getElementById('ddCartOverlay');
+                if (d) d.classList.remove('dd-cart-drawer--open');
+                if (o) o.classList.remove('dd-cart-drawer-overlay--visible');
+                document.body.classList.remove('dd-cart-open');
+            }
+            var btn = document.getElementById('ddCartClose');
+            if (btn) {
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    doClose();
+                }, { passive: false });
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    doClose();
+                });
+            }
+            var overlay = document.getElementById('ddCartOverlay');
+            if (overlay) {
+                overlay.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    doClose();
+                }, { passive: false });
+            }
+        })();
+        </script>
     </div>
 
     <!-- Items list — JS replaces contents on fetch -->

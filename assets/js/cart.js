@@ -366,6 +366,7 @@
         open:    openCart,
         close:   closeCart,
         refresh: function () { fetchCart( true ); },
+        sync:    function () { fetchCart( false ); },
     };
 
 })();

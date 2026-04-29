@@ -372,6 +372,8 @@ class DDMobileMenu {
     showScreen(screenName) {
         if (!this.screens[screenName]) return;
 
+        if (typeof window.DDCart !== 'undefined') window.DDCart.sync();
+
         this.currentScreen = screenName;
 
         Object.values(this.screens).forEach(screen => {
