@@ -56,10 +56,10 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.2.12 |
+| **Deployed version** | v3.2.40 |
 | **Current phase** | Phase 3 — Cart, Orders & Delivery |
-| **Current sub-phase** | 3A — The Cart (starting now) |
-| **Next task** | v3.2.13 — Cart panel UI + floating button |
+| **Current sub-phase** | 3B — Orders (starting now) |
+| **Next task** | v3.2.41 — Checkout panel OR 3E Mobile Homepage |
 | **Last working state** | Phase 2 complete. Mobile 3-screen menu live. Desktop menu polished. Deep links working. Tracking validated. DD_API live. Schema enforcement at 0% failure. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
@@ -415,6 +415,29 @@ Tapping saves: product_id + customer WhatsApp if available. Seeds Phase 6 re-eng
 
 ---
 
+### Sub-Phase 3E — Mobile Homepage Experience (v3.2.41 → v3.2.42)
+**Goal:** Each screen size gets a purpose-built homepage. No product duplication. No confusion.
+
+| Release | What ships |
+|---|---|
+| **v3.2.41** | Desktop/Mobile toggles on every homepage section |
+| **v3.2.42** | Food Category List section (mobile-optimized: thumbnail + name + count + arrow → deep-links into mobile 3-screen menu flow) |
+
+**Default toggle configuration (locked in):**
+
+| Section | Desktop | Mobile |
+|---|---|---|
+| Browse by Category | ✅ | ❌ |
+| Featured Dishes | ✅ | ❌ |
+| Selected Category | ✅ | ❌ |
+| Google Reviews | ✅ | ✅ |
+| Reserve Table | ✅ | ✅ |
+| Food Category List | ❌ | ✅ |
+
+**Food Category List behaviour:** Taps deep-link into `/restaurant-menu/` mobile 3-screen flow (Category → Product List → Single Product). No new code — reuses existing menu page architecture.
+
+---
+
 ### Phase 3 Settings Reference
 
 All new wp_options keys added in Phase 3:
@@ -603,7 +626,8 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-14/16 | v3.1.14 → v3.1.17 | Python-migration foundation (schema versioning, DD_API, validation, health check, schema alignment) |
 | 2026-04-20/21 | v3.2.5 → v3.2.12 | Mobile 3-screen UI complete: category list, product list, single product, branded headers, product images fixed, attribute pills interactive, related products, cart AJAX wired (items add successfully), bottom nav unified |
 | 2026-04-16/21 | v3.2.0 → v3.2.12 | Phase 2 complete: mobile 3-screen menu live, cart badge UI |
-| **NEXT** | **v3.2.13** | **Sub-Phase 3A begins: Cart panel UI + floating button** |
+| 2026-04-29 | v3.2.15 → v3.2.40 | Cart system complete: ghost items fixed, modal from search, qty stepper, remove button, unified bottom nav, mobile cart close X, badge sync |
+| **NEXT** | **v3.2.41** | **Sub-Phase 3B begins: Checkout panel OR 3E Mobile Homepage** |
 
 
 ## ⚡ Claude Code Operating Rules
