@@ -44,8 +44,12 @@ class DD_Notifications {
         $order_data = self::build_from_wc_order( $wc_order_id );
         if ( ! $order_data ) return;
         self::notify_admin_email( $order_data );
-        // Store wa.me URL for injection into order-received page (v3.2.49)
-        update_option( 'dd_pending_whatsapp_' . $wc_order_id, self::build_admin_whatsapp_url( $order_data ) );
+        // Store wa.me URL as transient — picked up by woocommerce_thankyou hook
+        set_transient(
+            'dd_whatsapp_' . $wc_order_id,
+            self::build_admin_whatsapp_url( $order_data ),
+            HOUR_IN_SECONDS
+        );
     }
 
     /**

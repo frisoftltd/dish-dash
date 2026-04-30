@@ -954,3 +954,22 @@ body.dd-cart-open .dd-bottom-nav {
     pointer-events: none;
     flex-shrink: 0;
 }
+
+/* ── Online payment confirmation page ─────────────────────── */
+.dd-payment-confirmed {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    padding: 40px 20px;
+}
+
+.dd-payment-confirmed .dd-confirm-panel {
+    max-width: 400px;
+    width: 100%;
+    text-align: center;
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 24px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}

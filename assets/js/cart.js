@@ -533,6 +533,12 @@
                 delivery_address: addr,
                 payment_method:   payment,
             }, function ( data ) {
+                // Online gateway — redirect to payment page
+                if ( data.redirect && data.payment_url ) {
+                    window.location.href = data.payment_url;
+                    return; // stop — no confirmation panel for online payments
+                }
+
                 // Populate confirmation panel
                 var numEl2 = document.getElementById( 'ddConfirmOrderNum' );
                 var etaEl2 = document.getElementById( 'ddConfirmEta' );

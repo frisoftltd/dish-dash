@@ -61,6 +61,9 @@ class DD_Orders_Module extends DD_Module {
 
     protected string $id = 'orders';
 
+    /** Gateway IDs that do NOT require online payment redirect */
+    private const OFFLINE_GATEWAYS = [ 'cod', 'bacs', 'cheque' ];
+
     public function init(): void {
         // REST API endpoints
         add_action( 'rest_api_init', [ $this, 'register_routes' ] );
@@ -78,12 +81,131 @@ class DD_Orders_Module extends DD_Module {
         // Online gateway notifications — fires after Pesapal/DPO payment confirmed
         add_action( 'woocommerce_payment_complete', [ 'DD_Notifications', 'on_payment_complete' ] );
 
+        // Branded thank-you page for online gateway orders
+        add_action( 'woocommerce_thankyou', [ $this, 'on_order_received_page' ] );
+
         // Admin assets
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
 
         // Shortcodes
         add_shortcode( 'dish_dash_track',   [ $this, 'shortcode_track' ] );
         add_shortcode( 'dish_dash_account', [ $this, 'shortcode_account' ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  ONLINE GATEWAY HELPERS
+    // ─────────────────────────────────────────
+
+    /**
+     * Create a WooCommerce order from DD cart data.
+     * Used for online payment gateways only.
+     *
+     * @param array  $data         Validated order data (customer_name, whatsapp, delivery_address, payment_method)
+     * @param array  $cart_items   Items from DD_Cart::summary()['items']
+     * @param float  $delivery_fee Calculated delivery fee
+     * @return WC_Order|WP_Error
+     */
+    private function create_wc_order( array $data, array $cart_items, float $delivery_fee ) {
+        $order = wc_create_order();
+        if ( is_wp_error( $order ) ) return $order;
+
+        // Add items
+        foreach ( $cart_items as $item ) {
+            $product = wc_get_product( $item['id'] );
+            if ( ! $product ) continue;
+            $order->add_product( $product, (int) $item['qty'] );
+        }
+
+        // Set addresses
+        $name_parts = explode( ' ', trim( $data['customer_name'] ), 2 );
+        $address = [
+            'first_name' => $name_parts[0] ?? $data['customer_name'],
+            'last_name'  => $name_parts[1] ?? '',
+            'phone'      => $data['whatsapp'],
+            'address_1'  => $data['delivery_address'],
+            'country'    => 'RW',
+        ];
+        $order->set_address( $address, 'billing' );
+        $order->set_address( $address, 'shipping' );
+
+        // Set payment method
+        $order->set_payment_method( $data['payment_method'] );
+
+        // Add delivery fee as shipping line
+        if ( $delivery_fee > 0 ) {
+            $shipping = new WC_Order_Item_Shipping();
+            $shipping->set_name( 'Delivery' );
+            $shipping->set_total( $delivery_fee );
+            $order->add_item( $shipping );
+        }
+
+        // Calculate and save
+        $order->calculate_totals();
+        $order->set_status( 'pending' );
+        $order->save();
+
+        return $order;
+    }
+
+    /**
+     * Fires on WC order-received (thank-you) page.
+     * Retrieves stored wa.me URL and injects auto-redirect JS.
+     * Also marks DD order as paid.
+     *
+     * @param int $wc_order_id
+     */
+    public function on_order_received_page( int $wc_order_id ): void {
+        $wc_order = wc_get_order( $wc_order_id );
+        if ( ! $wc_order ) return;
+
+        // Only handle orders placed through DishDash
+        $dd_order_number = $wc_order->get_meta( '_dd_order_number' );
+        $dd_order_id     = $wc_order->get_meta( '_dd_order_id' );
+        if ( ! $dd_order_number ) return;
+
+        // Update DD order status to processing
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'dishdash_orders',
+            [
+                'status'         => 'processing',
+                'payment_status' => 'paid',
+            ],
+            [ 'id' => (int) $dd_order_id ],
+            [ '%s', '%s' ],
+            [ '%d' ]
+        );
+
+        // Get wa.me URL from transient
+        $whatsapp_url = get_transient( 'dd_whatsapp_' . $wc_order_id );
+        if ( $whatsapp_url ) {
+            delete_transient( 'dd_whatsapp_' . $wc_order_id );
+        }
+
+        $eta = get_option( 'dd_delivery_eta', '30–45 minutes' );
+        ?>
+        <style>
+            /* Hide default WC thank-you content */
+            .woocommerce-order { display: none !important; }
+        </style>
+        <div class="dd-payment-confirmed">
+            <div class="dd-confirm-panel">
+                <div class="dd-confirm-panel__icon">&#9989;</div>
+                <h2 class="dd-confirm-panel__title"><?php esc_html_e( 'Payment Confirmed!', 'dish-dash' ); ?></h2>
+                <p class="dd-confirm-panel__order-num">Order #<?php echo esc_html( $dd_order_number ); ?></p>
+                <p class="dd-confirm-panel__eta">&#128757; <?php esc_html_e( 'Estimated delivery:', 'dish-dash' ); ?> <?php echo esc_html( $eta ); ?></p>
+                <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-confirm-panel__close">
+                    <?php esc_html_e( 'Back to Menu', 'dish-dash' ); ?>
+                </a>
+            </div>
+        </div>
+        <?php if ( $whatsapp_url ) : ?>
+        <script>
+            setTimeout( function() {
+                window.location.href = <?php echo wp_json_encode( $whatsapp_url ); ?>;
+            }, 800 );
+        </script>
+        <?php endif;
     }
 
     // ─────────────────────────────────────────
@@ -480,6 +602,72 @@ class DD_Orders_Module extends DD_Module {
             ? 0.0
             : (float) get_option( 'dd_delivery_fee', 1500 );
 
+        // ─── 4. Branch: online vs offline gateway ─────────────────────
+        $is_online = ! in_array( $payment_method, self::OFFLINE_GATEWAYS, true );
+
+        if ( $is_online ) {
+            // --- ONLINE GATEWAY FLOW ---
+            // Create DD order first (status: pending_payment)
+            $result = $this->place_order( [
+                'customer_name'    => $customer_name,
+                'customer_phone'   => $whatsapp,
+                'customer_email'   => '',
+                'order_type'       => 'delivery',
+                'delivery_address' => $delivery_address,
+                'payment_method'   => $payment_method,
+                'delivery_fee'     => $delivery_fee,
+                'items'            => $summary['items'],
+            ] );
+
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+                return;
+            }
+
+            // Create WC order and link to DD order
+            $wc_order = $this->create_wc_order(
+                [
+                    'customer_name'    => $customer_name,
+                    'whatsapp'         => $whatsapp,
+                    'delivery_address' => $delivery_address,
+                    'payment_method'   => $payment_method,
+                ],
+                $summary['items'],
+                $delivery_fee
+            );
+
+            if ( is_wp_error( $wc_order ) ) {
+                wp_send_json_error( [ 'message' => 'Could not create payment order. Please try again.' ] );
+                return;
+            }
+
+            // Link WC order to DD order
+            global $wpdb;
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_orders',
+                [ 'wc_order_id' => $wc_order->get_id() ],
+                [ 'id'          => $result['order_id'] ],
+                [ '%d' ], [ '%d' ]
+            );
+
+            // Store DD order number on WC order for retrieval on thank-you page
+            $wc_order->update_meta_data( '_dd_order_number', $result['order_number'] );
+            $wc_order->update_meta_data( '_dd_order_id',     $result['order_id'] );
+            $wc_order->save();
+
+            // Clear cart
+            $cart->clear();
+
+            // Return payment URL — JS will redirect
+            wp_send_json_success( [
+                'redirect'     => true,
+                'payment_url'  => $wc_order->get_checkout_payment_url(),
+                'order_number' => $result['order_number'],
+            ] );
+            return;
+        }
+
+        // ─── OFFLINE GATEWAY FLOW ──────────────────────────────────────
         // ─── 4. Place order ────────────────────────────────────────────
         $result = $this->place_order( [
             'customer_name'    => $customer_name,
