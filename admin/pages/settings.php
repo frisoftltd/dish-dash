@@ -41,6 +41,11 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
         $val = isset( $_POST[ 'dish_dash_' . $f ] ) ? sanitize_text_field( $_POST[ 'dish_dash_' . $f ] ) : '0';
         update_option( 'dish_dash_' . $f, $val );
     }
+    // Delivery settings
+    update_option( 'dd_free_delivery_threshold', absint( $_POST['dd_free_delivery_threshold'] ?? 10000 ) );
+    update_option( 'dd_delivery_fee',            absint( $_POST['dd_delivery_fee']            ?? 1500  ) );
+    update_option( 'dd_delivery_eta',            sanitize_text_field( $_POST['dd_delivery_eta'] ?? '30–45 minutes' ) );
+    update_option( 'dd_whatsapp_admin',          sanitize_text_field( $_POST['dd_whatsapp_admin'] ?? '' ) );
     echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 }
 ?>
@@ -104,6 +109,44 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
                     <?php endforeach; ?>
                 </td>
             </tr>
+
+        <!-- Delivery Settings -->
+        <tr>
+            <th scope="row"><?php esc_html_e( 'Free Delivery Threshold (RWF)', 'dish-dash' ); ?></th>
+            <td>
+                <input type="number" name="dd_free_delivery_threshold" min="0" step="500"
+                       value="<?php echo esc_attr( get_option( 'dd_free_delivery_threshold', 10000 ) ); ?>"
+                       class="regular-text">
+                <p class="description"><?php esc_html_e( 'Orders above this amount get free delivery. Default: 10,000 RWF', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><?php esc_html_e( 'Delivery Fee (RWF)', 'dish-dash' ); ?></th>
+            <td>
+                <input type="number" name="dd_delivery_fee" min="0" step="100"
+                       value="<?php echo esc_attr( get_option( 'dd_delivery_fee', 1500 ) ); ?>"
+                       class="regular-text">
+                <p class="description"><?php esc_html_e( 'Flat delivery fee charged when below threshold. Default: 1,500 RWF', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><?php esc_html_e( 'Delivery ETA', 'dish-dash' ); ?></th>
+            <td>
+                <input type="text" name="dd_delivery_eta"
+                       value="<?php echo esc_attr( get_option( 'dd_delivery_eta', '30–45 minutes' ) ); ?>"
+                       class="regular-text" placeholder="30–45 minutes">
+                <p class="description"><?php esc_html_e( 'Shown to customer after placing order.', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><?php esc_html_e( 'Admin WhatsApp Number', 'dish-dash' ); ?></th>
+            <td>
+                <input type="text" name="dd_whatsapp_admin"
+                       value="<?php echo esc_attr( get_option( 'dd_whatsapp_admin', '' ) ); ?>"
+                       class="regular-text" placeholder="+250 78 000 0000">
+                <p class="description"><?php esc_html_e( 'Restaurant WhatsApp number that receives order notifications.', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
         </table>
 
         <?php submit_button( __( 'Save Settings', 'dish-dash' ), 'primary', 'dd_save_settings' ); ?>

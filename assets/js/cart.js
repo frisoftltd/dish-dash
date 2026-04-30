@@ -211,6 +211,8 @@
             overlay.classList.remove( 'open' );
         }
         document.body.classList.remove( 'dd-cart-open' );
+        // Always reset to cart panel — next open starts fresh
+        showPanel( panelCart );
     }
 
     /* ── FETCH CART FROM SERVER ─────────────────────────────── */
@@ -379,7 +381,7 @@
     }
 
     function formatMoney( amount ) {
-        return Number( amount ).toLocaleString( 'en-RW' ) + ' RWF';
+        return parseFloat( amount || 0 ).toLocaleString( 'en-US' ) + ' RWF';
     }
 
     function formatNumber( value ) {
@@ -425,16 +427,17 @@
                     .join( '' );
             }
 
-            // Delivery fee display
-            var threshold  = ( window.ddCartData && window.ddCartData.freeDeliveryThreshold ) || 10000;
-            var fee        = ( window.ddCartData && window.ddCartData.deliveryFee ) || 1500;
-            var isFree     = sub >= threshold;
-            var feeDisplay = isFree ? 'FREE' : formatMoney( fee );
+            // Delivery fee display — explicit parseFloat prevents string concatenation
+            var threshold  = parseFloat( ( window.ddCartData && window.ddCartData.freeDeliveryThreshold ) || 10000 );
+            var fee        = parseFloat( ( window.ddCartData && window.ddCartData.deliveryFee ) || 1500 );
+            var subF       = parseFloat( summary.subtotal || 0 );
+            var isFree     = subF >= threshold;
+            var grandTotal = subF + ( isFree ? 0 : fee );
 
             var totalEl = document.getElementById( 'ddCheckoutTotal' );
             var feeEl   = document.getElementById( 'ddCheckoutDeliveryFee' );
-            if ( totalEl ) totalEl.textContent = formatMoney( sub + ( isFree ? 0 : fee ) );
-            if ( feeEl )   feeEl.textContent   = feeDisplay;
+            if ( totalEl ) totalEl.textContent = formatMoney( grandTotal );
+            if ( feeEl )   feeEl.textContent   = isFree ? 'FREE' : formatMoney( fee );
 
             // ETA
             var eta   = ( window.ddCartData && window.ddCartData.deliveryEta ) || '30\u201345 minutes';
@@ -442,6 +445,10 @@
             if ( etaEl ) etaEl.textContent = '\uD83D\uDEF5 Estimated delivery: ' + eta;
 
             showPanel( panelCheckout );
+
+            // Scroll hint — reset to top so fade is visible
+            var body = document.querySelector( '.dd-checkout-panel__body' );
+            if ( body ) body.scrollTop = 0;
         } );
     }
 

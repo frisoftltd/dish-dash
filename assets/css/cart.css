@@ -936,3 +936,21 @@ body.dd-cart-open .dd-bottom-nav {
     font-weight: 700;
     cursor: pointer;
 }
+
+/* Scroll fade hint — shows content continues below */
+.dd-checkout-panel__body {
+    position: relative;
+}
+
+.dd-checkout-panel__body::after {
+    content: '';
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    display: block;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.95));
+    pointer-events: none;
+    flex-shrink: 0;
+}
