@@ -63,8 +63,8 @@ WooCommerce (payment processing)
 | **Last working state** | Phase 2 complete. Mobile 3-screen menu live. Desktop menu polished. Deep links working. Tracking validated. DD_API live. Schema enforcement at 0% failure. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
-| **Server** | cPanel at server347.web-hosting.com (user: khansqtg) |
-| **Plugin path** | /home/khansqtg/dishdash.khanakhazana.rw/wp-content/plugins/dish-dash/ |
+| **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
+| **Plugin path** | /home/imitjsiy/dishdash.khanakhazana.rw/wp-content/plugins/dish-dash/ |
 | **Theme** | dish-dash-theme (custom theme, NOT Astra) |
 | **WooCommerce** | Active — products used as menu items |
 
@@ -120,7 +120,7 @@ WooCommerce (payment processing)
 
 **Method A — cPanel Terminal (when WP updater times out):**
 ```bash
-cd /tmp && wget https://github.com/frisoftltd/dish-dash/releases/latest/download/dish-dash.zip && unzip -o dish-dash.zip -d /tmp/dd-update && cp -r /tmp/dd-update/dish-dash/* /home/khansqtg/dishdash.khanakhazana.rw/wp-content/plugins/dish-dash/ && rm -rf /tmp/dd-update /tmp/dish-dash.zip && echo "Done!"
+cd /tmp && wget https://github.com/frisoftltd/dish-dash/releases/latest/download/dish-dash.zip && unzip -o dish-dash.zip -d /tmp/dd-update && cp -r /tmp/dd-update/dish-dash/* /home/imitjsiy/dishdash.khanakhazana.rw/wp-content/plugins/dish-dash/ && rm -rf /tmp/dd-update /tmp/dish-dash.zip && echo "Done!"
 ```
 
 **Method B — WordPress auto-update:**
@@ -128,7 +128,7 @@ WP Admin → Plugins → Check for Updates → Update Now
 
 6. Purge LiteSpeed Cache: WP Admin → LiteSpeed Cache → Toolbox → Purge All
 7. Test in incognito window
-8. Verify: `grep "DD_VERSION" /home/khansqtg/.../dish-dash.php`
+8. Verify: `grep "DD_VERSION" /home/imitjsiy/.../dish-dash.php`
 
 ---
 
