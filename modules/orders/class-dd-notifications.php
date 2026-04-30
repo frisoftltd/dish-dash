@@ -26,6 +26,7 @@ class DD_Notifications {
      * @return string wa.me URL for admin notification (empty if no phone configured)
      */
     public static function on_order_created( array $order_data ): string {
+        $order_data['payment_method'] = self::format_payment_method( $order_data['payment_method'] );
         self::notify_admin_email( $order_data );
         return self::build_admin_whatsapp_url( $order_data );
     }
@@ -150,6 +151,25 @@ class DD_Notifications {
         ];
 
         wp_mail( $admin_email, $subject, $body, $headers );
+    }
+
+    /**
+     * Map raw gateway IDs to human-readable labels.
+     * Falls back to ucwords(str_replace) for unknown gateways.
+     */
+    private static function format_payment_method( string $method ): string {
+        $labels = [
+            'cod'          => 'Cash on Delivery',
+            'bacs'         => 'Direct Bank Transfer',
+            'cheque'       => 'Cheque Payment',
+            'pesapal'      => 'Pesapal',
+            'dpo'          => 'DPO Pay',
+            'stripe'       => 'Card (Stripe)',
+            'paypal'       => 'PayPal',
+            'mtn_momo'     => 'MTN Mobile Money',
+            'airtel_money' => 'Airtel Money',
+        ];
+        return $labels[ strtolower( $method ) ] ?? ucwords( str_replace( '_', ' ', $method ) );
     }
 
     /**
