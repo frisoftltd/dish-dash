@@ -584,6 +584,8 @@ body.dd-cart-open {
     place-items: center;
     transition: background .15s;
     flex-shrink: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .dd-cart-stepper__btn:hover {
@@ -602,12 +604,14 @@ body.dd-cart-open {
     border: none;
     background: none;
     color: #c0a090;
-    font-size: 12px;
+    font-size: 16px;
     cursor: pointer;
     padding: 2px 4px;
     border-radius: 4px;
     transition: color .15s;
     line-height: 1;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .dd-cart-remove:hover {
