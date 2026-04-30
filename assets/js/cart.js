@@ -437,6 +437,19 @@
                     .join( '' );
             }
 
+            // Render payment gateway options from WooCommerce
+            var gatewayContainer = document.getElementById( 'ddPaymentOptions' );
+            if ( gatewayContainer && window.ddCartData.paymentGateways && window.ddCartData.paymentGateways.length ) {
+                gatewayContainer.innerHTML = window.ddCartData.paymentGateways.map( function ( gw, i ) {
+                    return '<label class="dd-payment-option">' +
+                        '<input type="radio" name="payment_method" value="' + escHtml( gw.id ) + '"' + ( i === 0 ? ' checked' : '' ) + '>' +
+                        '<span class="dd-payment-option__card">' +
+                        '<span class="dd-payment-option__icon">' + gw.icon + '</span>' +
+                        '<span class="dd-payment-option__text">' + escHtml( gw.title ) + '</span>' +
+                        '</span></label>';
+                } ).join( '' );
+            }
+
             // Delivery fee display — explicit parseFloat prevents string concatenation
             var threshold  = parseFloat( ( window.ddCartData && window.ddCartData.freeDeliveryThreshold ) || 10000 );
             var fee        = parseFloat( ( window.ddCartData && window.ddCartData.deliveryFee ) || 1500 );
@@ -528,7 +541,51 @@
 
                 showPanel( panelConfirmation );
                 updateBadges( 0 );
+
+                // --- WhatsApp Notifications (Mode A) ---
+                var adminPhone = ( ( window.ddCartData && window.ddCartData.whatsappAdmin ) || '' ).replace( /[^0-9]/g, '' );
+                var customerPhone = wa.replace( /[^0-9]/g, '' );
+                if ( customerPhone.length === 9 ) customerPhone = '250' + customerPhone;
+
+                // Capture items before clearing ddCartSummary
+                var waItems = ( window.ddCartSummary && window.ddCartSummary.items ) ? window.ddCartSummary.items : [];
                 window.ddCartSummary = null;
+                var itemLines = waItems.map( function ( i ) {
+                    return ( i.qty || i.quantity || 1 ) + '\u00d7 ' + i.name;
+                } ).join( '\n' );
+
+                var adminMsg = [
+                    '\uD83D\uDD14 New Order ' + data.order_number + ' \u2014 Khana Khazana',
+                    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+                    itemLines,
+                    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+                    'Total: ' + formatMoney( data.total ),
+                    'Payment: ' + payment,
+                    '\uD83D\uDCCD ' + addr,
+                    '\uD83D\uDCDE ' + wa,
+                    '\uD83D\uDC64 ' + name
+                ].join( '\n' );
+
+                if ( adminPhone ) {
+                    setTimeout( function () {
+                        window.open( 'https://wa.me/' + adminPhone + '?text=' + encodeURIComponent( adminMsg ), '_blank' );
+                    }, 600 );
+                }
+
+                var custMsg = [
+                    '\u2705 Order Confirmed! \u2014 Khana Khazana',
+                    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
+                    'Order ' + data.order_number,
+                    'Estimated time: ' + ( data.eta || '30\u201345 minutes' ),
+                    'Payment: ' + payment,
+                    'Questions? Call us: +250 78 000 0000'
+                ].join( '\n' );
+
+                var waBtn = document.getElementById( 'ddConfirmWhatsappBtn' );
+                if ( waBtn && adminPhone ) {
+                    waBtn.href = 'https://wa.me/' + adminPhone + '?text=' + encodeURIComponent( custMsg );
+                    waBtn.style.display = 'flex';
+                }
 
                 // Track order event
                 if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {

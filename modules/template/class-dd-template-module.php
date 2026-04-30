@@ -178,6 +178,27 @@ class DD_Template_Module extends DD_Module {
             'freeDeliveryThreshold' => (int) get_option( 'dd_free_delivery_threshold', 10000 ),
             'deliveryFee'           => (int) get_option( 'dd_delivery_fee',            1500  ),
             'deliveryEta'           => get_option( 'dd_delivery_eta', '30–45 minutes' ),
+            'whatsappAdmin'         => get_option( 'dd_whatsapp_admin', '' ),
+            'paymentGateways'       => (function() {
+                if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];
+                $gateways = WC()->payment_gateways->get_available_payment_gateways();
+                $icons = [
+                    'cod'    => '🛵',
+                    'bacs'   => '🏦',
+                    'cheque' => '📝',
+                    'stripe' => '💳',
+                    'paypal' => '🅿️',
+                ];
+                $out = [];
+                foreach ( $gateways as $id => $gw ) {
+                    $out[] = [
+                        'id'    => $id,
+                        'title' => $gw->get_title(),
+                        'icon'  => $icons[ $id ] ?? '💳',
+                    ];
+                }
+                return $out;
+            })(),
         ] );
 
         // Inject CSS variables + footer background via WordPress inline style system

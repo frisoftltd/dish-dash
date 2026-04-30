@@ -165,21 +165,8 @@ if ( ! isset( $dd_cart_count ) ) {
 
                 <div class="dd-cform-group">
                     <p class="dd-cform-label"><?php esc_html_e( 'Payment Method', 'dish-dash' ); ?></p>
-                    <div class="dd-payment-options">
-                        <label class="dd-payment-option">
-                            <input type="radio" name="payment_method" value="pay_on_delivery" checked>
-                            <span class="dd-payment-option__card">
-                                <span class="dd-payment-option__icon">&#128757;</span>
-                                <span class="dd-payment-option__text"><?php esc_html_e( 'Pay on Delivery', 'dish-dash' ); ?></span>
-                            </span>
-                        </label>
-                        <label class="dd-payment-option">
-                            <input type="radio" name="payment_method" value="pay_now">
-                            <span class="dd-payment-option__card">
-                                <span class="dd-payment-option__icon">&#128179;</span>
-                                <span class="dd-payment-option__text"><?php esc_html_e( 'Pay Now', 'dish-dash' ); ?></span>
-                            </span>
-                        </label>
+                    <div class="dd-payment-options" id="ddPaymentOptions">
+                        <!-- Rendered by cart.js from ddCartData.paymentGateways -->
                     </div>
                 </div>
             </form>
@@ -208,6 +195,14 @@ if ( ! isset( $dd_cart_count ) ) {
             <h2 class="dd-confirm-panel__title"><?php esc_html_e( 'Order Confirmed!', 'dish-dash' ); ?></h2>
             <p class="dd-confirm-panel__order-num" id="ddConfirmOrderNum"></p>
             <p class="dd-confirm-panel__eta" id="ddConfirmEta"></p>
+            <a id="ddConfirmWhatsappBtn"
+               href="#"
+               target="_blank"
+               rel="noopener"
+               class="dd-confirm-panel__whatsapp"
+               style="display:none">
+                <span>&#128172;</span> <?php esc_html_e( 'Message us on WhatsApp', 'dish-dash' ); ?>
+            </a>
             <button class="dd-confirm-panel__close" id="ddConfirmClose" type="button">
                 <?php esc_html_e( 'Done', 'dish-dash' ); ?>
             </button>

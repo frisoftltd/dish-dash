@@ -954,3 +954,21 @@ body.dd-cart-open .dd-bottom-nav {
     pointer-events: none;
     flex-shrink: 0;
 }
+
+/* ── WhatsApp confirmation button ─────────────────────────── */
+.dd-confirm-panel__whatsapp {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #25D366;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
