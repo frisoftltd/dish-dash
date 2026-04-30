@@ -597,6 +597,8 @@ class DDMobileMenu {
                     this.updateCartCount(newCount);
                     if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
                     if (typeof window.showToast === 'function') window.showToast('✓ Added to cart!');
+                    // Track add to cart from mobile menu
+                    if (window.DDTrack) window.DDTrack.addToCart(productId, null);
                 } else {
                     console.error('Add to cart failed', data);
                 }

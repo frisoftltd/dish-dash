@@ -207,13 +207,30 @@
 
     // Expose for manual tracking from other scripts
     window.DDTrack = {
-        event:        fire,
-        viewProduct:  function(id, catId)     { fire('view_product',  id,   catId, null); },
-        viewCategory: function(catId, slug)    { fire('view_category', null, catId, { slug: slug }); },
-        addToCart:    function(id, catId)      { fire('add_to_cart',   id,   catId, { qty: 1 }); },
-        search:       function(query)          { fire('search', null, null, { query: query }); },
-        order:        function(orderId, total) { fire('order',  null, null, { order_id: orderId, total: total }); },
-        pageView:     function()               { fire('page_view', null, null, { url: window.location.href, referrer: document.referrer || null }); },
+        event:              fire,
+        viewProduct:        function(id, catId)     { fire('view_product',  id,   catId, null); },
+        viewCategory:       function(catId, slug)   { fire('view_category', null, catId, { slug: slug }); },
+        addToCart:          function(id, catId)     { fire('add_to_cart',   id,   catId, { qty: 1 }); },
+        search:             function(query)         { fire('search', null, null, { query: query }); },
+        order:              function(orderId, total){ fire('order',  null, null, { order_id: orderId, total: total }); },
+        pageView:           function()              { fire('page_view', null, null, { url: window.location.href, referrer: document.referrer || null }); },
+        // Phase 3A cart events
+        cartOpen:           function(itemCount)     { fire('cart_open', null, null, { item_count: itemCount, trigger: 'button' }); },
+        removeFromCart:     function(productId, qty){ fire('remove_from_cart', productId, null, { qty: qty }); },
+        cartQuantityChange: function(productId, oldQty, newQty) {
+            fire('cart_quantity_change', productId, null, {
+                old_qty:   oldQty,
+                new_qty:   newQty,
+                direction: newQty > oldQty ? 'up' : 'down',
+            });
+        },
+        cartAbandon:        function(itemCount, total, timeOpen) {
+            fire('cart_abandon', null, null, {
+                item_count:        itemCount,
+                total:             total,
+                time_open_seconds: timeOpen,
+            });
+        },
     };
 
 })();

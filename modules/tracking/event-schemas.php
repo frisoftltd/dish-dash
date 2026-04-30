@@ -54,6 +54,27 @@ return [
             'optional' => ['price', 'source'],
         ],
     ],
+    'cart_open' => [
+        'current_version' => DISHDASH_SCHEMA_CART_EVENT,
+        'metadata_schema' => [
+            'required' => [],
+            'optional' => ['item_count', 'trigger'],
+        ],
+    ],
+    'cart_quantity_change' => [
+        'current_version' => DISHDASH_SCHEMA_CART_EVENT,
+        'metadata_schema' => [
+            'required' => ['product_id', 'new_qty'],
+            'optional' => ['old_qty', 'direction'],
+        ],
+    ],
+    'cart_abandon' => [
+        'current_version' => DISHDASH_SCHEMA_CART_EVENT,
+        'metadata_schema' => [
+            'required' => [],
+            'optional' => ['item_count', 'total', 'time_open_seconds'],
+        ],
+    ],
     'remove_from_cart' => [
         'current_version' => DISHDASH_SCHEMA_CART_EVENT,
         'metadata_schema' => [

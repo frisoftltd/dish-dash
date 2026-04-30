@@ -72,10 +72,13 @@
     /* ── EVENT BINDING ──────────────────────────────────────── */
     function bindEvents() {
 
+        var cartOpenTime = null;
+
         document.addEventListener( 'click', function ( e ) {
 
             // Open triggers — event delegation works for late-rendered elements
             if ( e.target.closest( '#ddCartBtn, #ddBottomCartBtn, #ddCartTopBtn' ) ) {
+                cartOpenTime = Date.now();
                 openCart();
                 return;
             }
@@ -119,6 +122,7 @@
                         }
                     } );
                 }
+                if ( window.DDTrack ) window.DDTrack.cartQuantityChange( key, newQty - 1, newQty );
             } );
         } );
 
@@ -143,6 +147,7 @@
                         }
                     } );
                 }
+                if ( window.DDTrack ) window.DDTrack.cartQuantityChange( key, newQty + 1, newQty );
             } );
         } );
 
@@ -158,7 +163,23 @@
                 updateNudge( data.total );
                 updateFooter( data );
                 fetchCart( true );
+                // Track removal — find product id from item element before it fades
+                var productId = item ? ( item.dataset.id || null ) : null;
+                if ( window.DDTrack ) window.DDTrack.removeFromCart( productId, 1 );
             } );
+        } );
+
+        // Fire cart_abandon on page leave if cart is open and has items
+        window.addEventListener( 'beforeunload', function () {
+            var drawer = document.getElementById( 'ddCartDrawer' );
+            if ( ! drawer || ! drawer.classList.contains( 'dd-cart-drawer--open' ) ) return;
+            var badge = document.getElementById( 'ddBottomBadge' );
+            var count = badge ? ( parseInt( badge.textContent, 10 ) || 0 ) : 0;
+            if ( count === 0 ) return;
+            var subtotalEl = document.getElementById( 'ddCartSubtotal' );
+            var total = subtotalEl ? subtotalEl.textContent : '0';
+            var timeOpen = cartOpenTime ? Math.round( ( Date.now() - cartOpenTime ) / 1000 ) : 0;
+            if ( window.DDTrack ) window.DDTrack.cartAbandon( count, total, timeOpen );
         } );
     }
 
@@ -175,8 +196,10 @@
         // Re-fetch on every open so panel always reflects server cart
         fetchCart( true );
 
-        // Tracking
-        trackEvent( 'cart_open', {} );
+        // Track with item count from badges
+        var badge = document.getElementById( 'ddBottomBadge' );
+        var count = badge ? ( parseInt( badge.textContent, 10 ) || 0 ) : 0;
+        if ( window.DDTrack ) window.DDTrack.cartOpen( count );
     }
 
     /* ── CLOSE ──────────────────────────────────────────────── */
@@ -325,12 +348,11 @@
 
     /* ── TRACKING ───────────────────────────────────────────── */
     function trackEvent( type, meta ) {
-        // Use DDTrack global if tracking.js has exposed it
-        if ( window.DDTrack && typeof window.DDTrack.fire === 'function' ) {
-            window.DDTrack.fire( type, meta );
+        if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {
+            window.DDTrack.event( type, null, null, meta || {} );
             return;
         }
-        // Fallback: fire AJAX directly (non-blocking, best-effort)
+        // Fallback direct AJAX
         var body = new FormData();
         body.append( 'action',     'dd_track_event' );
         body.append( 'nonce',      NONCE );
