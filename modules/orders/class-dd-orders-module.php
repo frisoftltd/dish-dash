@@ -111,7 +111,7 @@ class DD_Orders_Module extends DD_Module {
         global $wpdb;
 
         // Validate required fields
-        $required = [ 'customer_name', 'customer_phone', 'customer_email', 'order_type', 'items' ];
+        $required = [ 'customer_name', 'customer_phone', 'order_type', 'items' ];
         foreach ( $required as $field ) {
             if ( empty( $data[ $field ] ) ) {
                 return new WP_Error( 'missing_field', sprintf( __( 'Missing required field: %s', 'dish-dash' ), $field ) );
@@ -440,28 +440,64 @@ class DD_Orders_Module extends DD_Module {
     public function ajax_place_order(): void {
         DD_Ajax::verify_nonce();
 
-        $data = [
-            'customer_name'        => sanitize_text_field( $_POST['customer_name'] ?? '' ),
-            'customer_phone'       => sanitize_text_field( $_POST['customer_phone'] ?? '' ),
-            'customer_email'       => sanitize_email( $_POST['customer_email'] ?? '' ),
-            'order_type'           => sanitize_text_field( $_POST['order_type'] ?? 'delivery' ),
-            'items'                => json_decode( stripslashes( $_POST['items'] ?? '[]' ), true ),
-            'delivery_fee'         => (float) ( $_POST['delivery_fee'] ?? 0 ),
-            'tip'                  => (float) ( $_POST['tip'] ?? 0 ),
-            'payment_method'       => sanitize_text_field( $_POST['payment_method'] ?? 'cod' ),
-            'special_instructions' => sanitize_textarea_field( $_POST['special_instructions'] ?? '' ),
-            'delivery_address'     => json_decode( stripslashes( $_POST['delivery_address'] ?? '{}' ), true ),
-            'scheduled_at'         => sanitize_text_field( $_POST['scheduled_at'] ?? '' ),
-            'branch_id'            => absint( $_POST['branch_id'] ?? 1 ),
-        ];
+        // ─── 1. Read & validate form fields ───────────────────────────
+        $customer_name    = sanitize_text_field( $_POST['customer_name']    ?? '' );
+        $whatsapp         = sanitize_text_field( $_POST['whatsapp']         ?? '' );
+        $delivery_address = sanitize_text_field( $_POST['delivery_address'] ?? '' );
+        $payment_method   = sanitize_text_field( $_POST['payment_method']   ?? 'pay_on_delivery' );
 
-        $result = $this->place_order( $data );
-
-        if ( is_wp_error( $result ) ) {
-            $this->json_error( $result->get_error_message() );
+        if ( ! $customer_name ) {
+            wp_send_json_error( [ 'message' => __( 'Please enter your full name.', 'dish-dash' ) ] );
+            return;
+        }
+        if ( ! $whatsapp ) {
+            wp_send_json_error( [ 'message' => __( 'Please enter your WhatsApp number.', 'dish-dash' ) ] );
+            return;
+        }
+        if ( ! $delivery_address ) {
+            wp_send_json_error( [ 'message' => __( 'Please enter your delivery address.', 'dish-dash' ) ] );
+            return;
         }
 
-        $this->json_success( $result, __( 'Order placed successfully!', 'dish-dash' ) );
+        // ─── 2. Get cart from server (never trust client items) ────────
+        $cart    = new DD_Cart();
+        $summary = $cart->summary();
+
+        if ( empty( $summary['items'] ) ) {
+            wp_send_json_error( [ 'message' => __( 'Your cart is empty.', 'dish-dash' ) ] );
+            return;
+        }
+
+        // ─── 3. Calculate delivery fee server-side ─────────────────────
+        $threshold    = (float) get_option( 'dd_free_delivery_threshold', 10000 );
+        $delivery_fee = $summary['subtotal'] >= $threshold
+            ? 0.0
+            : (float) get_option( 'dd_delivery_fee', 1500 );
+
+        // ─── 4. Place order ────────────────────────────────────────────
+        $result = $this->place_order( [
+            'customer_name'    => $customer_name,
+            'customer_phone'   => $whatsapp,
+            'customer_email'   => '',
+            'order_type'       => 'delivery',
+            'items'            => $summary['items'],
+            'delivery_fee'     => $delivery_fee,
+            'payment_method'   => $payment_method,
+            'delivery_address' => $delivery_address,
+        ] );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+            return;
+        }
+
+        // ─── 5. Clear cart ─────────────────────────────────────────────
+        $cart->clear();
+
+        // ─── 6. Respond ────────────────────────────────────────────────
+        wp_send_json_success( array_merge( $result, [
+            'eta' => get_option( 'dd_delivery_eta', '30–45 minutes' ),
+        ] ) );
     }
 
     public function ajax_get_order(): void {

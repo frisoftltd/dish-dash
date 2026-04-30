@@ -363,7 +363,7 @@
     }
 
     /* ── AJAX HELPER ────────────────────────────────────────── */
-    function ajax( action, data, onSuccess ) {
+    function ajax( action, data, onSuccess, onError ) {
         var body = new FormData();
         body.append( 'action', action );
         body.append( 'nonce',  NONCE );
@@ -371,8 +371,18 @@
 
         fetch( AJAX_URL, { method: 'POST', body: body } )
             .then( function ( r )   { return r.json(); } )
-            .then( function ( res ) { if ( res.success ) onSuccess( res.data ); } )
-            .catch( function ()     {} ); // silent — cart is enhancement, not critical path
+            .then( function ( res ) {
+                if ( res.success ) {
+                    onSuccess( res.data );
+                } else if ( typeof onError === 'function' ) {
+                    onError( ( res.data && res.data.message ) ? res.data.message : 'Something went wrong.' );
+                }
+            } )
+            .catch( function () {
+                if ( typeof onError === 'function' ) {
+                    onError( 'Network error. Please try again.' );
+                }
+            } );
     }
 
     /* ── FORMAT HELPERS ─────────────────────────────────────── */
@@ -457,6 +467,91 @@
     if ( backBtn ) {
         backBtn.addEventListener( 'click', function () {
             showPanel( panelCart );
+        } );
+    }
+
+    // Place order
+    var placeOrderBtn = document.getElementById( 'ddPlaceOrder' );
+    if ( placeOrderBtn ) {
+        placeOrderBtn.addEventListener( 'click', function () {
+            var nameEl = document.getElementById( 'ddFieldName' );
+            var waEl   = document.getElementById( 'ddFieldWhatsapp' );
+            var addrEl = document.getElementById( 'ddFieldAddress' );
+            var pmEl   = document.querySelector( 'input[name="payment_method"]:checked' );
+
+            // Clear previous errors
+            [ 'ddErrorName', 'ddErrorWhatsapp', 'ddErrorAddress' ].forEach( function ( id ) {
+                var el = document.getElementById( id );
+                if ( el ) el.textContent = '';
+            } );
+            var existingGenErr = document.querySelector( '.dd-cform-error--general' );
+            if ( existingGenErr ) existingGenErr.remove();
+
+            var name    = nameEl ? nameEl.value.trim() : '';
+            var wa      = waEl   ? waEl.value.trim()   : '';
+            var addr    = addrEl ? addrEl.value.trim()  : '';
+            var payment = pmEl   ? pmEl.value           : 'pay_on_delivery';
+
+            var valid = true;
+            if ( ! name ) {
+                var e1 = document.getElementById( 'ddErrorName' );
+                if ( e1 ) e1.textContent = 'Please enter your full name.';
+                valid = false;
+            }
+            if ( ! wa ) {
+                var e2 = document.getElementById( 'ddErrorWhatsapp' );
+                if ( e2 ) e2.textContent = 'Please enter your WhatsApp number.';
+                valid = false;
+            }
+            if ( ! addr ) {
+                var e3 = document.getElementById( 'ddErrorAddress' );
+                if ( e3 ) e3.textContent = 'Please enter your delivery address.';
+                valid = false;
+            }
+            if ( ! valid ) return;
+
+            // Loading state
+            placeOrderBtn.disabled    = true;
+            placeOrderBtn.textContent = 'Placing order\u2026';
+
+            ajax( 'dd_place_order', {
+                customer_name:    name,
+                whatsapp:         wa,
+                delivery_address: addr,
+                payment_method:   payment,
+            }, function ( data ) {
+                // Populate confirmation panel
+                var numEl2 = document.getElementById( 'ddConfirmOrderNum' );
+                var etaEl2 = document.getElementById( 'ddConfirmEta' );
+                if ( numEl2 ) numEl2.textContent = 'Order #' + data.order_number;
+                if ( etaEl2 ) etaEl2.textContent = '\uD83D\uDEF5 Estimated delivery: ' + ( data.eta || '30\u201345 minutes' );
+
+                showPanel( panelConfirmation );
+                updateBadges( 0 );
+                window.ddCartSummary = null;
+
+                // Track order event
+                if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {
+                    window.DDTrack.event( 'order', null, null, {
+                        order_id:       data.order_id,
+                        total:          data.total,
+                        payment_method: payment,
+                    } );
+                }
+
+                // Reset button for next use
+                placeOrderBtn.disabled    = false;
+                placeOrderBtn.textContent = 'Place Order \u2192';
+            }, function ( message ) {
+                // Error — re-enable button and show message above it
+                placeOrderBtn.disabled    = false;
+                placeOrderBtn.textContent = 'Place Order \u2192';
+                var errP = document.createElement( 'p' );
+                errP.className   = 'dd-cform-error dd-cform-error--general';
+                errP.textContent = message;
+                var footer = placeOrderBtn.closest( '.dd-checkout-panel__footer' );
+                if ( footer ) footer.insertBefore( errP, placeOrderBtn );
+            } );
         } );
     }
 
