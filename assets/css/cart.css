@@ -638,9 +638,11 @@ body.dd-cart-open .dd-bottom-nav {
    CART DRAWER — MULTI-PANEL SYSTEM (v3.2.43)
    ============================================= */
 
-/* Panel container — panels stack horizontally, drawer clips overflow */
+/* Panel container — drawer is a flex column; panels fill it */
 #ddCartDrawer {
-    overflow: hidden; /* ensure hidden panels don't cause scroll */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* clips hidden panels, prevents outer scroll */
 }
 
 .dd-cart-panel {
@@ -653,11 +655,37 @@ body.dd-cart-open .dd-bottom-nav {
     display: none !important;
 }
 
+/* ── Cart panel fills remaining drawer height ── */
+#ddPanelCart {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0; /* lets flex children shrink below content size */
+    overflow: hidden;
+}
+
+/* Cart items scroll inside the panel, not the whole drawer */
+#ddCartItems {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
 /* ── Checkout panel layout ── */
 #ddPanelCheckout {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    flex: 1;
+    min-height: 0; /* critical — lets flex children shrink below content size */
+    overflow: hidden;
+}
+
+/* ── Confirmation panel layout ── */
+#ddPanelConfirmation {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
 }
 
