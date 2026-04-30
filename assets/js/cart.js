@@ -544,9 +544,20 @@
 
                 // Admin WhatsApp notification — URL built by PHP, opened by JS
                 if ( data.whatsapp_url ) {
-                    setTimeout( function () {
-                        window.open( data.whatsapp_url, '_blank' );
-                    }, 600 );
+                    var isMobile = /iPhone|iPad|iPod|Android/i.test( navigator.userAgent );
+                    if ( isMobile ) {
+                        // Mobile: show "Notify Restaurant" button — popup blocked on mobile
+                        var notifyBtn = document.getElementById( 'ddConfirmNotifyBtn' );
+                        if ( notifyBtn ) {
+                            notifyBtn.href = data.whatsapp_url;
+                            notifyBtn.style.display = 'flex';
+                        }
+                    } else {
+                        // Desktop: auto-open works fine
+                        setTimeout( function () {
+                            window.open( data.whatsapp_url, '_blank' );
+                        }, 600 );
+                    }
                 }
 
                 window.ddCartSummary = null;

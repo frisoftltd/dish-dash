@@ -972,3 +972,21 @@ body.dd-cart-open .dd-bottom-nav {
     width: 100%;
     box-sizing: border-box;
 }
+
+/* ── Notify Restaurant button (mobile confirmation panel) ─── */
+.dd-confirm-panel__notify-restaurant {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #65040d;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    width: 100%;
+    box-sizing: border-box;
+}
