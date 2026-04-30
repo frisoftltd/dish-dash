@@ -195,22 +195,6 @@ if ( ! isset( $dd_cart_count ) ) {
             <h2 class="dd-confirm-panel__title"><?php esc_html_e( 'Order Confirmed!', 'dish-dash' ); ?></h2>
             <p class="dd-confirm-panel__order-num" id="ddConfirmOrderNum"></p>
             <p class="dd-confirm-panel__eta" id="ddConfirmEta"></p>
-            <a id="ddConfirmNotifyBtn"
-               href="#"
-               target="_blank"
-               rel="noopener"
-               class="dd-confirm-panel__notify-restaurant"
-               style="display:none">
-                <span>&#128276;</span> <?php esc_html_e( 'Notify Restaurant', 'dish-dash' ); ?>
-            </a>
-            <a id="ddConfirmWhatsappBtn"
-               href="#"
-               target="_blank"
-               rel="noopener"
-               class="dd-confirm-panel__whatsapp"
-               style="display:none">
-                <span>&#128172;</span> <?php esc_html_e( 'Message us on WhatsApp', 'dish-dash' ); ?>
-            </a>
             <button class="dd-confirm-panel__close" id="ddConfirmClose" type="button">
                 <?php esc_html_e( 'Done', 'dish-dash' ); ?>
             </button>

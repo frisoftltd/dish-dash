@@ -542,36 +542,19 @@
                 showPanel( panelConfirmation );
                 updateBadges( 0 );
 
-                // Admin WhatsApp notification — URL built by PHP, opened by JS
+                // Admin WhatsApp notification — window.location.href works on all devices
                 if ( data.whatsapp_url ) {
-                    var isMobile = /iPhone|iPad|iPod|Android/i.test( navigator.userAgent );
-                    if ( isMobile ) {
-                        // Mobile: show "Notify Restaurant" button — popup blocked on mobile
-                        var notifyBtn = document.getElementById( 'ddConfirmNotifyBtn' );
-                        if ( notifyBtn ) {
-                            notifyBtn.href = data.whatsapp_url;
-                            notifyBtn.style.display = 'flex';
-                        }
-                    } else {
-                        // Desktop: auto-open works fine
-                        setTimeout( function () {
-                            window.open( data.whatsapp_url, '_blank' );
-                        }, 600 );
-                    }
+                    setTimeout( function () {
+                        // window.location.href works on all devices — never blocked
+                        // WhatsApp app intercepts wa.me links on mobile automatically
+                        window.location.href = data.whatsapp_url;
+                    }, 800 );
                 }
 
                 window.ddCartSummary = null;
 
-                // Customer WhatsApp button — URL built by PHP
                 var waBtn = document.getElementById( 'ddConfirmWhatsappBtn' );
-                if ( waBtn ) {
-                    if ( data.whatsapp_customer_url ) {
-                        waBtn.href = data.whatsapp_customer_url;
-                        waBtn.style.display = 'flex';
-                    } else {
-                        waBtn.style.display = 'none';
-                    }
-                }
+                if ( waBtn ) waBtn.style.display = 'none';
 
                 // Track order event
                 if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {
