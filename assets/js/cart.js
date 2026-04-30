@@ -551,21 +551,15 @@
 
                 window.ddCartSummary = null;
 
-                // Customer WhatsApp button on confirmation panel
-                var custMsg = [
-                    '\u2705 Order Confirmed! \u2014 Khana Khazana',
-                    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-                    'Order ' + data.order_number,
-                    'Estimated time: ' + ( data.eta || '30\u201345 minutes' ),
-                    'Payment: ' + payment,
-                    'Questions? Call us: +250 78 000 0000'
-                ].join( '\n' );
-
+                // Customer WhatsApp button — URL built by PHP
                 var waBtn = document.getElementById( 'ddConfirmWhatsappBtn' );
-                var adminPhoneForBtn = ( ( window.ddCartData && window.ddCartData.whatsappAdmin ) || '' ).replace( /[^0-9]/g, '' );
-                if ( waBtn && adminPhoneForBtn ) {
-                    waBtn.href = 'https://wa.me/' + adminPhoneForBtn + '?text=' + encodeURIComponent( custMsg );
-                    waBtn.style.display = 'flex';
+                if ( waBtn ) {
+                    if ( data.whatsapp_customer_url ) {
+                        waBtn.href = data.whatsapp_customer_url;
+                        waBtn.style.display = 'flex';
+                    } else {
+                        waBtn.style.display = 'none';
+                    }
                 }
 
                 // Track order event

@@ -20,15 +20,18 @@ class DD_Notifications {
 
     /**
      * Called for offline gateways immediately on order creation.
-     * Returns wa.me URL so JS can open it in the browser.
+     * Returns both admin and customer wa.me URLs so JS can open them.
      *
      * @param array $order_data Normalized order data array
-     * @return string wa.me URL for admin notification (empty if no phone configured)
+     * @return array { admin_url: string, customer_url: string }
      */
-    public static function on_order_created( array $order_data ): string {
+    public static function on_order_created( array $order_data ): array {
         $order_data['payment_method'] = self::format_payment_method( $order_data['payment_method'] );
         self::notify_admin_email( $order_data );
-        return self::build_admin_whatsapp_url( $order_data );
+        return [
+            'admin_url'    => self::build_admin_whatsapp_url( $order_data ),
+            'customer_url' => self::build_customer_whatsapp_url( $order_data ),
+        ];
     }
 
     /**
@@ -170,6 +173,33 @@ class DD_Notifications {
             'airtel_money' => 'Airtel Money',
         ];
         return $labels[ strtolower( $method ) ] ?? ucwords( str_replace( '_', ' ', $method ) );
+    }
+
+    /**
+     * Build customer wa.me URL with order confirmation message.
+     * Sent to the customer's own WhatsApp number.
+     */
+    public static function build_customer_whatsapp_url( array $order ): string {
+        $customer_phone = preg_replace( '/[^0-9]/', '', $order['customer_phone'] );
+        if ( ! $customer_phone ) return '';
+
+        // Prepend Rwanda country code if local format
+        if ( strlen( $customer_phone ) === 9 ) {
+            $customer_phone = '250' . $customer_phone;
+        }
+
+        $admin_phone = preg_replace( '/[^0-9]/', '', get_option( 'dd_whatsapp_admin', '' ) );
+
+        $msg = implode( "\n", [
+            '✅ Order Confirmed! — Khana Khazana',
+            '──────────────────',
+            'Order ' . $order['order_number'],
+            'Estimated time: ' . get_option( 'dd_delivery_eta', '30–45 minutes' ),
+            'Payment: ' . $order['payment_method'], // already formatted by on_order_created()
+            'Questions? Call us: +' . $admin_phone,
+        ] );
+
+        return 'https://wa.me/' . $customer_phone . '?text=' . rawurlencode( $msg );
     }
 
     /**

@@ -519,12 +519,13 @@ class DD_Orders_Module extends DD_Module {
             }, $summary['items'] ) ),
         ];
 
-        $whatsapp_url = DD_Notifications::on_order_created( $notification_data );
+        $notification_urls = DD_Notifications::on_order_created( $notification_data );
 
         // ─── 7. Respond ────────────────────────────────────────────────
         wp_send_json_success( array_merge( $result, [
-            'eta'          => get_option( 'dd_delivery_eta', '30–45 minutes' ),
-            'whatsapp_url' => $whatsapp_url,
+            'eta'                   => get_option( 'dd_delivery_eta', '30–45 minutes' ),
+            'whatsapp_url'          => $notification_urls['admin_url'],
+            'whatsapp_customer_url' => $notification_urls['customer_url'],
         ] ) );
     }
 
