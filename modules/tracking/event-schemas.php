@@ -82,6 +82,13 @@ return [
             'optional' => ['product_id', 'qty'],
         ],
     ],
+    'checkout_start' => [
+        'current_version' => 1,
+        'metadata_schema' => [
+            'required' => ['item_count', 'subtotal'],
+            'optional' => ['cart_key'],
+        ],
+    ],
     'order' => [
         'current_version' => DISHDASH_SCHEMA_ORDER_EVENT,
         'metadata_schema' => [

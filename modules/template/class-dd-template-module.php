@@ -169,12 +169,15 @@ class DD_Template_Module extends DD_Module {
         wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [ 'dish-dash-search' ], DD_VERSION, true );
         wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
         wp_localize_script( 'dish-dash-cart', 'ddCartData', [
-            'threshold'    => (int) get_option( 'dd_free_delivery_threshold', 10000 ),
-            'delivery_fee' => (int) get_option( 'dd_delivery_fee',            1500  ),
-            'ajax_url'     => admin_url( 'admin-ajax.php' ),
-            'nonce'        => wp_create_nonce( 'dish_dash_frontend' ),
-            'checkout_url' => function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' ),
-            'currency'     => DD_Settings::get( 'currency_symbol', 'RWF' ),
+            'threshold'             => (int) get_option( 'dd_free_delivery_threshold', 10000 ),
+            'delivery_fee'          => (int) get_option( 'dd_delivery_fee',            1500  ),
+            'ajax_url'              => admin_url( 'admin-ajax.php' ),
+            'nonce'                 => wp_create_nonce( 'dish_dash_frontend' ),
+            'checkout_url'          => function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : home_url( '/checkout/' ),
+            'currency'              => DD_Settings::get( 'currency_symbol', 'RWF' ),
+            'freeDeliveryThreshold' => (int) get_option( 'dd_free_delivery_threshold', 10000 ),
+            'deliveryFee'           => (int) get_option( 'dd_delivery_fee',            1500  ),
+            'deliveryEta'           => get_option( 'dd_delivery_eta', '30–45 minutes' ),
         ] );
 
         // Inject CSS variables + footer background via WordPress inline style system

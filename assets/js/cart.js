@@ -89,11 +89,7 @@
                 return;
             }
 
-            // Disabled checkout: block navigation
-            var checkout = e.target.closest( '#ddCartCheckout' );
-            if ( checkout && checkout.classList.contains( 'dd-cart-drawer__checkout--disabled' ) ) {
-                e.preventDefault();
-            }
+            // Disabled checkout: button[disabled] handles this natively
         } );
 
         // Keyboard close
@@ -221,6 +217,8 @@
     function fetchCart( renderPanel ) {
         ajax( 'dd_cart_get', {}, function ( data ) {
             updateBadges( data.count );
+            // Store for checkout panel to read
+            window.ddCartSummary = data;
             if ( renderPanel ) {
                 renderItems( data.items );
                 updateNudge( data.total );
@@ -311,6 +309,7 @@
         if ( checkoutEl ) {
             checkoutEl.classList.toggle( 'dd-cart-drawer__checkout--disabled', ! hasItems );
             checkoutEl.setAttribute( 'aria-disabled', hasItems ? 'false' : 'true' );
+            checkoutEl.disabled = ! hasItems;
             if ( hasItems ) {
                 checkoutEl.removeAttribute( 'tabindex' );
             } else {
@@ -379,6 +378,10 @@
         return Math.round( value ).toLocaleString( 'en-US' ) + ' RWF';
     }
 
+    function formatMoney( amount ) {
+        return Number( amount ).toLocaleString( 'en-RW' ) + ' RWF';
+    }
+
     function formatNumber( value ) {
         return parseFloat( value ).toLocaleString( 'en-RW', { maximumFractionDigits: 0 } );
     }
@@ -387,6 +390,76 @@
         var div = document.createElement( 'div' );
         div.textContent = String( str || '' );
         return div.innerHTML;
+    }
+
+    /* ── PANEL NAVIGATION ───────────────────────────────────── */
+    var panelCart         = document.getElementById( 'ddPanelCart' );
+    var panelCheckout     = document.getElementById( 'ddPanelCheckout' );
+    var panelConfirmation = document.getElementById( 'ddPanelConfirmation' );
+
+    function showPanel( panelEl ) {
+        [ panelCart, panelCheckout, panelConfirmation ].forEach( function ( p ) {
+            if ( p ) p.classList.add( 'dd-cart-panel--hidden' );
+        } );
+        if ( panelEl ) panelEl.classList.remove( 'dd-cart-panel--hidden' );
+    }
+
+    // Proceed to checkout
+    var checkoutBtn = document.getElementById( 'ddCartCheckout' );
+    if ( checkoutBtn ) {
+        checkoutBtn.addEventListener( 'click', function () {
+            var summary   = window.ddCartSummary || {};
+            var count     = summary.count    || 0;
+            var sub       = summary.subtotal || 0;
+
+            // Tracking
+            if ( window.DDTrack && typeof window.DDTrack.checkoutStart === 'function' ) {
+                window.DDTrack.checkoutStart( count, sub );
+            }
+
+            // Populate summary strip
+            var strip = document.getElementById( 'ddCheckoutSummaryStrip' );
+            if ( strip && summary.items ) {
+                strip.innerHTML = summary.items
+                    .map( function ( i ) { return '<div>' + escHtml( i.qty + '× ' + i.name ) + '</div>'; } )
+                    .join( '' );
+            }
+
+            // Delivery fee display
+            var threshold  = ( window.ddCartData && window.ddCartData.freeDeliveryThreshold ) || 10000;
+            var fee        = ( window.ddCartData && window.ddCartData.deliveryFee ) || 1500;
+            var isFree     = sub >= threshold;
+            var feeDisplay = isFree ? 'FREE' : formatMoney( fee );
+
+            var totalEl = document.getElementById( 'ddCheckoutTotal' );
+            var feeEl   = document.getElementById( 'ddCheckoutDeliveryFee' );
+            if ( totalEl ) totalEl.textContent = formatMoney( sub + ( isFree ? 0 : fee ) );
+            if ( feeEl )   feeEl.textContent   = feeDisplay;
+
+            // ETA
+            var eta   = ( window.ddCartData && window.ddCartData.deliveryEta ) || '30\u201345 minutes';
+            var etaEl = document.getElementById( 'ddCheckoutEta' );
+            if ( etaEl ) etaEl.textContent = '\uD83D\uDEF5 Estimated delivery: ' + eta;
+
+            showPanel( panelCheckout );
+        } );
+    }
+
+    // Back button
+    var backBtn = document.getElementById( 'ddCheckoutBack' );
+    if ( backBtn ) {
+        backBtn.addEventListener( 'click', function () {
+            showPanel( panelCart );
+        } );
+    }
+
+    // Confirm done → close drawer and return to cart panel
+    var confirmCloseBtn = document.getElementById( 'ddConfirmClose' );
+    if ( confirmCloseBtn ) {
+        confirmCloseBtn.addEventListener( 'click', function () {
+            closeCart();
+            showPanel( panelCart );
+        } );
     }
 
     /* ── PUBLIC API ─────────────────────────────────────────── */

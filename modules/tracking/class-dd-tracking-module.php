@@ -128,7 +128,7 @@ class DD_Tracking_Module extends DD_Module {
         $allowed = [
             'view_product', 'view_category', 'search',
             'add_to_cart', 'remove_from_cart', 'order', 'reorder', 'page_view',
-            'cart_open', 'cart_quantity_change', 'cart_abandon',
+            'cart_open', 'cart_quantity_change', 'cart_abandon', 'checkout_start',
         ];
         if ( ! in_array( $event_type, $allowed, true ) ) {
             wp_send_json_success();

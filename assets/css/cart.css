@@ -633,3 +633,278 @@ body.dd-cart-open .dd-mobile-app {
 body.dd-cart-open .dd-bottom-nav {
     pointer-events: none !important;
 }
+
+/* =============================================
+   CART DRAWER — MULTI-PANEL SYSTEM (v3.2.43)
+   ============================================= */
+
+/* Panel container — panels stack horizontally, drawer clips overflow */
+#ddCartDrawer {
+    overflow: hidden; /* ensure hidden panels don't cause scroll */
+}
+
+.dd-cart-panel {
+    width: 100%;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    flex-shrink: 0;
+}
+
+.dd-cart-panel--hidden {
+    display: none !important;
+}
+
+/* ── Checkout panel layout ── */
+#ddPanelCheckout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.dd-checkout-panel__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    flex-shrink: 0;
+}
+
+.dd-checkout-panel__back {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--dd-accent, #E8832A);
+    padding: 4px 0;
+    font-weight: 600;
+}
+
+.dd-checkout-panel__back:hover {
+    text-decoration: underline;
+}
+
+.dd-checkout-panel__title {
+    font-weight: 700;
+    font-size: 17px;
+}
+
+.dd-checkout-panel__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    -webkit-overflow-scrolling: touch;
+}
+
+.dd-checkout-panel__footer {
+    border-top: 1px solid rgba(0,0,0,0.08);
+    padding: 16px 20px;
+    flex-shrink: 0;
+    background: #fff;
+}
+
+/* ── Order summary strip ── */
+.dd-checkout-summary-strip {
+    background: #F5EFE6;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+}
+
+/* ── Form fields ── */
+.dd-cform-group {
+    margin-bottom: 16px;
+}
+
+.dd-cform-group label,
+.dd-cform-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #333;
+}
+
+.dd-cform-group label span {
+    color: #c0392b;
+}
+
+.dd-cform-group input[type="text"],
+.dd-cform-group input[type="tel"] {
+    width: 100%;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    background: #fafafa;
+    box-sizing: border-box;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+}
+
+.dd-cform-group input:focus {
+    outline: none;
+    border-color: var(--dd-accent, #E8832A);
+    background: #fff;
+}
+
+.dd-cform-group input.dd-field-error {
+    border-color: #c0392b;
+}
+
+.dd-cform-error {
+    display: block;
+    font-size: 12px;
+    color: #c0392b;
+    margin-top: 4px;
+    min-height: 16px;
+}
+
+/* ── Payment method options ── */
+.dd-payment-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.dd-payment-option {
+    cursor: pointer;
+}
+
+.dd-payment-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.dd-payment-option__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    transition: border-color 0.15s, background 0.15s;
+    background: #fafafa;
+    text-align: center;
+}
+
+.dd-payment-option input:checked + .dd-payment-option__card {
+    border-color: var(--dd-accent, #E8832A);
+    background: #fff8f2;
+}
+
+.dd-payment-option__icon {
+    font-size: 22px;
+}
+
+.dd-payment-option__text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+}
+
+/* ── Footer totals + place order ── */
+.dd-checkout-total-line,
+.dd-checkout-delivery-line {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.dd-checkout-total-line {
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 2px;
+}
+
+.dd-checkout-delivery-line {
+    color: #777;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.dd-checkout-place-order {
+    width: 100%;
+    background: var(--dd-accent, #E8832A);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+.dd-checkout-place-order:hover {
+    opacity: 0.9;
+}
+
+.dd-checkout-place-order:active {
+    transform: scale(0.98);
+}
+
+.dd-checkout-place-order:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dd-checkout-eta {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin: 8px 0 0;
+}
+
+/* ── Confirmation panel ── */
+.dd-confirm-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 24px;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.dd-confirm-panel__icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+}
+
+.dd-confirm-panel__title {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 10px;
+}
+
+.dd-confirm-panel__order-num {
+    font-size: 14px;
+    color: #555;
+    margin: 0 0 6px;
+}
+
+.dd-confirm-panel__eta {
+    font-size: 13px;
+    color: #888;
+    margin: 0 0 28px;
+}
+
+.dd-confirm-panel__close {
+    background: var(--dd-accent, #E8832A);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 40px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+}

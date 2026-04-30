@@ -86,42 +86,133 @@ if ( ! isset( $dd_cart_count ) ) {
         </script>
     </div>
 
-    <!-- Items list — JS replaces contents on fetch -->
-    <div class="dd-cart-drawer__items" id="ddCartItems">
-        <p class="dd-cart-drawer__empty">
-            <?php esc_html_e( 'Your cart is empty', 'dish-dash' ); ?>
-            &mdash; <?php esc_html_e( 'add something delicious', 'dish-dash' ); ?> &#x1F37D;
-        </p>
-    </div>
+    <!-- ══ PANEL: CART ══════════════════════════════════════════ -->
+    <div class="dd-cart-panel" id="ddPanelCart" data-panel="cart">
 
-    <!-- Delivery nudge bar — hidden until items in cart -->
-    <div class="dd-cart-drawer__nudge" id="ddCartNudge" style="display:none">
-        <p class="dd-nudge__label">
-            &#128757; <?php esc_html_e( 'Add', 'dish-dash' ); ?>
-            <span id="ddNudgeRemaining">3,500</span>
-            RWF <?php esc_html_e( 'more for FREE delivery', 'dish-dash' ); ?>
-        </p>
-        <div class="dd-nudge__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-            <div class="dd-nudge__fill" id="ddNudgeFill" style="width:0%"></div>
+        <!-- Items list — JS replaces contents on fetch -->
+        <div class="dd-cart-drawer__items" id="ddCartItems">
+            <p class="dd-cart-drawer__empty">
+                <?php esc_html_e( 'Your cart is empty', 'dish-dash' ); ?>
+                &mdash; <?php esc_html_e( 'add something delicious', 'dish-dash' ); ?> &#x1F37D;
+            </p>
         </div>
-    </div>
 
-    <!-- Footer: subtotal + checkout -->
-    <div class="dd-cart-drawer__footer">
-        <div class="dd-cart-drawer__subtotal">
-            <span class="dd-cart-drawer__subtotal-label">
-                <?php esc_html_e( 'Subtotal', 'dish-dash' ); ?>
-            </span>
-            <span class="dd-cart-drawer__subtotal-value" id="ddCartSubtotal">RWF 0</span>
+        <!-- Delivery nudge bar — hidden until items in cart -->
+        <div class="dd-cart-drawer__nudge" id="ddCartNudge" style="display:none">
+            <p class="dd-nudge__label">
+                &#128757; <?php esc_html_e( 'Add', 'dish-dash' ); ?>
+                <span id="ddNudgeRemaining">3,500</span>
+                RWF <?php esc_html_e( 'more for FREE delivery', 'dish-dash' ); ?>
+            </p>
+            <div class="dd-nudge__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                <div class="dd-nudge__fill" id="ddNudgeFill" style="width:0%"></div>
+            </div>
         </div>
-        <a href="<?php echo esc_url( $checkout_url ); ?>"
-           class="dd-cart-drawer__checkout dd-cart-drawer__checkout--disabled"
-           id="ddCartCheckout"
-           aria-disabled="true"
-           tabindex="-1">
-            <?php esc_html_e( 'Proceed to Checkout', 'dish-dash' ); ?> &#8594;
-        </a>
-    </div>
+
+        <!-- Footer: subtotal + checkout -->
+        <div class="dd-cart-drawer__footer">
+            <div class="dd-cart-drawer__subtotal">
+                <span class="dd-cart-drawer__subtotal-label">
+                    <?php esc_html_e( 'Subtotal', 'dish-dash' ); ?>
+                </span>
+                <span class="dd-cart-drawer__subtotal-value" id="ddCartSubtotal">RWF 0</span>
+            </div>
+            <button class="dd-cart-drawer__checkout dd-cart-drawer__checkout--disabled"
+                    id="ddCartCheckout"
+                    disabled
+                    type="button">
+                <?php esc_html_e( 'Proceed to Checkout', 'dish-dash' ); ?> &#8594;
+            </button>
+        </div>
+
+    </div><!-- /#ddPanelCart -->
+
+    <!-- ══ PANEL: CHECKOUT ══════════════════════════════════════ -->
+    <div class="dd-cart-panel dd-cart-panel--hidden" id="ddPanelCheckout" data-panel="checkout">
+        <div class="dd-checkout-panel__header">
+            <button class="dd-checkout-panel__back" id="ddCheckoutBack" type="button" aria-label="<?php esc_attr_e( 'Back to cart', 'dish-dash' ); ?>">
+                &#8592; <?php esc_html_e( 'Back', 'dish-dash' ); ?>
+            </button>
+            <span class="dd-checkout-panel__title"><?php esc_html_e( 'Checkout', 'dish-dash' ); ?></span>
+        </div>
+
+        <div class="dd-checkout-panel__body">
+            <!-- Order summary strip -->
+            <div class="dd-checkout-summary-strip" id="ddCheckoutSummaryStrip"></div>
+
+            <!-- Checkout form -->
+            <form class="dd-checkout-form-inner" id="ddCheckoutForm" novalidate>
+                <div class="dd-cform-group">
+                    <label for="ddFieldName"><?php esc_html_e( 'Full Name', 'dish-dash' ); ?> <span aria-hidden="true">*</span></label>
+                    <input type="text" id="ddFieldName" name="customer_name"
+                           autocomplete="name" placeholder="Jean Pierre" required>
+                    <span class="dd-cform-error" id="ddErrorName"></span>
+                </div>
+
+                <div class="dd-cform-group">
+                    <label for="ddFieldWhatsapp"><?php esc_html_e( 'WhatsApp Number', 'dish-dash' ); ?> <span aria-hidden="true">*</span></label>
+                    <input type="tel" id="ddFieldWhatsapp" name="whatsapp"
+                           autocomplete="tel" placeholder="+250 78 000 0000" required>
+                    <span class="dd-cform-error" id="ddErrorWhatsapp"></span>
+                </div>
+
+                <div class="dd-cform-group">
+                    <label for="ddFieldAddress"><?php esc_html_e( 'Delivery Address', 'dish-dash' ); ?> <span aria-hidden="true">*</span></label>
+                    <input type="text" id="ddFieldAddress" name="delivery_address"
+                           autocomplete="street-address" placeholder="Kacyiru, Kigali" required>
+                    <span class="dd-cform-error" id="ddErrorAddress"></span>
+                </div>
+
+                <div class="dd-cform-group">
+                    <p class="dd-cform-label"><?php esc_html_e( 'Payment Method', 'dish-dash' ); ?></p>
+                    <div class="dd-payment-options">
+                        <label class="dd-payment-option">
+                            <input type="radio" name="payment_method" value="pay_on_delivery" checked>
+                            <span class="dd-payment-option__card">
+                                <span class="dd-payment-option__icon">&#128757;</span>
+                                <span class="dd-payment-option__text"><?php esc_html_e( 'Pay on Delivery', 'dish-dash' ); ?></span>
+                            </span>
+                        </label>
+                        <label class="dd-payment-option">
+                            <input type="radio" name="payment_method" value="pay_now">
+                            <span class="dd-payment-option__card">
+                                <span class="dd-payment-option__icon">&#128179;</span>
+                                <span class="dd-payment-option__text"><?php esc_html_e( 'Pay Now', 'dish-dash' ); ?></span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="dd-checkout-panel__footer">
+            <div class="dd-checkout-total-line">
+                <span><?php esc_html_e( 'Total', 'dish-dash' ); ?></span>
+                <span id="ddCheckoutTotal">&#8212;</span>
+            </div>
+            <div class="dd-checkout-delivery-line" id="ddCheckoutDeliveryLine">
+                <span><?php esc_html_e( 'Delivery', 'dish-dash' ); ?></span>
+                <span id="ddCheckoutDeliveryFee">&#8212;</span>
+            </div>
+            <button class="dd-checkout-place-order" id="ddPlaceOrder" type="button">
+                <?php esc_html_e( 'Place Order', 'dish-dash' ); ?> &#8594;
+            </button>
+            <p class="dd-checkout-eta" id="ddCheckoutEta"></p>
+        </div>
+    </div><!-- /#ddPanelCheckout -->
+
+    <!-- ══ PANEL: CONFIRMATION (stub — wired in v3.2.44) ════════ -->
+    <div class="dd-cart-panel dd-cart-panel--hidden" id="ddPanelConfirmation" data-panel="confirmation">
+        <div class="dd-confirm-panel">
+            <div class="dd-confirm-panel__icon">&#9989;</div>
+            <h2 class="dd-confirm-panel__title"><?php esc_html_e( 'Order Confirmed!', 'dish-dash' ); ?></h2>
+            <p class="dd-confirm-panel__order-num" id="ddConfirmOrderNum"></p>
+            <p class="dd-confirm-panel__eta" id="ddConfirmEta"></p>
+            <button class="dd-confirm-panel__close" id="ddConfirmClose" type="button">
+                <?php esc_html_e( 'Done', 'dish-dash' ); ?>
+            </button>
+        </div>
+    </div><!-- /#ddPanelConfirmation -->
 
 </aside>
 

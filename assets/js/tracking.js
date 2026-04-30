@@ -214,6 +214,10 @@
         search:             function(query)         { fire('search', null, null, { query: query }); },
         order:              function(orderId, total){ fire('order',  null, null, { order_id: orderId, total: total }); },
         pageView:           function()              { fire('page_view', null, null, { url: window.location.href, referrer: document.referrer || null }); },
+        // Phase 3B checkout events
+        checkoutStart:      function(itemCount, subtotal) {
+            fire('checkout_start', null, null, { item_count: itemCount, subtotal: subtotal });
+        },
         // Phase 3A cart events
         cartOpen:           function(itemCount)     { fire('cart_open', null, null, { item_count: itemCount, trigger: 'button' }); },
         removeFromCart:     function(productId, qty){ fire('remove_from_cart', productId, null, { qty: qty }); },
