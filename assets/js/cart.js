@@ -548,6 +548,12 @@
                 showPanel( panelConfirmation );
                 updateBadges( 0 );
 
+                // Set customer ID cookie — used by birthday WhatsApp trigger (2 min later)
+                if ( data.customer_id ) {
+                    document.cookie = 'dd_customer_id=' + data.customer_id
+                        + '; path=/; max-age=7200; SameSite=Lax';
+                }
+
                 // Admin WhatsApp notification — window.location.href works on all devices
                 if ( data.whatsapp_url ) {
                     setTimeout( function () {

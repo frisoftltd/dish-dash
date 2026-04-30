@@ -79,6 +79,11 @@ class DD_Template_Module extends DD_Module {
 
         // ── Remove theme header on global header pages (runs early) ──
         add_action( 'init', [ $this, 'remove_theme_header_hooks' ] );
+
+        // ── Birthday flow ──
+        add_action( 'wp_footer',       [ $this, 'inject_birthday_whatsapp' ] );
+        add_filter( 'template_include', [ $this, 'maybe_load_birthday_template' ] );
+        add_action( 'wp_enqueue_scripts', [ $this, 'maybe_enqueue_birthday_css' ] );
     }
 
     // ─────────────────────────────────────────
@@ -862,5 +867,63 @@ class DD_Template_Module extends DD_Module {
                 wp_dequeue_style( 'woocommerce-general' );
             }
         }
+    }
+
+    // ─────────────────────────────────────────
+    //  BIRTHDAY FLOW
+    // ─────────────────────────────────────────
+
+    /**
+     * Inject birthday WhatsApp redirect JS if transient is ready.
+     * Fires 2 minutes after first order via WP-Cron.
+     */
+    public function inject_birthday_whatsapp(): void {
+        $customer_id = (int) ( $_COOKIE['dd_customer_id'] ?? 0 );
+        if ( ! $customer_id ) return;
+
+        $wa_url = get_transient( 'dd_birthday_wa_' . $customer_id );
+        if ( ! $wa_url ) return;
+
+        // Delete immediately — one-time only
+        delete_transient( 'dd_birthday_wa_' . $customer_id );
+        ?>
+        <script>
+        setTimeout( function() {
+            window.location.href = <?php echo wp_json_encode( $wa_url ); ?>;
+        }, 1500 );
+        </script>
+        <?php
+    }
+
+    /**
+     * Load birthday page template for /birthday/?c=TOKEN
+     */
+    public function maybe_load_birthday_template( string $template ): string {
+        if ( ! isset( $_GET['c'] ) ) return $template;
+
+        global $post;
+        if ( ! $post || get_post_field( 'post_name', $post->ID ) !== 'birthday' ) {
+            return $template;
+        }
+
+        $custom = DD_PLUGIN_DIR . 'templates/birthday.php';
+        return file_exists( $custom ) ? $custom : $template;
+    }
+
+    /**
+     * Enqueue birthday page CSS.
+     */
+    public function maybe_enqueue_birthday_css(): void {
+        if ( ! isset( $_GET['c'] ) ) return;
+
+        global $post;
+        if ( ! $post || get_post_field( 'post_name', $post->ID ) !== 'birthday' ) return;
+
+        $plugin_url = plugins_url( 'dish-dash' );
+        wp_enqueue_style(
+            'dd-birthday',
+            $plugin_url . '/assets/css/birthday.css',
+            [], DD_VERSION
+        );
     }
 }

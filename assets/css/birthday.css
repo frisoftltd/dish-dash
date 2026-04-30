@@ -1,0 +1,114 @@
+/* =============================================
+   BIRTHDAY PAGE (v3.2.54)
+   ============================================= */
+
+.dd-birthday-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70vh;
+    padding: 40px 20px;
+    background: #F5EFE6;
+    box-sizing: border-box;
+}
+
+.dd-birthday-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 40px 32px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.dd-birthday-card__icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    line-height: 1;
+}
+
+.dd-birthday-card__title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #65040d;
+    margin: 0 0 10px;
+}
+
+.dd-birthday-card__text {
+    color: #666;
+    font-size: 15px;
+    margin: 0 0 24px;
+    line-height: 1.6;
+}
+
+.dd-birthday-card__btn {
+    display: inline-block;
+    background: #E8832A;
+    color: #fff;
+    border-radius: 10px;
+    padding: 12px 32px;
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 15px;
+}
+
+/* ── Form ── */
+.dd-birthday-form__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.dd-birthday-form__group {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+}
+
+.dd-birthday-form__group label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #333;
+}
+
+.dd-birthday-form__group select {
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 15px;
+    background: #fafafa;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.dd-birthday-form__group select:focus {
+    outline: none;
+    border-color: #E8832A;
+    background: #fff;
+}
+
+.dd-birthday-form__submit {
+    width: 100%;
+    background: #65040d;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.dd-birthday-form__submit:hover {
+    opacity: 0.9;
+}
+
+@media (max-width: 480px) {
+    .dd-birthday-card {
+        padding: 32px 20px;
+    }
+}

@@ -209,6 +209,37 @@ class DD_Install {
             UNIQUE KEY branch_date (branch_id, stat_date),
             KEY stat_date (stat_date)
         ) $charset;" );
+
+        // ── Customers (WhatsApp-based identity) ───────────────────────────────
+        dbDelta( "CREATE TABLE {$prefix}dishdash_customers (
+            id                BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            whatsapp          VARCHAR(20)  NOT NULL DEFAULT '',
+            name              VARCHAR(255) NOT NULL DEFAULT '',
+            delivery_address  TEXT         NULL,
+            birthday          DATE         NULL,
+            dd_birthday_asked TINYINT(1)   NOT NULL DEFAULT 0,
+            total_orders      INT UNSIGNED NOT NULL DEFAULT 0,
+            total_spent       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+            first_order_at    DATETIME     NULL,
+            last_order_at     DATETIME     NULL,
+            created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY whatsapp (whatsapp)
+        ) $charset;" );
+
+        // ── Birthday Tokens ───────────────────────────────────────────────────
+        dbDelta( "CREATE TABLE {$prefix}dishdash_birthday_tokens (
+            id          INT UNSIGNED        NOT NULL AUTO_INCREMENT,
+            token       VARCHAR(64)         NOT NULL DEFAULT '',
+            customer_id BIGINT(20) UNSIGNED NOT NULL,
+            used        TINYINT(1)          NOT NULL DEFAULT 0,
+            expires_at  DATETIME            NOT NULL,
+            created_at  DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY token (token),
+            KEY customer_id (customer_id)
+        ) $charset;" );
     }
 
     // ── Roles & capabilities ──────────────────────────────────────────────────

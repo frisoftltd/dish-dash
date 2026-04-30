@@ -56,6 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once plugin_dir_path( __FILE__ ) . 'class-dd-notifications.php';
+require_once plugin_dir_path( __FILE__ ) . 'class-dd-customer-manager.php';
 
 class DD_Orders_Module extends DD_Module {
 
@@ -84,12 +85,68 @@ class DD_Orders_Module extends DD_Module {
         // Branded thank-you page for online gateway orders
         add_action( 'woocommerce_thankyou', [ $this, 'on_order_received_page' ] );
 
+        // Birthday WhatsApp — fired by WP-Cron 2 min after first order
+        add_action( 'dd_send_birthday_whatsapp', [ $this, 'send_birthday_whatsapp' ], 10, 3 );
+
         // Admin assets
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
 
         // Shortcodes
         add_shortcode( 'dish_dash_track',   [ $this, 'shortcode_track' ] );
         add_shortcode( 'dish_dash_account', [ $this, 'shortcode_account' ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  BIRTHDAY WHATSAPP (WP-CRON)
+    // ─────────────────────────────────────────
+
+    /**
+     * Fired by WP-Cron 2 minutes after first order.
+     * Generates birthday token + stores wa.me URL as transient.
+     * Never fires twice — guarded by dd_birthday_asked flag.
+     */
+    public function send_birthday_whatsapp(
+        int    $customer_id,
+        string $whatsapp,
+        string $name
+    ): void {
+        global $wpdb;
+
+        // Guard — never send twice
+        $asked = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT dd_birthday_asked FROM {$wpdb->prefix}dishdash_customers WHERE id = %d",
+            $customer_id
+        ) );
+        if ( $asked ) return;
+
+        $phone = DD_Customer_Manager::normalize_phone( $whatsapp );
+        if ( ! $phone ) return;
+
+        // Generate token
+        $token        = DD_Customer_Manager::generate_birthday_token( $customer_id );
+        $birthday_url = home_url( '/birthday/?c=' . $token );
+        $first_name   = explode( ' ', trim( $name ) )[0] ?: $name;
+
+        // Build message
+        $msg = implode( "\n", [
+            '🎁 One more thing, ' . $first_name . '!',
+            'We\'d love to surprise you on your birthday.',
+            'Share it here (10 sec):',
+            '👉 ' . $birthday_url,
+            '— Khana Khazana 🍽',
+        ] );
+
+        $wa_url = 'https://wa.me/' . $phone . '?text=' . rawurlencode( $msg );
+
+        // Store as transient — JS picks it up on next page load via cookie
+        set_transient(
+            'dd_birthday_wa_' . $customer_id,
+            $wa_url,
+            2 * HOUR_IN_SECONDS
+        );
+
+        // Mark asked — prevents repeat
+        DD_Customer_Manager::mark_birthday_asked( $customer_id );
     }
 
     // ─────────────────────────────────────────
@@ -709,11 +766,36 @@ class DD_Orders_Module extends DD_Module {
 
         $notification_urls = DD_Notifications::on_order_created( $notification_data );
 
-        // ─── 7. Respond ────────────────────────────────────────────────
+        // ─── 7. Customer upsert + birthday flow ───────────────────────
+        $customer_result = DD_Customer_Manager::upsert(
+            $whatsapp,
+            $customer_name,
+            $delivery_address,
+            (float) $result['total']
+        );
+
+        // Schedule birthday WhatsApp — first order only, never repeats
+        if (
+            $customer_result['is_first_order'] &&
+            $customer_result['customer_id'] > 0
+        ) {
+            wp_schedule_single_event(
+                time() + 120,
+                'dd_send_birthday_whatsapp',
+                [
+                    $customer_result['customer_id'],
+                    $whatsapp,
+                    $customer_name,
+                ]
+            );
+        }
+
+        // ─── 8. Respond ────────────────────────────────────────────────
         wp_send_json_success( array_merge( $result, [
             'eta'                   => get_option( 'dd_delivery_eta', '30–45 minutes' ),
             'whatsapp_url'          => $notification_urls['admin_url'],
             'whatsapp_customer_url' => $notification_urls['customer_url'],
+            'customer_id'           => $customer_result['customer_id'] ?? 0,
         ] ) );
     }
 
