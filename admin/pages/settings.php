@@ -46,6 +46,7 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_delivery_fee',            absint( $_POST['dd_delivery_fee']            ?? 1500  ) );
     update_option( 'dd_delivery_eta',            sanitize_text_field( $_POST['dd_delivery_eta'] ?? '30–45 minutes' ) );
     update_option( 'dd_whatsapp_admin',          sanitize_text_field( $_POST['dd_whatsapp_admin'] ?? '' ) );
+    update_option( 'dd_admin_email',             sanitize_email( $_POST['dd_admin_email'] ?? '' ) );
     echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 }
 ?>
@@ -145,6 +146,15 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
                        value="<?php echo esc_attr( get_option( 'dd_whatsapp_admin', '' ) ); ?>"
                        class="regular-text" placeholder="+250 78 000 0000">
                 <p class="description"><?php esc_html_e( 'Restaurant WhatsApp number that receives order notifications.', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><?php esc_html_e( 'Admin Notification Email', 'dish-dash' ); ?></th>
+            <td>
+                <input type="email" name="dd_admin_email"
+                       value="<?php echo esc_attr( get_option( 'dd_admin_email', get_option( 'admin_email' ) ) ); ?>"
+                       class="regular-text">
+                <p class="description"><?php esc_html_e( 'Order notification emails are sent here. Defaults to WordPress admin email.', 'dish-dash' ); ?></p>
             </td>
         </tr>
         </table>

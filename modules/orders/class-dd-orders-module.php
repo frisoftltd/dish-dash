@@ -55,6 +55,8 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+require_once plugin_dir_path( __FILE__ ) . 'class-dd-notifications.php';
+
 class DD_Orders_Module extends DD_Module {
 
     protected string $id = 'orders';
@@ -72,6 +74,9 @@ class DD_Orders_Module extends DD_Module {
         // WooCommerce bridge — sync payment status
         add_action( 'woocommerce_order_status_completed', [ $this, 'wc_payment_completed' ] );
         add_action( 'woocommerce_order_status_cancelled', [ $this, 'wc_payment_cancelled' ] );
+
+        // Online gateway notifications — fires after Pesapal/DPO payment confirmed
+        add_action( 'woocommerce_payment_complete', [ 'DD_Notifications', 'on_payment_complete' ] );
 
         // Admin assets
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
@@ -179,9 +184,10 @@ class DD_Orders_Module extends DD_Module {
         // Fire action hook
         do_action( 'dish_dash_order_placed', $order_id, $order_data );
 
-        // Send notifications
+        // Customer email confirmation (no-ops when customer_email is empty)
         $this->send_order_confirmation( $order_id );
-        $this->notify_restaurant( $order_id );
+        // Restaurant notification now handled by DD_Notifications::on_order_created()
+        // called from ajax_place_order() — not here, to avoid double-firing
 
         return [
             'order_id'     => $order_id,
@@ -494,9 +500,31 @@ class DD_Orders_Module extends DD_Module {
         // ─── 5. Clear cart ─────────────────────────────────────────────
         $cart->clear();
 
-        // ─── 6. Respond ────────────────────────────────────────────────
+        // ─── 6. Fire notifications ─────────────────────────────────────
+        $notification_data = [
+            'order_number'     => $result['order_number'],
+            'customer_name'    => $customer_name,
+            'customer_phone'   => $whatsapp,
+            'delivery_address' => $delivery_address,
+            'payment_method'   => $payment_method,
+            'subtotal'         => $summary['subtotal'],
+            'delivery_fee'     => $delivery_fee,
+            'total'            => $result['total'],
+            'items'            => array_values( array_map( function ( $item ) {
+                return [
+                    'name'  => $item['name'],
+                    'qty'   => (int) ( $item['qty'] ?? 1 ),
+                    'price' => (float) $item['price'],
+                ];
+            }, $summary['items'] ) ),
+        ];
+
+        $whatsapp_url = DD_Notifications::on_order_created( $notification_data );
+
+        // ─── 7. Respond ────────────────────────────────────────────────
         wp_send_json_success( array_merge( $result, [
-            'eta' => get_option( 'dd_delivery_eta', '30–45 minutes' ),
+            'eta'          => get_option( 'dd_delivery_eta', '30–45 minutes' ),
+            'whatsapp_url' => $whatsapp_url,
         ] ) );
     }
 

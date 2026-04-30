@@ -542,36 +542,16 @@
                 showPanel( panelConfirmation );
                 updateBadges( 0 );
 
-                // --- WhatsApp Notifications (Mode A) ---
-                var adminPhone = ( ( window.ddCartData && window.ddCartData.whatsappAdmin ) || '' ).replace( /[^0-9]/g, '' );
-                var customerPhone = wa.replace( /[^0-9]/g, '' );
-                if ( customerPhone.length === 9 ) customerPhone = '250' + customerPhone;
-
-                // Capture items before clearing ddCartSummary
-                var waItems = ( window.ddCartSummary && window.ddCartSummary.items ) ? window.ddCartSummary.items : [];
-                window.ddCartSummary = null;
-                var itemLines = waItems.map( function ( i ) {
-                    return ( i.qty || i.quantity || 1 ) + '\u00d7 ' + i.name;
-                } ).join( '\n' );
-
-                var adminMsg = [
-                    '\uD83D\uDD14 New Order ' + data.order_number + ' \u2014 Khana Khazana',
-                    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-                    itemLines,
-                    '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
-                    'Total: ' + formatMoney( data.total ),
-                    'Payment: ' + payment,
-                    '\uD83D\uDCCD ' + addr,
-                    '\uD83D\uDCDE ' + wa,
-                    '\uD83D\uDC64 ' + name
-                ].join( '\n' );
-
-                if ( adminPhone ) {
+                // Admin WhatsApp notification — URL built by PHP, opened by JS
+                if ( data.whatsapp_url ) {
                     setTimeout( function () {
-                        window.open( 'https://wa.me/' + adminPhone + '?text=' + encodeURIComponent( adminMsg ), '_blank' );
+                        window.open( data.whatsapp_url, '_blank' );
                     }, 600 );
                 }
 
+                window.ddCartSummary = null;
+
+                // Customer WhatsApp button on confirmation panel
                 var custMsg = [
                     '\u2705 Order Confirmed! \u2014 Khana Khazana',
                     '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500',
@@ -582,8 +562,9 @@
                 ].join( '\n' );
 
                 var waBtn = document.getElementById( 'ddConfirmWhatsappBtn' );
-                if ( waBtn && adminPhone ) {
-                    waBtn.href = 'https://wa.me/' + adminPhone + '?text=' + encodeURIComponent( custMsg );
+                var adminPhoneForBtn = ( ( window.ddCartData && window.ddCartData.whatsappAdmin ) || '' ).replace( /[^0-9]/g, '' );
+                if ( waBtn && adminPhoneForBtn ) {
+                    waBtn.href = 'https://wa.me/' + adminPhoneForBtn + '?text=' + encodeURIComponent( custMsg );
                     waBtn.style.display = 'flex';
                 }
 
