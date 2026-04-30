@@ -56,10 +56,10 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.2.40 |
+| **Deployed version** | v3.2.53 |
 | **Current phase** | Phase 3 — Cart, Orders & Delivery |
-| **Current sub-phase** | 3B — Orders (starting now) |
-| **Next task** | v3.2.41 — Checkout panel OR 3E Mobile Homepage |
+| **Current sub-phase** | 3B complete → 3C starting (Opening Hours) |
+| **Next task** | v3.2.54 — Opening hours settings + UI states |
 | **Last working state** | Phase 2 complete. Mobile 3-screen menu live. Desktop menu polished. Deep links working. Tracking validated. DD_API live. Schema enforcement at 0% failure. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
@@ -242,9 +242,12 @@ dish-dash/
 | **Phase 6** | ⏳ | Analytics + AI (Python microservice, behavior engine, recommendations) | AI Rules Engine, User Profile Engine, Smart Nudges |
 | **Phase 7** | ⏳ | Loyalty & QR (points system, QR scan ordering) | Reward frequent users, promote favorite items |
 | **Phase 8** | ⏳ | Testing + Optimization (performance, mobile UX, edge cases) | — |
-| **Phase 9** | ⏳ | SaaS Platform (multi-tenant hosting, subscription billing, white-label branding for other restaurants) | — |
+| **Phase 9** | ⏳ | Native Payments (MTN MoMo in-drawer, Airtel Money, future card gateways — built after real user validation) | Track: payment method preference, completion rate, abandonment by method |
+| **Phase 10** | ⏳ | SaaS Platform (multi-tenant hosting, subscription billing, white-label branding for other restaurants) | — |
 
 **Note:** POS Terminal (in-restaurant ordering) comes AFTER MVP is tested with real customers and we know exactly what restaurants need. Not scheduled as a fixed phase yet.
+
+**Phase 9 — Native Payments** is intentionally placed after real-world deployment. MTN MoMo (USSD push, in-drawer, no redirect) is the priority gateway for Rwanda. Build only after Phase 8 is complete and the restaurant has validated the ordering flow with real customers. Apply for MTN MoMo API credentials at momodeveloper.mtn.com before Phase 9 begins — approval takes 1–2 weeks.
 
 ---
 
@@ -627,7 +630,8 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-20/21 | v3.2.5 → v3.2.12 | Mobile 3-screen UI complete: category list, product list, single product, branded headers, product images fixed, attribute pills interactive, related products, cart AJAX wired (items add successfully), bottom nav unified |
 | 2026-04-16/21 | v3.2.0 → v3.2.12 | Phase 2 complete: mobile 3-screen menu live, cart badge UI |
 | 2026-04-29 | v3.2.15 → v3.2.40 | Cart system complete: ghost items fixed, modal from search, qty stepper, remove button, unified bottom nav, mobile cart close X, badge sync |
-| **NEXT** | **v3.2.41** | **Sub-Phase 3B begins: Checkout panel OR 3E Mobile Homepage** |
+| 2026-04-30 | v3.2.43 → v3.2.53 | Sub-Phase 3B complete: checkout panel, order creation, DD_Notifications class, HTML email, WhatsApp Mode A (wa.me), dynamic WC gateways, online gateway redirect flow, MTN MoMo architecture planned as Phase 9 |
+| **NEXT** | **v3.2.54** | **Sub-Phase 3C: Opening hours settings + UI states** |
 
 
 ## ⚡ Claude Code Operating Rules
