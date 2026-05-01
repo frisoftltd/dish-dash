@@ -472,10 +472,42 @@
         var waNumber   = (DD.whatsapp_admin || '').replace(/\D/g, '');
         var menuUrl    = DD.menu_url || '/restaurant-menu/';
 
-        console.log('[DD] setupHoursBanner running, state:', state, 'nextOpenTs:', nextOpenTs, 'closeTs:', closeTs);
-
         if (state === 'open') return;
         if (sessionStorage.getItem('dd_banner_hidden') === '1') return;
+
+        // Inject banner styles if not already present
+        if (!document.getElementById('dd-hours-styles')) {
+            var style = document.createElement('style');
+            style.id = 'dd-hours-styles';
+            style.textContent = [
+                '.dd-strip-banner{display:flex;align-items:center;justify-content:center;gap:20px;background:#c0392b;color:#fff;padding:10px 20px;font-size:14px;flex-wrap:wrap;position:relative;z-index:9999;width:100%;box-sizing:border-box;}',
+                '.dd-strip-banner__label{font-weight:600;}',
+                '.dd-strip-banner__countdown{display:flex;align-items:center;gap:10px;}',
+                '.dd-strip-unit{display:flex;align-items:center;gap:5px;}',
+                '.dd-strip-num{font-size:20px;font-weight:700;min-width:28px;text-align:center;}',
+                '.dd-strip-unit-label{font-size:12px;opacity:.85;text-transform:uppercase;letter-spacing:.5px;}',
+                '.dd-strip-sep{opacity:.5;font-size:16px;}',
+                '.dd-strip-banner__hide{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;padding:5px 14px;border-radius:4px;font-size:13px;cursor:pointer;}',
+                '.dd-closed-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;}',
+                '.dd-closed-modal{background:#fff;border-radius:12px;padding:40px 32px 36px;max-width:520px;width:100%;text-align:center;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.4);}',
+                '.dd-closed-modal__close{position:absolute;top:14px;right:18px;background:none;border:none;font-size:20px;cursor:pointer;color:#999;padding:4px 8px;}',
+                '.dd-closed-modal__intro{font-size:16px;color:#333;margin:0 0 6px;font-weight:500;}',
+                '.dd-closed-modal__sub{font-size:14px;color:#777;margin:0 0 28px;}',
+                '.dd-closed-modal__circles{display:flex;justify-content:center;gap:20px;margin-bottom:32px;}',
+                '.dd-circle{display:flex;flex-direction:column;align-items:center;justify-content:center;width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,#65040d,#a00015);color:#fff;box-shadow:0 4px 16px rgba(101,4,13,.35);}',
+                '.dd-circle__num{font-size:32px;font-weight:700;line-height:1;}',
+                '.dd-circle__label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;opacity:.85;margin-top:4px;}',
+                '.dd-closed-modal__actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}',
+                '.dd-closed-btn{display:inline-flex;align-items:center;gap:6px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;}',
+                '.dd-closed-btn--ghost{border:2px solid #65040d;color:#65040d;background:transparent;}',
+                '.dd-closed-btn--wa{background:#25D366;color:#fff;border:2px solid transparent;}',
+                '.dd-bottom-strip{position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#1a1a1a;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:center;gap:20px;font-size:14px;}',
+                '.dd-bottom-strip__hide{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 14px;border-radius:4px;font-size:13px;cursor:pointer;}',
+                '.dd-add-btn--closed,.dd-add-btn--closed:hover{background:#ccc!important;color:#888!important;cursor:not-allowed!important;pointer-events:none;}',
+                '@media(max-width:600px){.dd-circle{width:82px;height:82px;}.dd-circle__num{font-size:24px;}.dd-closed-modal{padding:32px 20px 28px;}.dd-closed-modal__circles{gap:12px;}}'
+            ].join('');
+            document.head.appendChild(style);
+        }
 
         var timerInterval = null;
 
