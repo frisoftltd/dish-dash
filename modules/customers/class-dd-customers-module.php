@@ -197,22 +197,19 @@ class DD_Customers_Module extends DD_Module {
         );
 
         // --- Customer rows ---
-        $sql = "SELECT * FROM {$table} {$where}
-                ORDER BY created_at DESC
-                LIMIT %d OFFSET %d";
+        // $params holds only filter values (search, dates). Keep separate from pagination.
+        $sql        = "SELECT * FROM {$table} {$where} ORDER BY created_at DESC LIMIT %d OFFSET %d";
+        $row_params = array_merge( $params, [ $per_page, $offset ] );
+        $customers  = $wpdb->get_results( $wpdb->prepare( $sql, ...$row_params ) );
 
-        $params[] = $per_page;
-        $params[] = $offset;
-
-        $customers = $params
-            ? $wpdb->get_results( $wpdb->prepare( $sql, ...$params ) )
-            : $wpdb->get_results( $sql );
-
-        $total_rows = (int) $wpdb->get_var(
-            $params
-                ? $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where}", ...array_slice( $params, 0, -2 ) )
-                : "SELECT COUNT(*) FROM {$table} {$where}"
-        );
+        // COUNT — only use prepare when filter params exist (avoids prepare-without-placeholders notice)
+        if ( $params ) {
+            $total_rows = (int) $wpdb->get_var(
+                $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where}", ...$params )
+            );
+        } else {
+            $total_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+        }
 
         // --- Status helper ---
         $get_status = function( float $spent, int $orders ): array {
@@ -413,107 +410,109 @@ class DD_Customers_Module extends DD_Module {
     // ─────────────────────────────────────────
     private function admin_css(): string {
         return '
-        /* ── Stats grid ── */
-        .dd-cust-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        .dd-customers-wrap { max-width: 1200px; }
+
+        /* ── Header ── */
+        .dd-customers-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #65040d;
+            border-radius: 12px;
+            padding: 20px 28px;
+            margin-bottom: 24px;
+            color: #fff;
+        }
+        .dd-customers-header__info {
+            display: flex;
+            align-items: center;
             gap: 16px;
-            margin: 24px 0;
         }
-        .dd-cust-stat {
+        .dd-customers-header .dashicons {
+            font-size: 40px;
+            width: 40px;
+            height: 40px;
+            color: rgba(255,255,255,0.7);
+        }
+        .dd-customers-header h1 {
+            color: #fff;
+            margin: 0;
+            font-size: 22px;
+        }
+        .dd-customers-header p {
+            color: rgba(255,255,255,0.75);
+            margin: 2px 0 0;
+            font-size: 13px;
+        }
+
+        /* ── Stats grid ── */
+        .dd-customers-stats {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 1100px) {
+            .dd-customers-stats { grid-template-columns: repeat(3, 1fr); }
+        }
+        .dd-stat-card {
             background: #fff;
-            border-radius: 16px;
-            padding: 20px;
+            border: 1px solid #e8e0d8;
+            border-radius: 10px;
+            padding: 16px 12px;
             text-align: center;
-            border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 8px rgba(0,0,0,.04);
         }
-        .dd-cust-stat__icon { font-size: 28px; margin-bottom: 8px; }
-        .dd-cust-stat__val  { font-size: 22px; font-weight: 800; color: #221B19; line-height: 1.2; }
-        .dd-cust-stat__label{ font-size: 12px; color: #888; margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-        .dd-cust-stat--blue   { border-top: 3px solid #3498db; }
-        .dd-cust-stat--green  { border-top: 3px solid #27ae60; }
-        .dd-cust-stat--orange { border-top: 3px solid #e67e22; }
-        .dd-cust-stat--purple { border-top: 3px solid #9b59b6; }
-        .dd-cust-stat--gold   { border-top: 3px solid #f39c12; }
-        .dd-cust-stat--silver { border-top: 3px solid #95a5a6; }
+        .dd-stat-card__icon { font-size: 24px; margin-bottom: 6px; }
+        .dd-stat-card__value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #65040d;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+        .dd-stat-card__label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
 
         /* ── Legend ── */
-        .dd-cust-legend {
+        .dd-customers-legend {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
             flex-wrap: wrap;
-            background: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 12px 16px;
-            font-size: 13px;
             margin-bottom: 16px;
+            font-size: 13px;
         }
-
-        /* ── Status badges ── */
-        .dd-status {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
-            border-radius: 999px;
-            font-size: 12px;
-            font-weight: 700;
-        }
-        .dd-status--new      { background: #e8f5e9; color: #2e7d32; }
-        .dd-status--regular  { background: #fff3e0; color: #e65100; }
-        .dd-status--vip      { background: #ede7f6; color: #512da8; }
-        .dd-status--champion { background: #fff8e1; color: #f57f17; }
+        .dd-legend-item { font-weight: 500; }
 
         /* ── Filters ── */
-        .dd-cust-filters {
-            background: #fff;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
-        }
-
-        /* ── Table ── */
-        .dd-cust-table-wrap {
-            background: #fff;
-            border-radius: 12px;
-            overflow: hidden;
-            border: 1px solid #e0e0e0;
-            box-shadow: 0 2px 8px rgba(0,0,0,.04);
-        }
-        .dd-cust-table { border: 0 !important; }
-        .dd-cust-table thead th {
-            background: #f9f6f2 !important;
-            font-weight: 700 !important;
-            font-size: 12px !important;
-            text-transform: uppercase !important;
-            letter-spacing: .05em !important;
-            color: #888 !important;
-            padding: 14px 16px !important;
-            border-bottom: 2px solid #ede6db !important;
-        }
-        .dd-cust-table tbody td {
-            padding: 14px 16px !important;
-            border-bottom: 1px solid #f5f0ea !important;
-            vertical-align: middle !important;
-        }
-        .dd-cust-row:hover td { background: #fdfaf7 !important; }
-
-        /* ── Avatar ── */
-        .dd-cust-avatar {
-            width: 38px; height: 38px;
-            border-radius: 50%;
-            background: #6B1D1D;
-            color: #fff;
+        .dd-customers-filters {
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: 700;
-            flex-shrink: 0;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+            padding: 12px 16px;
+            background: #f9f5f0;
+            border-radius: 8px;
         }
+        .dd-customers-filters input[type="text"] { min-width: 220px; }
+        .dd-customers-filters label { font-size: 13px; }
+
+        /* ── Table ── */
+        .dd-customers-table th {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            background: #fafafa;
+        }
+        .dd-customers-table td { padding: 12px 10px; vertical-align: middle; }
+        .dd-customers-table tr:hover td { background: #fdf9f5; }
         ';
     }
 }
