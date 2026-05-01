@@ -472,13 +472,17 @@
         var waNumber   = (DD.whatsapp_admin || '').replace(/\D/g, '');
         var menuUrl    = DD.menu_url || '/restaurant-menu/';
 
+        console.log('[DD] setupHoursBanner running, state:', state, 'nextOpenTs:', nextOpenTs, 'closeTs:', closeTs);
+
         if (state === 'open') return;
         if (sessionStorage.getItem('dd_banner_hidden') === '1') return;
 
         var timerInterval = null;
 
         function formatCountdown(ms) {
-            if (ms <= 0) { location.reload(); return { h:'00', m:'00', s:'00' }; }
+            // Only reload if we just ticked past zero — not if nextOpenTs was never set (0)
+            if (ms <= 0 && ms > -10000) { location.reload(); return { h:'00', m:'00', s:'00' }; }
+            if (ms <= 0) { return { h:'00', m:'00', s:'00' }; }
             var total = Math.floor(ms / 1000);
             var h = Math.floor(total / 3600);
             var m = Math.floor((total % 3600) / 60);
