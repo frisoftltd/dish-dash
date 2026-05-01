@@ -127,8 +127,21 @@ cd /tmp && wget https://github.com/frisoftltd/dish-dash/releases/latest/download
 WP Admin → Plugins → Check for Updates → Update Now
 
 6. Purge LiteSpeed Cache: WP Admin → LiteSpeed Cache → Toolbox → Purge All
-7. Test in incognito window
-8. Verify: `grep "DD_VERSION" /home/imitjsiy/.../dish-dash.php`
+7. **If this release adds new DB tables** — run this immediately after deploy:
+```bash
+wp --path=/home/imitjsiy/dishdash.khanakhazana.rw eval '
+require_once WP_PLUGIN_DIR . "/dish-dash/dishdash-core/class-dd-install.php";
+DD_Install::create_tables();
+echo "Done.\n";
+' --allow-root 2>/dev/null | grep -v Deprecated
+```
+Then verify with:
+```bash
+wp --path=/home/imitjsiy/dishdash.khanakhazana.rw db query "SHOW TABLES LIKE 'wp_dishdash_%';" --allow-root 2>/dev/null | grep -v Deprecated
+```
+**Why:** `dbDelta()` only runs on first plugin activation. Zip updates never trigger it. New tables must be created manually on existing installs.
+8. Test in incognito window
+9. Verify: `grep "DD_VERSION" /home/imitjsiy/.../dish-dash.php`
 
 ---
 
@@ -144,6 +157,7 @@ WP Admin → Plugins → Check for Updates → Update Now
 - **Investigation findings BEFORE writing code** — always diagnose, then fix
 - **Push to `main` (lowercase)** — NEVER `Main` (capital M creates orphan branch)
 - **Do NOT create release tags** — developer does that via GitHub UI
+- **Every brief that adds a new DB table** must include the `create_tables()` run command in the deploy instructions — never assume tables are created automatically on zip update
 
 ### Architecture Rules
 
@@ -574,6 +588,7 @@ These are the 4 systems that make DishDash "smart." They are NOT built yet — w
 | `git push origin Main` creates an orphan branch | GitHub branch names are case-sensitive. Always lowercase `main`. |
 | Functions inside containing functions cause JS scope conflicts | Extract into independent modules (like `search.js`). |
 | Dedicated DB columns (product_id) are NOT meta fields | Schema `required` only lists keys inside the `meta` JSON, not row columns. |
+| `dbDelta()` does not run on zip updates | New tables added to `create_tables()` must be created manually via WP-CLI after every zip deploy — otherwise AJAX handlers that query the new table return a network error |
 
 ---
 
