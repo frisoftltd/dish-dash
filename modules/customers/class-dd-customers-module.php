@@ -183,8 +183,9 @@ class DD_Customers_Module extends DD_Module {
             COUNT(*)                        AS total_customers,
             COALESCE(SUM(total_spent), 0)   AS total_revenue,
             COALESCE(AVG(total_spent), 0)   AS avg_spend,
-            SUM(total_spent >= 200000)      AS champions,
-            SUM(total_spent >= 50000 AND total_spent < 200000) AS vips
+            SUM(total_spent >= 500000)                              AS diamonds,
+            SUM(total_spent >= 250000 AND total_spent < 500000)     AS champions,
+            SUM(total_spent >= 100000 AND total_spent < 250000)     AS vips
             FROM {$table}";
 
         $stats = $wpdb->get_row( $stats_sql );
@@ -214,8 +215,9 @@ class DD_Customers_Module extends DD_Module {
         // --- Status helper ---
         $get_status = function( float $spent, int $orders ): array {
             if ( $orders === 0 )       return [ 'New',      '🌱', '#27ae60' ];
-            if ( $spent >= 200000 )    return [ 'Champion', '🏆', '#C9A24A' ];
-            if ( $spent >= 50000  )    return [ 'VIP',      '💎', '#8e44ad' ];
+            if ( $spent >= 500000 )    return [ 'Diamond',  '💎', '#00bcd4' ];
+            if ( $spent >= 250000 )    return [ 'Champion', '🏆', '#C9A24A' ];
+            if ( $spent >= 100000 )    return [ 'VIP',      '👑', '#8e44ad' ];
             return                            [ 'Regular',  '🧡', '#E8832A' ];
         };
 
@@ -244,8 +246,9 @@ class DD_Customers_Module extends DD_Module {
                     [ 'icon' => '💰', 'value' => 'RWF ' . number_format( $stats->total_revenue ), 'label' => 'Total Revenue' ],
                     [ 'icon' => '🆕', 'value' => $new_this_month, 'label' => 'New This Month' ],
                     [ 'icon' => '📊', 'value' => 'RWF ' . number_format( $stats->avg_spend ), 'label' => 'Avg Spend / Customer' ],
-                    [ 'icon' => '🏆', 'value' => number_format( $stats->champions ), 'label' => 'Champions' ],
-                    [ 'icon' => '💎', 'value' => number_format( $stats->vips ),      'label' => 'VIP Customers' ],
+                    [ 'icon' => '💎', 'value' => number_format( $stats->diamonds ?? 0 ), 'label' => 'Diamond' ],
+                    [ 'icon' => '🏆', 'value' => number_format( $stats->champions ),     'label' => 'Champions' ],
+                    [ 'icon' => '👑', 'value' => number_format( $stats->vips ),          'label' => 'VIP Customers' ],
                 ];
                 foreach ( $stat_cards as $card ) :
                 ?>
@@ -262,8 +265,9 @@ class DD_Customers_Module extends DD_Module {
                 <strong>Customer Status:</strong>
                 <span class="dd-legend-item" style="color:#27ae60">🌱 New — No orders yet</span>
                 <span class="dd-legend-item" style="color:#E8832A">🧡 Regular — Has ordered</span>
-                <span class="dd-legend-item" style="color:#8e44ad">💎 VIP — RWF 50,000+</span>
-                <span class="dd-legend-item" style="color:#C9A24A">🏆 Champion — RWF 200,000+</span>
+                <span class="dd-legend-item" style="color:#8e44ad">👑 VIP — RWF 100,000+</span>
+                <span class="dd-legend-item" style="color:#C9A24A">🏆 Champion — RWF 250,000+</span>
+                <span class="dd-legend-item" style="color:#00bcd4">💎 Diamond — RWF 500,000+</span>
             </div>
 
             <!-- Filters -->
