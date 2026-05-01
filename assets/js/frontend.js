@@ -465,11 +465,12 @@
        OPENING HOURS BANNERS
     ══════════════════════════════════════════════════════════ */
     function setupHoursBanner() {
-        var state      = (window.DD && window.DD.hours_state) || 'open';
-        var nextOpenTs = parseInt((window.DD && window.DD.next_open_ts) || 0, 10) * 1000;
-        var closeTs    = parseInt((window.DD && window.DD.close_ts) || 0, 10) * 1000;
-        var waNumber   = ((window.DD && window.DD.whatsapp_admin) || '').replace(/\D/g, '');
-        var menuUrl    = (window.DD && window.DD.menu_url) || '/restaurant-menu/';
+        var DD         = window.DD || {};
+        var state      = (DD.hours_state || 'open');
+        var nextOpenTs = parseInt(DD.next_open_ts || 0, 10) * 1000;
+        var closeTs    = parseInt(DD.close_ts || 0, 10) * 1000;
+        var waNumber   = (DD.whatsapp_admin || '').replace(/\D/g, '');
+        var menuUrl    = DD.menu_url || '/restaurant-menu/';
 
         if (state === 'open') return;
         if (sessionStorage.getItem('dd_banner_hidden') === '1') return;
