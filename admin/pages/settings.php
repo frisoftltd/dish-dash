@@ -47,8 +47,41 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_delivery_eta',            sanitize_text_field( $_POST['dd_delivery_eta'] ?? '30–45 minutes' ) );
     update_option( 'dd_whatsapp_admin',          sanitize_text_field( $_POST['dd_whatsapp_admin'] ?? '' ) );
     update_option( 'dd_admin_email',             sanitize_email( $_POST['dd_admin_email'] ?? '' ) );
+
+    // Opening hours — save JSON
+    if ( isset( $_POST['dd_opening_hours'] ) ) {
+        $raw     = wp_unslash( $_POST['dd_opening_hours'] );
+        $decoded = json_decode( $raw, true );
+        if ( is_array( $decoded ) ) {
+            update_option( 'dd_opening_hours', $raw );
+        }
+    }
+
+    // Closing soon threshold
+    if ( isset( $_POST['dd_closing_soon_minutes'] ) ) {
+        update_option( 'dd_closing_soon_minutes', absint( $_POST['dd_closing_soon_minutes'] ) );
+    }
+
+    // Timezone
+    if ( isset( $_POST['dd_timezone'] ) ) {
+        $tz = sanitize_text_field( $_POST['dd_timezone'] );
+        update_option( 'dd_timezone', $tz );
+    }
+
     echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 }
+// Opening hours read
+$dd_opening_hours_raw = get_option( 'dd_opening_hours', '' );
+$dd_opening_hours     = ! empty( $dd_opening_hours_raw )
+    ? json_decode( $dd_opening_hours_raw, true )
+    : [];
+$dd_closing_soon      = get_option( 'dd_closing_soon_minutes', 30 );
+$dd_timezone          = get_option( 'dd_timezone', 'Africa/Kigali' );
+
+$days = [ 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday' ];
+
+// Defaults if nothing saved yet
+$default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
 ?>
 <div class="wrap dd-admin-wrap">
     <h1><?php esc_html_e( 'Dish Dash Settings', 'dish-dash' ); ?></h1>
@@ -159,6 +192,128 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
         </tr>
         </table>
 
+        <hr style="margin: 30px 0;">
+        <h2>Opening Hours</h2>
+        <p class="description" style="margin-bottom:20px;">
+            Configure when the restaurant accepts orders. Customers will see a closed banner outside these hours.
+        </p>
+
+        <table class="form-table">
+
+          <!-- Per-day rows -->
+          <?php foreach ( $days as $day ) :
+              $day_data = $dd_opening_hours[ $day ] ?? $default_sessions;
+              $is_open  = ! empty( $day_data['open'] );
+              $sessions = $day_data['sessions'] ?? [ [ '11:00', '22:00' ] ];
+              // Always give at least 2 session slots in the UI
+              while ( count( $sessions ) < 2 ) { $sessions[] = [ '', '' ]; }
+          ?>
+          <tr valign="top">
+              <th scope="row" style="text-transform:capitalize;"><?php echo esc_html( $day ); ?></th>
+              <td>
+                  <label style="margin-right:16px;">
+                      <input type="checkbox"
+                             name="dd_hours_open[<?php echo esc_attr( $day ); ?>]"
+                             value="1"
+                             <?php checked( $is_open ); ?>>
+                      Open
+                  </label>
+
+                  <span class="dd-sessions" style="display:inline-flex;gap:12px;flex-wrap:wrap;align-items:center;">
+
+                      <!-- Session 1 (always shown) -->
+                      <span>
+                          <input type="time"
+                                 name="dd_hours_s1_open[<?php echo esc_attr( $day ); ?>]"
+                                 value="<?php echo esc_attr( $sessions[0][0] ?? '11:00' ); ?>"
+                                 style="width:120px;">
+                          &ndash;
+                          <input type="time"
+                                 name="dd_hours_s1_close[<?php echo esc_attr( $day ); ?>]"
+                                 value="<?php echo esc_attr( $sessions[0][1] ?? '22:00' ); ?>"
+                                 style="width:120px;">
+                      </span>
+
+                      <span style="color:#999;font-size:12px;">+ Break</span>
+
+                      <!-- Session 2 (split day) -->
+                      <span>
+                          <input type="time"
+                                 name="dd_hours_s2_open[<?php echo esc_attr( $day ); ?>]"
+                                 value="<?php echo esc_attr( $sessions[1][0] ?? '' ); ?>"
+                                 style="width:120px;">
+                          &ndash;
+                          <input type="time"
+                                 name="dd_hours_s2_close[<?php echo esc_attr( $day ); ?>]"
+                                 value="<?php echo esc_attr( $sessions[1][1] ?? '' ); ?>"
+                                 style="width:120px;">
+                          <span style="color:#999;font-size:11px;">(optional)</span>
+                      </span>
+
+                  </span>
+              </td>
+          </tr>
+          <?php endforeach; ?>
+
+          <!-- Closing Soon -->
+          <tr valign="top">
+              <th scope="row">Closing Soon Warning</th>
+              <td>
+                  <input type="number"
+                         name="dd_closing_soon_minutes"
+                         value="<?php echo esc_attr( $dd_closing_soon ); ?>"
+                         min="5" max="120" style="width:80px;">
+                  <span class="description"> minutes before closing — show "Order now" warning banner</span>
+              </td>
+          </tr>
+
+          <!-- Timezone -->
+          <tr valign="top">
+              <th scope="row">Timezone</th>
+              <td>
+                  <input type="text"
+                         name="dd_timezone"
+                         value="<?php echo esc_attr( $dd_timezone ); ?>"
+                         style="width:220px;"
+                         placeholder="Africa/Kigali">
+                  <p class="description">Use PHP timezone names. Default: Africa/Kigali</p>
+              </td>
+          </tr>
+
+        </table>
+
+        <!-- Hidden field: assembled JSON sent on submit -->
+        <input type="hidden" name="dd_opening_hours" id="dd_opening_hours_json" value="">
+
         <?php submit_button( __( 'Save Settings', 'dish-dash' ), 'primary', 'dd_save_settings' ); ?>
     </form>
+
+<script>
+document.querySelector('form').addEventListener('submit', function() {
+    var days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+    var result = {};
+    days.forEach(function(day) {
+        var openCb = document.querySelector('input[name="dd_hours_open[' + day + ']"]');
+        var s1o    = document.querySelector('input[name="dd_hours_s1_open[' + day + ']"]');
+        var s1c    = document.querySelector('input[name="dd_hours_s1_close[' + day + ']"]');
+        var s2o    = document.querySelector('input[name="dd_hours_s2_open[' + day + ']"]');
+        var s2c    = document.querySelector('input[name="dd_hours_s2_close[' + day + ']"]');
+
+        var sessions = [];
+        if ( s1o && s1c && s1o.value && s1c.value ) {
+            sessions.push([ s1o.value, s1c.value ]);
+        }
+        if ( s2o && s2c && s2o.value && s2c.value ) {
+            sessions.push([ s2o.value, s2c.value ]);
+        }
+
+        result[day] = {
+            open:     openCb ? openCb.checked : false,
+            sessions: sessions
+        };
+    });
+
+    document.getElementById('dd_opening_hours_json').value = JSON.stringify(result);
+});
+</script>
 </div>
