@@ -404,3 +404,141 @@
     0%   { background-position:  200% 0; }
     100% { background-position: -200% 0; }
 }
+
+/* ============================================================
+   OPENING HOURS BANNERS — v3.2.59
+   ============================================================ */
+
+.dd-hours-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 24px;
+    font-size: 15px;
+    font-family: inherit;
+    position: relative;
+    z-index: 100;
+    flex-wrap: wrap;
+}
+
+/* State: Closing Soon — slim warm strip */
+.dd-hours-banner--warning {
+    background: #fff3cd;
+    border-bottom: 2px solid #E8832A;
+    color: #5a3e00;
+    justify-content: center;
+    text-align: center;
+}
+
+.dd-hours-banner--warning .dd-hours-banner__icon {
+    font-size: 18px;
+}
+
+/* State: Break + Closed — full prominent banner */
+.dd-hours-banner--break,
+.dd-hours-banner--closed {
+    background: #1a1a1a;
+    color: #f5f5f5;
+    padding: 28px 32px;
+    justify-content: center;
+    gap: 20px;
+    text-align: center;
+    flex-direction: column;
+    align-items: center;
+}
+
+.dd-hours-banner--break .dd-hours-banner__icon,
+.dd-hours-banner--closed .dd-hours-banner__icon {
+    font-size: 36px;
+    line-height: 1;
+}
+
+.dd-hours-banner__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+}
+
+.dd-hours-banner__body strong {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+}
+
+.dd-hours-banner__subtitle {
+    font-size: 13px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.dd-hours-banner__schedule {
+    font-size: 15px;
+    font-weight: 500;
+    opacity: 0.9;
+    line-height: 1.7;
+}
+
+.dd-hours-banner__countdown {
+    font-size: 14px;
+    opacity: 0.7;
+    margin-top: 4px;
+}
+
+.dd-hours-banner__countdown strong {
+    font-size: 14px;
+    color: #E8832A;
+}
+
+/* Action buttons */
+.dd-hours-banner__actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.dd-hours-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.dd-hours-btn:hover {
+    opacity: 0.85;
+    text-decoration: none;
+}
+
+.dd-hours-btn--ghost {
+    background: transparent;
+    border: 2px solid rgba(255,255,255,0.4);
+    color: #fff;
+}
+
+.dd-hours-btn--whatsapp {
+    background: #25D366;
+    color: #fff;
+    border: 2px solid transparent;
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    .dd-hours-banner {
+        padding: 16px;
+    }
+    .dd-hours-banner--closed,
+    .dd-hours-banner--break {
+        padding: 24px 16px;
+    }
+    .dd-hours-banner__body strong {
+        font-size: 18px;
+    }
+}

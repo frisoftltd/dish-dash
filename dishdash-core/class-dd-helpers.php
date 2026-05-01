@@ -187,3 +187,195 @@ function dd_track_url( string $order_number = '' ): string {
         ? add_query_arg( 'order', urlencode( $order_number ), $base )
         : $base;
 }
+
+/**
+ * DD_Hours — Opening hours state engine.
+ * Used by page-dishdash.php (banner) and dd_remind_me_open AJAX handler.
+ */
+class DD_Hours {
+
+    /**
+     * Returns current restaurant state.
+     * @return string  'open' | 'closing_soon' | 'break' | 'closed'
+     */
+    public static function get_state() {
+        $schedule = self::get_schedule();
+        $today    = self::get_today_data( $schedule );
+
+        if ( ! $today['open'] || empty( $today['sessions'] ) ) {
+            return 'closed';
+        }
+
+        $now              = self::now();
+        $closing_soon_min = (int) get_option( 'dd_closing_soon_minutes', 30 );
+        $sessions         = $today['sessions'];
+
+        foreach ( $sessions as $i => $session ) {
+            $open  = self::to_datetime( $session[0] );
+            $close = self::to_datetime( $session[1] );
+
+            if ( $now >= $open && $now < $close ) {
+                $diff_min = ( $close->getTimestamp() - $now->getTimestamp() ) / 60;
+                return $diff_min <= $closing_soon_min ? 'closing_soon' : 'open';
+            }
+        }
+
+        // Check if we are between sessions (mid-day break)
+        if ( count( $sessions ) === 2 ) {
+            $end_s1   = self::to_datetime( $sessions[0][1] );
+            $start_s2 = self::to_datetime( $sessions[1][0] );
+            if ( $now >= $end_s1 && $now < $start_s2 ) {
+                return 'break';
+            }
+        }
+
+        return 'closed';
+    }
+
+    /**
+     * For 'closing_soon' — returns close time string e.g. "10:00 PM"
+     */
+    public static function get_current_close_time() {
+        $schedule = self::get_schedule();
+        $today    = self::get_today_data( $schedule );
+        $now      = self::now();
+
+        foreach ( $today['sessions'] ?? [] as $session ) {
+            $open  = self::to_datetime( $session[0] );
+            $close = self::to_datetime( $session[1] );
+            if ( $now >= $open && $now < $close ) {
+                return $close->format( 'g:i A' );
+            }
+        }
+        return '';
+    }
+
+    /**
+     * For 'break' — returns next session open time string e.g. "5:00 PM" and time remaining.
+     */
+    public static function get_break_info() {
+        $schedule = self::get_schedule();
+        $today    = self::get_today_data( $schedule );
+        $now      = self::now();
+        $sessions = $today['sessions'] ?? [];
+
+        if ( count( $sessions ) >= 2 ) {
+            $start_s2 = self::to_datetime( $sessions[1][0] );
+            $diff     = $start_s2->getTimestamp() - $now->getTimestamp();
+            return [
+                'reopens_at' => $start_s2->format( 'g:i A' ),
+                'countdown'  => self::format_diff( $diff ),
+            ];
+        }
+        return [ 'reopens_at' => '', 'countdown' => '' ];
+    }
+
+    /**
+     * For 'closed' — returns next open info: day label, time, and countdown.
+     */
+    public static function get_next_open_info() {
+        $schedule = self::get_schedule();
+        $tz       = new DateTimeZone( get_option( 'dd_timezone', 'Africa/Kigali' ) );
+        $now      = new DateTime( 'now', $tz );
+        $days     = [ 'monday','tuesday','wednesday','thursday','friday','saturday','sunday' ];
+
+        // Look ahead up to 7 days
+        for ( $i = 0; $i <= 7; $i++ ) {
+            $check_dt = ( clone $now )->modify( "+{$i} days" );
+            $day_name = strtolower( $check_dt->format( 'l' ) );
+            $day_data = $schedule[ $day_name ] ?? [];
+
+            if ( empty( $day_data['open'] ) || empty( $day_data['sessions'] ) ) {
+                continue;
+            }
+
+            foreach ( $day_data['sessions'] as $session ) {
+                $open_dt = DateTime::createFromFormat(
+                    'Y-m-d H:i',
+                    $check_dt->format( 'Y-m-d' ) . ' ' . $session[0],
+                    $tz
+                );
+                if ( $open_dt > $now ) {
+                    $diff = $open_dt->getTimestamp() - $now->getTimestamp();
+                    return [
+                        'day'       => $i === 0 ? 'Today' : ( $i === 1 ? 'Tomorrow' : ucfirst( $day_name ) ),
+                        'time'      => $open_dt->format( 'g:i A' ),
+                        'countdown' => self::format_diff( $diff ),
+                    ];
+                }
+            }
+        }
+
+        return [ 'day' => '', 'time' => '', 'countdown' => '' ];
+    }
+
+    /**
+     * Returns human-readable schedule summary for the closed banner body text.
+     * Example: "Monday – Sunday  11:00 AM – 10:00 PM"
+     */
+    public static function get_hours_summary() {
+        $schedule = self::get_schedule();
+        $days     = [ 'monday','tuesday','wednesday','thursday','friday','saturday','sunday' ];
+        $lines    = [];
+
+        foreach ( $days as $day ) {
+            $data = $schedule[ $day ] ?? [];
+            if ( empty( $data['open'] ) || empty( $data['sessions'] ) ) {
+                continue;
+            }
+            $s     = $data['sessions'][0];
+            $open  = DateTime::createFromFormat( 'H:i', $s[0] );
+            $close = DateTime::createFromFormat( 'H:i', $s[1] );
+            $label = ucfirst( $day );
+            $time  = $open->format( 'g:i A' ) . ' – ' . $close->format( 'g:i A' );
+            $lines[] = $label . ': ' . $time;
+        }
+
+        // Simplify: if all days same hours, collapse to one line
+        $unique = array_unique( array_column(
+            array_map( fn($l) => [ 'time' => substr( $l, strpos($l,':') + 2 ) ], $lines ),
+            'time'
+        ) );
+
+        if ( count( $unique ) === 1 && count( $lines ) === 7 ) {
+            return 'Monday – Sunday  ' . trim( $unique[0] );
+        }
+        return implode( "\n", $lines );
+    }
+
+    // ── Private helpers ─────────────────────────────────────────────────────
+
+    private static function get_schedule() {
+        $raw = get_option( 'dd_opening_hours', '' );
+        if ( empty( $raw ) ) return [];
+        $decoded = json_decode( $raw, true );
+        return is_array( $decoded ) ? $decoded : [];
+    }
+
+    private static function get_today_data( $schedule ) {
+        $day = strtolower( self::now()->format( 'l' ) );
+        return $schedule[ $day ] ?? [];
+    }
+
+    private static function now() {
+        $tz = get_option( 'dd_timezone', 'Africa/Kigali' );
+        return new DateTime( 'now', new DateTimeZone( $tz ) );
+    }
+
+    private static function to_datetime( $time_str ) {
+        $tz  = get_option( 'dd_timezone', 'Africa/Kigali' );
+        $now = new DateTime( 'now', new DateTimeZone( $tz ) );
+        return DateTime::createFromFormat(
+            'Y-m-d H:i',
+            $now->format( 'Y-m-d' ) . ' ' . $time_str,
+            new DateTimeZone( $tz )
+        );
+    }
+
+    private static function format_diff( $seconds ) {
+        $h = floor( $seconds / 3600 );
+        $m = floor( ( $seconds % 3600 ) / 60 );
+        if ( $h > 0 ) return "{$h}h {$m}m";
+        return "{$m}m";
+    }
+}
