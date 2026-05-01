@@ -716,13 +716,31 @@ class DD_Template_Module extends DD_Module {
         </header>
 
         <!-- JS bridge for global header pages -->
+        <?php
+        $dd_hours_state  = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
+        $dd_next_open_ts = 0;
+        $dd_close_ts     = 0;
+        if ( class_exists( 'DD_Hours' ) ) {
+            if ( $dd_hours_state !== 'open' ) {
+                $dd_next_open_ts = DD_Hours::get_next_open_info_ts();
+            }
+            if ( in_array( $dd_hours_state, [ 'open', 'closing_soon' ], true ) ) {
+                $dd_close_ts = DD_Hours::get_current_close_ts();
+            }
+        }
+        ?>
         <script>
         window.DD = window.DD || {
-            ajaxUrl:     '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
-            nonce:       '<?php echo esc_js( wp_create_nonce( 'dd_nonce' ) ); ?>',
-            checkoutUrl: '<?php echo esc_url( function_exists("wc_get_checkout_url") ? wc_get_checkout_url() : home_url("/checkout/") ); ?>',
-            deliveryFee: <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
-            cartCount:   <?php echo (int) $dd_cart_count; ?>,
+            ajaxUrl:      '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
+            nonce:        '<?php echo esc_js( wp_create_nonce( 'dd_nonce' ) ); ?>',
+            checkoutUrl:  '<?php echo esc_url( function_exists("wc_get_checkout_url") ? wc_get_checkout_url() : home_url("/checkout/") ); ?>',
+            deliveryFee:  <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
+            cartCount:    <?php echo (int) $dd_cart_count; ?>,
+            hours_state:  '<?php echo esc_js( $dd_hours_state ); ?>',
+            next_open_ts: <?php echo (int) $dd_next_open_ts; ?>,
+            close_ts:     <?php echo (int) $dd_close_ts; ?>,
+            whatsapp_admin: '<?php echo esc_js( get_option( 'dd_whatsapp_admin', '' ) ); ?>',
+            menu_url:     '/restaurant-menu/',
         };
         </script>
         <?php

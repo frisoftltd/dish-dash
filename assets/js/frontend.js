@@ -462,6 +462,139 @@
     }
 
     /* ══════════════════════════════════════════════════════════
+       OPENING HOURS BANNERS
+    ══════════════════════════════════════════════════════════ */
+    function setupHoursBanner() {
+        var state      = (window.DD && window.DD.hours_state) || 'open';
+        var nextOpenTs = parseInt((window.DD && window.DD.next_open_ts) || 0, 10) * 1000;
+        var closeTs    = parseInt((window.DD && window.DD.close_ts) || 0, 10) * 1000;
+        var waNumber   = ((window.DD && window.DD.whatsapp_admin) || '').replace(/\D/g, '');
+        var menuUrl    = (window.DD && window.DD.menu_url) || '/restaurant-menu/';
+
+        if (state === 'open') return;
+        if (sessionStorage.getItem('dd_banner_hidden') === '1') return;
+
+        var timerInterval = null;
+
+        function formatCountdown(ms) {
+            if (ms <= 0) { location.reload(); return { h:'00', m:'00', s:'00' }; }
+            var total = Math.floor(ms / 1000);
+            var h = Math.floor(total / 3600);
+            var m = Math.floor((total % 3600) / 60);
+            var s = total % 60;
+            return {
+                h: String(h).padStart(2, '0'),
+                m: String(m).padStart(2, '0'),
+                s: String(s).padStart(2, '0')
+            };
+        }
+
+        // ── STRIP (closing_soon + break) ─────────────────────────────────────
+        if (state === 'closing_soon' || state === 'break') {
+            var targetTs = (state === 'closing_soon') ? closeTs : nextOpenTs;
+            var label    = (state === 'closing_soon')
+                ? 'We close soon \u2014 Order now!'
+                : 'We\'re on a break \u2014 Back open soon';
+
+            var strip = document.createElement('div');
+            strip.className = 'dd-strip-banner';
+            strip.innerHTML =
+                '<span class="dd-strip-banner__label">' + label + '</span>' +
+                '<span class="dd-strip-banner__countdown">' +
+                    '<span class="dd-strip-unit"><span class="dd-strip-num" id="ddStripH">00</span><span class="dd-strip-unit-label">Hours</span></span>' +
+                    '<span class="dd-strip-sep">|</span>' +
+                    '<span class="dd-strip-unit"><span class="dd-strip-num" id="ddStripM">00</span><span class="dd-strip-unit-label">Minutes</span></span>' +
+                    '<span class="dd-strip-sep">|</span>' +
+                    '<span class="dd-strip-unit"><span class="dd-strip-num" id="ddStripS">00</span><span class="dd-strip-unit-label">Seconds</span></span>' +
+                '</span>' +
+                '<button class="dd-strip-banner__hide" id="ddStripHide">Hide Message</button>';
+
+            document.body.insertBefore(strip, document.body.firstChild);
+
+            function tickStrip() {
+                var diff = targetTs - Date.now();
+                var t    = formatCountdown(diff);
+                var elH  = document.getElementById('ddStripH');
+                var elM  = document.getElementById('ddStripM');
+                var elS  = document.getElementById('ddStripS');
+                if (elH) elH.textContent = t.h;
+                if (elM) elM.textContent = t.m;
+                if (elS) elS.textContent = t.s;
+            }
+            tickStrip();
+            timerInterval = setInterval(tickStrip, 1000);
+
+            document.getElementById('ddStripHide').addEventListener('click', function() {
+                sessionStorage.setItem('dd_banner_hidden', '1');
+                strip.remove();
+                if (timerInterval) clearInterval(timerInterval);
+            });
+        }
+
+        // ── MODAL (closed) ───────────────────────────────────────────────────
+        if (state === 'closed') {
+            var overlay = document.createElement('div');
+            overlay.className = 'dd-closed-overlay';
+            overlay.innerHTML =
+                '<div class="dd-closed-modal">' +
+                    '<button class="dd-closed-modal__close" id="ddClosedX">&#x2715;</button>' +
+                    '<p class="dd-closed-modal__intro">Sorry, we are not taking orders right now.</p>' +
+                    '<p class="dd-closed-modal__sub">We will start taking orders in</p>' +
+                    '<div class="dd-closed-modal__circles">' +
+                        '<div class="dd-circle"><span class="dd-circle__num" id="ddModalH">00</span><span class="dd-circle__label">Hours</span></div>' +
+                        '<div class="dd-circle"><span class="dd-circle__num" id="ddModalM">00</span><span class="dd-circle__label">Minutes</span></div>' +
+                        '<div class="dd-circle"><span class="dd-circle__num" id="ddModalS">00</span><span class="dd-circle__label">Seconds</span></div>' +
+                    '</div>' +
+                    '<div class="dd-closed-modal__actions">' +
+                        '<a href="' + menuUrl + '" class="dd-closed-btn dd-closed-btn--ghost">Browse the Menu</a>' +
+                        (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" rel="noopener" class="dd-closed-btn dd-closed-btn--wa">\uD83D\uDCF2 Message Us</a>' : '') +
+                    '</div>' +
+                '</div>';
+
+            document.body.appendChild(overlay);
+
+            function tickModal() {
+                var diff = nextOpenTs - Date.now();
+                var t    = formatCountdown(diff);
+                var elH  = document.getElementById('ddModalH');
+                var elM  = document.getElementById('ddModalM');
+                var elS  = document.getElementById('ddModalS');
+                if (elH) elH.textContent = t.h;
+                if (elM) elM.textContent = t.m;
+                if (elS) elS.textContent = t.s;
+            }
+            tickModal();
+            timerInterval = setInterval(tickModal, 1000);
+
+            document.getElementById('ddClosedX').addEventListener('click', function() {
+                overlay.remove();
+                if (timerInterval) clearInterval(timerInterval);
+
+                var bottomStrip = document.createElement('div');
+                bottomStrip.className = 'dd-bottom-strip';
+                bottomStrip.innerHTML =
+                    '<span class="dd-bottom-strip__text">We\'re Closed \u2014 Opens soon</span>' +
+                    '<button class="dd-bottom-strip__hide" id="ddBottomHide">Hide Message</button>';
+                document.body.appendChild(bottomStrip);
+
+                document.getElementById('ddBottomHide').addEventListener('click', function() {
+                    sessionStorage.setItem('dd_banner_hidden', '1');
+                    bottomStrip.remove();
+                });
+            });
+        }
+
+        // ── DISABLE ADD TO CART when closed or break ─────────────────────────
+        if (state === 'closed' || state === 'break') {
+            document.querySelectorAll('.dd-add-btn').forEach(function(btn) {
+                btn.disabled = true;
+                btn.textContent = 'We\'re Closed';
+                btn.classList.add('dd-add-btn--closed');
+            });
+        }
+    }
+
+    /* ══════════════════════════════════════════════════════════
        MOBILE NAV DRAWER
     ══════════════════════════════════════════════════════════ */
     function setupMobileNav() {
@@ -604,6 +737,7 @@
         setupCartControls();
         setupSmoothScroll();
         setupStickyHeader();
+        setupHoursBanner();
 
         renderSummary();
         loadReviews();

@@ -202,6 +202,18 @@ class DD_Cart {
     public static function ajax_add(): void {
         DD_Ajax::verify_nonce();
 
+        // Block cart additions when restaurant is closed
+        if ( class_exists( 'DD_Hours' ) ) {
+            $state = DD_Hours::get_state();
+            if ( $state === 'closed' || $state === 'break' ) {
+                wp_send_json_error( [
+                    'message' => 'Orders are currently unavailable. The restaurant is closed.',
+                    'code'    => 'restaurant_closed',
+                ] );
+                return;
+            }
+        }
+
         $product_id = (int) ( $_POST['product_id'] ?? $_POST['id'] ?? 0 );
         $quantity   = max( 1, (int) ( $_POST['quantity'] ?? 1 ) );
 

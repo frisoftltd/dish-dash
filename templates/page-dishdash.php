@@ -263,60 +263,6 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 
 <!-- Header injected globally by DD_Template_Module via wp_body_open -->
 
-<?php if ( $dd_hours_state === 'closing_soon' ) :
-    $close_time = DD_Hours::get_current_close_time(); ?>
-<div class="dd-hours-banner dd-hours-banner--warning" role="alert">
-    <span class="dd-hours-banner__icon">⏰</span>
-    <span class="dd-hours-banner__text">
-        We close at <strong><?php echo esc_html( $close_time ); ?></strong> — Order now to avoid missing out
-    </span>
-</div>
-
-<?php elseif ( $dd_hours_state === 'break' ) :
-    $break = DD_Hours::get_break_info(); ?>
-<div class="dd-hours-banner dd-hours-banner--break" role="alert">
-    <div class="dd-hours-banner__icon">😴</div>
-    <div class="dd-hours-banner__body">
-        <strong>We're on a break</strong>
-        <span>Back open at <?php echo esc_html( $break['reopens_at'] ); ?> — in <?php echo esc_html( $break['countdown'] ); ?></span>
-    </div>
-    <div class="dd-hours-banner__actions">
-        <a href="/restaurant-menu/" class="dd-hours-btn dd-hours-btn--ghost">Browse the Menu</a>
-        <?php $wa = get_option( 'dd_whatsapp_admin', '' );
-        if ( $wa ) : ?>
-        <a href="https://wa.me/<?php echo esc_attr( preg_replace('/\D/','',$wa) ); ?>"
-           target="_blank" rel="noopener"
-           class="dd-hours-btn dd-hours-btn--whatsapp">📲 Message Us</a>
-        <?php endif; ?>
-    </div>
-</div>
-
-<?php elseif ( $dd_hours_state === 'closed' ) :
-    $next    = DD_Hours::get_next_open_info();
-    $summary = DD_Hours::get_hours_summary();
-    $name    = get_option( 'dish_dash_restaurant_name', 'Us' ); ?>
-<div class="dd-hours-banner dd-hours-banner--closed" role="alert">
-    <div class="dd-hours-banner__icon">🌙</div>
-    <div class="dd-hours-banner__body">
-        <strong>We're Closed Right Now</strong>
-        <span class="dd-hours-banner__subtitle"><?php echo esc_html( $name ); ?> is open:</span>
-        <span class="dd-hours-banner__schedule"><?php echo nl2br( esc_html( $summary ) ); ?></span>
-        <?php if ( $next['countdown'] ) : ?>
-        <span class="dd-hours-banner__countdown">We reopen in <strong><?php echo esc_html( $next['countdown'] ); ?></strong></span>
-        <?php endif; ?>
-    </div>
-    <div class="dd-hours-banner__actions">
-        <a href="/restaurant-menu/" class="dd-hours-btn dd-hours-btn--ghost">Browse the Menu</a>
-        <?php $wa = get_option( 'dd_whatsapp_admin', '' );
-        if ( $wa ) : ?>
-        <a href="https://wa.me/<?php echo esc_attr( preg_replace('/\D/','',$wa) ); ?>"
-           target="_blank" rel="noopener"
-           class="dd-hours-btn dd-hours-btn--whatsapp">📲 Message Us</a>
-        <?php endif; ?>
-    </div>
-</div>
-<?php endif; ?>
-
 <!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
 <?php
 $hero_bg_style = '';

@@ -378,4 +378,53 @@ class DD_Hours {
         if ( $h > 0 ) return "{$h}h {$m}m";
         return "{$m}m";
     }
+
+    /**
+     * Returns Unix timestamp of the end of the current active session.
+     * Returns 0 if not currently in a session.
+     */
+    public static function get_current_close_ts() {
+        $schedule = self::get_schedule();
+        $today    = self::get_today_data( $schedule );
+        $now      = self::now();
+
+        foreach ( $today['sessions'] ?? [] as $session ) {
+            $open  = self::to_datetime( $session[0] );
+            $close = self::to_datetime( $session[1] );
+            if ( $now >= $open && $now < $close ) {
+                return $close->getTimestamp();
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Returns Unix timestamp of the next opening time.
+     * Returns 0 if nothing found in the next 7 days.
+     */
+    public static function get_next_open_info_ts() {
+        $schedule = self::get_schedule();
+        $tz       = new DateTimeZone( get_option( 'dd_timezone', 'Africa/Kigali' ) );
+        $now      = new DateTime( 'now', $tz );
+
+        for ( $i = 0; $i <= 7; $i++ ) {
+            $check_dt = ( clone $now )->modify( "+{$i} days" );
+            $day_name = strtolower( $check_dt->format( 'l' ) );
+            $day_data = $schedule[ $day_name ] ?? [];
+
+            if ( empty( $day_data['open'] ) || empty( $day_data['sessions'] ) ) continue;
+
+            foreach ( $day_data['sessions'] as $session ) {
+                $open_dt = DateTime::createFromFormat(
+                    'Y-m-d H:i',
+                    $check_dt->format( 'Y-m-d' ) . ' ' . $session[0],
+                    $tz
+                );
+                if ( $open_dt > $now ) {
+                    return $open_dt->getTimestamp();
+                }
+            }
+        }
+        return 0;
+    }
 }
