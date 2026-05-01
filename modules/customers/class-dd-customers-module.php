@@ -138,224 +138,249 @@ class DD_Customers_Module extends DD_Module {
     // ─────────────────────────────────────────
     public function render_admin_page(): void {
 
-        // Date filter
-        $date_from = sanitize_text_field( $_GET['date_from'] ?? '' );
-        $date_to   = sanitize_text_field( $_GET['date_to']   ?? '' );
-        $search    = sanitize_text_field( $_GET['s']         ?? '' );
-
-        // Get all customers
-        $all_users    = $this->get_customers();
-        $total_users  = count( $all_users );
-
-        // Stats
-        $total_spend     = 0;
-        $new_this_month  = 0;
-        $month_start     = date( 'Y-m-01' );
-        $champion_count  = 0;
-        $vip_count       = 0;
-
-        foreach ( $all_users as $user ) {
-            $spend = $this->get_user_spend( $user->ID );
-            $total_spend += $spend['total'];
-            if ( $user->user_registered >= $month_start ) $new_this_month++;
-            $status = $this->get_status( $spend['total'], $spend['count'] );
-            if ( $status['label'] === 'Champion' ) $champion_count++;
-            if ( $status['label'] === 'VIP' )      $vip_count++;
+        // CSV export
+        if ( isset( $_GET['export'] ) && $_GET['export'] === 'csv' ) {
+            $this->export_csv();
+            exit;
         }
 
-        $avg_spend = $total_users > 0 ? $total_spend / $total_users : 0;
+        $this->render_page();
+    }
 
-        // Filtered list for table
-        $filtered_users = $date_from || $date_to ? $this->get_customers( $date_from, $date_to ) : $all_users;
+    private function render_page(): void {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_customers';
 
-        // Search filter
+        // --- Filters ---
+        $search    = sanitize_text_field( $_GET['s']    ?? '' );
+        $date_from = sanitize_text_field( $_GET['from'] ?? '' );
+        $date_to   = sanitize_text_field( $_GET['to']   ?? '' );
+        $per_page  = 20;
+        $page      = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+        $offset    = ( $page - 1 ) * $per_page;
+
+        // --- Build WHERE ---
+        $where  = 'WHERE 1=1';
+        $params = [];
+
         if ( $search ) {
-            $filtered_users = array_filter( $filtered_users, function( $u ) use ( $search ) {
-                $s = strtolower( $search );
-                return strpos( strtolower( $u->display_name ), $s ) !== false
-                    || strpos( strtolower( $u->user_email ), $s ) !== false
-                    || strpos( strtolower( get_user_meta( $u->ID, 'billing_phone', true ) ), $s ) !== false;
-            } );
+            $where   .= ' AND (name LIKE %s OR whatsapp LIKE %s)';
+            $like     = '%' . $wpdb->esc_like( $search ) . '%';
+            $params[] = $like;
+            $params[] = $like;
+        }
+        if ( $date_from ) {
+            $where   .= ' AND DATE(created_at) >= %s';
+            $params[] = $date_from;
+        }
+        if ( $date_to ) {
+            $where   .= ' AND DATE(created_at) <= %s';
+            $params[] = $date_to;
         }
 
-        ?>
-        <div class="wrap dd-admin-wrap">
+        // --- Stats ---
+        $stats_sql = "SELECT
+            COUNT(*)                        AS total_customers,
+            COALESCE(SUM(total_spent), 0)   AS total_revenue,
+            COALESCE(AVG(total_spent), 0)   AS avg_spend,
+            SUM(total_spent >= 200000)      AS champions,
+            SUM(total_spent >= 50000 AND total_spent < 200000) AS vips
+            FROM {$table}";
 
-            <!-- ── Header ───────────────────────────────── -->
-            <div class="dd-admin-header">
-                <div class="dd-admin-header__logo">
-                    <span class="dd-logo-icon">👥</span>
+        $stats = $wpdb->get_row( $stats_sql );
+
+        // New this month
+        $new_this_month = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$table}
+             WHERE MONTH(created_at) = MONTH(NOW())
+             AND YEAR(created_at) = YEAR(NOW())"
+        );
+
+        // --- Customer rows ---
+        $sql = "SELECT * FROM {$table} {$where}
+                ORDER BY created_at DESC
+                LIMIT %d OFFSET %d";
+
+        $params[] = $per_page;
+        $params[] = $offset;
+
+        $customers = $params
+            ? $wpdb->get_results( $wpdb->prepare( $sql, ...$params ) )
+            : $wpdb->get_results( $sql );
+
+        $total_rows = (int) $wpdb->get_var(
+            $params
+                ? $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where}", ...array_slice( $params, 0, -2 ) )
+                : "SELECT COUNT(*) FROM {$table} {$where}"
+        );
+
+        // --- Status helper ---
+        $get_status = function( float $spent, int $orders ): array {
+            if ( $orders === 0 )       return [ 'New',      '🌱', '#27ae60' ];
+            if ( $spent >= 200000 )    return [ 'Champion', '🏆', '#C9A24A' ];
+            if ( $spent >= 50000  )    return [ 'VIP',      '💎', '#8e44ad' ];
+            return                            [ 'Regular',  '🧡', '#E8832A' ];
+        };
+
+        // --- Render ---
+        ?>
+        <div class="wrap dd-customers-wrap">
+
+            <!-- Header -->
+            <div class="dd-customers-header">
+                <div class="dd-customers-header__info">
+                    <span class="dashicons dashicons-groups"></span>
                     <div>
                         <h1>Customers</h1>
-                        <span class="dd-version">Know your guests, grow your restaurant</span>
+                        <p>Know your guests, grow your restaurant</p>
                     </div>
                 </div>
-                <a href="<?php echo esc_url( admin_url('admin.php?page=dish-dash-customers&export=csv&_wpnonce=' . wp_create_nonce('dd_export_customers')) ); ?>" class="button">
-                    ⬇ Export CSV
-                </a>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers&export=csv' ) ); ?>"
+                   class="button button-secondary">⬇ Export CSV</a>
             </div>
 
-            <!-- ── Dashboard Stats ──────────────────────── -->
-            <div class="dd-cust-stats">
-                <div class="dd-cust-stat dd-cust-stat--blue">
-                    <div class="dd-cust-stat__icon">👥</div>
-                    <div class="dd-cust-stat__val"><?php echo esc_html( $total_users ); ?></div>
-                    <div class="dd-cust-stat__label">Total Customers</div>
+            <!-- Stats -->
+            <div class="dd-customers-stats">
+                <?php
+                $stat_cards = [
+                    [ 'icon' => '👥', 'value' => number_format( $stats->total_customers ), 'label' => 'Total Customers' ],
+                    [ 'icon' => '💰', 'value' => 'RWF ' . number_format( $stats->total_revenue ), 'label' => 'Total Revenue' ],
+                    [ 'icon' => '🆕', 'value' => $new_this_month, 'label' => 'New This Month' ],
+                    [ 'icon' => '📊', 'value' => 'RWF ' . number_format( $stats->avg_spend ), 'label' => 'Avg Spend / Customer' ],
+                    [ 'icon' => '🏆', 'value' => number_format( $stats->champions ), 'label' => 'Champions' ],
+                    [ 'icon' => '💎', 'value' => number_format( $stats->vips ),      'label' => 'VIP Customers' ],
+                ];
+                foreach ( $stat_cards as $card ) :
+                ?>
+                <div class="dd-stat-card">
+                    <div class="dd-stat-card__icon"><?php echo $card['icon']; ?></div>
+                    <div class="dd-stat-card__value"><?php echo esc_html( $card['value'] ); ?></div>
+                    <div class="dd-stat-card__label"><?php echo esc_html( $card['label'] ); ?></div>
                 </div>
-                <div class="dd-cust-stat dd-cust-stat--green">
-                    <div class="dd-cust-stat__icon">💰</div>
-                    <div class="dd-cust-stat__val"><?php echo esc_html( $this->fmt( $total_spend ) ); ?></div>
-                    <div class="dd-cust-stat__label">Total Revenue</div>
-                </div>
-                <div class="dd-cust-stat dd-cust-stat--orange">
-                    <div class="dd-cust-stat__icon">🆕</div>
-                    <div class="dd-cust-stat__val"><?php echo esc_html( $new_this_month ); ?></div>
-                    <div class="dd-cust-stat__label">New This Month</div>
-                </div>
-                <div class="dd-cust-stat dd-cust-stat--purple">
-                    <div class="dd-cust-stat__icon">📊</div>
-                    <div class="dd-cust-stat__val"><?php echo esc_html( $this->fmt( $avg_spend ) ); ?></div>
-                    <div class="dd-cust-stat__label">Avg. Spend / Customer</div>
-                </div>
-                <div class="dd-cust-stat dd-cust-stat--gold">
-                    <div class="dd-cust-stat__icon">🥇</div>
-                    <div class="dd-cust-stat__val"><?php echo esc_html( $champion_count ); ?></div>
-                    <div class="dd-cust-stat__label">Champions</div>
-                </div>
-                <div class="dd-cust-stat dd-cust-stat--silver">
-                    <div class="dd-cust-stat__icon">🥈</div>
-                    <div class="dd-cust-stat__val"><?php echo esc_html( $vip_count ); ?></div>
-                    <div class="dd-cust-stat__label">VIP Customers</div>
-                </div>
+                <?php endforeach; ?>
             </div>
 
-            <!-- ── Status Legend ────────────────────────── -->
-            <div class="dd-cust-legend">
+            <!-- Status legend -->
+            <div class="dd-customers-legend">
                 <strong>Customer Status:</strong>
-                <span class="dd-status dd-status--new">🌱 New — No orders yet</span>
-                <span class="dd-status dd-status--regular">🥉 Regular — Has ordered</span>
-                <span class="dd-status dd-status--vip">🥈 VIP — RWF 50,000+</span>
-                <span class="dd-status dd-status--champion">🥇 Champion — RWF 200,000+</span>
+                <span class="dd-legend-item" style="color:#27ae60">🌱 New — No orders yet</span>
+                <span class="dd-legend-item" style="color:#E8832A">🧡 Regular — Has ordered</span>
+                <span class="dd-legend-item" style="color:#8e44ad">💎 VIP — RWF 50,000+</span>
+                <span class="dd-legend-item" style="color:#C9A24A">🏆 Champion — RWF 200,000+</span>
             </div>
 
-            <!-- ── Filters ───────────────────────────────── -->
-            <div class="dd-cust-filters">
-                <form method="get" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <input type="hidden" name="page" value="dish-dash-customers">
-                    <input type="text" name="s" value="<?php echo esc_attr( $search ); ?>"
-                        placeholder="Search name, email, phone…"
-                        style="padding:8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;min-width:220px;">
-                    <label style="font-size:13px;font-weight:600;color:#666;">From</label>
-                    <input type="date" name="date_from" value="<?php echo esc_attr( $date_from ); ?>"
-                        style="padding:8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
-                    <label style="font-size:13px;font-weight:600;color:#666;">To</label>
-                    <input type="date" name="date_to" value="<?php echo esc_attr( $date_to ); ?>"
-                        style="padding:8px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;">
-                    <button type="submit" class="button button-primary">Filter</button>
-                    <a href="<?php echo esc_url( admin_url('admin.php?page=dish-dash-customers') ); ?>" class="button">Reset</a>
-                    <span style="font-size:13px;color:#888;margin-left:auto;">
-                        Showing <?php echo count( $filtered_users ); ?> of <?php echo $total_users; ?> customers
-                    </span>
-                </form>
-            </div>
+            <!-- Filters -->
+            <form method="get" class="dd-customers-filters">
+                <input type="hidden" name="page" value="dish-dash-customers">
+                <input type="text" name="s" value="<?php echo esc_attr( $search ); ?>"
+                       placeholder="Search name or WhatsApp..." class="regular-text">
+                <label>From <input type="date" name="from" value="<?php echo esc_attr( $date_from ); ?>"></label>
+                <label>To   <input type="date" name="to"   value="<?php echo esc_attr( $date_to );   ?>"></label>
+                <button type="submit" class="button button-primary">Filter</button>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers' ) ); ?>"
+                   class="button">Reset</a>
+                <span style="float:right;line-height:30px;color:#666;">
+                    Showing <?php echo count( $customers ); ?> of <?php echo $total_rows; ?> customers
+                </span>
+            </form>
 
-            <!-- ── Customers Table ──────────────────────── -->
-            <div class="dd-cust-table-wrap">
-                <table class="dd-cust-table widefat">
-                    <thead>
-                        <tr>
-                            <th>Customer</th>
-                            <th>Contact</th>
-                            <th>Birthday</th>
-                            <th>Orders</th>
-                            <th>Reservations</th>
-                            <th>Total Spend</th>
-                            <th>Status</th>
-                            <th>Joined</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    <?php if ( empty( $filtered_users ) ) : ?>
-                        <tr><td colspan="8" style="text-align:center;padding:40px;color:#888;">
-                            No customers found.
-                        </td></tr>
-                    <?php else : ?>
-                        <?php foreach ( $filtered_users as $user ) :
-                            $spend   = $this->get_user_spend( $user->ID );
-                            $status  = $this->get_status( $spend['total'], $spend['count'] );
-                            $reserv  = $this->get_user_reservations( $user->user_email );
-                            $phone   = get_user_meta( $user->ID, 'billing_phone', true )
-                                    ?: get_user_meta( $user->ID, 'dd_phone', true );
-                            $address = get_user_meta( $user->ID, 'billing_address_1', true )
-                                    ?: get_user_meta( $user->ID, 'dd_address', true );
-                            $birthday = get_user_meta( $user->ID, 'dd_birthday', true );
-                            $initials = strtoupper( substr( $user->display_name, 0, 1 ) );
-                        ?>
-                        <tr class="dd-cust-row">
-                            <td>
-                                <div style="display:flex;align-items:center;gap:10px;">
-                                    <div class="dd-cust-avatar"><?php echo esc_html( $initials ); ?></div>
-                                    <div>
-                                        <div style="font-weight:700;color:#221B19;"><?php echo esc_html( $user->display_name ); ?></div>
-                                        <div style="font-size:12px;color:#aaa;"><?php echo esc_html( $user->user_email ); ?></div>
-                                        <?php if ( $address ) : ?>
-                                        <div style="font-size:11px;color:#bbb;">📍 <?php echo esc_html( $address ); ?></div>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <?php if ( $phone ) : ?>
-                                <a href="tel:<?php echo esc_attr( preg_replace('/\s/', '', $phone) ); ?>"
-                                   style="font-size:13px;color:#6B1D1D;font-weight:600;text-decoration:none;">
-                                    📞 <?php echo esc_html( $phone ); ?>
-                                </a>
-                                <?php else : ?>
-                                <span style="color:#ccc;font-size:12px;">—</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if ( $birthday ) :
-                                    $bday = date_create( $birthday );
-                                    $today = date_create( date('Y') . '-' . date_format( $bday, 'm-d' ) );
-                                    $is_today = $today && $today->format('m-d') === date('m-d');
-                                ?>
-                                <span <?php if ( $is_today ) echo 'style="color:#e74c3c;font-weight:700;"'; ?>>
-                                    <?php echo esc_html( date_format( $bday, 'M j' ) ); ?>
-                                    <?php if ( $is_today ) echo ' 🎂'; ?>
-                                </span>
-                                <?php else : ?>
-                                <span style="color:#ccc;font-size:12px;">—</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <span style="font-weight:700;color:#221B19;"><?php echo esc_html( $spend['count'] ); ?></span>
-                            </td>
-                            <td>
-                                <span style="font-weight:700;color:#221B19;"><?php echo esc_html( $reserv ); ?></span>
-                            </td>
-                            <td>
-                                <span style="font-weight:700;color:#6B1D1D;font-size:13px;">
-                                    <?php echo esc_html( $this->fmt( $spend['total'] ) ); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="dd-status <?php echo esc_attr( $status['class'] ); ?>">
-                                    <?php echo esc_html( $status['icon'] . ' ' . $status['label'] ); ?>
-                                </span>
-                            </td>
-                            <td style="font-size:12px;color:#888;">
-                                <?php echo esc_html( date( 'M j, Y', strtotime( $user->user_registered ) ) ); ?>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
+            <!-- Table -->
+            <table class="widefat dd-customers-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>WhatsApp</th>
+                        <th>Birthday</th>
+                        <th>Orders</th>
+                        <th>Total Spend</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if ( empty( $customers ) ) : ?>
+                    <tr><td colspan="7" style="text-align:center;padding:40px;color:#aaa;">
+                        No customers yet. Orders will create customer records automatically.
+                    </td></tr>
+                <?php else : ?>
+                    <?php foreach ( $customers as $c ) :
+                        [ $status_label, $status_icon, $status_color ] = $get_status(
+                            (float) $c->total_spent,
+                            (int)   $c->total_orders
+                        );
+                        $birthday = $c->birthday
+                            ? date( 'M j', strtotime( $c->birthday ) )
+                            : '—';
+                        $address = $c->delivery_address
+                            ? wp_trim_words( $c->delivery_address, 6, '…' )
+                            : '—';
+                    ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo esc_html( $c->name ); ?></strong><br>
+                            <small style="color:#888;"><?php echo esc_html( $address ); ?></small>
+                        </td>
+                        <td><?php echo esc_html( '+' . ltrim( $c->whatsapp, '0' ) ); ?></td>
+                        <td><?php echo esc_html( $birthday ); ?></td>
+                        <td><?php echo (int) $c->total_orders; ?></td>
+                        <td><strong style="color:#65040d;">
+                            RWF <?php echo number_format( $c->total_spent ); ?>
+                        </strong></td>
+                        <td><span style="color:<?php echo $status_color; ?>;font-weight:600;">
+                            <?php echo $status_icon . ' ' . $status_label; ?>
+                        </span></td>
+                        <td><?php echo esc_html( date( 'M j, Y', strtotime( $c->created_at ) ) ); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+                </tbody>
+            </table>
+
+            <!-- Pagination -->
+            <?php if ( $total_rows > $per_page ) :
+                $total_pages = ceil( $total_rows / $per_page );
+            ?>
+            <div class="tablenav bottom">
+                <div class="tablenav-pages">
+                    <?php
+                    echo paginate_links( [
+                        'base'    => add_query_arg( 'paged', '%#%' ),
+                        'format'  => '',
+                        'current' => $page,
+                        'total'   => $total_pages,
+                    ] );
+                    ?>
+                </div>
             </div>
+            <?php endif; ?>
 
         </div>
         <?php
+    }
+
+    // ─────────────────────────────────────────
+    //  CSV EXPORT
+    // ─────────────────────────────────────────
+    private function export_csv(): void {
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            "SELECT name, whatsapp, delivery_address, total_orders, total_spent, birthday, created_at
+             FROM {$wpdb->prefix}dishdash_customers
+             ORDER BY created_at DESC",
+            ARRAY_A
+        );
+
+        header( 'Content-Type: text/csv' );
+        header( 'Content-Disposition: attachment; filename="customers-' . date( 'Y-m-d' ) . '.csv"' );
+
+        $out = fopen( 'php://output', 'w' );
+        fputcsv( $out, [ 'Name', 'WhatsApp', 'Address', 'Orders', 'Total Spent (RWF)', 'Birthday', 'Joined' ] );
+        foreach ( $rows as $row ) {
+            $row['birthday']   = $row['birthday']   ? date( 'M j', strtotime( $row['birthday'] ) )   : '';
+            $row['created_at'] = $row['created_at'] ? date( 'Y-m-d', strtotime( $row['created_at'] ) ) : '';
+            fputcsv( $out, array_values( $row ) );
+        }
+        fclose( $out );
     }
 
     // ─────────────────────────────────────────
