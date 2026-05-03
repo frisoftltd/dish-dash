@@ -341,8 +341,14 @@ class DDMobileMenu {
                 const totalSelected = Object.keys(this.currentProduct.selectedAttributes).length;
                 const addBtn = this.elements.singleProduct.addToCart;
                 if (addBtn && totalSelected >= (this.currentProduct.requiredSelections || 0)) {
-                    addBtn.disabled = false;
-                    addBtn.classList.remove('is-disabled');
+                    if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
+                        addBtn.disabled = true;
+                        addBtn.textContent = "We're Closed";
+                        addBtn.classList.add('dd-add-btn--closed');
+                    } else {
+                        addBtn.disabled = false;
+                        addBtn.classList.remove('is-disabled');
+                    }
                 }
             });
         }
@@ -408,6 +414,8 @@ class DDMobileMenu {
     renderProductList(products) {
         if (!this.elements.productList) return;
 
+        const isClosed = window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break');
+
         this.elements.productList.innerHTML = products.map(product => {
             return `
                 <li class="dd-mobile-product-card"
@@ -429,9 +437,10 @@ class DDMobileMenu {
                         <p class="dd-mobile-product-card__description">${product.short_description || ''}</p>
                         <div class="dd-mobile-product-card__bottom-row">
                             <span class="dd-mobile-product-card__price">RWF ${product.price.toLocaleString()}</span>
-                            <button class="dd-mobile-product-card__quick-add"
-                                    aria-label="Add ${product.name} to cart">
-                                Add to Cart
+                            <button class="dd-mobile-product-card__quick-add${isClosed ? ' dd-add-btn--closed' : ''}"
+                                    aria-label="Add ${product.name} to cart"
+                                    ${isClosed ? 'disabled' : ''}>
+                                ${isClosed ? "We're Closed" : 'Add to Cart'}
                             </button>
                         </div>
                     </div>
@@ -493,7 +502,12 @@ class DDMobileMenu {
             const addBtn = this.elements.singleProduct.addToCart;
             if (addBtn) {
                 addBtn.disabled = true;
-                addBtn.classList.add('is-disabled');
+                if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
+                    addBtn.textContent = "We're Closed";
+                    addBtn.classList.add('dd-add-btn--closed');
+                } else {
+                    addBtn.classList.add('is-disabled');
+                }
             }
         } else {
             singleProduct.attrs.innerHTML = '';
@@ -503,8 +517,14 @@ class DDMobileMenu {
             }
             const addBtn = this.elements.singleProduct.addToCart;
             if (addBtn) {
-                addBtn.disabled = false;
-                addBtn.classList.remove('is-disabled');
+                if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
+                    addBtn.disabled = true;
+                    addBtn.textContent = "We're Closed";
+                    addBtn.classList.add('dd-add-btn--closed');
+                } else {
+                    addBtn.disabled = false;
+                    addBtn.classList.remove('is-disabled');
+                }
             }
         }
 
