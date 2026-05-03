@@ -719,7 +719,7 @@
                         btn.textContent = "We're Closed";
                         btn.classList.add('dd-add-btn--closed');
                     }
-                }, 50);
+                }, 600);
             });
         }
     }
@@ -1127,9 +1127,12 @@
                         pill.classList.add('active');
                         selected[attrName] = pill.dataset.val;
                         if (Object.keys(selected).length >= total && addBtn) {
-                            addBtn.disabled = false;
-                            addBtn.style.opacity = '1';
-                            addBtn.style.cursor = 'pointer';
+                            var _ddState = window.DD && window.DD.hours_state;
+                            if (_ddState !== 'closed' && _ddState !== 'break') {
+                                addBtn.disabled = false;
+                                addBtn.style.opacity = '1';
+                                addBtn.style.cursor = 'pointer';
+                            }
                         }
                     });
                 }

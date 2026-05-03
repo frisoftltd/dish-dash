@@ -530,6 +530,16 @@ class DDMobileMenu {
 
         this.showScreen('single');
         this.renderRelatedProducts(product);
+
+        // Disable Add to Cart if restaurant is closed
+        if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
+            var mobileAddBtn = document.getElementById('dd-mobile-add-to-cart');
+            if (mobileAddBtn) {
+                mobileAddBtn.disabled = true;
+                mobileAddBtn.textContent = "We're Closed";
+                mobileAddBtn.classList.add('dd-add-btn--closed');
+            }
+        }
     }
 
     renderRelatedProducts(product) {
