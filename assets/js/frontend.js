@@ -504,6 +504,8 @@
                 '.dd-closed-btn--ghost{border:2px solid #65040d;color:#65040d;background:transparent;}',
                 '.dd-closed-btn--wa{background:#25D366;color:#fff;border:2px solid transparent;}',
                 '.dd-bottom-strip{position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#6b1d1d;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:center;gap:20px;font-size:14px;}',
+                '.dd-bottom-strip__text{font-weight:500;}',
+                '.dd-bottom-strip__text span{font-weight:700;color:#E8832A;}',
                 '.dd-bottom-strip__hide{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 14px;border-radius:4px;font-size:13px;cursor:pointer;}',
                 '.dd-add-btn--closed,.dd-add-btn--closed:hover,.dd-mobile-product-card__quick-add.dd-add-btn--closed,.dd-mobile-product-card__quick-add.dd-add-btn--closed:hover{background:#cccccc!important;color:#888888!important;cursor:not-allowed!important;pointer-events:none!important;border-color:#cccccc!important;}',
                 '@media(max-width:600px){.dd-circle{width:82px;height:82px;}.dd-circle__num{font-size:24px;}.dd-closed-modal{padding:32px 20px 28px;}.dd-closed-modal__circles{gap:12px;}}'
@@ -612,13 +614,41 @@
                     var bottomStrip = document.createElement('div');
                     bottomStrip.className = 'dd-bottom-strip';
                     bottomStrip.innerHTML =
-                        '<span class="dd-bottom-strip__text">We\'re Closed \u2014 Opens soon</span>' +
+                        '<span class="dd-bottom-strip__text">We\'re Closed \u2014 Opens in ' +
+                            '<span id="ddBottomH">00</span>h ' +
+                            '<span id="ddBottomM">00</span>m ' +
+                            '<span id="ddBottomS">00</span>s' +
+                        '</span>' +
                         '<button class="dd-bottom-strip__hide" id="ddBottomHide">Hide Message</button>';
                     document.body.appendChild(bottomStrip);
+
+                    var bottomTimer = setInterval(function() {
+                        var diff = nextOpenTs - Date.now();
+                        if (diff <= 0) { location.reload(); return; }
+                        var t = formatCountdown(diff);
+                        var elH = document.getElementById('ddBottomH');
+                        var elM = document.getElementById('ddBottomM');
+                        var elS = document.getElementById('ddBottomS');
+                        if (elH) elH.textContent = t.h;
+                        if (elM) elM.textContent = t.m;
+                        if (elS) elS.textContent = t.s;
+                    }, 1000);
+                    (function() {
+                        var diff = nextOpenTs - Date.now();
+                        var t = formatCountdown(diff);
+                        var elH = document.getElementById('ddBottomH');
+                        var elM = document.getElementById('ddBottomM');
+                        var elS = document.getElementById('ddBottomS');
+                        if (elH) elH.textContent = t.h;
+                        if (elM) elM.textContent = t.m;
+                        if (elS) elS.textContent = t.s;
+                    })();
 
                     document.getElementById('ddBottomHide').addEventListener('click', function() {
                         sessionStorage.setItem('dd_banner_hidden', '1');
                         bottomStrip.remove();
+                        clearInterval(bottomTimer);
+                        if (timerInterval) clearInterval(timerInterval);
                     });
                 });
             } else {
@@ -626,13 +656,40 @@
                 var bottomStrip = document.createElement('div');
                 bottomStrip.className = 'dd-bottom-strip';
                 bottomStrip.innerHTML =
-                    '<span class="dd-bottom-strip__text">We\'re Closed \u2014 Opens soon</span>' +
+                    '<span class="dd-bottom-strip__text">We\'re Closed \u2014 Opens in ' +
+                        '<span id="ddBottomH">00</span>h ' +
+                        '<span id="ddBottomM">00</span>m ' +
+                        '<span id="ddBottomS">00</span>s' +
+                    '</span>' +
                     '<button class="dd-bottom-strip__hide" id="ddBottomHide">Hide Message</button>';
                 document.body.appendChild(bottomStrip);
+
+                var bottomTimer = setInterval(function() {
+                    var diff = nextOpenTs - Date.now();
+                    if (diff <= 0) { location.reload(); return; }
+                    var t = formatCountdown(diff);
+                    var elH = document.getElementById('ddBottomH');
+                    var elM = document.getElementById('ddBottomM');
+                    var elS = document.getElementById('ddBottomS');
+                    if (elH) elH.textContent = t.h;
+                    if (elM) elM.textContent = t.m;
+                    if (elS) elS.textContent = t.s;
+                }, 1000);
+                (function() {
+                    var diff = nextOpenTs - Date.now();
+                    var t = formatCountdown(diff);
+                    var elH = document.getElementById('ddBottomH');
+                    var elM = document.getElementById('ddBottomM');
+                    var elS = document.getElementById('ddBottomS');
+                    if (elH) elH.textContent = t.h;
+                    if (elM) elM.textContent = t.m;
+                    if (elS) elS.textContent = t.s;
+                })();
 
                 document.getElementById('ddBottomHide').addEventListener('click', function() {
                     sessionStorage.setItem('dd_banner_hidden', '1');
                     bottomStrip.remove();
+                    clearInterval(bottomTimer);
                 });
             }
         }
