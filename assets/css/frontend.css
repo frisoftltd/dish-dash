@@ -651,3 +651,117 @@
     .dd-closed-modal { padding: 32px 20px 28px; }
     .dd-closed-modal__circles { gap: 12px; }
 }
+
+/* ══ FOOD CATEGORY LIST (mobile-only section) ══════════════════════════════ */
+
+.dd-food-category-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.dd-food-category-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 16px;
+    background: #FBF7F1;
+    border: 1px solid #EADfCE;
+    border-radius: 14px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.dd-food-category-row:hover {
+    background: #F5EFE6;
+    box-shadow: 0 4px 14px rgba(43, 29, 18, 0.08);
+}
+
+.dd-food-category-row:active {
+    transform: scale(0.98);
+}
+
+/* Thumbnail circle */
+.dd-food-category-row__thumb {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--brand, #65040d);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dd-food-category-row__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.dd-food-category-row__initial {
+    color: #ffffff;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+/* Text info */
+.dd-food-category-row__info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.dd-food-category-row__name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1a0f08;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.dd-food-category-row__count {
+    font-size: 13px;
+    color: #8a7a66;
+    line-height: 1.3;
+}
+
+/* Arrow */
+.dd-food-category-row__arrow {
+    font-size: 22px;
+    color: var(--brand, #65040d);
+    flex: 0 0 auto;
+    opacity: 0.7;
+    transition: opacity 0.18s;
+    line-height: 1;
+}
+
+.dd-food-category-row:hover .dd-food-category-row__arrow {
+    opacity: 1;
+}
+
+/* Mobile adjustments (≤860px — already mobile-only but guard for small screens) */
+@media (max-width: 860px) {
+    .dd-food-category-row {
+        padding: 12px 14px;
+        gap: 14px;
+    }
+    .dd-food-category-row__thumb {
+        width: 50px;
+        height: 50px;
+        min-width: 50px;
+    }
+    .dd-food-category-row__name { font-size: 14px; }
+    .dd-food-category-row__count { font-size: 12px; }
+}

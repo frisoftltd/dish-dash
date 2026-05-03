@@ -1080,6 +1080,78 @@ if ( $dd_reserve_show ) :
 
 <!-- Footer injected globally by DD_Template_Module -->
 
+<?php
+// ══ FOOD CATEGORY LIST (mobile-only) ════════════════════════════════════════
+// Fetches all non-empty product categories and renders them as full-width rows
+// deep-linking into the mobile 3-screen menu flow (?cat={slug}).
+$dd_food_cats = [];
+if ( class_exists( 'DD_API' ) && method_exists( 'DD_API', 'get_all_categories' ) ) {
+    $dd_food_cats = DD_API::get_all_categories();
+} else {
+    $raw_food_cats = get_terms( [
+        'taxonomy'   => 'product_cat',
+        'hide_empty' => true,
+        'orderby'    => 'menu_order',
+    ] );
+    if ( ! is_wp_error( $raw_food_cats ) ) {
+        foreach ( $raw_food_cats as $fcat ) {
+            if ( $fcat->slug !== 'uncategorized' ) {
+                $dd_food_cats[] = $fcat;
+            }
+        }
+    }
+}
+if ( ! empty( $dd_food_cats ) ) :
+?>
+<!-- ══ FOOD CATEGORY LIST ══════════════════════════════════════════════════ -->
+<section class="dd-section dd-mobile-only" id="food-category-list">
+    <div class="dd-container">
+        <div class="dd-section__label">Browse Menu</div>
+        <h2 class="dd-section__title dd-serif">What are you craving?</h2>
+        <div class="dd-food-category-list">
+            <?php foreach ( $dd_food_cats as $fcat ) :
+                // Handle both DD_API normalized arrays and raw WP_Term objects
+                if ( is_array( $fcat ) ) {
+                    $fcat_id    = $fcat['id']    ?? 0;
+                    $fcat_name  = $fcat['name']  ?? '';
+                    $fcat_slug  = $fcat['slug']  ?? '';
+                    $fcat_count = $fcat['count'] ?? 0;
+                    $fcat_img   = $fcat['image'] ?? '';
+                } else {
+                    $fcat_id    = $fcat->term_id;
+                    $fcat_name  = $fcat->name;
+                    $fcat_slug  = $fcat->slug;
+                    $fcat_count = $fcat->count;
+                    $thumb_id   = get_term_meta( $fcat_id, 'thumbnail_id', true );
+                    $fcat_img   = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'thumbnail' ) : '';
+                }
+                if ( ! $fcat_slug ) continue;
+                $fcat_url = home_url( '/restaurant-menu/?cat=' . rawurlencode( $fcat_slug ) );
+            ?>
+            <a href="<?php echo esc_url( $fcat_url ); ?>"
+               class="dd-food-category-row"
+               aria-label="<?php echo esc_attr( $fcat_name ); ?>">
+                <div class="dd-food-category-row__thumb">
+                    <?php if ( $fcat_img ) : ?>
+                        <img src="<?php echo esc_url( $fcat_img ); ?>"
+                             alt="<?php echo esc_attr( $fcat_name ); ?>"
+                             loading="lazy">
+                    <?php else : ?>
+                        <span class="dd-food-category-row__initial"><?php echo esc_html( strtoupper( substr( $fcat_name, 0, 1 ) ) ); ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="dd-food-category-row__info">
+                    <span class="dd-food-category-row__name"><?php echo esc_html( $fcat_name ); ?></span>
+                    <span class="dd-food-category-row__count"><?php echo esc_html( $fcat_count ); ?> dishes</span>
+                </div>
+                <span class="dd-food-category-row__arrow">&#8250;</span>
+            </a>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
 <?php require_once DD_PLUGIN_DIR . 'templates/cart/cart.php'; ?>
 
 <?php wp_footer(); /* inject_product_modal() runs here via wp_footer hook — do not add modal HTML again */ ?>
