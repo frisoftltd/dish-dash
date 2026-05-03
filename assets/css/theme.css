@@ -2921,10 +2921,18 @@ body.dd-page .ast-header-woo-cart {
     .dd-mobile-search-panel   { display: none !important; }
 }
 
-/* Mobile: hide desktop elements */
+/* Desktop-only / Mobile-only utility classes (860px breakpoint) */
+@media (max-width: 860px) {
+    .dd-desktop-only { display: none !important; }
+}
+
+@media (min-width: 861px) {
+    .dd-mobile-only { display: none !important; }
+}
+
+/* Mobile: hide desktop search */
 @media (max-width: 768px) {
     .dd-desktop-search { display: none !important; }
-    .dd-desktop-only   { display: none !important; }
 }
 
 /* Mobile search panel — hidden by default, expands over header */

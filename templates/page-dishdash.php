@@ -122,12 +122,12 @@ $dd_chip_3     = get_option( 'dd_hero_chip_3', 'Elegant Dine-In Experience' );
 $dd_chip_4     = get_option( 'dd_hero_chip_4', 'Freshly Prepared Daily' );
 
 // 3. Categories
-$dd_cats_show  = get_option( 'dd_categories_show', '1' ) === '1';
+$dd_cats_show  = get_option( 'dish_dash_section_browse_by_category_show', get_option( 'dd_categories_show', '1' ) ) === '1';
 $dd_cats_title = get_option( 'dd_categories_title', 'Choose your craving' );
 $dd_cats_count = (int) get_option( 'dd_categories_count', 0 );
 
 // 4. Featured
-$dd_feat_show    = get_option( 'dd_featured_show', '1' ) === '1';
+$dd_feat_show    = get_option( 'dish_dash_section_featured_dishes_show', get_option( 'dd_featured_show', '1' ) ) === '1';
 $dd_feat_title   = get_option( 'dd_featured_title', 'Best sellers today' );
 $dd_feat_count   = (int) get_option( 'dd_featured_count', 8 );
 $dd_feat_orderby = get_option( 'dd_featured_orderby', 'popularity' );
@@ -135,13 +135,13 @@ $dd_feat_tag     = get_option( 'dd_featured_tag', '' );
 $dd_feat_chips   = get_option( 'dd_featured_show_chips', '1' ) === '1';
 
 // 5. Selected Category
-$dd_selcat_show    = get_option( 'dd_selcat_show', '1' ) === '1';
+$dd_selcat_show    = get_option( 'dish_dash_section_selected_category_show', get_option( 'dd_selcat_show', '1' ) ) === '1';
 $dd_selcat_title   = get_option( 'dd_selcat_title', 'Selected category' );
 $dd_selcat_count   = (int) get_option( 'dd_selcat_count', 8 );
 $dd_selcat_default = get_option( 'dd_selcat_default', '' );
 
 // 6. Reviews
-$dd_reviews_show  = get_option( 'dd_reviews_show', '1' ) === '1';
+$dd_reviews_show  = get_option( 'dish_dash_section_google_reviews_show', get_option( 'dd_reviews_show', '1' ) ) === '1';
 $dd_reviews_title = get_option( 'dd_reviews_title', 'What our customers say' );
 
 // 7. Footer
@@ -432,8 +432,10 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 
 <!-- ══ RESERVATION ═════════════════════════════════════════════════════════ -->
 <?php
-$dd_reserve_bg = get_option( 'dd_reserve_bg_image', '' );
-$reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $dd_reserve_bg ) . '\')"' : '';
+$dd_reserve_show = get_option( 'dish_dash_section_reserve_table_show', '1' ) === '1';
+$dd_reserve_bg   = get_option( 'dd_reserve_bg_image', '' );
+$reserve_style   = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $dd_reserve_bg ) . '\')"' : '';
+if ( $dd_reserve_show ) :
 ?>
 <section class="dd-reserve" id="reserve" <?php echo $reserve_style; ?>>
     <div class="dd-container dd-reserve__grid">
@@ -469,6 +471,7 @@ $reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $d
         </div>
     </div>
 </section>
+<?php endif; /* dd_reserve_show */ ?>
 
 <!-- ══ SELECTED CATEGORY ════════════════════════════════════════════════════ -->
 <?php if ( $dd_selcat_show && ! empty( $dd_selcat_cats ) ) : ?>

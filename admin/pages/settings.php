@@ -36,6 +36,11 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
         'google_maps_key', 'claude_api_key',
         'enable_pickup', 'enable_delivery', 'enable_dinein',
         'enable_reservations', 'enable_pos',
+        'section_browse_by_category_show',
+        'section_featured_dishes_show',
+        'section_selected_category_show',
+        'section_google_reviews_show',
+        'section_reserve_table_show',
     ];
     foreach ( $fields as $f ) {
         $val = isset( $_POST[ 'dish_dash_' . $f ] ) ? sanitize_text_field( $_POST[ 'dish_dash_' . $f ] ) : '0';
@@ -143,6 +148,45 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                     <?php endforeach; ?>
                 </td>
             </tr>
+
+        <!-- Homepage Sections -->
+        <tr>
+            <th><?php esc_html_e( 'Homepage Sections', 'dish-dash' ); ?></th>
+            <td>
+                <?php
+                $homepage_sections = [
+                    'section_browse_by_category_show' => [
+                        'label'    => __( 'Browse by Category', 'dish-dash' ),
+                        'fallback' => get_option( 'dd_categories_show', '1' ),
+                    ],
+                    'section_featured_dishes_show' => [
+                        'label'    => __( 'Featured Dishes', 'dish-dash' ),
+                        'fallback' => get_option( 'dd_featured_show', '1' ),
+                    ],
+                    'section_selected_category_show' => [
+                        'label'    => __( 'Selected Category', 'dish-dash' ),
+                        'fallback' => get_option( 'dd_selcat_show', '1' ),
+                    ],
+                    'section_google_reviews_show' => [
+                        'label'    => __( 'Google Reviews', 'dish-dash' ),
+                        'fallback' => get_option( 'dd_reviews_show', '1' ),
+                    ],
+                    'section_reserve_table_show' => [
+                        'label'    => __( 'Reserve Table', 'dish-dash' ),
+                        'fallback' => '1',
+                    ],
+                ];
+                foreach ( $homepage_sections as $key => $cfg ) :
+                    $current = get_option( 'dish_dash_' . $key, $cfg['fallback'] );
+                ?>
+                <label style="display:block;margin-bottom:6px">
+                    <input type="checkbox" name="dish_dash_<?php echo esc_attr( $key ); ?>" value="1" <?php checked( '1', $current ); ?> />
+                    <?php echo esc_html( $cfg['label'] ); ?>
+                </label>
+                <?php endforeach; ?>
+                <p class="description"><?php esc_html_e( 'Control which sections appear on the homepage. Desktop / mobile visibility is set separately via CSS utility classes.', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
 
         <!-- Delivery Settings -->
         <tr>
