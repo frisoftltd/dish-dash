@@ -475,6 +475,8 @@
         if (state === 'open') return;
         if (sessionStorage.getItem('dd_banner_hidden') === '1') return;
 
+        var isHomepage = document.querySelector('.dd-page') !== null;
+
         // Inject banner styles if not already present
         if (!document.getElementById('dd-hours-styles')) {
             var style = document.createElement('style');
@@ -501,7 +503,7 @@
                 '.dd-closed-btn{display:inline-flex;align-items:center;gap:6px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;}',
                 '.dd-closed-btn--ghost{border:2px solid #65040d;color:#65040d;background:transparent;}',
                 '.dd-closed-btn--wa{background:#25D366;color:#fff;border:2px solid transparent;}',
-                '.dd-bottom-strip{position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#1a1a1a;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:center;gap:20px;font-size:14px;}',
+                '.dd-bottom-strip{position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#6b1d1d;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:center;gap:20px;font-size:14px;}',
                 '.dd-bottom-strip__hide{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 14px;border-radius:4px;font-size:13px;cursor:pointer;}',
                 '.dd-add-btn--closed,.dd-add-btn--closed:hover{background:#ccc!important;color:#888!important;cursor:not-allowed!important;pointer-events:none;}',
                 '@media(max-width:600px){.dd-circle{width:82px;height:82px;}.dd-circle__num{font-size:24px;}.dd-closed-modal{padding:32px 20px 28px;}.dd-closed-modal__circles{gap:12px;}}'
@@ -570,43 +572,57 @@
 
         // ── MODAL (closed) ───────────────────────────────────────────────────
         if (state === 'closed') {
-            var overlay = document.createElement('div');
-            overlay.className = 'dd-closed-overlay';
-            overlay.innerHTML =
-                '<div class="dd-closed-modal">' +
-                    '<button class="dd-closed-modal__close" id="ddClosedX">&#x2715;</button>' +
-                    '<p class="dd-closed-modal__intro">Sorry, we are not taking orders right now.</p>' +
-                    '<p class="dd-closed-modal__sub">We will start taking orders in</p>' +
-                    '<div class="dd-closed-modal__circles">' +
-                        '<div class="dd-circle"><span class="dd-circle__num" id="ddModalH">00</span><span class="dd-circle__label">Hours</span></div>' +
-                        '<div class="dd-circle"><span class="dd-circle__num" id="ddModalM">00</span><span class="dd-circle__label">Minutes</span></div>' +
-                        '<div class="dd-circle"><span class="dd-circle__num" id="ddModalS">00</span><span class="dd-circle__label">Seconds</span></div>' +
-                    '</div>' +
-                    '<div class="dd-closed-modal__actions">' +
-                        '<a href="' + menuUrl + '" class="dd-closed-btn dd-closed-btn--ghost">Browse the Menu</a>' +
-                        (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" rel="noopener" class="dd-closed-btn dd-closed-btn--wa">\uD83D\uDCF2 Message Us</a>' : '') +
-                    '</div>' +
-                '</div>';
+            if (isHomepage) {
+                var overlay = document.createElement('div');
+                overlay.className = 'dd-closed-overlay';
+                overlay.innerHTML =
+                    '<div class="dd-closed-modal">' +
+                        '<button class="dd-closed-modal__close" id="ddClosedX">&#x2715;</button>' +
+                        '<p class="dd-closed-modal__intro">Sorry, we are not taking orders right now.</p>' +
+                        '<p class="dd-closed-modal__sub">We will start taking orders in</p>' +
+                        '<div class="dd-closed-modal__circles">' +
+                            '<div class="dd-circle"><span class="dd-circle__num" id="ddModalH">00</span><span class="dd-circle__label">Hours</span></div>' +
+                            '<div class="dd-circle"><span class="dd-circle__num" id="ddModalM">00</span><span class="dd-circle__label">Minutes</span></div>' +
+                            '<div class="dd-circle"><span class="dd-circle__num" id="ddModalS">00</span><span class="dd-circle__label">Seconds</span></div>' +
+                        '</div>' +
+                        '<div class="dd-closed-modal__actions">' +
+                            (waNumber ? '<a href="https://wa.me/' + waNumber + '" target="_blank" rel="noopener" class="dd-closed-btn dd-closed-btn--wa"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Message Us</a>' : '') +
+                        '</div>' +
+                    '</div>';
 
-            document.body.appendChild(overlay);
+                document.body.appendChild(overlay);
 
-            function tickModal() {
-                var diff = nextOpenTs - Date.now();
-                var t    = formatCountdown(diff);
-                var elH  = document.getElementById('ddModalH');
-                var elM  = document.getElementById('ddModalM');
-                var elS  = document.getElementById('ddModalS');
-                if (elH) elH.textContent = t.h;
-                if (elM) elM.textContent = t.m;
-                if (elS) elS.textContent = t.s;
-            }
-            tickModal();
-            timerInterval = setInterval(tickModal, 1000);
+                function tickModal() {
+                    var diff = nextOpenTs - Date.now();
+                    var t    = formatCountdown(diff);
+                    var elH  = document.getElementById('ddModalH');
+                    var elM  = document.getElementById('ddModalM');
+                    var elS  = document.getElementById('ddModalS');
+                    if (elH) elH.textContent = t.h;
+                    if (elM) elM.textContent = t.m;
+                    if (elS) elS.textContent = t.s;
+                }
+                tickModal();
+                timerInterval = setInterval(tickModal, 1000);
 
-            document.getElementById('ddClosedX').addEventListener('click', function() {
-                overlay.remove();
-                if (timerInterval) clearInterval(timerInterval);
+                document.getElementById('ddClosedX').addEventListener('click', function() {
+                    overlay.remove();
+                    if (timerInterval) clearInterval(timerInterval);
 
+                    var bottomStrip = document.createElement('div');
+                    bottomStrip.className = 'dd-bottom-strip';
+                    bottomStrip.innerHTML =
+                        '<span class="dd-bottom-strip__text">We\'re Closed \u2014 Opens soon</span>' +
+                        '<button class="dd-bottom-strip__hide" id="ddBottomHide">Hide Message</button>';
+                    document.body.appendChild(bottomStrip);
+
+                    document.getElementById('ddBottomHide').addEventListener('click', function() {
+                        sessionStorage.setItem('dd_banner_hidden', '1');
+                        bottomStrip.remove();
+                    });
+                });
+            } else {
+                // Non-homepage: show bottom strip directly (no modal)
                 var bottomStrip = document.createElement('div');
                 bottomStrip.className = 'dd-bottom-strip';
                 bottomStrip.innerHTML =
@@ -618,7 +634,7 @@
                     sessionStorage.setItem('dd_banner_hidden', '1');
                     bottomStrip.remove();
                 });
-            });
+            }
         }
 
         // ── DISABLE ADD TO CART when closed or break ─────────────────────────
@@ -627,6 +643,26 @@
                 btn.disabled = true;
                 btn.textContent = 'We\'re Closed';
                 btn.classList.add('dd-add-btn--closed');
+            });
+
+            // Also disable the product modal Add to Cart button
+            var modalAddBtn = document.getElementById('ddPmAddBtn');
+            if (modalAddBtn) {
+                modalAddBtn.disabled = true;
+                modalAddBtn.textContent = "We're Closed";
+                modalAddBtn.classList.add('dd-add-btn--closed');
+            }
+
+            // Re-disable whenever modal opens (for dynamically loaded modal)
+            document.addEventListener('dd:open-modal', function() {
+                setTimeout(function() {
+                    var btn = document.getElementById('ddPmAddBtn');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.textContent = "We're Closed";
+                        btn.classList.add('dd-add-btn--closed');
+                    }
+                }, 50);
             });
         }
     }

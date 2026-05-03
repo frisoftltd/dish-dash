@@ -146,6 +146,16 @@
                 } else {
                     grid.insertAdjacentHTML('beforeend', data.data.html);
                 }
+
+                // Disable Add to Cart if restaurant is closed
+                if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
+                    document.querySelectorAll('.dd-add-btn').forEach(function(btn) {
+                        btn.disabled = true;
+                        btn.textContent = "We're Closed";
+                        btn.classList.add('dd-add-btn--closed');
+                    });
+                }
+
                 loadMore.setAttribute('data-page', String(data.data.page));
                 if (loadMoreWrap) {
                     loadMoreWrap.style.display = data.data.has_more ? '' : 'none';
