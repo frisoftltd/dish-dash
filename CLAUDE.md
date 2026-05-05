@@ -251,7 +251,7 @@ dish-dash/
 | **Phase 1** | ✅ | Foundation (plugin, GitHub updater, WooCommerce integration) | — |
 | **Phase 2** | ✅ | Template System (header, hero, footer, branding, mobile 3-screen menu) | Track: viewed products, clicked categories, search queries |
 | **Phase 3** | ✅ | Cart, Orders, Delivery & WhatsApp — broken into 4 sub-phases (see Phase 3 Sub-Phases section below) | Save: order content, time, frequency, user WhatsApp identity, delivery preferences, cart behavior, open-hour visit patterns |
-| **Phase 4** | ⏳ | Reservations (table booking, notifications) | Track: booking time patterns, group size → future: suggest time slots |
+| **Phase 4** | 🔄 | Reservations (table booking, notifications) | Track: booking time patterns, group size → future: suggest time slots |
 | **Phase 5** | ⏳ | Backend Dashboard (admin analytics, insights) | Show: top products, peak hours, repeat customers, suggested combos |
 | **Phase 6** | ⏳ | Analytics + AI (Python microservice, behavior engine, recommendations) | AI Rules Engine, User Profile Engine, Smart Nudges |
 | **Phase 7** | ⏳ | Loyalty & QR (points system, QR scan ordering) | Reward frequent users, promote favorite items |
