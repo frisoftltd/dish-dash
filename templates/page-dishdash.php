@@ -350,9 +350,11 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 $food_cat_mob = get_option( 'dd_section_food_cat_list_mobile', '1' ) === '1';
 if ( $food_cat_mob ) :
     if ( class_exists( 'DD_API' ) ) {
-        $dd_all_cats = DD_API::get_all_categories();
+        $dd_all_cats = array_filter( DD_API::get_all_categories(), function( $c ) {
+            return isset( $c['product_count'] ) && (int) $c['product_count'] > 0;
+        });
     } else {
-        $raw_terms   = get_terms( [ 'taxonomy' => 'product_cat', 'hide_empty' => false, 'orderby' => 'name' ] );
+        $raw_terms   = get_terms( [ 'taxonomy' => 'product_cat', 'hide_empty' => true, 'orderby' => 'name' ] );
         $dd_all_cats = ! is_wp_error( $raw_terms ) ? array_filter( $raw_terms, fn($c) => $c->slug !== 'uncategorized' ) : [];
     }
 ?>
