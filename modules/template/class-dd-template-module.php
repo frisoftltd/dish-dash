@@ -169,10 +169,23 @@ class DD_Template_Module extends DD_Module {
         wp_enqueue_style(  'dish-dash-frontend', DD_PLUGIN_URL . 'assets/css/frontend.css', [ 'dish-dash-theme' ], DD_VERSION );
         wp_enqueue_style(  'dish-dash-menu',     $plugin_url . '/assets/css/menu.css',     [], DD_VERSION );
         wp_enqueue_style(  'dish-dash-cart',     $plugin_url . '/assets/css/cart.css',     [], DD_VERSION );
+        wp_enqueue_style(
+            'dish-dash-reservations',
+            DD_PLUGIN_URL . 'assets/css/reservations.css',
+            [ 'dish-dash-frontend' ],
+            DD_VERSION
+        );
         wp_enqueue_script( 'dish-dash-menu',     $plugin_url . '/assets/js/menu.js',     [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-cart',     $plugin_url . '/assets/js/cart.js',     [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-search',   $plugin_url . '/assets/js/search.js',   [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [ 'dish-dash-search' ], DD_VERSION, true );
+        wp_enqueue_script(
+            'dish-dash-reservations',
+            DD_PLUGIN_URL . 'assets/js/reservations.js',
+            [],
+            DD_VERSION,
+            true
+        );
         wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
         wp_localize_script( 'dish-dash-cart', 'ddCartData', [
             'threshold'             => (int) get_option( 'dd_free_delivery_threshold', 10000 ),

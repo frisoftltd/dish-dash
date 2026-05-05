@@ -1,0 +1,480 @@
+/*
+ * reservations.css — Phase 4A: Reservation UI Shell
+ * Dish Dash Plugin — Fri Soft Ltd
+ * Layered on top of existing .dd-reserve styles in theme.css
+ */
+
+/* ── Layout card ─────────────────────────────────────────── */
+.dd-reserve__header {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 48px;
+}
+
+.dd-reserve__header .dd-reserve__title {
+  color: #fff;
+  margin: 12px 0 16px;
+  font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+  line-height: 1.25;
+}
+
+.dd-reserve__header .dd-reserve__copy {
+  color: rgba(255,255,255,0.72);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.dd-res-card {
+  background: var(--dd-surface, #FBF7F1);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: var(--dd-shadow-lg, 0 24px 60px rgba(0,0,0,0.18));
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+/* ── Progress dots (mobile) ──────────────────────────────── */
+.dd-res-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.dd-res-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dd-line, #EADfCE);
+  transition: background 0.2s, transform 0.2s;
+}
+
+.dd-res-dot--active {
+  background: var(--brand, #65040d);
+  transform: scale(1.35);
+}
+
+/* ── Screen switching ────────────────────────────────────── */
+.dd-res-left,
+.dd-res-right {
+  padding: 36px 28px;
+}
+
+.dd-res-screen { display: block; }
+.dd-res-screen--hidden { display: none; }
+
+/* ── Field blocks ────────────────────────────────────────── */
+.dd-res-field-block {
+  margin-bottom: 24px;
+}
+
+.dd-res-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dd-muted, #6E5B4C);
+  margin-bottom: 10px;
+}
+
+.dd-res-optional {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--dd-muted-2, #8A6E53);
+}
+
+/* ── Stepper ─────────────────────────────────────────────── */
+.dd-res-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: fit-content;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.dd-res-stepper__btn {
+  background: none;
+  border: none;
+  width: 48px;
+  height: 48px;
+  font-size: 1.4rem;
+  color: var(--brand, #65040d);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.dd-res-stepper__btn:hover {
+  background: rgba(101,4,13,0.06);
+}
+
+.dd-res-stepper__val {
+  min-width: 44px;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--dd-text, #221B19);
+  border-left: 1.5px solid var(--dd-line, #EADfCE);
+  border-right: 1.5px solid var(--dd-line, #EADfCE);
+  padding: 0 8px;
+  height: 48px;
+  line-height: 48px;
+}
+
+/* ── Date pills ──────────────────────────────────────────── */
+.dd-res-date-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dd-res-date-scroll::-webkit-scrollbar { display: none; }
+
+.dd-res-date-pill {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 56px;
+}
+
+.dd-res-date-pill:hover {
+  border-color: var(--brand, #65040d);
+}
+
+.dd-res-date-pill--selected {
+  background: var(--brand, #65040d);
+  border-color: var(--brand, #65040d);
+  color: #fff;
+}
+
+.dd-res-date-pill__day {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.dd-res-date-pill--selected .dd-res-date-pill__day { opacity: 0.8; }
+
+.dd-res-date-pill__num {
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dd-res-date-pill__mon {
+  font-size: 0.65rem;
+  font-weight: 500;
+  opacity: 0.65;
+  margin-top: 3px;
+  line-height: 1;
+}
+
+.dd-res-date-pill--selected .dd-res-date-pill__mon { opacity: 0.75; }
+
+/* ── Session toggle ──────────────────────────────────────── */
+.dd-res-toggle {
+  display: flex;
+  gap: 0;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  border-radius: 12px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.dd-res-toggle__btn {
+  background: none;
+  border: none;
+  padding: 10px 28px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--dd-muted, #6E5B4C);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.dd-res-toggle__btn:first-child {
+  border-right: 1.5px solid var(--dd-line, #EADfCE);
+}
+
+.dd-res-toggle__btn--active {
+  background: var(--brand, #65040d);
+  color: #fff;
+}
+
+/* ── Time slots grid ─────────────────────────────────────── */
+.dd-res-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.dd-res-slot {
+  padding: 10px 6px;
+  border-radius: 10px;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dd-text, #221B19);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.dd-res-slot:hover {
+  border-color: var(--brand, #65040d);
+  color: var(--brand, #65040d);
+}
+
+.dd-res-slot--selected {
+  background: var(--brand, #65040d);
+  border-color: var(--brand, #65040d);
+  color: #fff;
+}
+
+/* ── Select ──────────────────────────────────────────────── */
+.dd-res-select {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  background: #fff;
+  font-size: 0.95rem;
+  color: var(--dd-text, #221B19);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236E5B4C' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
+}
+
+.dd-res-select:focus {
+  outline: none;
+  border-color: var(--brand, #65040d);
+}
+
+/* ── Text inputs ─────────────────────────────────────────── */
+.dd-res-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  background: #fff;
+  font-size: 0.95rem;
+  color: var(--dd-text, #221B19);
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.dd-res-input:focus {
+  outline: none;
+  border-color: var(--brand, #65040d);
+}
+
+.dd-res-input::placeholder { color: var(--dd-muted-2, #8A6E53); }
+
+.dd-res-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ── Summary strip (screen 2 top) ────────────────────────── */
+.dd-res-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: rgba(101,4,13,0.06);
+  border-radius: 12px;
+}
+
+.dd-res-strip-item {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--brand, #65040d);
+}
+
+.dd-res-strip-item::after { content: ' · '; opacity: 0.4; }
+.dd-res-strip-item:last-child::after { display: none; }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.dd-res-next-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  background: var(--brand, #65040d);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.dd-res-next-btn:hover { opacity: 0.88; }
+.dd-res-next-btn:active { transform: scale(0.98); }
+
+.dd-res-btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.dd-res-btn-row .dd-res-next-btn { flex: 1; }
+
+.dd-res-back-btn {
+  background: none;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  border-radius: 14px;
+  padding: 13px 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--dd-muted, #6E5B4C);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+
+.dd-res-back-btn:hover { border-color: var(--dd-muted, #6E5B4C); }
+
+/* ── Confirm card (right col / screen 3) ────────────────── */
+.dd-res-confirm-card {
+  background: linear-gradient(135deg, #65040d 0%, #3d0208 100%);
+  border-radius: 20px;
+  padding: 32px 28px;
+  color: #fff;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.dd-res-confirm-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.dd-res-confirm-ref {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  font-family: 'Courier New', monospace;
+}
+
+.dd-res-confirm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.dd-res-confirm-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.95rem;
+}
+
+.dd-res-confirm-icon { font-size: 1rem; flex: 0 0 auto; }
+
+.dd-res-confirm-divider {
+  border-top: 1px solid rgba(255,255,255,0.15);
+  padding-top: 8px !important;
+  margin-top: 4px;
+}
+
+.dd-res-confirm-btn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 14px;
+  border: none;
+  background: #fff;
+  color: var(--brand, #65040d);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  margin-top: auto;
+}
+
+.dd-res-confirm-btn:hover { opacity: 0.92; }
+.dd-res-confirm-btn:active { transform: scale(0.98); }
+
+.dd-res-back--mobile { display: none; }
+
+/* ── Desktop layout (≥ 768px) ────────────────────────────── */
+@media (min-width: 768px) {
+
+  .dd-res-card {
+    grid-template-columns: 1fr 1fr;
+    min-height: 640px;
+  }
+
+  .dd-res-dots { display: none; }
+
+  /* All screens visible simultaneously on desktop */
+  .dd-res-screen--hidden { display: block !important; }
+
+  /* Screen 2 always visible in left col on desktop */
+  #dd-res-screen-2 { margin-top: 32px; }
+
+  /* Screen 3 fills right col */
+  .dd-res-right {
+    padding: 0;
+    background: transparent;
+  }
+
+  .dd-res-confirm-card {
+    border-radius: 0 24px 24px 0;
+    min-height: 100%;
+  }
+
+  /* Hide navigation buttons on desktop */
+  .dd-res-next-btn,
+  .dd-res-btn-row,
+  .dd-res-back-btn { display: none; }
+
+  /* Hide summary strip on desktop (right col shows full summary) */
+  .dd-res-summary-strip { display: none; }
+
+  /* Hide progress ref on desktop */
+  .dd-res-confirm-ref { display: block; }
+}
+
+/* ── Large desktop (≥ 1024px) ───────────────────────────── */
+@media (min-width: 1024px) {
+  .dd-res-left { padding: 48px 44px; }
+  .dd-res-slots { grid-template-columns: repeat(4, 1fr); }
+}
