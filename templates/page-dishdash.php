@@ -122,12 +122,18 @@ $dd_chip_3     = get_option( 'dd_hero_chip_3', 'Elegant Dine-In Experience' );
 $dd_chip_4     = get_option( 'dd_hero_chip_4', 'Freshly Prepared Daily' );
 
 // 3. Categories
-$dd_cats_show  = get_option( 'dish_dash_section_browse_by_category_show', get_option( 'dd_categories_show', '1' ) ) === '1';
+$cats_desk  = get_option( 'dd_section_categories_desktop', '1' ) === '1';
+$cats_mob   = get_option( 'dd_section_categories_mobile',  '0' ) === '1';
+$cats_vis   = $cats_desk || $cats_mob;
+$cats_class = ( $cats_desk && ! $cats_mob ) ? 'dd-desktop-only' : ( ( ! $cats_desk && $cats_mob ) ? 'dd-mobile-only' : '' );
 $dd_cats_title = get_option( 'dd_categories_title', 'Choose your craving' );
 $dd_cats_count = (int) get_option( 'dd_categories_count', 0 );
 
 // 4. Featured
-$dd_feat_show    = get_option( 'dish_dash_section_featured_dishes_show', get_option( 'dd_featured_show', '1' ) ) === '1';
+$feat_desk  = get_option( 'dd_section_featured_desktop', '1' ) === '1';
+$feat_mob   = get_option( 'dd_section_featured_mobile',  '0' ) === '1';
+$feat_vis   = $feat_desk || $feat_mob;
+$feat_class = ( $feat_desk && ! $feat_mob ) ? 'dd-desktop-only' : ( ( ! $feat_desk && $feat_mob ) ? 'dd-mobile-only' : '' );
 $dd_feat_title   = get_option( 'dd_featured_title', 'Best sellers today' );
 $dd_feat_count   = (int) get_option( 'dd_featured_count', 8 );
 $dd_feat_orderby = get_option( 'dd_featured_orderby', 'popularity' );
@@ -135,13 +141,19 @@ $dd_feat_tag     = get_option( 'dd_featured_tag', '' );
 $dd_feat_chips   = get_option( 'dd_featured_show_chips', '1' ) === '1';
 
 // 5. Selected Category
-$dd_selcat_show    = get_option( 'dish_dash_section_selected_category_show', get_option( 'dd_selcat_show', '1' ) ) === '1';
+$selcat_desk  = get_option( 'dd_section_selcat_desktop', '1' ) === '1';
+$selcat_mob   = get_option( 'dd_section_selcat_mobile',  '0' ) === '1';
+$selcat_vis   = $selcat_desk || $selcat_mob;
+$selcat_class = ( $selcat_desk && ! $selcat_mob ) ? 'dd-desktop-only' : ( ( ! $selcat_desk && $selcat_mob ) ? 'dd-mobile-only' : '' );
 $dd_selcat_title   = get_option( 'dd_selcat_title', 'Selected category' );
 $dd_selcat_count   = (int) get_option( 'dd_selcat_count', 8 );
 $dd_selcat_default = get_option( 'dd_selcat_default', '' );
 
 // 6. Reviews
-$dd_reviews_show  = get_option( 'dish_dash_section_google_reviews_show', get_option( 'dd_reviews_show', '1' ) ) === '1';
+$reviews_desk  = get_option( 'dd_section_reviews_desktop', '1' ) === '1';
+$reviews_mob   = get_option( 'dd_section_reviews_mobile',  '1' ) === '1';
+$reviews_vis   = $reviews_desk || $reviews_mob;
+$reviews_class = ( $reviews_desk && ! $reviews_mob ) ? 'dd-desktop-only' : ( ( ! $reviews_desk && $reviews_mob ) ? 'dd-mobile-only' : '' );
 $dd_reviews_title = get_option( 'dd_reviews_title', 'What our customers say' );
 
 // 7. Footer
@@ -336,8 +348,8 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 
 
 <!-- ══ CATEGORIES ══════════════════════════════════════════════════════════ -->
-<?php if ( $dd_cats_show && ! empty( $dd_cats ) ) : ?>
-<section class="dd-section" id="categories">
+<?php if ( $cats_vis && ! empty( $dd_cats ) ) : ?>
+<section class="dd-section <?php echo $cats_class; ?>" id="categories">
     <div class="dd-container">
         <div class="dd-section__top">
             <div>
@@ -377,8 +389,8 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 <?php endif; ?>
 
 <!-- ══ MENU ════════════════════════════════════════════════════════════════ -->
-<?php if ( $dd_feat_show ) : ?>
-<section class="dd-section" id="menu">
+<?php if ( $feat_vis ) : ?>
+<section class="dd-section <?php echo $feat_class; ?>" id="menu">
     <div class="dd-container">
 
         <?php
@@ -432,12 +444,15 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 
 <!-- ══ RESERVATION ═════════════════════════════════════════════════════════ -->
 <?php
-$dd_reserve_show = get_option( 'dish_dash_section_reserve_table_show', '1' ) === '1';
-$dd_reserve_bg   = get_option( 'dd_reserve_bg_image', '' );
-$reserve_style   = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $dd_reserve_bg ) . '\')"' : '';
-if ( $dd_reserve_show ) :
+$reserve_desk  = get_option( 'dd_section_reserve_desktop', '1' ) === '1';
+$reserve_mob   = get_option( 'dd_section_reserve_mobile',  '1' ) === '1';
+$reserve_vis   = $reserve_desk || $reserve_mob;
+$reserve_class = ( $reserve_desk && ! $reserve_mob ) ? 'dd-desktop-only' : ( ( ! $reserve_desk && $reserve_mob ) ? 'dd-mobile-only' : '' );
+$dd_reserve_bg = get_option( 'dd_reserve_bg_image', '' );
+$reserve_style = $dd_reserve_bg ? 'style="--dd-reserve-bg: url(\'' . esc_url( $dd_reserve_bg ) . '\')"' : '';
+if ( $reserve_vis ) :
 ?>
-<section class="dd-reserve" id="reserve" <?php echo $reserve_style; ?>>
+<section class="dd-reserve <?php echo $reserve_class; ?>" id="reserve" <?php echo $reserve_style; ?>>
     <div class="dd-container dd-reserve__grid">
         <div>
             <div class="dd-section__label">Reserve your table</div>
@@ -474,8 +489,8 @@ if ( $dd_reserve_show ) :
 <?php endif; /* dd_reserve_show */ ?>
 
 <!-- ══ SELECTED CATEGORY ════════════════════════════════════════════════════ -->
-<?php if ( $dd_selcat_show && ! empty( $dd_selcat_cats ) ) : ?>
-<section class="dd-section" id="category-dishes">
+<?php if ( $selcat_vis && ! empty( $dd_selcat_cats ) ) : ?>
+<section class="dd-section <?php echo $selcat_class; ?>" id="category-dishes">
     <div class="dd-container">
 
         <div class="dd-selcat__heading">
@@ -522,7 +537,7 @@ if ( $dd_reserve_show ) :
 <?php endif; ?>
 
 <!-- ══ REVIEWS ═════════════════════════════════════════════════════════════ -->
-<?php if ( $dd_reviews_show ) :
+<?php if ( $reviews_vis ) :
     // ─── Build normalized review array ────────────────────────────────────
     $dd_review_source   = get_option( 'dd_reviews_source', 'manual' );
     $dd_review_count    = max( 1, (int) get_option( 'dd_reviews_count', 6 ) );
@@ -776,7 +791,7 @@ if ( $dd_reserve_show ) :
 ?>
 <!-- DD Reviews Debug: <?php echo esc_html( wp_json_encode( $dd_review_debug ) ); ?> -->
 <?php if ( $dd_render_reviews ) : ?>
-<section class="dd-section dd-greviews-section" id="reviews">
+<section class="dd-section dd-greviews-section <?php echo $reviews_class; ?>" id="reviews">
     <div class="dd-container">
         <div class="dd-greviews-header">
             <div class="dd-greviews-eyebrow">Loved by guests</div>
@@ -1101,7 +1116,8 @@ if ( class_exists( 'DD_API' ) && method_exists( 'DD_API', 'get_all_categories' )
         }
     }
 }
-if ( ! empty( $dd_food_cats ) ) :
+$food_cat_mob = get_option( 'dd_section_food_cat_list_mobile', '1' ) === '1';
+if ( $food_cat_mob && ! empty( $dd_food_cats ) ) :
 ?>
 <!-- ══ FOOD CATEGORY LIST ══════════════════════════════════════════════════ -->
 <section class="dd-section dd-mobile-only" id="food-category-list">

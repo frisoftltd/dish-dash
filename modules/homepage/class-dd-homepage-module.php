@@ -109,29 +109,40 @@ class DD_Homepage_Module extends DD_Module {
             'dd_hero_chip_4'             => 'sanitize_text_field',
 
             // 3. Categories
-            'dd_categories_show'         => 'checkbox',
-            'dd_categories_title'        => 'sanitize_text_field',
-            'dd_categories_count'        => 'absint',
+            'dd_section_categories_desktop' => 'checkbox',
+            'dd_section_categories_mobile'  => 'checkbox',
+            'dd_categories_title'           => 'sanitize_text_field',
+            'dd_categories_count'           => 'absint',
 
             // 4. Featured
-            'dd_featured_show'           => 'checkbox',
-            'dd_featured_title'          => 'sanitize_text_field',
-            'dd_featured_count'          => 'absint',
-            'dd_featured_orderby'        => 'sanitize_text_field',
-            'dd_featured_order'          => 'sanitize_text_field',
-            'dd_featured_tag'            => 'sanitize_text_field',
-            'dd_featured_show_chips'     => 'checkbox',
+            'dd_section_featured_desktop'   => 'checkbox',
+            'dd_section_featured_mobile'    => 'checkbox',
+            'dd_featured_title'             => 'sanitize_text_field',
+            'dd_featured_count'             => 'absint',
+            'dd_featured_orderby'           => 'sanitize_text_field',
+            'dd_featured_order'             => 'sanitize_text_field',
+            'dd_featured_tag'               => 'sanitize_text_field',
+            'dd_featured_show_chips'        => 'checkbox',
+
+            // Reserve Table
+            'dd_section_reserve_desktop'    => 'checkbox',
+            'dd_section_reserve_mobile'     => 'checkbox',
 
             // 5. Selected Category
-            'dd_selcat_show'             => 'checkbox',
-            'dd_selcat_title'            => 'sanitize_text_field',
-            'dd_selcat_count'            => 'absint',
-            'dd_selcat_default'          => 'sanitize_text_field',
-            'dd_reserve_bg_image'        => 'esc_url_raw',
+            'dd_section_selcat_desktop'     => 'checkbox',
+            'dd_section_selcat_mobile'      => 'checkbox',
+            'dd_selcat_title'               => 'sanitize_text_field',
+            'dd_selcat_count'               => 'absint',
+            'dd_selcat_default'             => 'sanitize_text_field',
+            'dd_reserve_bg_image'           => 'esc_url_raw',
 
             // 6. Reviews
-            'dd_reviews_show'            => 'checkbox',
-            'dd_reviews_title'           => 'sanitize_text_field',
+            'dd_section_reviews_desktop'    => 'checkbox',
+            'dd_section_reviews_mobile'     => 'checkbox',
+            'dd_reviews_title'              => 'sanitize_text_field',
+
+            // Food Category List
+            'dd_section_food_cat_list_mobile' => 'checkbox',
             'dd_reviews_source'          => 'sanitize_text_field',
             'dd_reviews_google_place_id' => 'sanitize_text_field',
             'dd_reviews_google_api_key'  => 'sanitize_text_field',
@@ -534,8 +545,15 @@ class DD_Homepage_Module extends DD_Module {
                             <span class="dd-hp-section__icon">🍽️</span>
                             <h2><?php esc_html_e( '3. Browse by Category Section', 'dish-dash' ); ?></h2>
                             <label class="dd-hp-toggle dd-hp-toggle--header">
-                                <input type="checkbox" name="dd_categories_show" value="1" <?php $this->checked( 'dd_categories_show' ); ?>>
-                                <span><?php esc_html_e( 'Show Section', 'dish-dash' ); ?></span>
+                                <input type="checkbox" name="dd_section_categories_desktop" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_categories_desktop', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Desktop', 'dish-dash' ); ?></span>
+                            </label>
+                            &nbsp;&nbsp;
+                            <label class="dd-hp-toggle dd-hp-toggle--header">
+                                <input type="checkbox" name="dd_section_categories_mobile" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_categories_mobile', '0' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Mobile', 'dish-dash' ); ?></span>
                             </label>
                         </div>
                         <div class="dd-hp-section__body">
@@ -567,8 +585,15 @@ class DD_Homepage_Module extends DD_Module {
                             <span class="dd-hp-section__icon">⭐</span>
                             <h2><?php esc_html_e( '4. Featured Dishes Section', 'dish-dash' ); ?></h2>
                             <label class="dd-hp-toggle dd-hp-toggle--header">
-                                <input type="checkbox" name="dd_featured_show" value="1" <?php $this->checked( 'dd_featured_show' ); ?>>
-                                <span><?php esc_html_e( 'Show Section', 'dish-dash' ); ?></span>
+                                <input type="checkbox" name="dd_section_featured_desktop" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_featured_desktop', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Desktop', 'dish-dash' ); ?></span>
+                            </label>
+                            &nbsp;&nbsp;
+                            <label class="dd-hp-toggle dd-hp-toggle--header">
+                                <input type="checkbox" name="dd_section_featured_mobile" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_featured_mobile', '0' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Mobile', 'dish-dash' ); ?></span>
                             </label>
                         </div>
                         <div class="dd-hp-section__body">
@@ -656,6 +681,17 @@ class DD_Homepage_Module extends DD_Module {
                         <div class="dd-hp-section__header">
                             <span class="dd-hp-section__icon">📅</span>
                             <h2><?php esc_html_e( 'Reserve Table Section', 'dish-dash' ); ?></h2>
+                            <label class="dd-hp-toggle dd-hp-toggle--header">
+                                <input type="checkbox" name="dd_section_reserve_desktop" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_reserve_desktop', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Desktop', 'dish-dash' ); ?></span>
+                            </label>
+                            &nbsp;&nbsp;
+                            <label class="dd-hp-toggle dd-hp-toggle--header">
+                                <input type="checkbox" name="dd_section_reserve_mobile" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_reserve_mobile', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Mobile', 'dish-dash' ); ?></span>
+                            </label>
                         </div>
                         <div class="dd-hp-section__body">
                             <div class="dd-hp-field">
@@ -694,8 +730,15 @@ class DD_Homepage_Module extends DD_Module {
                             <span class="dd-hp-section__icon">📂</span>
                             <h2><?php esc_html_e( '5. Selected Category Section', 'dish-dash' ); ?></h2>
                             <label class="dd-hp-toggle dd-hp-toggle--header">
-                                <input type="checkbox" name="dd_selcat_show" value="1" <?php $this->checked( 'dd_selcat_show' ); ?>>
-                                <span><?php esc_html_e( 'Show Section', 'dish-dash' ); ?></span>
+                                <input type="checkbox" name="dd_section_selcat_desktop" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_selcat_desktop', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Desktop', 'dish-dash' ); ?></span>
+                            </label>
+                            &nbsp;&nbsp;
+                            <label class="dd-hp-toggle dd-hp-toggle--header">
+                                <input type="checkbox" name="dd_section_selcat_mobile" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_selcat_mobile', '0' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Mobile', 'dish-dash' ); ?></span>
                             </label>
                         </div>
                         <div class="dd-hp-section__body">
@@ -763,8 +806,15 @@ class DD_Homepage_Module extends DD_Module {
                             <span class="dd-hp-section__icon">⭐</span>
                             <h2><?php esc_html_e( '6. Google Reviews Section', 'dish-dash' ); ?></h2>
                             <label class="dd-hp-toggle dd-hp-toggle--header">
-                                <input type="checkbox" name="dd_reviews_show" value="1" <?php $this->checked( 'dd_reviews_show' ); ?>>
-                                <span><?php esc_html_e( 'Show Section', 'dish-dash' ); ?></span>
+                                <input type="checkbox" name="dd_section_reviews_desktop" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_reviews_desktop', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Desktop', 'dish-dash' ); ?></span>
+                            </label>
+                            &nbsp;&nbsp;
+                            <label class="dd-hp-toggle dd-hp-toggle--header">
+                                <input type="checkbox" name="dd_section_reviews_mobile" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_reviews_mobile', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Mobile', 'dish-dash' ); ?></span>
                             </label>
                         </div>
                         <div class="dd-hp-section__body">
@@ -884,6 +934,22 @@ class DD_Homepage_Module extends DD_Module {
                                 </label>
                             </div>
                             <p class="dd-hp-note">Social media links are managed in <a href="<?php echo admin_url('admin.php?page=dish-dash-template'); ?>">Template Settings</a>.</p>
+                        </div>
+                    </div>
+
+                    <!-- ═══ 8. FOOD CATEGORY LIST ════════════════════════ -->
+                    <div class="dd-hp-section">
+                        <div class="dd-hp-section__header">
+                            <span class="dd-hp-section__icon">📋</span>
+                            <h2><?php esc_html_e( '8. Food Category List', 'dish-dash' ); ?></h2>
+                            <label class="dd-hp-toggle dd-hp-toggle--header">
+                                <input type="checkbox" name="dd_section_food_cat_list_mobile" value="1"
+                                       <?php checked( '1', get_option( 'dd_section_food_cat_list_mobile', '1' ) ); ?>>
+                                <span><?php esc_html_e( 'Show on Mobile', 'dish-dash' ); ?></span>
+                            </label>
+                        </div>
+                        <div class="dd-hp-section__body">
+                            <p class="dd-hp-note">Mobile-only section showing all categories as a full-width tap list. Deep-links into the menu. Always hidden on desktop.</p>
                         </div>
                     </div>
 
