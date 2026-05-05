@@ -59,7 +59,7 @@ WooCommerce (payment processing)
 | **Deployed version** | v3.2.75 |
 | **Current phase** | Phase 4 — Reservations |
 | **Current sub-phase** | 4A — Table Booking (starting now) |
-| **Next task** | v3.2.76 — Reservation form wiring + booking storage |
+| **Next task** | Phase 4A (v3.2.76) — Reservation UI shell |
 | **Last working state** | Phase 3 complete. Cart, orders, checkout, WhatsApp notifications, birthday flow, opening hours, mobile homepage with Food Category List all live. Desktop/mobile section visibility toggles working. Deep link from category list to product list working. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
@@ -91,20 +91,20 @@ WooCommerce (payment processing)
 
 | Role | Responsibilities |
 |---|---|
-| **Claude** (claude.ai) | Architecture, root cause analysis, writing briefs |
+| **Claude** (claude.ai) | Architecture, root cause analysis, planning, writing briefs |
 | **Claude Code** (terminal) | Investigation, file edits, git add + commit + push |
 | **Developer** (human) | Paste briefs to Claude Code, create GitHub release, deploy, test, report back |
 
 ### The Loop — NEVER SKIP STEPS
 
-1. **Claude writes Investigation Brief** → developer pastes to Claude Code
-2. **Claude Code investigates** → reports findings (no edits yet)
-3. **Developer pastes findings to Claude** → Claude diagnoses root cause
-4. **Claude writes Fix Brief** → developer pastes to Claude Code
-5. **Claude Code edits files** → runs `git add + commit + push origin HEAD:main`
-6. **Developer creates GitHub release** tag `vX.X.X` → deploys → tests
-7. **Developer reports result to Claude** (screenshot or description)
-8. **Claude writes next brief** → repeat from step 1
+1. Claude writes Investigation Brief → developer pastes to Claude Code
+2. Claude Code investigates → reports findings (no edits yet)
+3. Developer pastes findings to Claude → Claude diagnoses root cause
+4. Claude writes Fix Brief → developer pastes to Claude Code
+5. Claude Code edits files → runs `git add` + `commit` + `push origin HEAD:main`
+6. Developer creates GitHub release tag `vX.X.X` → deploys → tests
+7. Developer reports result to Claude (screenshot or description)
+8. Claude writes next brief → repeat from step 1
 
 ### Claude Code Session Setup — ALWAYS START WITH
 
@@ -251,7 +251,7 @@ dish-dash/
 | **Phase 1** | ✅ | Foundation (plugin, GitHub updater, WooCommerce integration) | — |
 | **Phase 2** | ✅ | Template System (header, hero, footer, branding, mobile 3-screen menu) | Track: viewed products, clicked categories, search queries |
 | **Phase 3** | ✅ | Cart, Orders, Delivery & WhatsApp — broken into 4 sub-phases (see Phase 3 Sub-Phases section below) | Save: order content, time, frequency, user WhatsApp identity, delivery preferences, cart behavior, open-hour visit patterns |
-| **Phase 4** | 🔄 | Reservations (table booking, notifications) | Track: booking time patterns, group size → future: suggest time slots |
+| **Phase 4** | 🔄 | Reservations (table booking, deposit, refunds, notifications) — broken into 4 sub-phases (see Phase 4 Sub-Phases section below) | Track: booking time patterns, group size, deposit conversion → future: suggest time slots |
 | **Phase 5** | ⏳ | Backend Dashboard (admin analytics, insights) | Show: top products, peak hours, repeat customers, suggested combos |
 | **Phase 6** | ⏳ | Analytics + AI (Python microservice, behavior engine, recommendations) | AI Rules Engine, User Profile Engine, Smart Nudges |
 | **Phase 7** | ⏳ | Loyalty & QR (points system, QR scan ordering) | Reward frequent users, promote favorite items |
@@ -513,6 +513,154 @@ Note: threshold-based delivery is used in Phase 3. This table is created now but
 
 ---
 
+---
+
+## 📦 Phase 4 Sub-Phases — Reservations
+
+Phase 4 is built in 4 independent sub-phases. Each sub-phase leaves the site more functional than before — never broken, never half-working.
+
+---
+
+### Sub-Phase 4A — Reservation UI Shell (v3.2.76)
+**Goal:** Full reservation frontend live and visually approved before any backend is written.
+
+| What ships |
+|---|
+| Replace static homepage form with full 3-screen mobile flow (guest stepper, date pills, Lunch/Dinner session toggle, slot grid, table dropdown, contact form, confirmation screen) |
+| Desktop 2-column layout (booking options left, contact + summary right) |
+| Responsive at 768px breakpoint — CSS only, no separate desktop JS |
+| UI-only JS: screen navigation, stepper, date selection, slot selection — no AJAX yet |
+| Submit button shows placeholder state — backend wired in 4B |
+
+**Files:**
+- EDIT `templates/page-dishdash.php` — replace static reserve form with full HTML structure
+- CREATE `assets/css/reservations.css` — all reservation styles
+- CREATE `assets/js/reservations.js` — UI-only interactions
+
+**Delivers:** Developer clicks through all screens, approves design. No bookings saved yet.
+
+---
+
+### Sub-Phase 4B — Backend Core (v3.2.77)
+**Goal:** Real bookings saved to DB. Admin can manage them. WhatsApp confirmations firing. Free bookings fully working end-to-end.
+
+| What ships |
+|---|
+| 3 new DB tables: `wp_dishdash_reservations`, `wp_dishdash_tables`, `wp_dishdash_reservation_refunds` |
+| Reservations module: AJAX handlers for submit, slot availability, table availability |
+| Booking reference generation: `RES-YYYYMMDD-XXXX` |
+| Admin Reservations page: list, status management (pending/confirmed/cancelled), WhatsApp quick-link |
+| Admin Tables manager: add/edit/delete tables, capacity, section, active toggle |
+| WhatsApp notifications: admin alert + customer confirmation on every confirmed booking |
+| `reservation_made` tracking event added to `event-schemas.php` |
+| Settings: enable/disable reservations, max guests, advance booking window, min notice hours |
+
+**Files:**
+- CREATE `modules/reservations/class-dd-reservations-module.php`
+- CREATE `modules/reservations/class-dd-reservations-admin.php`
+- CREATE `modules/reservations/class-dd-tables-admin.php`
+- EDIT `dishdash-core/class-dd-install.php` — add 3 tables via dbDelta()
+- EDIT `assets/js/reservations.js` — wire AJAX to existing UI shell
+- EDIT `modules/tracking/event-schemas.php` — add reservation_made schema
+- EDIT `dish-dash.php` — register DD_Reservations_Module
+
+**Tracking events added:** `reservation_made` — meta: `{ date, time, session, guests, source: 'homepage' }`
+
+**Deposit setting visible in UI but disabled** — clearly labelled "available soon". Never silently broken.
+
+**Delivers:** Restaurant takes real reservations. WhatsApp confirmations working. Admin manages bookings. Free to book.
+
+---
+
+### Sub-Phase 4C — Deposit System (v3.2.78)
+**Goal:** Restaurant can charge a deposit to confirm bookings. Unpaid slots auto-released.
+
+| What ships |
+|---|
+| Reservation settings page: deposit toggle (on/off), type (fixed RWF / percentage), amount, auto-cancel hours |
+| Deposit amount snapshotted at booking time into `deposit_amount` column |
+| Screen 4 added to mobile flow: payment screen |
+| WooCommerce order created for deposit payment (reuses existing payment gateways) |
+| Booking status flow: `pending_payment` → `confirmed` (paid) or auto-cancelled after X hours |
+| Deposit badge shown on Screen 1 when enabled: "X RWF deposit required" |
+| Refund policy text shown on Screen 3 review |
+
+**Files:**
+- CREATE `modules/reservations/class-dd-reservations-settings.php`
+- EDIT `assets/js/reservations.js` — Screen 4 payment flow
+- EDIT `assets/css/reservations.css` — Screen 4 styles, deposit badge
+
+**New wp_options keys:** `dd_reservation_deposit_enabled`, `dd_reservation_deposit_type`, `dd_reservation_deposit_amount`, `dd_reservation_autocancel_hours`, `dd_reservation_refund_enabled`, `dd_reservation_refund_hours`, `dd_reservation_refund_policy_text`
+
+**Delivers:** Restaurant can require deposit. No-shows cost customers. Paid bookings confirmed instantly.
+
+---
+
+### Sub-Phase 4D — Refund System (v3.2.79)
+**Goal:** Complete refund cycle. Customer requests, admin approves, customer notified.
+
+| What ships |
+|---|
+| Refund token generated and stored on every paid booking |
+| Refund link included in customer WhatsApp confirmation message |
+| Public refund request page: `/reservation/refund/?token=XYZ` |
+| Server-side eligibility check: current time vs reservation date minus `dd_reservation_refund_hours` |
+| Refund request saved to `wp_dishdash_reservation_refunds` |
+| Admin WhatsApp alert on new refund request |
+| Admin refund management: approve / reject / mark as refunded |
+| Customer WhatsApp notification when refund is processed |
+| Token is single-use, server-validated — client cannot bypass deadline |
+
+**Files:**
+- CREATE `templates/reservation/refund.php`
+- EDIT `modules/reservations/class-dd-reservations-module.php` — token generation, refund AJAX
+- EDIT `modules/reservations/class-dd-reservations-admin.php` — refund management UI
+
+**Delivers:** Full cycle complete. Phase 4 done. System handles every reservation scenario.
+
+---
+
+### Phase 4 Settings Reference
+
+| Key | Description | Default |
+|---|---|---|
+| `dd_reservation_enabled` | Enable/disable reservation feature entirely | 1 |
+| `dd_reservation_max_guests` | Maximum guests per booking | 20 |
+| `dd_reservation_days_ahead` | How many days in advance customer can book | 30 |
+| `dd_reservation_min_hours` | Minimum hours notice required | 2 |
+| `dd_reservation_deposit_enabled` | Require deposit to confirm booking | 0 |
+| `dd_reservation_deposit_type` | fixed or percent | fixed |
+| `dd_reservation_deposit_amount` | Amount (RWF or %) | 2000 |
+| `dd_reservation_autocancel_hours` | Hours before unpaid booking is auto-cancelled | 2 |
+| `dd_reservation_refund_enabled` | Allow refund requests | 1 |
+| `dd_reservation_refund_hours` | Hours before reservation that refund is allowed | 24 |
+| `dd_reservation_refund_policy_text` | Custom policy text shown to customer | — |
+
+---
+
+### Phase 4 New DB Tables
+
+**`wp_dishdash_reservations`**
+```sql
+id, booking_ref, name, whatsapp, date, time, session,
+guests, table_id, special_req, status, deposit_required,
+deposit_amount, deposit_status, deposit_paid_at, payment_ref,
+notes_admin, created_at
+```
+
+**`wp_dishdash_tables`**
+```sql
+id, name, section, capacity, is_active, sort_order, created_at
+```
+
+**`wp_dishdash_reservation_refunds`**
+```sql
+id, reservation_id, token, token_used, requested_at,
+reason, status, processed_at, admin_notes, created_at
+```
+
+---
+
 ## 🧠 AI Core Systems (Build in Phase 6)
 
 These are the 4 systems that make DishDash "smart." They are NOT built yet — we are collecting data for them NOW.
@@ -647,7 +795,8 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-29 | v3.2.15 → v3.2.40 | Cart system complete: ghost items fixed, modal from search, qty stepper, remove button, unified bottom nav, mobile cart close X, badge sync |
 | 2026-04-30 | v3.2.43 → v3.2.53 | Sub-Phase 3B complete: checkout panel, order creation, DD_Notifications class, HTML email, WhatsApp Mode A (wa.me), dynamic WC gateways, online gateway redirect flow, MTN MoMo architecture planned as Phase 9 |
 | 2026-05-05 | v3.2.70 → v3.2.75 | Sub-Phase 3E complete: mobile homepage experience. Desktop/mobile section visibility toggles per section in Homepage Settings. Food Category List mobile-only section with deep link into menu. CSS enqueue fix (frontend.css). Mobile ?cat= deep link fix. Empty category filter. |
-| **NEXT** | **v3.2.54** | **Sub-Phase 3C: Opening hours settings + UI states** |
+| 2026-05-05 | planning only | Phase 4 planned: 4-sub-phase reservation system (UI shell → backend → deposit → refund). Full user flow, data model, responsive design, deposit/refund system designed. |
+| **NEXT** | **Phase 4A (v3.2.76)** | **Reservation UI shell** |
 
 
 ## ⚡ Claude Code Operating Rules
