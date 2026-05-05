@@ -56,11 +56,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.2.53 |
-| **Current phase** | Phase 3 — Cart, Orders & Delivery |
-| **Current sub-phase** | 3B complete → 3C starting (Opening Hours) |
-| **Next task** | v3.2.54 — Opening hours settings + UI states |
-| **Last working state** | Phase 2 complete. Mobile 3-screen menu live. Desktop menu polished. Deep links working. Tracking validated. DD_API live. Schema enforcement at 0% failure. |
+| **Deployed version** | v3.2.75 |
+| **Current phase** | Phase 4 — Reservations |
+| **Current sub-phase** | 4A — Table Booking (starting now) |
+| **Next task** | v3.2.76 — Reservation form wiring + booking storage |
+| **Last working state** | Phase 3 complete. Cart, orders, checkout, WhatsApp notifications, birthday flow, opening hours, mobile homepage with Food Category List all live. Desktop/mobile section visibility toggles working. Deep link from category list to product list working. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -250,7 +250,7 @@ dish-dash/
 |---|---|---|---|
 | **Phase 1** | ✅ | Foundation (plugin, GitHub updater, WooCommerce integration) | — |
 | **Phase 2** | ✅ | Template System (header, hero, footer, branding, mobile 3-screen menu) | Track: viewed products, clicked categories, search queries |
-| **Phase 3** | 🔄 | Cart, Orders, Delivery & WhatsApp — broken into 4 sub-phases (see Phase 3 Sub-Phases section below) | Save: order content, time, frequency, user WhatsApp identity, delivery preferences, cart behavior, open-hour visit patterns |
+| **Phase 3** | ✅ | Cart, Orders, Delivery & WhatsApp — broken into 4 sub-phases (see Phase 3 Sub-Phases section below) | Save: order content, time, frequency, user WhatsApp identity, delivery preferences, cart behavior, open-hour visit patterns |
 | **Phase 4** | ⏳ | Reservations (table booking, notifications) | Track: booking time patterns, group size → future: suggest time slots |
 | **Phase 5** | ⏳ | Backend Dashboard (admin analytics, insights) | Show: top products, peak hours, repeat customers, suggested combos |
 | **Phase 6** | ⏳ | Analytics + AI (Python microservice, behavior engine, recommendations) | AI Rules Engine, User Profile Engine, Smart Nudges |
@@ -646,6 +646,7 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-16/21 | v3.2.0 → v3.2.12 | Phase 2 complete: mobile 3-screen menu live, cart badge UI |
 | 2026-04-29 | v3.2.15 → v3.2.40 | Cart system complete: ghost items fixed, modal from search, qty stepper, remove button, unified bottom nav, mobile cart close X, badge sync |
 | 2026-04-30 | v3.2.43 → v3.2.53 | Sub-Phase 3B complete: checkout panel, order creation, DD_Notifications class, HTML email, WhatsApp Mode A (wa.me), dynamic WC gateways, online gateway redirect flow, MTN MoMo architecture planned as Phase 9 |
+| 2026-05-05 | v3.2.70 → v3.2.75 | Sub-Phase 3E complete: mobile homepage experience. Desktop/mobile section visibility toggles per section in Homepage Settings. Food Category List mobile-only section with deep link into menu. CSS enqueue fix (frontend.css). Mobile ?cat= deep link fix. Empty category filter. |
 | **NEXT** | **v3.2.54** | **Sub-Phase 3C: Opening hours settings + UI states** |
 
 
