@@ -166,6 +166,7 @@ class DD_Template_Module extends DD_Module {
         $dark    = get_option( 'dish_dash_dark_color',    '#160F0D' );
 
         wp_enqueue_style(  'dish-dash-theme',    $plugin_url . '/assets/css/theme.css',    [], DD_VERSION );
+        wp_enqueue_style(  'dish-dash-frontend', DD_PLUGIN_URL . 'assets/css/frontend.css', [ 'dish-dash-theme' ], DD_VERSION );
         wp_enqueue_style(  'dish-dash-menu',     $plugin_url . '/assets/css/menu.css',     [], DD_VERSION );
         wp_enqueue_style(  'dish-dash-cart',     $plugin_url . '/assets/css/cart.css',     [], DD_VERSION );
         wp_enqueue_script( 'dish-dash-menu',     $plugin_url . '/assets/js/menu.js',     [], DD_VERSION, true );

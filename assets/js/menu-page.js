@@ -383,6 +383,20 @@ class DDMobileMenu {
 
         // Update cart count
         this.updateCartCount(DD_MOBILE_DATA.cartCount || 0);
+
+        // Deep link: if ?cat= param present, navigate directly to product list
+        var deepCat = new URLSearchParams(window.location.search).get('cat');
+        if (deepCat && this.elements.catList) {
+            var item = this.elements.catList.querySelector('[data-cat-slug="' + deepCat + '"]');
+            if (item) {
+                this.currentCategory = {
+                    id: item.dataset.catId,
+                    slug: item.dataset.catSlug
+                };
+                this.loadProductsForCategory(item.dataset.catId);
+                this.showScreen('products');
+            }
+        }
     }
 
     showScreen(screenName) {
