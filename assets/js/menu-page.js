@@ -253,6 +253,11 @@ class DDMobileMenu {
                     p.classList.remove('is-active')
                 );
                 pill.classList.add('is-active');
+                var container = this.elements.catPills;
+                var pillLeft = pill.offsetLeft;
+                var pillWidth = pill.offsetWidth;
+                var containerWidth = container.offsetWidth;
+                container.scrollLeft = pillLeft - (containerWidth / 2) + (pillWidth / 2);
                 this.currentCategory = {
                     id: pill.dataset.catId,
                     slug: pill.dataset.catSlug || ''
