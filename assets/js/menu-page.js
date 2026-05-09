@@ -402,6 +402,11 @@ class DDMobileMenu {
                     var activePill = this.elements.catPills.querySelector('[data-cat-slug="' + deepCat + '"]');
                     if (activePill) {
                         activePill.classList.add('is-active');
+                        var container = this.elements.catPills;
+                        var pillLeft = activePill.offsetLeft;
+                        var pillWidth = activePill.offsetWidth;
+                        var containerWidth = container.offsetWidth;
+                        container.scrollLeft = pillLeft - (containerWidth / 2) + (pillWidth / 2);
                     }
                 }
             }
