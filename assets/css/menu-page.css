@@ -277,6 +277,12 @@
   }
 
   /* ── Screen 2: Product List ── */
+  .dd-mobile-cat-pills-wrapper {
+    position: sticky;
+    top: 56px;
+    background: #F5EFE6;
+    z-index: 10;
+  }
   .dd-mobile-cat-pills {
     display: flex;
     gap: 8px;
@@ -284,10 +290,6 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     padding: 12px 20px;
-    position: sticky;
-    top: 56px;
-    background: #F5EFE6;
-    z-index: 5;
   }
   .dd-mobile-cat-pills::-webkit-scrollbar { display: none; }
   .dd-mobile-cat-pill {

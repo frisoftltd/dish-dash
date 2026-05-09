@@ -240,12 +240,14 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
     </div>
 
     <!-- Category pill tabs (horizontal scroll, no arrows) -->
+    <div class="dd-mobile-cat-pills-wrapper">
     <div class="dd-mobile-cat-pills" id="dd-mobile-cat-pills">
       <?php foreach ( $categories as $i => $cat ) : ?>
         <button class="dd-mobile-cat-pill<?php echo $i === 0 ? ' is-active' : ''; ?>" data-cat-id="<?php echo $cat->term_id; ?>" data-cat-slug="<?php echo esc_attr( $cat->slug ); ?>">
           <?php echo $cat->name; ?>
         </button>
       <?php endforeach; ?>
+    </div>
     </div>
 
     <!-- Product cards list -->
