@@ -397,6 +397,13 @@ class DDMobileMenu {
                 this.showScreen('products');
             }
         }
+        if (deepCat && this.elements.catPills) {
+            Array.from(this.elements.catPills.children).forEach(function(p) {
+                p.classList.remove('is-active');
+            });
+            var activePill = this.elements.catPills.querySelector('[data-cat-id="' + (this.currentCategory && this.currentCategory.id) + '"]');
+            if (activePill) activePill.classList.add('is-active');
+        }
     }
 
     showScreen(screenName) {
