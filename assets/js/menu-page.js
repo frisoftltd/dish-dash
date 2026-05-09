@@ -232,6 +232,23 @@ class DDMobileMenu {
                 };
                 this.showScreen('products');
                 this.loadProductsForCategory(this.currentCategory.id);
+
+                if (this.elements.catPills) {
+                    Array.from(this.elements.catPills.children).forEach(function(p) {
+                        p.classList.remove('is-active');
+                    });
+                    var activePill = this.elements.catPills.querySelector('[data-cat-slug="' + item.dataset.catSlug + '"]');
+                    if (activePill) {
+                        activePill.classList.add('is-active');
+                        var container = this.elements.catPills;
+                        requestAnimationFrame(function() {
+                            var pillLeft = activePill.offsetLeft;
+                            var pillWidth = activePill.offsetWidth;
+                            var containerWidth = container.offsetWidth;
+                            container.scrollLeft = pillLeft - (containerWidth / 2) + (pillWidth / 2);
+                        });
+                    }
+                }
             });
         }
 
