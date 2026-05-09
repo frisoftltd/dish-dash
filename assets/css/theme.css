@@ -1210,6 +1210,10 @@ body.dd-page .ast-header-woo-cart {
     display: none !important;
 }
 
+.dd-cat-row[hidden] + .dd-load-more-btn {
+    display: none !important;
+}
+
 .dd-cat-row:not([hidden]) {
     display: flex !important;
     flex-wrap: nowrap !important;
