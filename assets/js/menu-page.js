@@ -399,8 +399,11 @@ class DDMobileMenu {
                     Array.from(this.elements.catPills.children).forEach(function(p) {
                         p.classList.remove('is-active');
                     });
-                    var activePill = this.elements.catPills.querySelector('[data-cat-id="' + item.dataset.catId + '"]');
-                    if (activePill) activePill.classList.add('is-active');
+                    var activePill = this.elements.catPills.querySelector('[data-cat-slug="' + deepCat + '"]');
+                    if (activePill) {
+                        activePill.classList.add('is-active');
+                        activePill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }
                 }
             }
         }
