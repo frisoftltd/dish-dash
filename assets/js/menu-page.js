@@ -254,10 +254,12 @@ class DDMobileMenu {
                 );
                 pill.classList.add('is-active');
                 var container = this.elements.catPills;
-                var pillLeft = pill.offsetLeft;
-                var pillWidth = pill.offsetWidth;
-                var containerWidth = container.offsetWidth;
-                container.scrollLeft = pillLeft - (containerWidth / 2) + (pillWidth / 2);
+                requestAnimationFrame(function() {
+                    var pillLeft = pill.offsetLeft;
+                    var pillWidth = pill.offsetWidth;
+                    var containerWidth = container.offsetWidth;
+                    container.scrollLeft = pillLeft - (containerWidth / 2) + (pillWidth / 2);
+                });
                 this.currentCategory = {
                     id: pill.dataset.catId,
                     slug: pill.dataset.catSlug || ''
@@ -410,10 +412,12 @@ class DDMobileMenu {
                     if (activePill) {
                         activePill.classList.add('is-active');
                         var container = this.elements.catPills;
-                        var pillLeft = activePill.offsetLeft;
-                        var pillWidth = activePill.offsetWidth;
-                        var containerWidth = container.offsetWidth;
-                        container.scrollLeft = pillLeft - (containerWidth / 2) + (pillWidth / 2);
+                        requestAnimationFrame(function() {
+                            var pillLeft = activePill.offsetLeft;
+                            var pillWidth = activePill.offsetWidth;
+                            var containerWidth = container.offsetWidth;
+                            container.scrollLeft = pillLeft - (containerWidth / 2) + (pillWidth / 2);
+                        });
                     }
                 }
             }
