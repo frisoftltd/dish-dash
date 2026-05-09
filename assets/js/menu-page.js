@@ -402,7 +402,6 @@ class DDMobileMenu {
                     var activePill = this.elements.catPills.querySelector('[data-cat-slug="' + deepCat + '"]');
                     if (activePill) {
                         activePill.classList.add('is-active');
-                        activePill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                     }
                 }
             }
