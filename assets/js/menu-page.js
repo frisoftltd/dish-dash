@@ -253,8 +253,10 @@ class DDMobileMenu {
                     p.classList.remove('is-active')
                 );
                 pill.classList.add('is-active');
-
-                this.currentCategory.id = pill.dataset.catId;
+                this.currentCategory = {
+                    id: pill.dataset.catId,
+                    slug: pill.dataset.catSlug || ''
+                };
                 this.loadProductsForCategory(this.currentCategory.id);
             });
         }
