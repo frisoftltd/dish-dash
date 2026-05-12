@@ -32,6 +32,8 @@
   box-shadow: var(--dd-shadow-lg, 0 24px 60px rgba(0,0,0,0.18));
   display: grid;
   grid-template-columns: 1fr;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── Progress dots (mobile) ──────────────────────────────── */
@@ -368,6 +370,7 @@
   padding: 32px 28px;
   color: #fff;
   height: 100%;
+  min-height: 100%;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -450,10 +453,12 @@
   /* Screen 2 always visible in left col on desktop */
   #dd-res-screen-2 { margin-top: 32px; }
 
-  /* Screen 3 fills right col */
+  /* Right col: always visible, no padding (confirm card handles its own) */
   .dd-res-right {
+    display: block;
     padding: 0;
     background: transparent;
+    min-height: 100%;
   }
 
   .dd-res-confirm-card {
