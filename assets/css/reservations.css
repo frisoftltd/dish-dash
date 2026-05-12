@@ -61,6 +61,7 @@
 .dd-res-left,
 .dd-res-right {
   padding: 36px 28px;
+  min-width: 0;
 }
 
 .dd-res-screen { display: block; }
