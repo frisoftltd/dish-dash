@@ -796,6 +796,7 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-04-30 | v3.2.43 → v3.2.53 | Sub-Phase 3B complete: checkout panel, order creation, DD_Notifications class, HTML email, WhatsApp Mode A (wa.me), dynamic WC gateways, online gateway redirect flow, MTN MoMo architecture planned as Phase 9 |
 | 2026-05-05 | v3.2.70 → v3.2.75 | Sub-Phase 3E complete: mobile homepage experience. Desktop/mobile section visibility toggles per section in Homepage Settings. Food Category List mobile-only section with deep link into menu. CSS enqueue fix (frontend.css). Mobile ?cat= deep link fix. Empty category filter. |
 | 2026-05-05 | planning only | Phase 4 planned: 4-sub-phase reservation system (UI shell → backend → deposit → refund). Full user flow, data model, responsive design, deposit/refund system designed. |
+| 2026-05-09 | v3.2.76 | Post-import recovery: product categories rebuilt, WooCommerce resync, 839MB→157MB image compression, mobile pill strip fixed, spice attributes restored, Load More fixed, deep link navigation fixed |
 | **NEXT** | **Phase 4A (v3.2.76)** | **Reservation UI shell** |
 
 
