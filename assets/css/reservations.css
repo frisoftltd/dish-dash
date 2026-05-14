@@ -224,7 +224,40 @@
 /* Date scroll fade indicator — applied via direct class to avoid :has() compat issues */
 .dd-res-date-wrap {
   position: relative;
+  padding: 0 36px;
 }
+
+.dd-res-date-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--dd-line, #EADfCE);
+  background: #fff;
+  color: var(--brand, #65040d);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: inherit;
+  padding: 0;
+  line-height: 1;
+}
+
+.dd-res-date-arrow:hover {
+  border-color: var(--brand, #65040d);
+  background: var(--brand, #65040d);
+  color: #fff;
+}
+
+.dd-res-date-arrow--left { left: 0; }
+.dd-res-date-arrow--right { right: 0; }
 
 .dd-res-date-wrap::after {
   content: '';

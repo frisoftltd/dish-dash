@@ -548,7 +548,9 @@ if ( $food_cat_mob ) :
         <div class="dd-res-field-block">
           <label class="dd-res-label">📅 Date</label>
           <div class="dd-res-date-wrap">
+            <button class="dd-res-date-arrow dd-res-date-arrow--left" id="dd-res-date-prev" aria-label="Previous dates" type="button">‹</button>
             <div class="dd-res-date-scroll" id="dd-res-dates" role="listbox" aria-label="Select date"></div>
+            <button class="dd-res-date-arrow dd-res-date-arrow--right" id="dd-res-date-next" aria-label="Next dates" type="button">›</button>
           </div>
         </div>
 

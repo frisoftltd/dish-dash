@@ -114,6 +114,15 @@
       frag.appendChild(pill);
     }
     container.appendChild(frag);
+
+    // Arrow scroll buttons
+    const scrollBy = 200;
+    $('#dd-res-date-prev')?.addEventListener('click', () => {
+      container.scrollBy({ left: -scrollBy, behavior: 'smooth' });
+    });
+    $('#dd-res-date-next')?.addEventListener('click', () => {
+      container.scrollBy({ left: scrollBy, behavior: 'smooth' });
+    });
   }
 
   // ── Time slots ────────────────────────────────────────────
