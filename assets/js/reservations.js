@@ -69,6 +69,12 @@
   function openModal() {
     const overlay = $('#dd-res-overlay');
     if (!overlay) return;
+
+    // Strip #reserve hash from URL so back-button + scroll restoration won't jump
+    if (window.location.hash === '#reserve') {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+
     overlay.classList.add('dd-res-overlay--open');
     overlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
