@@ -109,7 +109,7 @@ class DD_Template_Module extends DD_Module {
             <a href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>" class="dd-bottom-link">
                 <span class="dd-bottom-link__icon">&#127859;</span><span>Menu</span>
             </a>
-            <a href="<?php echo esc_url( home_url( '/reserve-table/' ) ); ?>" class="dd-bottom-link">
+            <a href="<?php echo esc_url( home_url( '/#reserve' ) ); ?>" class="dd-bottom-link js-open-reservation">
                 <span class="dd-bottom-link__icon">&#127860;</span><span>Reserve</span>
             </a>
             <button class="dd-bottom-link" id="ddBottomCartBtn" type="button">
@@ -836,7 +836,7 @@ class DD_Template_Module extends DD_Module {
                     <ul class="dd-footer__list">
                         <li><a href="<?php echo esc_url( $home_url ); ?>">Home</a></li>
                         <li><a href="<?php echo esc_url( home_url('/restaurant-menu/') ); ?>">Our Menu</a></li>
-                        <li><a href="<?php echo esc_url( home_url('/reserve-table/') ); ?>">Reserve Table</a></li>
+                        <li><a href="<?php echo esc_url( home_url('/#reserve') ); ?>" class="js-open-reservation">Reserve Table</a></li>
                         <li><a href="<?php echo esc_url( $orders_url ); ?>">Track Order</a></li>
                     </ul>
                 </div>

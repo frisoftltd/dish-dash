@@ -34,6 +34,12 @@
   function init() {
     if (!$('#dd-res-overlay')) return;
 
+    // Auto-open if landing on page with #reserve hash
+    if (window.location.hash === '#reserve') {
+      // Wait a frame to ensure other init finishes
+      setTimeout(() => openModal(), 100);
+    }
+
     buildDatePills();
     buildSlots('lunch');
     bindOpenClose();
