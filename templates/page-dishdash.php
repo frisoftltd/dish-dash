@@ -500,159 +500,149 @@ if ( $food_cat_mob ) :
 </section>
 <?php endif; ?>
 
-<!-- ── RESERVATIONS ─────────────────────────────────────────── -->
+<!-- ── RESERVATIONS ─────────────────────────────────────────────────────────── -->
 <section class="dd-reserve" id="reserve">
-  <div class="dd-container">
-
-    <!-- Section label + title (visible on both layouts) -->
-    <div class="dd-reserve__header">
+  <div class="dd-container dd-reserve__inner">
+    <div class="dd-reserve__text">
       <div class="dd-section__label">Reserve your table</div>
       <h2 class="dd-reserve__title dd-serif">A dining experience that feels as rich as the food.</h2>
-      <p class="dd-reserve__copy">Whether you're planning a quiet dinner for two or a celebration with family — reserve your table in seconds.</p>
+      <p class="dd-reserve__copy">Whether you&#39;re planning a quiet dinner for two or a celebration with family — reserve your table in seconds.</p>
+    </div>
+    <button class="dd-reserve__cta" id="dd-open-reservation">
+      📅 Reserve a Table
+    </button>
+  </div>
+</section>
+<!-- ── /RESERVATIONS ─────────────────────────────────────────────────────── -->
+
+<!-- ── RESERVATION MODAL ───────────────────────────────────────────────── -->
+<div class="dd-res-overlay" id="dd-res-overlay" aria-hidden="true">
+  <div class="dd-res-modal" role="dialog" aria-modal="true" aria-label="Reserve a table">
+
+    <!-- Modal header -->
+    <div class="dd-res-modal__header">
+      <div class="dd-res-modal__title">Reserve a Table</div>
+      <button class="dd-res-modal__close" id="dd-res-close" aria-label="Close">✕</button>
     </div>
 
-    <!-- Card wrapper — becomes 2-col on desktop -->
-    <div class="dd-res-card">
+    <!-- Progress bar -->
+    <div class="dd-res-progress" role="progressbar" aria-valuemin="1" aria-valuemax="4">
+      <div class="dd-res-progress__track">
+        <div class="dd-res-progress__fill" id="dd-res-progress-fill"></div>
+      </div>
+      <div class="dd-res-progress__steps">
+        <span class="dd-res-step dd-res-step--active" data-step="1">Date</span>
+        <span class="dd-res-step" data-step="2">Guests</span>
+        <span class="dd-res-step" data-step="3">Details</span>
+        <span class="dd-res-step" data-step="4">Confirm</span>
+      </div>
+    </div>
 
-      <!-- LEFT COLUMN (mobile: all screens stack; desktop: always visible) -->
-      <div class="dd-res-left">
+    <!-- Modal body (screens) -->
+    <div class="dd-res-modal__body">
 
-        <!-- Progress dots (mobile only) -->
-        <div class="dd-res-dots" aria-hidden="true">
-          <span class="dd-res-dot dd-res-dot--active" data-screen="1"></span>
-          <span class="dd-res-dot" data-screen="2"></span>
-          <span class="dd-res-dot" data-screen="3"></span>
+      <!-- SCREEN 1 — Date & Session & Time -->
+      <div class="dd-res-screen" id="dd-res-screen-1">
+        <div class="dd-res-screen__title">When would you like to visit?</div>
+
+        <div class="dd-res-field-block">
+          <label class="dd-res-label">📅 Date</label>
+          <div class="dd-res-date-scroll" id="dd-res-dates" role="listbox" aria-label="Select date"></div>
         </div>
 
-        <!-- SCREEN 1 — Booking details -->
-        <div class="dd-res-screen" id="dd-res-screen-1">
-
-          <!-- Guests stepper -->
-          <div class="dd-res-field-block">
-            <label class="dd-res-label">👥 Guests</label>
-            <div class="dd-res-stepper">
-              <button class="dd-res-stepper__btn" id="dd-guests-minus" aria-label="Fewer guests">−</button>
-              <span class="dd-res-stepper__val" id="dd-guests-val">2</span>
-              <button class="dd-res-stepper__btn" id="dd-guests-plus" aria-label="More guests">+</button>
-            </div>
+        <div class="dd-res-field-block">
+          <label class="dd-res-label">🍽 Session</label>
+          <div class="dd-res-toggle" role="group">
+            <button class="dd-res-toggle__btn dd-res-toggle__btn--active" data-session="lunch">Lunch</button>
+            <button class="dd-res-toggle__btn" data-session="dinner">Dinner</button>
           </div>
+        </div>
 
-          <!-- Date pills -->
-          <div class="dd-res-field-block">
-            <label class="dd-res-label">📅 Date</label>
-            <div class="dd-res-date-scroll" id="dd-res-dates" role="listbox" aria-label="Select date">
-              <!-- Populated by reservations.js -->
-            </div>
+        <div class="dd-res-field-block">
+          <label class="dd-res-label">🕐 Time</label>
+          <div class="dd-res-slots" id="dd-res-slots" role="listbox" aria-label="Select time"></div>
+        </div>
+      </div>
+
+      <!-- SCREEN 2 — Guests & Table -->
+      <div class="dd-res-screen dd-res-screen--hidden" id="dd-res-screen-2">
+        <div class="dd-res-screen__title">Who&#39;s joining you?</div>
+
+        <div class="dd-res-field-block">
+          <label class="dd-res-label">👥 Number of guests</label>
+          <div class="dd-res-stepper">
+            <button class="dd-res-stepper__btn" id="dd-guests-minus" aria-label="Fewer guests">−</button>
+            <span class="dd-res-stepper__val" id="dd-guests-val">2</span>
+            <button class="dd-res-stepper__btn" id="dd-guests-plus" aria-label="More guests">+</button>
           </div>
+        </div>
 
-          <!-- Session toggle -->
-          <div class="dd-res-field-block">
-            <label class="dd-res-label">🍽 Session</label>
-            <div class="dd-res-toggle" role="group" aria-label="Meal session">
-              <button class="dd-res-toggle__btn dd-res-toggle__btn--active" data-session="lunch">Lunch</button>
-              <button class="dd-res-toggle__btn" data-session="dinner">Dinner</button>
-            </div>
-          </div>
+        <div class="dd-res-field-block">
+          <label class="dd-res-label" for="dd-res-table">🪱 Table preference</label>
+          <select class="dd-res-select" id="dd-res-table" name="dd_table">
+            <option value="">No preference</option>
+            <option value="indoor">Indoor</option>
+            <option value="outdoor">Outdoor (terrace)</option>
+            <option value="private">Private room</option>
+          </select>
+        </div>
+      </div>
 
-          <!-- Time slots -->
-          <div class="dd-res-field-block">
-            <label class="dd-res-label">🕐 Time</label>
-            <div class="dd-res-slots" id="dd-res-slots" role="listbox" aria-label="Select time slot">
-              <!-- Populated by reservations.js -->
-            </div>
-          </div>
+      <!-- SCREEN 3 — Contact details -->
+      <div class="dd-res-screen dd-res-screen--hidden" id="dd-res-screen-3">
+        <div class="dd-res-screen__title">Your contact details</div>
 
-          <!-- Table preference -->
-          <div class="dd-res-field-block">
-            <label class="dd-res-label" for="dd-res-table">🪑 Table preference</label>
-            <select class="dd-res-select" id="dd-res-table" name="dd_table">
-              <option value="">No preference</option>
-              <option value="indoor">Indoor</option>
-              <option value="outdoor">Outdoor (terrace)</option>
-              <option value="private">Private room</option>
-            </select>
-          </div>
+        <div class="dd-res-field-block">
+          <label class="dd-res-label" for="dd-res-name">👤 Full name</label>
+          <input class="dd-res-input" type="text" id="dd-res-name" name="dd_name"
+                 placeholder="Your name" autocomplete="name" required>
+        </div>
 
-          <button class="dd-res-next-btn" id="dd-res-next-1">
-            Continue <span aria-hidden="true">→</span>
-          </button>
+        <div class="dd-res-field-block">
+          <label class="dd-res-label" for="dd-res-whatsapp">📱 WhatsApp number</label>
+          <input class="dd-res-input" type="tel" id="dd-res-whatsapp" name="dd_whatsapp"
+                 placeholder="+250 78 000 0000" autocomplete="tel" required>
+        </div>
 
-        </div><!-- /screen-1 -->
+        <div class="dd-res-field-block">
+          <label class="dd-res-label" for="dd-res-requests">
+            💬 Special requests <span class="dd-res-optional">(optional)</span>
+          </label>
+          <textarea class="dd-res-input dd-res-textarea" id="dd-res-requests"
+                    rows="3" placeholder="Dietary requirements, occasion, seating preference…"></textarea>
+        </div>
+      </div>
 
-        <!-- SCREEN 2 — Contact details -->
-        <div class="dd-res-screen dd-res-screen--hidden" id="dd-res-screen-2">
+      <!-- SCREEN 4 — Confirm -->
+      <div class="dd-res-screen dd-res-screen--hidden" id="dd-res-screen-4">
+        <div class="dd-res-screen__title">Confirm your booking</div>
 
-          <!-- Summary strip -->
-          <div class="dd-res-summary-strip" id="dd-res-strip-2">
-            <!-- Filled by JS -->
-          </div>
+        <div class="dd-res-confirm-card">
+          <div class="dd-res-confirm-ref" id="dd-res-ref">RES-––––––-XXXX</div>
+          <ul class="dd-res-confirm-list" id="dd-res-confirm-list">
+            <li><span class="dd-res-confirm-icon">📅</span><span id="dd-sum-date">—</span></li>
+            <li><span class="dd-res-confirm-icon">🕐</span><span id="dd-sum-time">—</span></li>
+            <li><span class="dd-res-confirm-icon">🍽</span><span id="dd-sum-session">—</span></li>
+            <li><span class="dd-res-confirm-icon">👥</span><span id="dd-sum-guests">—</span></li>
+            <li><span class="dd-res-confirm-icon">🪱</span><span id="dd-sum-table">—</span></li>
+            <li class="dd-res-confirm-divider"></li>
+            <li><span class="dd-res-confirm-icon">👤</span><span id="dd-sum-name">—</span></li>
+            <li><span class="dd-res-confirm-icon">📱</span><span id="dd-sum-wa">—</span></li>
+          </ul>
+        </div>
+      </div>
 
-          <div class="dd-res-field-block">
-            <label class="dd-res-label" for="dd-res-name">👤 Full name</label>
-            <input class="dd-res-input" type="text" id="dd-res-name" name="dd_name"
-                   placeholder="Your name" autocomplete="name" required>
-          </div>
+    </div><!-- /modal body -->
 
-          <div class="dd-res-field-block">
-            <label class="dd-res-label" for="dd-res-whatsapp">📱 WhatsApp number</label>
-            <input class="dd-res-input" type="tel" id="dd-res-whatsapp" name="dd_whatsapp"
-                   placeholder="+250 78 000 0000" autocomplete="tel" required>
-          </div>
+    <!-- Modal footer (navigation) -->
+    <div class="dd-res-modal__footer">
+      <button class="dd-res-back-btn" id="dd-res-back" style="visibility:hidden">← Back</button>
+      <button class="dd-res-next-btn" id="dd-res-next">Continue →</button>
+    </div>
 
-          <div class="dd-res-field-block">
-            <label class="dd-res-label" for="dd-res-requests">💬 Special requests <span class="dd-res-optional">(optional)</span></label>
-            <textarea class="dd-res-input dd-res-textarea" id="dd-res-requests" name="dd_requests"
-                      rows="3" placeholder="Dietary requirements, occasion, seating preference…"></textarea>
-          </div>
-
-          <div class="dd-res-btn-row">
-            <button class="dd-res-back-btn" id="dd-res-back-2">← Back</button>
-            <button class="dd-res-next-btn" id="dd-res-next-2">Review booking →</button>
-          </div>
-
-        </div><!-- /screen-2 -->
-
-      </div><!-- /left -->
-
-      <!-- RIGHT COLUMN (desktop: always visible; mobile: screen 3) -->
-      <div class="dd-res-right">
-
-        <!-- SCREEN 3 / desktop summary panel -->
-        <div class="dd-res-screen" id="dd-res-screen-3">
-
-          <div class="dd-res-confirm-card">
-            <div class="dd-res-confirm-title">Your booking</div>
-
-            <div class="dd-res-confirm-ref" id="dd-res-ref">RES-––––––-XXXX</div>
-
-            <ul class="dd-res-confirm-list" id="dd-res-confirm-list">
-              <li><span class="dd-res-confirm-icon">👥</span> <span id="dd-sum-guests">2 guests</span></li>
-              <li><span class="dd-res-confirm-icon">📅</span> <span id="dd-sum-date">—</span></li>
-              <li><span class="dd-res-confirm-icon">🕐</span> <span id="dd-sum-time">—</span></li>
-              <li><span class="dd-res-confirm-icon">🍽</span> <span id="dd-sum-session">Lunch</span></li>
-              <li><span class="dd-res-confirm-icon">🪑</span> <span id="dd-sum-table">No preference</span></li>
-              <li class="dd-res-confirm-divider"></li>
-              <li><span class="dd-res-confirm-icon">👤</span> <span id="dd-sum-name">—</span></li>
-              <li><span class="dd-res-confirm-icon">📱</span> <span id="dd-sum-wa">—</span></li>
-            </ul>
-
-            <button class="dd-res-confirm-btn" id="dd-res-submit">
-              ✅ Confirm reservation
-            </button>
-
-            <!-- Back button — mobile only inside screen 3 -->
-            <button class="dd-res-back-btn dd-res-back--mobile" id="dd-res-back-3">← Edit details</button>
-          </div>
-
-        </div><!-- /screen-3 -->
-
-      </div><!-- /right -->
-
-    </div><!-- /dd-res-card -->
-
-  </div><!-- /dd-container -->
-</section>
-<!-- ── /RESERVATIONS ─────────────────────────────────────── -->
+  </div><!-- /modal -->
+</div>
+<!-- ── /RESERVATION MODAL ─────────────────────────────────────────────────── -->
 
 <!-- ══ SELECTED CATEGORY ════════════════════════════════════════════════════ -->
 <?php if ( $selcat_vis && ! empty( $dd_selcat_cats ) ) : ?>
