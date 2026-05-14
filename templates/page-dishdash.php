@@ -294,7 +294,7 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
             <p class="dd-hero__copy"><?php echo esc_html( $dd_h_sub ); ?></p>
             <div class="dd-hero__actions">
                 <a href="<?php echo esc_url( $dd_btn1_link ); ?>" class="dd-btn dd-btn--brand"><?php echo esc_html( $dd_btn1_label ); ?></a>
-                <a href="<?php echo esc_url( $dd_btn2_link ); ?>" class="dd-btn dd-btn--outline"><?php echo esc_html( $dd_btn2_label ); ?></a>
+                <a href="<?php echo esc_url( $dd_btn2_link ); ?>" class="dd-btn dd-btn--outline js-open-reservation"><?php echo esc_html( $dd_btn2_label ); ?></a>
                 <a href="<?php echo esc_url( $dd_btn3_link ); ?>" class="dd-btn dd-btn--soft"><?php echo esc_html( $dd_btn3_label ); ?></a>
             </div>
             <?php if ( $dd_show_chips ) : ?>
