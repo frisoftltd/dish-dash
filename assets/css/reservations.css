@@ -287,10 +287,10 @@
 
 .dd-res-date-pill:hover { border-color: var(--brand, #65040d); }
 
-.dd-res-date-pill--selected {
+.dd-res-date-pill.dd-res-date-pill--selected {
   background: var(--brand, #65040d);
   border-color: var(--brand, #65040d);
-  color: #fff;
+  color: #fff !important;
 }
 
 .dd-res-date-pill__day {
@@ -346,9 +346,9 @@
   border-right: 1.5px solid var(--dd-line, #EADfCE);
 }
 
-.dd-res-toggle__btn--active {
+.dd-res-toggle__btn.dd-res-toggle__btn--active {
   background: var(--brand, #65040d);
-  color: #fff;
+  color: #fff !important;
 }
 
 /* ── Time slots ──────────────────────────────────────────── */
@@ -374,10 +374,10 @@
 
 .dd-res-slot:hover { border-color: var(--brand, #65040d); color: var(--brand, #65040d); }
 
-.dd-res-slot--selected {
+.dd-res-slot.dd-res-slot--selected {
   background: var(--brand, #65040d);
   border-color: var(--brand, #65040d);
-  color: #fff;
+  color: #fff !important;
 }
 
 /* ── Stepper ─────────────────────────────────────────────── */
