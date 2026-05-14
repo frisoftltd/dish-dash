@@ -215,12 +215,30 @@
   padding-bottom: 6px;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
 }
 
 .dd-res-date-scroll::-webkit-scrollbar { display: none; }
 
+.dd-res-field-block:has(.dd-res-date-scroll) {
+  position: relative;
+}
+
+.dd-res-field-block:has(.dd-res-date-scroll)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 6px;
+  width: 48px;
+  background: linear-gradient(to right, transparent, var(--dd-surface, #FBF7F1));
+  pointer-events: none;
+  border-radius: 0 12px 12px 0;
+}
+
 .dd-res-date-pill {
   flex: 0 0 auto;
+  scroll-snap-align: start;
   display: flex;
   flex-direction: column;
   align-items: center;
