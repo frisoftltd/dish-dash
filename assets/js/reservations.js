@@ -45,25 +45,15 @@
 
   // ── Open / Close ──────────────────────────────────────────
   function bindOpenClose() {
-    const openBtns = $all('#dd-open-reservation, .js-open-reservation, .dd-hero__reserve');
-    openBtns.forEach(btn => {
-      if (!btn) return;
-      btn.addEventListener('click', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        openModal();
-      });
-    });
-
-    // Catch any other [href="#reserve"] links that exist outside the JS init
+    // Capture-phase document delegate — runs BEFORE other handlers (smooth scroll, etc)
     document.addEventListener('click', e => {
-      const link = e.target.closest('a[href="#reserve"]');
-      if (!link) return;
-      if (link.classList.contains('js-open-reservation')) return; // already bound
+      const trigger = e.target.closest('#dd-open-reservation, .js-open-reservation, .dd-hero__reserve, a[href="#reserve"]');
+      if (!trigger) return;
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       openModal();
-    });
+    }, true); // ← true = capture phase
 
     $('#dd-res-close')?.addEventListener('click', closeModal);
 
