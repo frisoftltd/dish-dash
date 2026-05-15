@@ -161,38 +161,50 @@ class DD_Install {
 
         // ── Tables (dining) ───────────────────────────────────────────────────
         dbDelta( "CREATE TABLE {$prefix}dishdash_tables (
-            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            branch_id       BIGINT UNSIGNED NOT NULL,
-            name            VARCHAR(100) NOT NULL DEFAULT '',
-            capacity        INT UNSIGNED NOT NULL DEFAULT 4,
-            qr_code         VARCHAR(255)           DEFAULT NULL,
-            status          ENUM('available','occupied','reserved') NOT NULL DEFAULT 'available',
-            is_active       TINYINT(1)   NOT NULL DEFAULT 1,
-            PRIMARY KEY (id),
-            KEY branch_id (branch_id),
-            KEY status (status)
+            id          INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            name        VARCHAR(100) NOT NULL,
+            capacity    TINYINT UNSIGNED NOT NULL DEFAULT 2,
+            section     VARCHAR(20)  NOT NULL DEFAULT 'indoor',
+            is_active   TINYINT(1)   NOT NULL DEFAULT 1,
+            sort_order  SMALLINT     NOT NULL DEFAULT 0,
+            created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id)
         ) $charset;" );
 
         // ── Reservations ──────────────────────────────────────────────────────
         dbDelta( "CREATE TABLE {$prefix}dishdash_reservations (
-            id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            table_id        BIGINT UNSIGNED NOT NULL,
-            branch_id       BIGINT UNSIGNED NOT NULL,
-            customer_name   VARCHAR(255) NOT NULL DEFAULT '',
-            customer_phone  VARCHAR(50)  NOT NULL DEFAULT '',
-            customer_email  VARCHAR(255) NOT NULL DEFAULT '',
-            party_size      INT UNSIGNED NOT NULL DEFAULT 2,
-            reservation_date DATE         NOT NULL,
-            reservation_time TIME         NOT NULL,
-            duration_minutes INT UNSIGNED NOT NULL DEFAULT 90,
-            status          ENUM('pending','confirmed','seated','completed','cancelled','no-show') NOT NULL DEFAULT 'pending',
-            notes           TEXT DEFAULT NULL,
-            created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            booking_ref      VARCHAR(20)  NOT NULL DEFAULT '',
+            customer_id      BIGINT UNSIGNED NULL,
+            date             DATE         NOT NULL,
+            time             VARCHAR(5)   NOT NULL DEFAULT '',
+            session          VARCHAR(10)  NOT NULL DEFAULT '',
+            guests           TINYINT UNSIGNED NOT NULL DEFAULT 1,
+            table_id         INT UNSIGNED NULL,
+            name             VARCHAR(100) NOT NULL DEFAULT '',
+            whatsapp         VARCHAR(30)  NOT NULL DEFAULT '',
+            special_requests TEXT         NULL,
+            status           VARCHAR(20)  NOT NULL DEFAULT 'pending',
+            source           VARCHAR(30)  NOT NULL DEFAULT '',
+            created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
-            KEY table_id (table_id),
-            KEY branch_id (branch_id),
-            KEY reservation_date (reservation_date),
+            UNIQUE KEY booking_ref (booking_ref),
+            KEY customer_id (customer_id),
+            KEY date_session (date, session),
             KEY status (status)
+        ) $charset;" );
+
+        // ── Reservation Refunds ───────────────────────────────────────────────
+        dbDelta( "CREATE TABLE {$prefix}dishdash_reservation_refunds (
+            id             INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            reservation_id BIGINT UNSIGNED NOT NULL,
+            amount         INT UNSIGNED NOT NULL DEFAULT 0,
+            reason         VARCHAR(255) NOT NULL DEFAULT '',
+            refunded_at    DATETIME     NULL,
+            created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY reservation_id (reservation_id)
         ) $charset;" );
 
         // ── Analytics ─────────────────────────────────────────────────────────

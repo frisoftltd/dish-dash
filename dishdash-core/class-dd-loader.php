@@ -84,7 +84,7 @@ class DD_Loader {
             'DD_Orders_Module'    => 'modules/orders/class-dd-orders-module.php',
             // Coming soon:
             // 'DD_Delivery_Module'     => 'modules/delivery/class-dd-delivery-module.php',
-            // 'DD_Reservations_Module' => 'modules/reservations/class-dd-reservations-module.php',
+            'DD_Reservations_Module' => 'modules/reservations/class-dd-reservations-module.php',
             // 'DD_POS_Module'          => 'modules/pos/class-dd-pos-module.php',
             // 'DD_Analytics_Module'    => 'modules/analytics/class-dd-analytics-module.php',
             // 'DD_Branches_Module'     => 'modules/branches/class-dd-branches-module.php',

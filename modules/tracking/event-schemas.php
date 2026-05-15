@@ -110,4 +110,11 @@ return [
             'optional' => ['referrer'],
         ],
     ],
+    'reservation_made' => [
+        'current_version' => 1,
+        'metadata_schema' => [
+            'required' => [ 'date', 'time', 'session', 'guests' ],
+            'optional' => [ 'source' ],
+        ],
+    ],
 ];
