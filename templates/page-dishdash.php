@@ -622,7 +622,7 @@ if ( $food_cat_mob ) :
         <div class="dd-res-screen__title">Confirm your booking</div>
 
         <div class="dd-res-confirm-card">
-          <div class="dd-res-confirm-ref" id="dd-res-ref">RES-––––––-XXXX</div>
+          <div class="dd-res-confirm-ref dd-res-booking-ref" id="dd-res-ref">RES-––––––-XXXX</div>
           <ul class="dd-res-confirm-list" id="dd-res-confirm-list">
             <li><span class="dd-res-confirm-icon">📅</span><span id="dd-sum-date">—</span></li>
             <li><span class="dd-res-confirm-icon">🕐</span><span id="dd-sum-time">—</span></li>
@@ -634,6 +634,10 @@ if ( $food_cat_mob ) :
             <li><span class="dd-res-confirm-icon">📱</span><span id="dd-sum-wa">—</span></li>
           </ul>
         </div>
+
+        <div class="dd-res-confirm-area">
+          <p class="dd-res-submit-error" hidden style="color:#dc2626;font-size:14px;margin:0 0 10px"></p>
+        </div>
       </div>
 
     </div><!-- /modal body -->
@@ -641,7 +645,7 @@ if ( $food_cat_mob ) :
     <!-- Modal footer (navigation) -->
     <div class="dd-res-modal__footer">
       <button class="dd-res-back-btn" id="dd-res-back" style="visibility:hidden">← Back</button>
-      <button class="dd-res-next-btn" id="dd-res-next">Continue →</button>
+      <button class="dd-res-next-btn dd-res-confirm-btn" id="dd-res-next">Continue →</button>
     </div>
 
   </div><!-- /modal -->

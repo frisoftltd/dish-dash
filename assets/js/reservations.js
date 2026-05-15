@@ -304,10 +304,99 @@
     if (el) el.textContent = val;
   }
 
-  // ── Submit (Phase 4A placeholder) ─────────────────────────
+  // ── Submit ────────────────────────────────────────────────
   function submitReservation() {
-    alert(`✅ Booking received!\n\nWe'll confirm via WhatsApp shortly.\n\n(Backend coming in Phase 4B)`);
-    closeModal();
+    const btn = document.querySelector('.dd-res-confirm-btn');
+    if ( btn ) {
+      btn.disabled = true;
+      btn.textContent = 'Confirming…';
+    }
+
+    const dateStr = state.date instanceof Date
+      ? state.date.toISOString().slice(0, 10)
+      : state.date;
+
+    const formData = new FormData();
+    formData.append( 'action',    'dd_submit_reservation' );
+    formData.append( 'nonce',     ( window.ddReservations && window.ddReservations.nonce ) ? window.ddReservations.nonce : '' );
+    formData.append( 'name',      state.name );
+    formData.append( 'whatsapp',  state.whatsapp );
+    formData.append( 'date',      dateStr );
+    formData.append( 'time',      state.time );
+    formData.append( 'session',   state.session );
+    formData.append( 'guests',    state.guests );
+    formData.append( 'table',     state.table || '' );
+    formData.append( 'requests',  state.requests || '' );
+    formData.append( 'source',    'homepage' );
+
+    const ajaxUrl = ( window.ddReservations && window.ddReservations.ajax_url )
+      ? window.ddReservations.ajax_url
+      : '/wp-admin/admin-ajax.php';
+
+    fetch( ajaxUrl, { method: 'POST', body: formData } )
+      .then( r => r.json() )
+      .then( res => {
+        if ( ! res.success ) {
+          showSubmitError( btn, res.data && res.data.message ? res.data.message : 'Something went wrong. Please try again.' );
+          return;
+        }
+
+        const data = res.data;
+
+        // Update booking ref on screen 4
+        const refEl = document.querySelector( '.dd-res-booking-ref' );
+        if ( refEl ) refEl.textContent = data.booking_ref;
+
+        // Fire tracking event
+        if ( window.DDTrack ) {
+          DDTrack.track( 'reservation_made', {
+            date:    dateStr,
+            time:    state.time,
+            session: state.session,
+            guests:  state.guests,
+            source:  'homepage',
+          } );
+        }
+
+        // Show WhatsApp confirmation buttons
+        showWhatsAppButtons( data.admin_url, data.customer_url );
+      } )
+      .catch( () => {
+        showSubmitError( btn, 'Network error. Please try again.' );
+      } );
+  }
+
+  function showSubmitError( btn, message ) {
+    if ( btn ) {
+      btn.disabled = false;
+      btn.textContent = 'Confirm Reservation';
+    }
+    const errEl = document.querySelector( '.dd-res-submit-error' );
+    if ( errEl ) {
+      errEl.textContent = message;
+      errEl.hidden = false;
+    }
+  }
+
+  function showWhatsAppButtons( adminUrl, customerUrl ) {
+    const confirmArea = document.querySelector( '.dd-res-confirm-area' );
+    if ( ! confirmArea ) return;
+
+    confirmArea.innerHTML = `
+      <p style="margin:0 0 12px;font-weight:600;color:#15803d">✅ Booking received!</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${ adminUrl ? `<a href="${ adminUrl }" target="_blank" style="display:block;padding:12px;background:#65040d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
+          📲 Notify Restaurant
+        </a>` : '' }
+        ${ customerUrl ? `<a href="${ customerUrl }" target="_blank" style="display:block;padding:12px;background:#25D366;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
+          💬 View My Confirmation
+        </a>` : '' }
+        <button onclick="document.getElementById('dd-res-overlay').classList.remove('dd-res-overlay--open');document.body.style.overflow=''"
+                style="padding:12px;background:transparent;border:1px solid #EAD5CE;border-radius:8px;cursor:pointer;font-weight:600">
+          Close
+        </button>
+      </div>
+    `;
   }
 
   // ── Run ───────────────────────────────────────────────────

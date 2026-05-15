@@ -35,6 +35,64 @@ class DD_Notifications {
     }
 
     /**
+     * Build WhatsApp notification URLs for a new reservation.
+     *
+     * @param  array $data  Reservation data.
+     * @return array        { admin_url: string, customer_url: string }
+     */
+    public static function on_reservation_created( array $data ): array {
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $admin_wa   = preg_replace( '/\D/', '', get_option( 'dd_whatsapp_admin', '' ) );
+        $customer_wa = preg_replace( '/\D/', '', $data['whatsapp'] );
+
+        $ref      = $data['booking_ref'];
+        $name     = $data['name'];
+        $date_fmt = date( 'D, d M Y', strtotime( $data['date'] ) );
+        $time     = $data['time'];
+        $session  = $data['session'];
+        $guests   = $data['guests'];
+        $requests = ! empty( $data['special_requests'] ) ? $data['special_requests'] : 'None';
+        $table    = ! empty( $data['table_pref'] ) ? ucfirst( $data['table_pref'] ) : 'No preference';
+
+        // Admin message
+        $admin_msg  = "🔔 New Reservation — {$restaurant}\n";
+        $admin_msg .= "──────────────────────────\n";
+        $admin_msg .= "Ref:      {$ref}\n";
+        $admin_msg .= "Date:     {$date_fmt}\n";
+        $admin_msg .= "Time:     {$time} ({$session})\n";
+        $admin_msg .= "Guests:   {$guests}\n";
+        $admin_msg .= "Table:    {$table}\n";
+        $admin_msg .= "──────────────────────────\n";
+        $admin_msg .= "👤 {$name}\n";
+        $admin_msg .= "📞 {$data['whatsapp']}\n";
+        if ( $data['special_requests'] ) {
+            $admin_msg .= "📝 {$requests}\n";
+        }
+
+        // Customer confirmation message
+        $customer_msg  = "✅ Reservation Confirmed! — {$restaurant}\n";
+        $customer_msg .= "──────────────────────────\n";
+        $customer_msg .= "Ref:    {$ref}\n";
+        $customer_msg .= "Date:   {$date_fmt}\n";
+        $customer_msg .= "Time:   {$time} ({$session})\n";
+        $customer_msg .= "Guests: {$guests}\n";
+        $customer_msg .= "──────────────────────────\n";
+        $customer_msg .= "We look forward to welcoming you, {$name}! 🍽";
+
+        $admin_url    = $admin_wa
+            ? 'https://wa.me/' . $admin_wa . '?text=' . rawurlencode( $admin_msg )
+            : '';
+        $customer_url = $customer_wa
+            ? 'https://wa.me/' . $customer_wa . '?text=' . rawurlencode( $customer_msg )
+            : '';
+
+        return [
+            'admin_url'    => $admin_url,
+            'customer_url' => $customer_url,
+        ];
+    }
+
+    /**
      * Called by woocommerce_payment_complete hook for online gateways.
      * Fires after payment is confirmed — never before.
      *
