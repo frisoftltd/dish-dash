@@ -87,14 +87,6 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_menu' ]
         );
 
-        // Reservations
-        add_submenu_page( 'dish-dash',
-            __( 'Reservations', 'dish-dash' ),
-            __( '📅 Reservations', 'dish-dash' ),
-            'manage_options', 'dish-dash-reservations',
-            [ $this, 'render_reservations' ]
-        );
-
         // Delivery
         add_submenu_page( 'dish-dash',
             __( 'Delivery', 'dish-dash' ),

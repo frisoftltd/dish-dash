@@ -129,7 +129,7 @@ class DD_Reservations_Admin {
                         <th style="width:80px">Date</th>
                         <th style="width:60px">Time</th>
                         <th style="width:60px">Session</th>
-                        <th style="width:40px">Guests</th>
+                        <th style="width:70px">Guests</th>
                         <th>Name</th>
                         <th style="width:130px">WhatsApp</th>
                         <th>Special Requests</th>

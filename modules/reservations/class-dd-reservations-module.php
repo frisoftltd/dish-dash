@@ -28,7 +28,7 @@ class DD_Reservations_Module extends DD_Module {
     }
 
     public function localize_nonce(): void {
-        wp_localize_script( 'dd-reservations', 'ddReservations', [
+        wp_localize_script( 'dish-dash-reservations', 'ddReservations', [
             'ajax_url' => admin_url( 'admin-ajax.php' ),
             'nonce'    => wp_create_nonce( 'dish_dash_frontend' ),
         ] );
