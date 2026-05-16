@@ -23,15 +23,6 @@ class DD_Reservations_Module extends DD_Module {
         DD_Ajax::register( 'dd_submit_reservation',        [ $this, 'ajax_submit_reservation' ] );
         DD_Ajax::register( 'dd_reservation_availability',  [ $this, 'ajax_check_availability' ] );
         DD_Ajax::register( 'dd_reservation_update_status', [ $this, 'ajax_update_status' ], false );
-
-        add_action( 'wp_enqueue_scripts', [ $this, 'localize_nonce' ] );
-    }
-
-    public function localize_nonce(): void {
-        wp_localize_script( 'dish-dash-reservations', 'ddReservations', [
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'dish_dash_frontend' ),
-        ] );
     }
 
     // ── AJAX: Submit reservation ───────────────────────────────────────────
