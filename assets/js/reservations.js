@@ -359,27 +359,33 @@
           return;
         }
 
-        const data = res.data;
+        // Success — own try/catch so errors here never reach the network .catch()
+        try {
+          const data = res.data;
 
-        // Update booking ref on screen 4
-        const refEl = document.querySelector( '.dd-res-booking-ref' );
-        if ( refEl ) refEl.textContent = data.booking_ref;
+          const refEl = document.querySelector( '.dd-res-booking-ref' );
+          if ( refEl ) refEl.textContent = data.booking_ref;
 
-        // Fire tracking event
-        if ( window.DDTrack ) {
-          DDTrack.track( 'reservation_made', {
-            date:    dateStr,
-            time:    state.time,
-            session: state.session,
-            guests:  state.guests,
-            source:  'homepage',
-          } );
+          try {
+            if ( window.DDTrack && typeof window.DDTrack.track === 'function' ) {
+              window.DDTrack.track( 'reservation_made', {
+                date:    dateStr,
+                time:    state.time,
+                session: state.session,
+                guests:  state.guests,
+                source:  'homepage',
+              } );
+            }
+          } catch ( e ) { console.log( 'DD tracking skipped:', e ); }
+
+          showWhatsAppButtons( data.admin_url, data.customer_url );
+        } catch ( e ) {
+          console.log( 'DD RESERVATION — success handler error:', e );
+          showWhatsAppButtons();
         }
-
-        // Show WhatsApp confirmation buttons
-        showWhatsAppButtons( data.admin_url, data.customer_url );
       } )
       .catch( err => {
+        // Only genuine fetch/network failures reach here
         console.log( 'DD RESERVATION — FETCH FAILED:', err );
         showSubmitError( btn, 'Network error. Please try again.' );
       } );
@@ -410,7 +416,7 @@
         ${ customerUrl ? `<a href="${ customerUrl }" target="_blank" style="display:block;padding:12px;background:#25D366;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
           💬 View My Confirmation
         </a>` : '' }
-        <button onclick="document.getElementById('dd-res-overlay').classList.remove('dd-res-overlay--open');document.body.style.overflow=''"
+        <button onclick="var o=document.getElementById('dd-res-overlay');if(o){o.classList.remove('dd-res-overlay--open');}document.body.style.overflow=''"
                 style="padding:12px;background:transparent;border:1px solid #EAD5CE;border-radius:8px;cursor:pointer;font-weight:600">
           Close
         </button>
