@@ -177,6 +177,29 @@ class DD_Reservations_Admin {
                             </td>
                             <td>
                                 <?php
+                                $cust_wa    = preg_replace( '/\D/', '', $r->whatsapp );
+                                $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+                                $date_fmt   = date( 'D, d M Y', strtotime( $r->date ) );
+
+                                $msg  = "✅ Reservation Confirmed! — {$restaurant}\n";
+                                $msg .= "──────────────────────────\n";
+                                $msg .= "Ref:    {$r->booking_ref}\n";
+                                $msg .= "Date:   {$date_fmt}\n";
+                                $msg .= "Time:   {$r->time} (" . ucfirst( $r->session ) . ")\n";
+                                $msg .= "Guests: {$r->guests}\n";
+                                $msg .= "──────────────────────────\n";
+                                $msg .= "We look forward to welcoming you, {$r->name}! 🍽";
+
+                                $wa_link = 'https://wa.me/' . $cust_wa . '?text=' . rawurlencode( $msg );
+                                ?>
+                                <a href="<?php echo esc_url( $wa_link ); ?>"
+                                   target="_blank"
+                                   class="button button-small"
+                                   style="background:#25D366;color:#fff;border-color:#25D366;margin-bottom:4px;display:inline-block">
+                                   💬 Notify Customer
+                                </a>
+                                <br>
+                                <?php
                                 $actions = array_diff(
                                     [ 'confirmed', 'cancelled', 'no_show', 'pending' ],
                                     [ $r->status ]
