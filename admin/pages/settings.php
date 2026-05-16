@@ -63,10 +63,7 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     }
 
     // Timezone
-    if ( isset( $_POST['dd_timezone'] ) ) {
-        $tz = sanitize_text_field( $_POST['dd_timezone'] );
-        update_option( 'dd_timezone', $tz );
-    }
+    update_option( 'dd_timezone', sanitize_text_field( wp_unslash( $_POST['dd_timezone'] ?? 'Africa/Kigali' ) ) );
 
     echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 }
@@ -269,14 +266,39 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
 
           <!-- Timezone -->
           <tr valign="top">
-              <th scope="row">Timezone</th>
+              <th scope="row">
+                  <label for="dd_timezone">Restaurant Timezone</label>
+              </th>
               <td>
-                  <input type="text"
-                         name="dd_timezone"
-                         value="<?php echo esc_attr( $dd_timezone ); ?>"
-                         style="width:220px;"
-                         placeholder="Africa/Kigali">
-                  <p class="description">Use PHP timezone names. Default: Africa/Kigali</p>
+                  <select name="dd_timezone" id="dd_timezone">
+                      <?php
+                      $saved_tz = get_option( 'dd_timezone', 'Africa/Kigali' );
+                      $zones = [
+                          'Africa/Kigali'       => 'Africa/Kigali (Rwanda, Uganda, Tanzania)',
+                          'Africa/Nairobi'      => 'Africa/Nairobi (Kenya)',
+                          'Africa/Lagos'        => 'Africa/Lagos (Nigeria, West Africa)',
+                          'Africa/Accra'        => 'Africa/Accra (Ghana)',
+                          'Africa/Johannesburg' => 'Africa/Johannesburg (South Africa)',
+                          'Africa/Cairo'        => 'Africa/Cairo (Egypt)',
+                          'Europe/London'       => 'Europe/London (UK)',
+                          'Europe/Paris'        => 'Europe/Paris (France, Belgium)',
+                          'America/New_York'    => 'America/New_York (US East)',
+                          'America/Chicago'     => 'America/Chicago (US Central)',
+                          'America/Los_Angeles' => 'America/Los_Angeles (US West)',
+                          'Asia/Dubai'          => 'Asia/Dubai (UAE)',
+                          'Asia/Riyadh'         => 'Asia/Riyadh (Saudi Arabia)',
+                          'Asia/Kolkata'        => 'Asia/Kolkata (India)',
+                          'Asia/Singapore'      => 'Asia/Singapore',
+                          'Australia/Sydney'    => 'Australia/Sydney',
+                      ];
+                      foreach ( $zones as $tz => $label ) :
+                      ?>
+                          <option value="<?php echo esc_attr( $tz ); ?>" <?php selected( $saved_tz, $tz ); ?>>
+                              <?php echo esc_html( $label ); ?>
+                          </option>
+                      <?php endforeach; ?>
+                  </select>
+                  <p class="description">All opening hours, date validation, and order timing use this timezone.</p>
               </td>
           </tr>
 

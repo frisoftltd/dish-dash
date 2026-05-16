@@ -50,7 +50,9 @@ class DD_Reservations_Module extends DD_Module {
 
         // 3. Validate date format and that it is not in the past
         $booking_date = \DateTime::createFromFormat( 'Y-m-d', $date );
-        $today        = new \DateTime( 'today', new \DateTimeZone( get_option( 'dd_timezone', 'Africa/Kigali' ) ) );
+        $tz    = new \DateTimeZone( get_option( 'dd_timezone', 'Africa/Kigali' ) );
+        $today = new \DateTime( 'today', $tz );
+        $booking_date->setTimezone( $tz );
         if ( ! $booking_date || $booking_date < $today ) {
             wp_send_json_error( [ 'message' => 'Invalid or past date.' ] );
         }

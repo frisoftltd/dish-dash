@@ -186,10 +186,6 @@ class DD_Template_Module extends DD_Module {
             DD_VERSION,
             true
         );
-        wp_localize_script( 'dish-dash-reservations', 'ddReservations', [
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'dish_dash_frontend' ),
-        ] );
         wp_localize_script( 'dish-dash-cart', 'dishDash', DD_Settings::get_public_settings() );
         wp_localize_script( 'dish-dash-cart', 'ddCartData', [
             'threshold'             => (int) get_option( 'dd_free_delivery_threshold', 10000 ),
@@ -222,6 +218,10 @@ class DD_Template_Module extends DD_Module {
                 }
                 return $out;
             })(),
+        ] );
+        wp_localize_script( 'dish-dash-cart', 'ddReservations', [
+            'ajax_url' => admin_url( 'admin-ajax.php' ),
+            'nonce'    => wp_create_nonce( 'dish_dash_frontend' ),
         ] );
 
         // Inject CSS variables + footer background via WordPress inline style system
