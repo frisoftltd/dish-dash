@@ -49,12 +49,15 @@ class DD_Reservations_Module extends DD_Module {
         }
 
         // 3. Validate date format and that it is not in the past
-        $booking_date = \DateTime::createFromFormat( 'Y-m-d', $date );
-        $tz    = new \DateTimeZone( get_option( 'dd_timezone', 'Africa/Kigali' ) );
+        $tz           = new \DateTimeZone( get_option( 'dd_timezone', 'Africa/Kigali' ) );
+        $booking_date = \DateTime::createFromFormat( 'Y-m-d', $date, $tz );
+        if ( ! $booking_date ) {
+            wp_send_json_error( [ 'message' => 'Invalid date.' ] );
+        }
+        $booking_date->setTime( 0, 0, 0 );
         $today = new \DateTime( 'today', $tz );
-        $booking_date->setTimezone( $tz );
-        if ( ! $booking_date || $booking_date < $today ) {
-            wp_send_json_error( [ 'message' => 'Invalid or past date.' ] );
+        if ( $booking_date < $today ) {
+            wp_send_json_error( [ 'message' => 'That date has already passed.' ] );
         }
 
         // 4. Customer identity — WhatsApp is primary key
@@ -105,7 +108,6 @@ class DD_Reservations_Module extends DD_Module {
                 'time'             => $time,
                 'session'          => $session,
                 'guests'           => $guests,
-                'table_id'         => null,
                 'name'             => $name,
                 'whatsapp'         => $whatsapp,
                 'special_requests' => $requests ?: null,
@@ -114,11 +116,14 @@ class DD_Reservations_Module extends DD_Module {
                 'created_at'       => current_time( 'mysql' ),
                 'updated_at'       => current_time( 'mysql' ),
             ],
-            [ '%s', '%d', '%s', '%s', '%s', '%d', null, '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+            [ '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
         );
 
         if ( ! $inserted ) {
-            wp_send_json_error( [ 'message' => 'Could not save reservation. Please try again.' ] );
+            wp_send_json_error( [
+                'message'  => 'Could not save reservation. Please try again.',
+                'db_error' => $wpdb->last_error,
+            ] );
         }
 
         // 7. Build WhatsApp notification URLs

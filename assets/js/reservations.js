@@ -112,7 +112,9 @@
       pill.className = 'dd-res-date-pill' + (i === 0 ? ' dd-res-date-pill--selected' : '');
       pill.setAttribute('role', 'option');
       pill.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
-      pill.dataset.date = d.toISOString().slice(0,10);
+      pill.dataset.date = d.getFullYear() + '-' +
+          String( d.getMonth() + 1 ).padStart( 2, '0' ) + '-' +
+          String( d.getDate() ).padStart( 2, '0' );
       pill.innerHTML =
         `<span class="dd-res-date-pill__day">${DAYS[d.getDay()]}</span>` +
         `<span class="dd-res-date-pill__num">${d.getDate()}</span>` +
@@ -312,9 +314,15 @@
       btn.textContent = 'Confirming…';
     }
 
-    const dateStr = state.date instanceof Date
-      ? state.date.toISOString().slice(0, 10)
-      : state.date;
+    let dateStr;
+    if ( state.date instanceof Date ) {
+      const y = state.date.getFullYear();
+      const m = String( state.date.getMonth() + 1 ).padStart( 2, '0' );
+      const d = String( state.date.getDate() ).padStart( 2, '0' );
+      dateStr = `${y}-${m}-${d}`;
+    } else {
+      dateStr = state.date;
+    }
 
     const formData = new FormData();
     formData.append( 'action',    'dd_submit_reservation' );
