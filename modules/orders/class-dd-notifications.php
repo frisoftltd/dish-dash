@@ -41,43 +41,57 @@ class DD_Notifications {
      * @return array        { admin_url: string, customer_url: string }
      */
     public static function on_reservation_created( array $data ): array {
-        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
-        $admin_wa   = preg_replace( '/\D/', '', get_option( 'dd_whatsapp_admin', '' ) );
+        $restaurant  = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $admin_wa    = preg_replace( '/\D/', '', get_option( 'dd_whatsapp_admin', '' ) );
         $customer_wa = preg_replace( '/\D/', '', $data['whatsapp'] );
+        $admin_phone = get_option( 'dish_dash_phone', '' );
 
-        $ref      = $data['booking_ref'];
-        $name     = $data['name'];
-        $date_fmt = date( 'D, d M Y', strtotime( $data['date'] ) );
-        $time     = $data['time'];
-        $session  = $data['session'];
-        $guests   = $data['guests'];
-        $requests = ! empty( $data['special_requests'] ) ? $data['special_requests'] : 'None';
-        $table    = ! empty( $data['table_pref'] ) ? ucfirst( $data['table_pref'] ) : 'No preference';
+        $ref         = $data['booking_ref'];
+        $name        = $data['name'];
+        $date_fmt    = date( 'D, d M Y', strtotime( $data['date'] ) );
+        $time        = $data['time'];
+        $session_fmt = ucfirst( $data['session'] );
+        $guests      = $data['guests'];
+        $guest_word  = ( (int) $guests === 1 ? 'guest' : 'guests' );
+        $requests    = ! empty( $data['special_requests'] ) ? $data['special_requests'] : '';
+        $table       = ! empty( $data['table_pref'] ) ? ucfirst( $data['table_pref'] ) : 'No preference';
 
         // Admin message
-        $admin_msg  = "🔔 New Reservation — {$restaurant}\n";
-        $admin_msg .= "──────────────────────────\n";
-        $admin_msg .= "Ref:      {$ref}\n";
-        $admin_msg .= "Date:     {$date_fmt}\n";
-        $admin_msg .= "Time:     {$time} ({$session})\n";
-        $admin_msg .= "Guests:   {$guests}\n";
-        $admin_msg .= "Table:    {$table}\n";
-        $admin_msg .= "──────────────────────────\n";
-        $admin_msg .= "👤 {$name}\n";
-        $admin_msg .= "📞 {$data['whatsapp']}\n";
-        if ( $data['special_requests'] ) {
-            $admin_msg .= "📝 {$requests}\n";
+        $admin_lines   = [];
+        $admin_lines[] = "NEW RESERVATION 🔔";
+        $admin_lines[] = $restaurant;
+        $admin_lines[] = '';
+        $admin_lines[] = "Ref:    {$ref}";
+        $admin_lines[] = "Date:   {$date_fmt}";
+        $admin_lines[] = "Time:   {$time} ({$session_fmt})";
+        $admin_lines[] = "Guests: {$guests} {$guest_word}";
+        $admin_lines[] = "Table:  {$table}";
+        $admin_lines[] = '';
+        $admin_lines[] = "Name:     {$name}";
+        $admin_lines[] = "WhatsApp: {$data['whatsapp']}";
+        if ( $requests ) {
+            $admin_lines[] = "Requests: {$requests}";
         }
+        $admin_msg = implode( "\n", $admin_lines );
 
         // Customer confirmation message
-        $customer_msg  = "✅ Reservation Confirmed! — {$restaurant}\n";
-        $customer_msg .= "──────────────────────────\n";
-        $customer_msg .= "Ref:    {$ref}\n";
-        $customer_msg .= "Date:   {$date_fmt}\n";
-        $customer_msg .= "Time:   {$time} ({$session})\n";
-        $customer_msg .= "Guests: {$guests}\n";
-        $customer_msg .= "──────────────────────────\n";
-        $customer_msg .= "We look forward to welcoming you, {$name}! 🍽";
+        $cust_lines   = [];
+        $cust_lines[] = 'RESERVATION CONFIRMED ✅';
+        $cust_lines[] = $restaurant;
+        $cust_lines[] = '';
+        $cust_lines[] = "Hi {$name}, your table is booked! 🎉";
+        $cust_lines[] = '';
+        $cust_lines[] = "Ref:    {$ref}";
+        $cust_lines[] = "Date:   {$date_fmt}";
+        $cust_lines[] = "Time:   {$time} ({$session_fmt})";
+        $cust_lines[] = "Guests: {$guests} {$guest_word}";
+        $cust_lines[] = '';
+        $cust_lines[] = "We look forward to welcoming you! 🍽️";
+        if ( $admin_phone ) {
+            $cust_lines[] = '';
+            $cust_lines[] = "Need to change anything? Call us: {$admin_phone}";
+        }
+        $customer_msg = implode( "\n", $cust_lines );
 
         $admin_url    = $admin_wa
             ? 'https://wa.me/' . $admin_wa . '?text=' . rawurlencode( $admin_msg )
