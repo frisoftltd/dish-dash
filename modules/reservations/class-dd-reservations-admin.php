@@ -177,28 +177,69 @@ class DD_Reservations_Admin {
                             </td>
                             <td>
                                 <?php
-                                $cust_wa    = preg_replace( '/\D/', '', $r->whatsapp );
-                                $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
-                                $date_fmt   = date( 'D, d M Y', strtotime( $r->date ) );
+                                $cust_wa     = preg_replace( '/\D/', '', $r->whatsapp );
+                                $restaurant  = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+                                $admin_phone = get_option( 'dish_dash_phone', '' );
+                                $date_fmt    = date( 'D, d M Y', strtotime( $r->date ) );
+                                $guest_word  = ( (int) $r->guests === 1 ? 'guest' : 'guests' );
 
-                                $msg  = "✅ Reservation Confirmed! — {$restaurant}\n";
-                                $msg .= "──────────────────────────\n";
-                                $msg .= "Ref:    {$r->booking_ref}\n";
-                                $msg .= "Date:   {$date_fmt}\n";
-                                $msg .= "Time:   {$r->time} (" . ucfirst( $r->session ) . ")\n";
-                                $msg .= "Guests: {$r->guests}\n";
-                                $msg .= "──────────────────────────\n";
-                                $msg .= "We look forward to welcoming you, {$r->name}! 🍽";
+                                $msg = '';
 
-                                $wa_link = 'https://wa.me/' . $cust_wa . '?text=' . rawurlencode( $msg );
+                                if ( $r->status === 'confirmed' ) {
+                                    $msg  = "*Reservation Confirmed* ✅\n";
+                                    $msg .= "_{$restaurant}_\n\n";
+                                    $msg .= "Hi {$r->name}, your table is booked! 🎉\n\n";
+                                    $msg .= "📋 Ref: *{$r->booking_ref}*\n";
+                                    $msg .= "📅 {$date_fmt}\n";
+                                    $msg .= "🕐 {$r->time} · " . ucfirst( $r->session ) . "\n";
+                                    $msg .= "👥 {$r->guests} {$guest_word}\n\n";
+                                    $msg .= "We look forward to welcoming you! 🍽️";
+                                    if ( $admin_phone ) {
+                                        $msg .= "\n\nNeed to change anything? Call us: {$admin_phone}";
+                                    }
+
+                                } elseif ( $r->status === 'cancelled' ) {
+                                    $msg  = "*Reservation Cancelled* ❌\n";
+                                    $msg .= "_{$restaurant}_\n\n";
+                                    $msg .= "Hi {$r->name}, your reservation has been cancelled.\n\n";
+                                    $msg .= "📋 Ref: *{$r->booking_ref}*\n";
+                                    $msg .= "📅 {$date_fmt}\n";
+                                    $msg .= "🕐 {$r->time} · " . ucfirst( $r->session ) . "\n\n";
+                                    $msg .= "We're sorry for any inconvenience. We'd love to host you another time — just book again whenever you're ready. 🙏";
+                                    if ( $admin_phone ) {
+                                        $msg .= "\n\nQuestions? Call us: {$admin_phone}";
+                                    }
+
+                                } elseif ( $r->status === 'no_show' ) {
+                                    $msg  = "*We Missed You* 😔\n";
+                                    $msg .= "_{$restaurant}_\n\n";
+                                    $msg .= "Hi {$r->name}, we had your table ready but didn't see you.\n\n";
+                                    $msg .= "📋 Ref: *{$r->booking_ref}*\n";
+                                    $msg .= "📅 {$date_fmt}\n";
+                                    $msg .= "🕐 {$r->time} · " . ucfirst( $r->session ) . "\n\n";
+                                    $msg .= "We hope everything is okay. You're always welcome — book again anytime and we'll be glad to have you. 🍽️";
+                                    if ( $admin_phone ) {
+                                        $msg .= "\n\nCall us: {$admin_phone}";
+                                    }
+                                }
+
+                                if ( $msg ) :
+                                    $wa_link = 'https://wa.me/' . $cust_wa . '?text=' . rawurlencode( $msg );
+                                    $btn_labels = [
+                                        'confirmed' => '💬 Send Confirmation',
+                                        'cancelled' => '💬 Send Cancellation',
+                                        'no_show'   => '💬 Send Follow-up',
+                                    ];
+                                    $btn_label = $btn_labels[ $r->status ] ?? '💬 Notify Customer';
                                 ?>
                                 <a href="<?php echo esc_url( $wa_link ); ?>"
                                    target="_blank"
                                    class="button button-small"
                                    style="background:#25D366;color:#fff;border-color:#25D366;margin-bottom:4px;display:inline-block">
-                                   💬 Notify Customer
+                                   <?php echo esc_html( $btn_label ); ?>
                                 </a>
                                 <br>
+                                <?php endif; ?>
                                 <?php
                                 $actions = array_diff(
                                     [ 'confirmed', 'cancelled', 'no_show', 'pending' ],
