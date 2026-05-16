@@ -342,8 +342,18 @@
       : '/wp-admin/admin-ajax.php';
 
     fetch( ajaxUrl, { method: 'POST', body: formData } )
-      .then( r => r.json() )
-      .then( res => {
+      .then( r => r.text().then( text => ({ status: r.status, text: text }) ) )
+      .then( resp => {
+        console.log( 'DD RESERVATION — HTTP', resp.status );
+        console.log( 'DD RESERVATION — RAW RESPONSE:', resp.text );
+        let res;
+        try {
+          res = JSON.parse( resp.text );
+        } catch ( e ) {
+          showSubmitError( btn, 'Server error: ' + resp.text.slice( 0, 200 ) );
+          return;
+        }
+
         if ( ! res.success ) {
           showSubmitError( btn, res.data && res.data.message ? res.data.message : 'Something went wrong. Please try again.' );
           return;
@@ -369,7 +379,8 @@
         // Show WhatsApp confirmation buttons
         showWhatsAppButtons( data.admin_url, data.customer_url );
       } )
-      .catch( () => {
+      .catch( err => {
+        console.log( 'DD RESERVATION — FETCH FAILED:', err );
         showSubmitError( btn, 'Network error. Please try again.' );
       } );
   }
