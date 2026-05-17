@@ -176,7 +176,13 @@ class DD_Reservations_Module extends DD_Module {
 
         $subject = sprintf( '[%s] New Reservation — %s', $restaurant, $res['booking_ref'] );
 
-        $admin_link = admin_url( 'admin.php?page=dd-reservations' );
+        $admin_link = add_query_arg(
+            [
+                'page' => 'dd-reservations',
+                's'    => $res['booking_ref'],
+            ],
+            admin_url( 'admin.php' )
+        );
 
         $table_row = '';
         if ( ! empty( $res['table_pref'] ) ) {
