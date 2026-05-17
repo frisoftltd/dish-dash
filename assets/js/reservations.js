@@ -408,19 +408,15 @@
     if ( ! confirmArea ) return;
 
     confirmArea.innerHTML = `
-      <p style="margin:0 0 12px;font-weight:600;color:#15803d">✅ Booking received!</p>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        ${ adminUrl ? `<a href="${ adminUrl }" target="_blank" style="display:block;padding:12px;background:#65040d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
-          📲 Notify Restaurant
-        </a>` : '' }
-        ${ customerUrl ? `<a href="${ customerUrl }" target="_blank" style="display:block;padding:12px;background:#25D366;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
-          💬 View My Confirmation
-        </a>` : '' }
-        <button onclick="var o=document.getElementById('dd-res-overlay');if(o){o.classList.remove('dd-res-overlay--open');}document.body.style.overflow=''"
-                style="padding:12px;background:transparent;border:1px solid #EAD5CE;border-radius:8px;cursor:pointer;font-weight:600">
-          Close
-        </button>
-      </div>
+        <p style="margin:0 0 12px;font-weight:600;color:#15803d">✅ Booking received!</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+            ${ adminUrl ? `<a href="${ adminUrl }" style="display:block;padding:12px;background:#65040d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
+                📲 Notify Restaurant
+            </a>` : '' }
+            <button onclick="closeModal()" style="padding:12px;background:transparent;border:1px solid #EADFCE;border-radius:8px;cursor:pointer;font-weight:600">
+                Close
+            </button>
+        </div>
     `;
   }
 

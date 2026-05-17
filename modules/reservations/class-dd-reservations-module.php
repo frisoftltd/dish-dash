@@ -139,12 +139,63 @@ class DD_Reservations_Module extends DD_Module {
             'special_requests' => $requests,
         ] );
 
-        // 8. Return success
+        // 8. Email admin
+        $this->send_admin_email( [
+            'booking_ref'      => $booking_ref,
+            'date'             => $date,
+            'time'             => $time,
+            'session'          => $session,
+            'guests'           => $guests,
+            'table_pref'       => $table_pref,
+            'name'             => $name,
+            'whatsapp'         => $whatsapp,
+            'special_requests' => $requests,
+        ] );
+
+        // 9. Return success
         wp_send_json_success( [
             'booking_ref'  => $booking_ref,
             'admin_url'    => $wa_urls['admin_url'],
             'customer_url' => $wa_urls['customer_url'],
         ] );
+    }
+
+    /**
+     * Email the admin when a new reservation is submitted.
+     */
+    private function send_admin_email( array $res ): void {
+        $admin_email = get_option( 'dish_dash_contact_email', '' );
+        if ( ! $admin_email || ! is_email( $admin_email ) ) {
+            $admin_email = get_option( 'admin_email' );
+        }
+        if ( ! $admin_email ) {
+            return;
+        }
+
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $date_fmt   = date( 'l, d M Y', strtotime( $res['date'] ) );
+        $guest_word = ( (int) $res['guests'] === 1 ? 'guest' : 'guests' );
+
+        $subject = sprintf( '[%s] New Reservation — %s', $restaurant, $res['booking_ref'] );
+
+        $body  = "A new table reservation has been submitted.\n\n";
+        $body .= "Booking Ref: {$res['booking_ref']}\n";
+        $body .= "Date: {$date_fmt}\n";
+        $body .= "Time: {$res['time']} (" . ucfirst( $res['session'] ) . ")\n";
+        $body .= "Guests: {$res['guests']} {$guest_word}\n";
+        if ( ! empty( $res['table_pref'] ) ) {
+            $body .= "Table preference: " . ucfirst( $res['table_pref'] ) . "\n";
+        }
+        $body .= "\n";
+        $body .= "Customer: {$res['name']}\n";
+        $body .= "WhatsApp: {$res['whatsapp']}\n";
+        if ( ! empty( $res['special_requests'] ) ) {
+            $body .= "Special requests: {$res['special_requests']}\n";
+        }
+        $body .= "\n";
+        $body .= "Status: Pending — review it in WP Admin -> Dish Dash -> Reservations.\n";
+
+        wp_mail( $admin_email, $subject, $body );
     }
 
     // ── AJAX: Availability check (stub — Phase 4C) ─────────────────────────
