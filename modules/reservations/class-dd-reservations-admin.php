@@ -67,7 +67,7 @@ class DD_Reservations_Admin {
             $params[] = $like;
         }
 
-        $sql  = "SELECT * FROM {$table} WHERE {$where} ORDER BY date DESC, time DESC LIMIT 200";
+        $sql  = "SELECT * FROM {$table} WHERE {$where} ORDER BY created_at DESC, id DESC LIMIT 200";
         $rows = $params
             ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) )
             : $wpdb->get_results( $sql );
