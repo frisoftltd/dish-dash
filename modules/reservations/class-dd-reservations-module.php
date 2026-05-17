@@ -172,30 +172,94 @@ class DD_Reservations_Module extends DD_Module {
         $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
         $date_fmt   = date( 'l, d M Y', strtotime( $res['date'] ) );
         $guest_word = ( (int) $res['guests'] === 1 ? 'guest' : 'guests' );
+        $primary    = '#65040d';
 
         $subject = sprintf( '[%s] New Reservation — %s', $restaurant, $res['booking_ref'] );
 
-        $body  = "A new table reservation has been submitted.\n\n";
-        $body .= "Booking Ref: {$res['booking_ref']}\n";
-        $body .= "Date: {$date_fmt}\n";
-        $body .= "Time: {$res['time']} (" . ucfirst( $res['session'] ) . ")\n";
-        $body .= "Guests: {$res['guests']} {$guest_word}\n";
+        $admin_link = admin_url( 'admin.php?page=dd-reservations' );
+
+        $table_row = '';
         if ( ! empty( $res['table_pref'] ) ) {
-            $body .= "Table preference: " . ucfirst( $res['table_pref'] ) . "\n";
+            $table_row = '<tr><td style="padding:6px 0;color:#6E5B4C;">Table preference</td>'
+                . '<td style="padding:6px 0;text-align:right;font-weight:600;color:#221B19;">'
+                . esc_html( ucfirst( $res['table_pref'] ) ) . '</td></tr>';
         }
-        $body .= "\n";
-        $body .= "Customer: {$res['name']}\n";
-        $body .= "WhatsApp: {$res['whatsapp']}\n";
+        $requests_row = '';
         if ( ! empty( $res['special_requests'] ) ) {
-            $body .= "Special requests: {$res['special_requests']}\n";
+            $requests_row = '<tr><td style="padding:6px 0;color:#6E5B4C;">Special requests</td>'
+                . '<td style="padding:6px 0;text-align:right;font-weight:600;color:#221B19;">'
+                . esc_html( $res['special_requests'] ) . '</td></tr>';
         }
-        $body .= "\n";
-        $body .= "Status: Pending — review it in WP Admin -> Dish Dash -> Reservations.\n";
+
+        $body = '
+<div style="background:#F5EFE6;padding:24px 0;font-family:\'Segoe UI\',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#FBF7F1;border-radius:12px;overflow:hidden;">
+
+        <!-- Header -->
+        <tr><td style="background:' . $primary . ';padding:24px 28px;">
+          <div style="color:#fff;font-size:18px;font-weight:700;">🔔 New Table Reservation</div>
+          <div style="color:#E6C9CC;font-size:13px;margin-top:4px;">' . esc_html( $restaurant ) . '</div>
+        </td></tr>
+
+        <!-- Booking ref banner -->
+        <tr><td style="padding:20px 28px 8px;">
+          <div style="color:#6E5B4C;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Booking Reference</div>
+          <div style="color:' . $primary . ';font-size:22px;font-weight:700;letter-spacing:1px;">' . esc_html( $res['booking_ref'] ) . '</div>
+        </td></tr>
+
+        <!-- Details -->
+        <tr><td style="padding:8px 28px 4px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border-top:1px solid #EADFCE;">
+            <tr><td style="padding:10px 0 6px;color:#6E5B4C;">Date</td>
+                <td style="padding:10px 0 6px;text-align:right;font-weight:600;color:#221B19;">' . esc_html( $date_fmt ) . '</td></tr>
+            <tr><td style="padding:6px 0;color:#6E5B4C;">Time</td>
+                <td style="padding:6px 0;text-align:right;font-weight:600;color:#221B19;">' . esc_html( $res['time'] ) . ' (' . esc_html( ucfirst( $res['session'] ) ) . ')</td></tr>
+            <tr><td style="padding:6px 0;color:#6E5B4C;">Guests</td>
+                <td style="padding:6px 0;text-align:right;font-weight:600;color:#221B19;">' . esc_html( $res['guests'] ) . ' ' . $guest_word . '</td></tr>
+            ' . $table_row . '
+          </table>
+        </td></tr>
+
+        <!-- Customer -->
+        <tr><td style="padding:4px 28px 8px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border-top:1px solid #EADFCE;">
+            <tr><td style="padding:10px 0 6px;color:#6E5B4C;">Customer</td>
+                <td style="padding:10px 0 6px;text-align:right;font-weight:600;color:#221B19;">' . esc_html( $res['name'] ) . '</td></tr>
+            <tr><td style="padding:6px 0;color:#6E5B4C;">WhatsApp</td>
+                <td style="padding:6px 0;text-align:right;font-weight:600;color:#221B19;">' . esc_html( $res['whatsapp'] ) . '</td></tr>
+            ' . $requests_row . '
+          </table>
+        </td></tr>
+
+        <!-- Status pill -->
+        <tr><td style="padding:8px 28px 4px;">
+          <span style="display:inline-block;background:#FBE8C8;color:#b45309;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;">PENDING — NEEDS REVIEW</span>
+        </td></tr>
+
+        <!-- CTA button -->
+        <tr><td style="padding:20px 28px 28px;" align="center">
+          <a href="' . esc_url( $admin_link ) . '"
+             style="display:inline-block;background:' . $primary . ';color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;">
+             Review &amp; Confirm Reservation →
+          </a>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#F0E7D8;padding:14px 28px;text-align:center;">
+          <div style="color:#6E5B4C;font-size:12px;">Dish Dash — ' . esc_html( $restaurant ) . ' reservation system</div>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</div>';
 
         $from_address = get_option( 'woocommerce_email_from_address', $admin_email );
         $headers = [
-            'Content-Type: text/plain; charset=UTF-8',
-            'From: Khana Khazana <' . $from_address . '>',
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $restaurant . ' <' . $from_address . '>',
         ];
         wp_mail( $admin_email, $subject, $body, $headers );
     }
