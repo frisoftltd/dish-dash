@@ -164,11 +164,8 @@ class DD_Reservations_Module extends DD_Module {
      * Email the admin when a new reservation is submitted.
      */
     private function send_admin_email( array $res ): void {
-        $admin_email = get_option( 'dish_dash_contact_email', '' );
+        $admin_email = get_option( 'dd_admin_email', get_option( 'admin_email' ) );
         if ( ! $admin_email || ! is_email( $admin_email ) ) {
-            $admin_email = get_option( 'admin_email' );
-        }
-        if ( ! $admin_email ) {
             return;
         }
 
@@ -195,7 +192,12 @@ class DD_Reservations_Module extends DD_Module {
         $body .= "\n";
         $body .= "Status: Pending — review it in WP Admin -> Dish Dash -> Reservations.\n";
 
-        wp_mail( $admin_email, $subject, $body );
+        $from_address = get_option( 'woocommerce_email_from_address', $admin_email );
+        $headers = [
+            'Content-Type: text/plain; charset=UTF-8',
+            'From: Khana Khazana <' . $from_address . '>',
+        ];
+        wp_mail( $admin_email, $subject, $body, $headers );
     }
 
     // ── AJAX: Availability check (stub — Phase 4C) ─────────────────────────
