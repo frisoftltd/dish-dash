@@ -48,6 +48,11 @@ class DD_Reservations_Admin {
         $filter_date   = isset( $_GET['res_date'] ) ? sanitize_text_field( wp_unslash( $_GET['res_date'] ) ) : '';
         $search        = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 
+        // Pagination
+        $per_page_raw = isset( $_GET['per_page'] ) ? sanitize_text_field( wp_unslash( $_GET['per_page'] ) ) : '25';
+        $per_page     = in_array( $per_page_raw, [ '25', '50', '75', 'all' ], true ) ? $per_page_raw : '25';
+        $current_page = isset( $_GET['paged'] ) ? max( 1, intval( $_GET['paged'] ) ) : 1;
+
         $where  = '1=1';
         $params = [];
 
@@ -67,10 +72,32 @@ class DD_Reservations_Admin {
             $params[] = $like;
         }
 
-        $sql  = "SELECT * FROM {$table} WHERE {$where} ORDER BY created_at DESC, id DESC LIMIT 200";
-        $rows = $params
-            ? $wpdb->get_results( $wpdb->prepare( $sql, $params ) )
+        // Total matching rows (for pagination)
+        $count_sql  = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
+        $total_rows = $params
+            ? (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) )
+            : (int) $wpdb->get_var( $count_sql );
+
+        // Build the page query
+        $order_sql = " ORDER BY created_at DESC, id DESC";
+
+        if ( $per_page === 'all' ) {
+            $sql          = "SELECT * FROM {$table} WHERE {$where}{$order_sql}";
+            $query_params = $params;
+        } else {
+            $pp           = (int) $per_page;
+            $offset       = ( $current_page - 1 ) * $pp;
+            $sql          = "SELECT * FROM {$table} WHERE {$where}{$order_sql} LIMIT %d OFFSET %d";
+            $query_params = array_merge( $params, [ $pp, $offset ] );
+        }
+
+        $rows = ! empty( $query_params )
+            ? $wpdb->get_results( $wpdb->prepare( $sql, $query_params ) )
             : $wpdb->get_results( $sql );
+
+        // Row number offset for display
+        $row_number_start = ( $per_page === 'all' ) ? 1 : ( ( $current_page - 1 ) * (int) $per_page ) + 1;
+        $total_pages      = ( $per_page === 'all' || $total_rows === 0 ) ? 1 : (int) ceil( $total_rows / (int) $per_page );
 
         // ── Counts for filter tabs ────────────────────────────────────────
         $counts = $wpdb->get_results(
@@ -125,6 +152,7 @@ class DD_Reservations_Admin {
             <table class="wp-list-table widefat fixed striped">
                 <thead>
                     <tr>
+                        <th style="width:40px">#</th>
                         <th style="width:140px">Ref</th>
                         <th style="width:80px">Date</th>
                         <th style="width:60px">Time</th>
@@ -139,9 +167,10 @@ class DD_Reservations_Admin {
                 </thead>
                 <tbody>
                     <?php if ( empty( $rows ) ) : ?>
-                        <tr><td colspan="10">No reservations found.</td></tr>
-                    <?php else : foreach ( $rows as $r ) : ?>
+                        <tr><td colspan="11">No reservations found.</td></tr>
+                    <?php else : $row_num = $row_number_start; foreach ( $rows as $r ) : ?>
                         <tr>
+                            <td><?php echo esc_html( $row_num ); $row_num++; ?></td>
                             <td><code><?php echo esc_html( $r->booking_ref ); ?></code></td>
                             <td><?php echo esc_html( $r->date ); ?></td>
                             <td><?php echo esc_html( $r->time ); ?></td>
@@ -276,6 +305,75 @@ class DD_Reservations_Admin {
                     <?php endforeach; endif; ?>
                 </tbody>
             </table>
+
+            <?php
+            // Preserve current filters in pagination links
+            $pagination_base_args = [ 'page' => 'dd-reservations' ];
+            if ( $filter_status ) { $pagination_base_args['status']   = $filter_status; }
+            if ( $filter_date )   { $pagination_base_args['res_date'] = $filter_date; }
+            if ( $search )        { $pagination_base_args['s']        = $search; }
+            $pagination_base_args['per_page'] = $per_page;
+            ?>
+            <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+
+                <div style="color:#50575e;font-size:13px;">
+                    <?php
+                    if ( $total_rows === 0 ) {
+                        echo 'No reservations';
+                    } elseif ( $per_page === 'all' ) {
+                        echo 'Showing all ' . esc_html( $total_rows ) . ' reservations';
+                    } else {
+                        $showing_to = min( $row_number_start + count( $rows ) - 1, $total_rows );
+                        echo 'Showing ' . esc_html( $row_number_start ) . '–' . esc_html( $showing_to )
+                            . ' of ' . esc_html( $total_rows );
+                    }
+                    ?>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:14px;">
+                    <?php /* Per-page selector */ ?>
+                    <form method="get" style="display:flex;align-items:center;gap:6px;margin:0;">
+                        <input type="hidden" name="page" value="dd-reservations">
+                        <?php if ( $filter_status ) : ?><input type="hidden" name="status" value="<?php echo esc_attr( $filter_status ); ?>"><?php endif; ?>
+                        <?php if ( $filter_date ) : ?><input type="hidden" name="res_date" value="<?php echo esc_attr( $filter_date ); ?>"><?php endif; ?>
+                        <?php if ( $search ) : ?><input type="hidden" name="s" value="<?php echo esc_attr( $search ); ?>"><?php endif; ?>
+                        <label for="dd-per-page" style="font-size:13px;color:#50575e;">Per page:</label>
+                        <select name="per_page" id="dd-per-page" onchange="this.form.submit()">
+                            <?php foreach ( [ '25', '50', '75', 'all' ] as $opt ) : ?>
+                                <option value="<?php echo esc_attr( $opt ); ?>" <?php selected( $per_page, $opt ); ?>>
+                                    <?php echo $opt === 'all' ? 'All' : esc_html( $opt ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+
+                    <?php /* Page navigation */ ?>
+                    <?php if ( $per_page !== 'all' && $total_pages > 1 ) : ?>
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            <?php
+                            if ( $current_page > 1 ) {
+                                $prev_url = add_query_arg( array_merge( $pagination_base_args, [ 'paged' => $current_page - 1 ] ), admin_url( 'admin.php' ) );
+                                echo '<a class="button button-small" href="' . esc_url( $prev_url ) . '">‹ Prev</a>';
+                            } else {
+                                echo '<span class="button button-small" style="opacity:.5;pointer-events:none;">‹ Prev</span>';
+                            }
+                            ?>
+                            <span style="font-size:13px;color:#50575e;padding:0 8px;">
+                                Page <?php echo esc_html( $current_page ); ?> of <?php echo esc_html( $total_pages ); ?>
+                            </span>
+                            <?php
+                            if ( $current_page < $total_pages ) {
+                                $next_url = add_query_arg( array_merge( $pagination_base_args, [ 'paged' => $current_page + 1 ] ), admin_url( 'admin.php' ) );
+                                echo '<a class="button button-small" href="' . esc_url( $next_url ) . '">Next ›</a>';
+                            } else {
+                                echo '<span class="button button-small" style="opacity:.5;pointer-events:none;">Next ›</span>';
+                            }
+                            ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
+            </div>
         </div>
         <?php
     }
