@@ -56,11 +56,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.7 |
-| **Current phase** | Phase 4 — Reservations |
-| **Current sub-phase** | 4C complete (free bookings). Deposit system deferred post-MVP. |
-| **Next task** | Phase 4D or Phase 5 — confirm with Claude |
-| **Last working state** | Phase 3 complete. Cart, orders, checkout, WhatsApp notifications, birthday flow, opening hours, mobile homepage with Food Category List all live. Desktop/mobile section visibility toggles working. Deep link from category list to product list working. |
+| **Deployed version** | v3.4.8 |
+| **Current phase** | Phase 5 — Backend Dashboard |
+| **Current sub-phase** | 5A — Dashboard Home (starting now) |
+| **Next task** | v3.4.9 — Dashboard home panels (today's orders, reservations, revenue, recent activity) |
+| **Last working state** | Phase 4 complete. Reservations fully working end-to-end (free bookings, 4-screen modal, admin list sorted newest-first). Deposit system built in v3.4.2–v3.4.4 but deferred post-MVP — all infrastructure (DB columns, settings fields, event schemas) retained in codebase, disabled at PHP + JS level. Reservation Settings merged into main Settings page. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -250,14 +250,13 @@ dish-dash/
 |---|---|---|---|
 | **Phase 1** | ✅ | Foundation (plugin, GitHub updater, WooCommerce integration) | — |
 | **Phase 2** | ✅ | Template System (header, hero, footer, branding, mobile 3-screen menu) | Track: viewed products, clicked categories, search queries |
-| **Phase 3** | ✅ | Cart, Orders, Delivery & WhatsApp — broken into 4 sub-phases (see Phase 3 Sub-Phases section below) | Save: order content, time, frequency, user WhatsApp identity, delivery preferences, cart behavior, open-hour visit patterns |
-| **Phase 4** | 🔄 | Reservations (table booking, deposit, refunds, notifications) — broken into 4 sub-phases (see Phase 4 Sub-Phases section below) | Track: booking time patterns, group size, deposit conversion → future: suggest time slots |
-| **Phase 5** | ⏳ | Backend Dashboard (admin analytics, insights) | Show: top products, peak hours, repeat customers, suggested combos |
+| **Phase 3** | ✅ | Cart, Orders, Delivery & WhatsApp | Save: order content, time, frequency, user WhatsApp identity, delivery preferences, cart behavior |
+| **Phase 4** | ✅ | Reservations (table booking, WhatsApp notifications, admin management) | Track: booking time patterns, group size |
+| **Phase 5** | 🔄 | Backend Dashboard (admin analytics, insights) | Show: top products, peak hours, repeat customers, revenue trends |
 | **Phase 6** | ⏳ | Analytics + AI (Python microservice, behavior engine, recommendations) | AI Rules Engine, User Profile Engine, Smart Nudges |
 | **Phase 7** | ⏳ | Loyalty & QR (points system, QR scan ordering) | Reward frequent users, promote favorite items |
 | **Phase 8** | ⏳ | Testing + Optimization (performance, mobile UX, edge cases) | — |
-| **Phase 9** | ⏳ | Native Payments (MTN MoMo in-drawer, Airtel Money, future card gateways — built after real user validation) | Track: payment method preference, completion rate, abandonment by method |
-| **Phase 10** | ⏳ | SaaS Platform (multi-tenant hosting, subscription billing, white-label branding for other restaurants) | — |
+| **Phase 9** | ⏳ | SaaS Platform (multi-tenant hosting, subscription billing, white-label) | — |
 
 **Note:** POS Terminal (in-restaurant ordering) comes AFTER MVP is tested with real customers and we know exactly what restaurants need. Not scheduled as a fixed phase yet.
 
@@ -649,6 +648,65 @@ reason, status, processed_at, admin_notes, created_at
 
 ---
 
+## 📦 Phase 4 Summary — Reservations ✅ Complete
+
+**Deployed:** v3.2.20 → v3.4.8
+
+What shipped:
+- Reservation modal (4-screen: Date / Guests / Details / Confirm)
+- Full submission flow: validation, customer upsert, unique booking ref (RES-YYYYMMDD-XXXX), DB insert
+- Admin: WP Admin → Dish Dash → Reservations — list, status filter tabs, search, date filter, pagination
+- Admin: WP Admin → Dish Dash → Tables — table CRUD
+- Admin: WP Admin → Dish Dash → Seating Sections — section management, customer dropdown
+- WhatsApp notifications (Mode A wa.me): customer confirmation + admin alert
+- Admin email: branded HTML, sends on every reservation
+- Tracking: `reservation_made` event firing and validated
+
+**Deferred — Phase 4C Deposit System:**
+Built in v3.4.2–v3.4.4 but disabled post-MVP. Reason: requires a fully integrated online payment gateway (Pesapal not yet wired for real transactions). All infrastructure retained:
+- DB columns: `deposit_required`, `deposit_amount`, `deposit_status`, `deposit_paid_at`, `payment_ref` on `wp_dishdash_reservations`
+- Settings fields in Dish Dash → Settings → Reservations section
+- Event schemas: `deposit_initiated`, `deposit_paid`, `deposit_failed`, `booking_auto_cancelled`
+- PHP + JS disabled via `$deposit_enabled = 0` and `const depositActive = false`
+
+**To reactivate deposit system:** Set `$deposit_enabled = get_option(...)` in `ajax_submit_reservation()` and set `depositActive = ddRes.depositEnabled` in `reservations.js`. Then complete Pesapal integration.
+
+---
+
+## 📦 Phase 5 Sub-Phases — Backend Dashboard
+
+**Goal:** Give the restaurant owner a single place to understand what's happening — orders, reservations, customers, revenue — without leaving WordPress admin.
+
+---
+
+### Sub-Phase 5A — Dashboard Home (v3.4.9+)
+**Goal:** One-screen overview with the most important live numbers.
+
+Panels:
+- Today's orders — count + total RWF
+- Today's reservations — count + how many pending confirmation
+- Total customers — all time
+- Revenue this week vs last week (comparison)
+- Recent orders — last 10
+- Recent reservations — last 5
+
+---
+
+### Sub-Phase 5B — Orders Analytics (TBD)
+**Goal:** Order trends over time. Top products by revenue and volume. Peak ordering hours heatmap.
+
+---
+
+### Sub-Phase 5C — Customer Insights (TBD)
+**Goal:** Full customer list with order history, total lifetime spend, tier badge (Regular / VIP / Champion / Diamond), last order date. Click through to individual customer profile.
+
+---
+
+### Sub-Phase 5D — Behavior Analytics (TBD)
+**Goal:** Surface data from `wp_dishdash_user_events` — top viewed products, search terms, add-to-cart rates, category popularity. Foundation for Phase 6 AI recommendations.
+
+---
+
 ## 🧠 AI Core Systems (Build in Phase 6)
 
 These are the 4 systems that make DishDash "smart." They are NOT built yet — we are collecting data for them NOW.
@@ -785,7 +843,8 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-05-05 | v3.2.70 → v3.2.75 | Sub-Phase 3E complete: mobile homepage experience. Desktop/mobile section visibility toggles per section in Homepage Settings. Food Category List mobile-only section with deep link into menu. CSS enqueue fix (frontend.css). Mobile ?cat= deep link fix. Empty category filter. |
 | 2026-05-05 | planning only | Phase 4 planned: 4-sub-phase reservation system (UI shell → backend → deposit → refund). Full user flow, data model, responsive design, deposit/refund system designed. |
 | 2026-05-09 | v3.2.76 | Post-import recovery: product categories rebuilt, WooCommerce resync, 839MB→157MB image compression, mobile pill strip fixed, spice attributes restored, Load More fixed, deep link navigation fixed |
-| **NEXT** | **Phase 4A (v3.2.76)** | **Reservation UI shell** |
+| 2026-05-18 | v3.4.2 → v3.4.8 | Phase 4C: Deposit system built (DB schema, settings, 5-screen modal, WC order creation, auto-cancel cron) then deferred post-MVP. Reservation Settings merged into main Settings page (v3.4.5). Modal navigation bugs fixed (v3.4.6). Free booking flow restored to 4 screens (v3.4.7). Sort order fix (v3.4.8). Phase 4 complete. Phase 5 Backend Dashboard begins. |
+| **NEXT** | **v3.4.9** | **Phase 5A — Dashboard home panels** |
 
 
 ## ⚡ Claude Code Operating Rules
