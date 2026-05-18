@@ -56,10 +56,10 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.2.75 |
+| **Deployed version** | v3.4.7 |
 | **Current phase** | Phase 4 — Reservations |
-| **Current sub-phase** | 4A — Table Booking (starting now) |
-| **Next task** | Phase 4A (v3.2.76) — Reservation UI shell |
+| **Current sub-phase** | 4C complete (free bookings). Deposit system deferred post-MVP. |
+| **Next task** | Phase 4D or Phase 5 — confirm with Claude |
 | **Last working state** | Phase 3 complete. Cart, orders, checkout, WhatsApp notifications, birthday flow, opening hours, mobile homepage with Food Category List all live. Desktop/mobile section visibility toggles working. Deep link from category list to product list working. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
@@ -572,27 +572,15 @@ Phase 4 is built in 4 independent sub-phases. Each sub-phase leaves the site mor
 
 ---
 
-### Sub-Phase 4C — Deposit System (v3.2.78)
-**Goal:** Restaurant can charge a deposit to confirm bookings. Unpaid slots auto-released.
+### Sub-Phase 4C — Deposit System — ⏸ DEFERRED
 
-| What ships |
-|---|
-| Reservation settings page: deposit toggle (on/off), type (fixed RWF / percentage), amount, auto-cancel hours |
-| Deposit amount snapshotted at booking time into `deposit_amount` column |
-| Screen 4 added to mobile flow: payment screen |
-| WooCommerce order created for deposit payment (reuses existing payment gateways) |
-| Booking status flow: `pending_payment` → `confirmed` (paid) or auto-cancelled after X hours |
-| Deposit badge shown on Screen 1 when enabled: "X RWF deposit required" |
-| Refund policy text shown on Screen 3 review |
+Deferred after v3.4.4. Reason: requires a fully integrated online payment gateway before deposits
+can be enforced. Pesapal integration must be completed and tested with real transactions first.
+All deposit infrastructure built in v3.4.2–v3.4.4 remains in the codebase (DB columns, settings
+section, event schemas) but the deposit flow is disabled at the JS and PHP level.
 
-**Files:**
-- CREATE `modules/reservations/class-dd-reservations-settings.php`
-- EDIT `assets/js/reservations.js` — Screen 4 payment flow
-- EDIT `assets/css/reservations.css` — Screen 4 styles, deposit badge
-
-**New wp_options keys:** `dd_reservation_deposit_enabled`, `dd_reservation_deposit_type`, `dd_reservation_deposit_amount`, `dd_reservation_autocancel_hours`, `dd_reservation_refund_enabled`, `dd_reservation_refund_hours`, `dd_reservation_refund_policy_text`
-
-**Delivers:** Restaurant can require deposit. No-shows cost customers. Paid bookings confirmed instantly.
+Will revisit after MVP launch and client feedback. Do NOT remove the deposit columns or settings
+fields — they will be reactivated, not rebuilt.
 
 ---
 

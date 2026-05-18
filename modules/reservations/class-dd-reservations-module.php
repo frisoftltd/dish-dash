@@ -104,16 +104,10 @@ class DD_Reservations_Module extends DD_Module {
         }
 
         // 6. Deposit check — determines status and extra columns
-        $deposit_enabled = (int) get_option( 'dd_reservation_deposit_enabled', 0 );
+        $deposit_enabled = 0; // Deposit system deferred post-MVP — see CLAUDE.md
         $deposit_amount  = 0;
         $deposit_status  = 'none';
         $status          = 'pending';
-
-        if ( $deposit_enabled ) {
-            $deposit_amount = $this->calculate_deposit_amount();
-            $deposit_status = 'pending';
-            $status         = 'pending_payment';
-        }
 
         // 7. Insert reservation
         $inserted = $wpdb->insert(

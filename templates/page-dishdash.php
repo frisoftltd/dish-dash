@@ -566,6 +566,10 @@ if ( $food_cat_mob ) :
           <label class="dd-res-label">🕐 Time</label>
           <div class="dd-res-slots" id="dd-res-slots" role="listbox" aria-label="Select time"></div>
         </div>
+
+        <div class="dd-res-deposit-notice" id="dd-res-deposit-notice">
+          💳 <span id="dd-res-deposit-badge-amount"></span> deposit required
+        </div>
       </div>
 
       <!-- SCREEN 2 — Guests & Table -->
@@ -619,7 +623,7 @@ if ( $food_cat_mob ) :
         </div>
       </div>
 
-      <!-- SCREEN 4 — Confirm -->
+      <!-- SCREEN 4 — Confirm your booking -->
       <div class="dd-res-screen dd-res-screen--hidden" id="dd-res-screen-4">
         <div class="dd-res-screen__title">Confirm your booking</div>
 

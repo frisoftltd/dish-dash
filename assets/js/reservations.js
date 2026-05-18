@@ -32,6 +32,8 @@
   const $all = sel => [...document.querySelectorAll(sel)];
 
   const ddRes = window.ddReservations || {};
+  // Phase 4C deposit deferred — force off until payment gateway is fully integrated
+  const depositActive = false; // was: ddRes.depositEnabled
 
   // ── Init ──────────────────────────────────────────────────
   function init() {
@@ -55,7 +57,7 @@
   function initDepositBadge() {
     const badge = document.getElementById('dd-res-deposit-notice');
     if (!badge) return;
-    if (ddRes.depositEnabled) {
+    if (depositActive) {
       const amountEl = document.getElementById('dd-res-deposit-badge-amount');
       if (amountEl && ddRes.depositAmount) {
         amountEl.textContent = ddRes.depositAmount.toLocaleString() + ' RWF';
@@ -233,29 +235,17 @@
   function bindNavigation() {
     $('#dd-res-next')?.addEventListener('click', () => {
       if (!validateScreen(state.screen)) return;
-
-      // Screen 4 (deposit) always calls submit
-      if (state.screen === 4) {
-        submitReservation();
-        return;
-      }
-
-      if (state.screen < 5) {
-        // From screen 3: skip screen 4 when deposit is off
-        const target = (state.screen === 3 && !ddRes.depositEnabled) ? 5 : state.screen + 1;
-        goToScreen(target);
+      if (state.screen < 4) {
+        goToScreen(state.screen + 1);
       } else {
         submitReservation();
       }
     });
 
     $('#dd-res-back')?.addEventListener('click', () => {
-      if (state.screen <= 1) return;
       const nextBtn = $('#dd-res-next');
       if (nextBtn) nextBtn.disabled = false;
-      // From screen 5 going back: skip screen 4 when deposit is off
-      const target = (state.screen === 5 && !ddRes.depositEnabled) ? 3 : state.screen - 1;
-      goToScreen(target);
+      goToScreen(state.screen - 1);
     });
   }
 
@@ -265,7 +255,7 @@
 
     state.screen = n;
 
-    $('#dd-res-progress-fill').style.width = `${(n/5)*100}%`;
+    $('#dd-res-progress-fill').style.width = `${(n/4)*100}%`;
 
     $all('.dd-res-step').forEach((el, i) => {
       el.classList.remove('dd-res-step--active','dd-res-step--done');
@@ -278,14 +268,12 @@
 
     const next = $('#dd-res-next');
     if (next) {
-      if (n === 5) { next.textContent = '✅ Confirm reservation'; }
-      else if (n === 4) { next.textContent = ddRes.depositEnabled ? 'Pay deposit →' : 'Confirm reservation →'; }
+      if (n === 4)      { next.textContent = '✅ Confirm reservation'; }
       else if (n === 3) { next.textContent = 'Review booking →'; }
-      else { next.textContent = 'Continue →'; }
+      else              { next.textContent = 'Continue →'; }
     }
 
-    if (n === 4) populateDepositScreen();
-    if (n === 5) populateConfirm();
+    if (n === 4) populateConfirm();
 
     const body = $('.dd-res-modal__body');
     if (body) body.scrollTop = 0;
@@ -396,12 +384,6 @@
 
         try {
           const data = res.data;
-
-          // Deposit required — redirect to WC payment page
-          if ( data.requires_payment && data.payment_url ) {
-            window.location.href = data.payment_url;
-            return;
-          }
 
           // Free booking — show inline confirmation
           const refEl = document.querySelector( '.dd-res-booking-ref' );
