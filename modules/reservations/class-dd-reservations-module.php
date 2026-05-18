@@ -65,25 +65,8 @@ class DD_Reservations_Module extends DD_Module {
             wp_send_json_error( [ 'message' => 'That date has already passed.' ] );
         }
 
-        // 4. Customer identity — WhatsApp is primary key
-        $customers_table = $wpdb->prefix . 'dishdash_customers';
-        $customer = $wpdb->get_row(
-            $wpdb->prepare( "SELECT id FROM {$customers_table} WHERE whatsapp = %s LIMIT 1", $whatsapp )
-        );
-        if ( $customer ) {
-            $customer_id = (int) $customer->id;
-        } else {
-            $wpdb->insert(
-                $customers_table,
-                [
-                    'whatsapp'   => $whatsapp,
-                    'name'       => $name,
-                    'created_at' => current_time( 'mysql' ),
-                ],
-                [ '%s', '%s', '%s' ]
-            );
-            $customer_id = (int) $wpdb->insert_id;
-        }
+        // 4. Customer identity — delegated to customer domain via filter
+        $customer_id = (int) apply_filters( 'dd_resolve_customer_id', 0, $whatsapp, $name );
 
         // 5. Generate unique booking ref: RES-YYYYMMDD-XXXX
         $res_table   = $wpdb->prefix . 'dishdash_reservations';

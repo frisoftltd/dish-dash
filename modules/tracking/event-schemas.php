@@ -12,7 +12,8 @@
  *   if event.schema_version >= 2: parse new metadata format
  *   else: parse legacy format
  *
- * Last modified: v3.1.17
+ * Schema file v1.1 — removed dead schemas: reorder, deposit_failed
+ * Last modified: v3.4.9
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -96,13 +97,6 @@ return [
             'optional' => ['items', 'payment_method'],
         ],
     ],
-    'reorder' => [
-        'current_version' => DISHDASH_SCHEMA_ORDER_EVENT,
-        'metadata_schema' => [
-            'required' => ['original_order_id'],
-            'optional' => [],
-        ],
-    ],
     'page_view' => [
         'current_version' => DISHDASH_SCHEMA_VIEW_EVENT,
         'metadata_schema' => [
@@ -115,6 +109,29 @@ return [
         'metadata_schema' => [
             'required' => [ 'date', 'time', 'session', 'guests' ],
             'optional' => [ 'source' ],
+        ],
+    ],
+    // NOTE: Dead path — deposit feature disabled ($deposit_enabled = 0 in reservations module).
+    // Schemas retained for when deposit is re-enabled.
+    'deposit_initiated' => [
+        'current_version' => 1,
+        'metadata_schema' => [
+            'required' => [ 'booking_ref', 'amount' ],
+            'optional' => [ 'deposit_type', 'wc_order_id' ],
+        ],
+    ],
+    'deposit_paid' => [
+        'current_version' => 1,
+        'metadata_schema' => [
+            'required' => [ 'booking_ref' ],
+            'optional' => [ 'wc_order_id' ],
+        ],
+    ],
+    'booking_auto_cancelled' => [
+        'current_version' => 1,
+        'metadata_schema' => [
+            'required' => [ 'booking_ref' ],
+            'optional' => [ 'hours_elapsed' ],
         ],
     ],
 ];

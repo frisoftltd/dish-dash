@@ -66,6 +66,8 @@ class DD_Orders_Module extends DD_Module {
     private const OFFLINE_GATEWAYS = [ 'cod', 'bacs', 'cheque' ];
 
     public function init(): void {
+        DD_Customer_Manager::register_hooks();
+
         // REST API endpoints
         add_action( 'rest_api_init', [ $this, 'register_routes' ] );
 

@@ -158,8 +158,23 @@ class DD_Template_Module extends DD_Module {
     // ─────────────────────────────────────────
     //  FRONTEND ASSETS
     // ─────────────────────────────────────────
+    private function is_dishdash_page(): bool {
+        if ( is_front_page() )                    return true;
+        if ( is_page( 'restaurant-menu' ) )       return true;
+        if ( is_page( 'cart' ) )                  return true;
+        if ( is_page( 'checkout' ) )              return true;
+        if ( is_page( 'birthday' ) )              return true;
+        if ( is_page( 'my-account' ) )            return true;
+        if ( is_page() ) {
+            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
+            if ( 'page-dishdash.php' === $meta )  return true;
+        }
+        return false;
+    }
+
     public function enqueue_frontend_assets(): void {
         if ( is_admin() ) return;
+        if ( ! $this->is_dishdash_page() ) return;
         $plugin_url = plugins_url( 'dish-dash' );
 
         $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );

@@ -140,9 +140,14 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
                 }
                 $dd_initial_query = new WP_Query( $dd_initial_args );
                 if ( $dd_initial_query->have_posts() ) {
+                    $product_ids  = wp_list_pluck( $dd_initial_query->posts, 'ID' );
+                    $products_map = [];
+                    foreach ( wc_get_products( [ 'include' => $product_ids, 'limit' => count( $product_ids ) ] ) as $p ) {
+                        $products_map[ $p->get_id() ] = $p;
+                    }
                     while ( $dd_initial_query->have_posts() ) {
                         $dd_initial_query->the_post();
-                        $product = wc_get_product( get_the_ID() );
+                        $product = $products_map[ get_the_ID() ] ?? null;
                         if ( $product ) {
                             include DD_TEMPLATES_DIR . 'partials/product-card.php';
                         }

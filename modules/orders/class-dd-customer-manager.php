@@ -168,6 +168,39 @@ class DD_Customer_Manager {
     }
 
     /**
+     * Register action/filter hooks — called from DD_Orders_Module::init().
+     */
+    public static function register_hooks(): void {
+        add_filter( 'dd_resolve_customer_id', [ self::class, 'on_resolve_customer_id' ], 10, 3 );
+    }
+
+    /**
+     * Filter handler: get-or-create customer by WhatsApp, return customer ID.
+     * Used by modules that need a customer ID but should not write to this table directly.
+     */
+    public static function on_resolve_customer_id( int $customer_id, string $whatsapp, string $name ): int {
+        global $wpdb;
+        $whatsapp = self::normalize_phone( $whatsapp );
+        if ( ! $whatsapp ) return 0;
+
+        $table    = $wpdb->prefix . 'dishdash_customers';
+        $existing = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id FROM {$table} WHERE whatsapp = %s LIMIT 1", $whatsapp
+        ) );
+
+        if ( $existing ) {
+            return (int) $existing->id;
+        }
+
+        $wpdb->insert(
+            $table,
+            [ 'whatsapp' => $whatsapp, 'name' => $name, 'created_at' => current_time( 'mysql' ) ],
+            [ '%s', '%s', '%s' ]
+        );
+        return (int) $wpdb->insert_id;
+    }
+
+    /**
      * Normalize phone to digits only with Rwanda prefix.
      */
     public static function normalize_phone( string $phone ): string {
