@@ -65,6 +65,15 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     // Timezone
     update_option( 'dd_timezone', sanitize_text_field( wp_unslash( $_POST['dd_timezone'] ?? 'Africa/Kigali' ) ) );
 
+    // Reservation Settings
+    update_option( 'dd_reservation_deposit_enabled',    isset( $_POST['dd_reservation_deposit_enabled'] ) ? 1 : 0 );
+    update_option( 'dd_reservation_deposit_type',       sanitize_text_field( $_POST['dd_reservation_deposit_type'] ?? 'fixed' ) );
+    update_option( 'dd_reservation_deposit_amount',     absint( $_POST['dd_reservation_deposit_amount'] ?? 2000 ) );
+    update_option( 'dd_reservation_autocancel_hours',   absint( $_POST['dd_reservation_autocancel_hours'] ?? 2 ) );
+    update_option( 'dd_reservation_refund_enabled',     isset( $_POST['dd_reservation_refund_enabled'] ) ? 1 : 0 );
+    update_option( 'dd_reservation_refund_hours',       absint( $_POST['dd_reservation_refund_hours'] ?? 24 ) );
+    update_option( 'dd_reservation_refund_policy_text', sanitize_textarea_field( $_POST['dd_reservation_refund_policy_text'] ?? '' ) );
+
     echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 }
 // Opening hours read
@@ -302,6 +311,77 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
               </td>
           </tr>
 
+        </table>
+
+        <hr>
+        <h2>Reservations</h2>
+
+        <table class="form-table">
+            <tr>
+                <th scope="row">Require Deposit</th>
+                <td>
+                    <label>
+                        <input type="checkbox" name="dd_reservation_deposit_enabled" value="1"
+                            <?php checked( get_option( 'dd_reservation_deposit_enabled', 0 ), 1 ); ?>>
+                        Customers must pay a deposit to confirm their booking
+                    </label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Deposit Type</th>
+                <td>
+                    <select name="dd_reservation_deposit_type">
+                        <option value="fixed" <?php selected( get_option( 'dd_reservation_deposit_type', 'fixed' ), 'fixed' ); ?>>Fixed amount (RWF)</option>
+                        <option value="percent" <?php selected( get_option( 'dd_reservation_deposit_type', 'fixed' ), 'percent' ); ?>>Percentage of estimated order</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Deposit Amount</th>
+                <td>
+                    <input type="number" name="dd_reservation_deposit_amount"
+                        value="<?php echo esc_attr( get_option( 'dd_reservation_deposit_amount', 2000 ) ); ?>"
+                        min="0" step="100" class="regular-text">
+                    <p class="description">Enter RWF amount (for fixed) or percentage (for percent type).</p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Auto-Cancel After</th>
+                <td>
+                    <input type="number" name="dd_reservation_autocancel_hours"
+                        value="<?php echo esc_attr( get_option( 'dd_reservation_autocancel_hours', 2 ) ); ?>"
+                        min="1" max="72" class="small-text"> hours
+                    <p class="description">Unpaid deposit bookings are automatically cancelled after this many hours.</p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Allow Refunds</th>
+                <td>
+                    <label>
+                        <input type="checkbox" name="dd_reservation_refund_enabled" value="1"
+                            <?php checked( get_option( 'dd_reservation_refund_enabled', 0 ), 1 ); ?>>
+                        Allow deposit refunds when customer cancels in time
+                    </label>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Refund Window</th>
+                <td>
+                    <input type="number" name="dd_reservation_refund_hours"
+                        value="<?php echo esc_attr( get_option( 'dd_reservation_refund_hours', 24 ) ); ?>"
+                        min="1" class="small-text"> hours before reservation
+                    <p class="description">Customer must cancel at least this many hours before the booking to receive a refund.</p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">Refund Policy</th>
+                <td>
+                    <textarea name="dd_reservation_refund_policy_text" rows="3" class="large-text"><?php
+                        echo esc_textarea( get_option( 'dd_reservation_refund_policy_text', '' ) );
+                    ?></textarea>
+                    <p class="description">Shown to customers on the booking review screen.</p>
+                </td>
+            </tr>
         </table>
 
         <!-- Hidden field: assembled JSON sent on submit -->
