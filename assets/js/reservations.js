@@ -1,7 +1,8 @@
 /**
- * reservations.js — Phase 4A v2: 4-Screen Reservation Modal
+ * reservations.js — Phase 4C: 5-Screen Reservation Modal + Deposit Flow
  * Dish Dash Plugin — Fri Soft Ltd
- * Pure UI — no AJAX. Phase 4B wires the submit.
+ * Screen 4 = deposit interstitial (skipped when deposit off)
+ * Screen 5 = confirm/summary (free booking path)
  */
 
 (function () {
@@ -30,13 +31,13 @@
   const $ = sel => document.querySelector(sel);
   const $all = sel => [...document.querySelectorAll(sel)];
 
+  const ddRes = window.ddReservations || {};
+
   // ── Init ──────────────────────────────────────────────────
   function init() {
     if (!$('#dd-res-overlay')) return;
 
-    // Auto-open if landing on page with #reserve hash
     if (window.location.hash === '#reserve') {
-      // Wait a frame to ensure other init finishes
       setTimeout(() => openModal(), 100);
     }
 
@@ -47,11 +48,26 @@
     bindSessionToggle();
     bindNavigation();
     bindInputSync();
+    initDepositBadge();
+  }
+
+  // ── Deposit badge on Screen 1 ─────────────────────────────
+  function initDepositBadge() {
+    const badge = document.getElementById('dd-res-deposit-notice');
+    if (!badge) return;
+    if (ddRes.depositEnabled) {
+      const amountEl = document.getElementById('dd-res-deposit-badge-amount');
+      if (amountEl && ddRes.depositAmount) {
+        amountEl.textContent = ddRes.depositAmount.toLocaleString() + ' RWF';
+      }
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
   }
 
   // ── Open / Close ──────────────────────────────────────────
   function bindOpenClose() {
-    // Capture-phase document delegate — runs BEFORE other handlers (smooth scroll, etc)
     document.addEventListener('click', e => {
       const trigger = e.target.closest('#dd-open-reservation, .js-open-reservation, .dd-hero__reserve, a[href="#reserve"]');
       if (!trigger) return;
@@ -59,7 +75,7 @@
       e.stopPropagation();
       e.stopImmediatePropagation();
       openModal();
-    }, true); // ← true = capture phase
+    }, true);
 
     $('#dd-res-close')?.addEventListener('click', closeModal);
 
@@ -76,7 +92,6 @@
     const overlay = $('#dd-res-overlay');
     if (!overlay) return;
 
-    // Strip #reserve hash from URL so back-button + scroll restoration won't jump
     if (window.location.hash === '#reserve') {
       history.replaceState(null, '', window.location.pathname + window.location.search);
     }
@@ -134,7 +149,6 @@
     }
     container.appendChild(frag);
 
-    // Arrow scroll buttons
     const scrollBy = 200;
     $('#dd-res-date-prev')?.addEventListener('click', () => {
       container.scrollBy({ left: -scrollBy, behavior: 'smooth' });
@@ -175,7 +189,6 @@
       container.appendChild(btn);
     }
 
-    // Auto-select first
     const first = container.querySelector('.dd-res-slot');
     if (first) { first.classList.add('dd-res-slot--selected'); state.time = first.dataset.time; }
   }
@@ -220,50 +233,74 @@
   function bindNavigation() {
     $('#dd-res-next')?.addEventListener('click', () => {
       if (!validateScreen(state.screen)) return;
-      if (state.screen < 4) goToScreen(state.screen + 1);
-      else submitReservation();
+
+      // Screen 4 (deposit) always calls submit
+      if (state.screen === 4) {
+        submitReservation();
+        return;
+      }
+
+      if (state.screen < 5) {
+        // From screen 3: skip screen 4 when deposit is off
+        const target = (state.screen === 3 && !ddRes.depositEnabled) ? 5 : state.screen + 1;
+        goToScreen(target);
+      } else {
+        submitReservation();
+      }
     });
 
     $('#dd-res-back')?.addEventListener('click', () => {
-      if (state.screen > 1) goToScreen(state.screen - 1);
+      if (state.screen <= 1) return;
+      const nextBtn = $('#dd-res-next');
+      if (nextBtn) nextBtn.disabled = false;
+      // From screen 5 going back: skip screen 4 when deposit is off
+      const target = (state.screen === 5 && !ddRes.depositEnabled) ? 3 : state.screen - 1;
+      goToScreen(target);
     });
   }
 
   function goToScreen(n) {
-    // Hide all screens
     $all('.dd-res-screen').forEach(s => s.classList.add('dd-res-screen--hidden'));
     $(`#dd-res-screen-${n}`)?.classList.remove('dd-res-screen--hidden');
 
     state.screen = n;
 
-    // Progress bar
-    $('#dd-res-progress-fill').style.width = `${(n/4)*100}%`;
+    $('#dd-res-progress-fill').style.width = `${(n/5)*100}%`;
 
-    // Step labels
     $all('.dd-res-step').forEach((el, i) => {
       el.classList.remove('dd-res-step--active','dd-res-step--done');
       if (i+1 === n) el.classList.add('dd-res-step--active');
       else if (i+1 < n) el.classList.add('dd-res-step--done');
     });
 
-    // Back button visibility
     const back = $('#dd-res-back');
     if (back) back.style.visibility = n > 1 ? 'visible' : 'hidden';
 
-    // Next button label
     const next = $('#dd-res-next');
     if (next) {
-      if (n === 4) { next.textContent = '✅ Confirm reservation'; }
+      if (n === 5) { next.textContent = '✅ Confirm reservation'; }
+      else if (n === 4) { next.textContent = ddRes.depositEnabled ? 'Pay deposit →' : 'Confirm reservation →'; }
       else if (n === 3) { next.textContent = 'Review booking →'; }
       else { next.textContent = 'Continue →'; }
     }
 
-    // Populate confirm screen
-    if (n === 4) populateConfirm();
+    if (n === 4) populateDepositScreen();
+    if (n === 5) populateConfirm();
 
-    // Scroll modal body to top
     const body = $('.dd-res-modal__body');
     if (body) body.scrollTop = 0;
+  }
+
+  // ── Populate deposit screen ───────────────────────────────
+  function populateDepositScreen() {
+    const amountEl = document.getElementById('dd-res-deposit-amount-display');
+    if (amountEl && ddRes.depositAmount) {
+      amountEl.textContent = ddRes.depositAmount.toLocaleString() + ' RWF';
+    }
+    const policyEl = document.getElementById('dd-res-refund-policy');
+    if (policyEl && ddRes.refundPolicy) {
+      policyEl.textContent = ddRes.refundPolicy;
+    }
   }
 
   // ── Validation ────────────────────────────────────────────
@@ -326,7 +363,7 @@
 
     const formData = new FormData();
     formData.append( 'action',    'dd_submit_reservation' );
-    formData.append( 'nonce',     ( window.ddReservations && window.ddReservations.nonce ) ? window.ddReservations.nonce : '' );
+    formData.append( 'nonce',     ddRes.nonce || '' );
     formData.append( 'name',      state.name );
     formData.append( 'whatsapp',  state.whatsapp );
     formData.append( 'date',      dateStr );
@@ -337,9 +374,7 @@
     formData.append( 'requests',  state.requests || '' );
     formData.append( 'source',    'homepage' );
 
-    const ajaxUrl = ( window.ddReservations && window.ddReservations.ajax_url )
-      ? window.ddReservations.ajax_url
-      : '/wp-admin/admin-ajax.php';
+    const ajaxUrl = ddRes.ajax_url || '/wp-admin/admin-ajax.php';
 
     fetch( ajaxUrl, { method: 'POST', body: formData } )
       .then( r => r.text().then( text => ({ status: r.status, text: text }) ) )
@@ -359,10 +394,16 @@
           return;
         }
 
-        // Success — own try/catch so errors here never reach the network .catch()
         try {
           const data = res.data;
 
+          // Deposit required — redirect to WC payment page
+          if ( data.requires_payment && data.payment_url ) {
+            window.location.href = data.payment_url;
+            return;
+          }
+
+          // Free booking — show inline confirmation
           const refEl = document.querySelector( '.dd-res-booking-ref' );
           if ( refEl ) refEl.textContent = data.booking_ref;
 
@@ -385,7 +426,6 @@
         }
       } )
       .catch( err => {
-        // Only genuine fetch/network failures reach here
         console.log( 'DD RESERVATION — FETCH FAILED:', err );
         showSubmitError( btn, 'Network error. Please try again.' );
       } );
@@ -394,9 +434,13 @@
   function showSubmitError( btn, message ) {
     if ( btn ) {
       btn.disabled = false;
-      btn.textContent = 'Confirm Reservation';
+      if (state.screen === 5)      btn.textContent = '✅ Confirm reservation';
+      else if (state.screen === 4) btn.textContent = ddRes.depositEnabled ? 'Pay deposit →' : 'Confirm reservation →';
+      else if (state.screen === 3) btn.textContent = 'Review booking →';
+      else                         btn.textContent = 'Continue →';
     }
-    const errEl = document.querySelector( '.dd-res-submit-error' );
+    // Show error in whichever screen's error element is visible
+    const errEl = document.querySelector( `#dd-res-screen-${state.screen} .dd-res-submit-error` );
     if ( errEl ) {
       errEl.textContent = message;
       errEl.hidden = false;

@@ -219,9 +219,12 @@ class DD_Template_Module extends DD_Module {
                 return $out;
             })(),
         ] );
-        wp_localize_script( 'dish-dash-cart', 'ddReservations', [
-            'ajax_url' => admin_url( 'admin-ajax.php' ),
-            'nonce'    => wp_create_nonce( 'dish_dash_frontend' ),
+        wp_localize_script( 'dish-dash-reservations', 'ddReservations', [
+            'ajax_url'      => admin_url( 'admin-ajax.php' ),
+            'nonce'         => wp_create_nonce( 'dish_dash_frontend' ),
+            'depositEnabled' => (bool) get_option( 'dd_reservation_deposit_enabled', 0 ),
+            'depositAmount'  => (int)  get_option( 'dd_reservation_deposit_amount', 2000 ),
+            'refundPolicy'   => get_option( 'dd_reservation_refund_policy_text', '' ),
         ] );
 
         // Inject CSS variables + footer background via WordPress inline style system
