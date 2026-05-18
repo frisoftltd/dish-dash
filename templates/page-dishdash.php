@@ -585,9 +585,11 @@ if ( $food_cat_mob ) :
           <label class="dd-res-label" for="dd-res-table">🪱 Table preference</label>
           <select class="dd-res-select" id="dd-res-table" name="dd_table">
             <option value="">No preference</option>
-            <option value="indoor">Indoor</option>
-            <option value="outdoor">Outdoor (terrace)</option>
-            <option value="private">Private room</option>
+            <?php foreach ( DD_Reservations_Module::get_active_section_names() as $section_name ) : ?>
+              <option value="<?php echo esc_attr( $section_name ); ?>">
+                <?php echo esc_html( $section_name ); ?>
+              </option>
+            <?php endforeach; ?>
           </select>
         </div>
       </div>

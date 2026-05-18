@@ -10,6 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
 require_once __DIR__ . '/class-dd-reservations-admin.php';
 require_once __DIR__ . '/class-dd-tables-admin.php';
+require_once __DIR__ . '/class-dd-sections-admin.php';
 require_once DD_PLUGIN_DIR . 'modules/orders/class-dd-notifications.php';
 
 class DD_Reservations_Module extends DD_Module {
@@ -19,6 +20,7 @@ class DD_Reservations_Module extends DD_Module {
     public function init(): void {
         ( new DD_Reservations_Admin() )->init();
         ( new DD_Tables_Admin() )->init();
+        ( new DD_Sections_Admin() )->init();
 
         DD_Ajax::register( 'dd_submit_reservation',        [ $this, 'ajax_submit_reservation' ] );
         DD_Ajax::register( 'dd_reservation_availability',  [ $this, 'ajax_check_availability' ] );
@@ -268,6 +270,39 @@ class DD_Reservations_Module extends DD_Module {
             'From: ' . $restaurant . ' <' . $from_address . '>',
         ];
         wp_mail( $admin_email, $subject, $body, $headers );
+    }
+
+    // ── Section helpers ────────────────────────────────────────────────────
+
+    /**
+     * Get the configured reservation sections.
+     * Returns an array of ['name' => string, 'active' => bool].
+     */
+    public static function get_sections(): array {
+        $raw = get_option( 'dd_reservation_sections', '' );
+        if ( empty( $raw ) ) {
+            // First-run default
+            return [
+                [ 'name' => 'Indoor',  'active' => true ],
+                [ 'name' => 'Outdoor', 'active' => true ],
+                [ 'name' => 'Private', 'active' => true ],
+            ];
+        }
+        $decoded = json_decode( $raw, true );
+        return is_array( $decoded ) ? $decoded : [];
+    }
+
+    /**
+     * Get only active section names, for the customer dropdown.
+     */
+    public static function get_active_section_names(): array {
+        $out = [];
+        foreach ( self::get_sections() as $s ) {
+            if ( ! empty( $s['active'] ) && ! empty( $s['name'] ) ) {
+                $out[] = $s['name'];
+            }
+        }
+        return $out;
     }
 
     // ── AJAX: Availability check (stub — Phase 4C) ─────────────────────────
