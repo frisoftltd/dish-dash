@@ -413,11 +413,18 @@
             ${ adminUrl ? `<a href="${ adminUrl }" style="display:block;padding:12px;background:#65040d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
                 📲 Notify Restaurant
             </a>` : '' }
-            <button onclick="closeModal()" style="padding:12px;background:transparent;border:1px solid #EADFCE;border-radius:8px;cursor:pointer;font-weight:600">
+            <button id="dd-res-close-confirm" type="button" style="padding:12px;background:transparent;border:1px solid #EADFCE;border-radius:8px;cursor:pointer;font-weight:600">
                 Close
             </button>
         </div>
     `;
+
+    const closeBtn = document.getElementById( 'dd-res-close-confirm' );
+    if ( closeBtn ) {
+        closeBtn.addEventListener( 'click', function () {
+            closeModal();
+        } );
+    }
   }
 
   // ── Run ───────────────────────────────────────────────────
