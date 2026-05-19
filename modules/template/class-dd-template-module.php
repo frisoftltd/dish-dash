@@ -80,6 +80,9 @@ class DD_Template_Module extends DD_Module {
         // ── Remove theme header on global header pages (runs early) ──
         add_action( 'init', [ $this, 'remove_theme_header_hooks' ] );
 
+        // ── Reservation modal (injected on all DD pages via footer) ──
+        add_action( 'wp_footer', [ $this, 'inject_reservation_modal' ] );
+
         // ── Birthday flow ──
         add_action( 'wp_footer',       [ $this, 'inject_birthday_whatsapp' ] );
         add_filter( 'template_include', [ $this, 'maybe_load_birthday_template' ] );
@@ -828,6 +831,12 @@ class DD_Template_Module extends DD_Module {
         <?php
     }
 
+
+    public function inject_reservation_modal(): void {
+        if ( is_admin() ) return;
+        if ( ! $this->is_dishdash_page() ) return;
+        require_once DD_PLUGIN_DIR . 'templates/reservations/modal.php';
+    }
 
     // ─────────────────────────────────────────
     //  INJECT GLOBAL FOOTER

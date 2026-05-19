@@ -93,9 +93,18 @@
   function openModal() {
     const overlay = $('#dd-res-overlay');
     if (!overlay) return;
+    if (overlay.classList.contains('dd-res-overlay--open')) return;
 
     if (window.location.hash === '#reserve') {
       history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+
+    const nextBtn = $('#dd-res-next');
+    if (nextBtn) nextBtn.disabled = false;
+    const confirmArea = document.querySelector('.dd-res-confirm-area');
+    if (confirmArea) {
+      confirmArea.innerHTML =
+        '<p class="dd-res-submit-error" hidden style="color:#dc2626;font-size:14px;margin:0 0 10px"></p>';
     }
 
     overlay.classList.add('dd-res-overlay--open');
@@ -430,6 +439,8 @@
   }
 
   function showWhatsAppButtons( adminUrl, customerUrl ) {
+    const backBtn = $('#dd-res-back');
+    if (backBtn) backBtn.style.visibility = 'hidden';
     const confirmArea = document.querySelector( '.dd-res-confirm-area' );
     if ( ! confirmArea ) return;
 
