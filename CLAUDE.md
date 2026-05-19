@@ -3,7 +3,7 @@ markdown# 🧠 Dish Dash — Session Context & Workflow
 > **This file is the single source of truth for every AI coding session.**
 > Read this ENTIRELY before doing any work. Updated after every release.
 >
-> Last updated: v3.2.12 (2026-04-21)
+> Last updated: v3.4.9 (2026-05-19)
 
 ---
 
@@ -56,17 +56,48 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.8 |
+| **Deployed version** | v3.4.9 |
 | **Current phase** | Phase 5 — Backend Dashboard |
 | **Current sub-phase** | 5A — Dashboard Home (starting now) |
-| **Next task** | v3.4.9 — Dashboard home panels (today's orders, reservations, revenue, recent activity) |
-| **Last working state** | Phase 4 complete. Reservations fully working end-to-end (free bookings, 4-screen modal, admin list sorted newest-first). Deposit system built in v3.4.2–v3.4.4 but deferred post-MVP — all infrastructure (DB columns, settings fields, event schemas) retained in codebase, disabled at PHP + JS level. Reservation Settings merged into main Settings page. |
+| **Next task** | First Phase 5 widget — Event Health Dashboard |
+| **Last working state** | v3.4.9 deployed. Phases 1–4 complete. Active modules: auth, customers, homepage, menu, orders (cart + notifications + customer-manager), reservations (4-screen modal, free bookings, admin management, tables, sections), template, tracking (event schemas, health check). Deposit system infrastructure present but disabled post-MVP (requires Pesapal). Phase 5 Backend Dashboard starting. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
 | **Plugin path** | /home/imitjsiy/dishdash.khanakhazana.rw/wp-content/plugins/dish-dash/ |
-| **Theme** | dish-dash-theme (custom theme, NOT Astra) |
+| **Theme** | dish-dash-theme (custom blank theme — NOT Astra) |
 | **WooCommerce** | Active — products used as menu items |
+
+---
+
+## 📌 Version Discipline
+
+### Single source of truth
+- `VERSION` file in repo root — contains the current version number as a plain string
+- `dish-dash.php` — version must match VERSION in BOTH locations:
+  - `* Version: X.X.X` in the plugin header comment
+  - `define('DD_VERSION', 'X.X.X');` constant
+
+### Rules
+- VERSION file, dish-dash.php header, and DD_VERSION constant must always be identical
+- Claude Code reads VERSION on every session start — never assume the version
+- CLAUDE.md Current State table must be updated in every commit
+- Session History table gets one new row per session
+
+### Bump checklist (every release)
+1. Update VERSION file
+2. Update dish-dash.php header comment `* Version:`
+3. Update dish-dash.php `define('DD_VERSION',`
+4. Update Current State table in CLAUDE.md
+5. Add row to Session History table in CLAUDE.md
+6. Commit message format: "vX.X.X — [what changed]"
+7. Tag format: vX.X.X (WITH v prefix — GitHub Actions requires it)
+
+### Session start rule (mandatory)
+Every Claude Code session MUST begin with:
+1. cat VERSION
+2. Read CLAUDE.md fully
+3. Never edit without knowing current version
 
 ---
 
@@ -775,7 +806,7 @@ These are the 4 systems that make DishDash "smart." They are NOT built yet — w
 |---|---|
 | `.dd-menu-page { max-width: 800px }` was in an inline `<style>` in `grid.php`, NOT in CSS files | Caused 4 versions of wrong fixes. Always check inline styles in PHP templates. |
 | `page-dishdash.php` is the HOMEPAGE template, not the menu page | The shortcode in `grid.php` renders `/restaurant-menu/`. |
-| `dish-dash-theme` is the active theme, NOT Astra | Only `dish-dash-theme` exists on server. |
+| `dish-dash-theme (custom blank theme)` is the active theme — no commercial themes installed | Only `dish-dash-theme` exists on server. |
 | `display: flex !important` overrides the HTML `hidden` attribute | Use `.dd-cat-row:not([hidden])` instead. |
 | Unchecked HTML checkboxes don't submit in forms | Must use `isset($_POST[$key]) ? '1' : '0'`. |
 | LiteSpeed Cache masks frontend changes | Always purge explicitly when debugging UI. |
@@ -844,7 +875,7 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-05-05 | planning only | Phase 4 planned: 4-sub-phase reservation system (UI shell → backend → deposit → refund). Full user flow, data model, responsive design, deposit/refund system designed. |
 | 2026-05-09 | v3.2.76 | Post-import recovery: product categories rebuilt, WooCommerce resync, 839MB→157MB image compression, mobile pill strip fixed, spice attributes restored, Load More fixed, deep link navigation fixed |
 | 2026-05-18 | v3.4.2 → v3.4.8 | Phase 4C: Deposit system built (DB schema, settings, 5-screen modal, WC order creation, auto-cancel cron) then deferred post-MVP. Reservation Settings merged into main Settings page (v3.4.5). Modal navigation bugs fixed (v3.4.6). Free booking flow restored to 4 screens (v3.4.7). Sort order fix (v3.4.8). Phase 4 complete. Phase 5 Backend Dashboard begins. |
-| **NEXT** | **v3.4.9** | **Phase 5A — Dashboard home panels** |
+| 2026-05-19 | v3.4.8 → v3.4.9 | Pre-Phase 5 audit: asset gating, N+1 fix, cross-module DB violation fixed, dead tracking schemas removed. CLAUDE.md cleaned, VERSION file created, minification pipeline added. |
 
 
 ## ⚡ Claude Code Operating Rules
