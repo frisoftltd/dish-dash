@@ -87,6 +87,10 @@ class DD_Notifications {
         $cust_lines[] = "Guests: {$guests} {$guest_word}";
         $cust_lines[] = '';
         $cust_lines[] = "We look forward to welcoming you! 🍽️";
+        if ( ! empty( $data['deposit_amount'] ) && ( $data['deposit_status'] ?? '' ) === 'paid' ) {
+            $cust_lines[] = '';
+            $cust_lines[] = '💳 Deposit paid: ' . number_format( (int) $data['deposit_amount'] ) . ' RWF';
+        }
         if ( $admin_phone ) {
             $cust_lines[] = '';
             $cust_lines[] = "Need to change anything? Call us: {$admin_phone}";

@@ -56,7 +56,7 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.9 |
+| **Deployed version** | v3.4.10 |
 | **Current phase** | Phase 5 — Backend Dashboard |
 | **Current sub-phase** | 5A — Dashboard Home (starting now) |
 | **Next task** | First Phase 5 widget — Event Health Dashboard |
@@ -884,6 +884,7 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-05-09 | v3.2.76 | Post-import recovery: product categories rebuilt, WooCommerce resync, 839MB→157MB image compression, mobile pill strip fixed, spice attributes restored, Load More fixed, deep link navigation fixed |
 | 2026-05-18 | v3.4.2 → v3.4.8 | Phase 4C: Deposit system built (DB schema, settings, 5-screen modal, WC order creation, auto-cancel cron) then deferred post-MVP. Reservation Settings merged into main Settings page (v3.4.5). Modal navigation bugs fixed (v3.4.6). Free booking flow restored to 4 screens (v3.4.7). Sort order fix (v3.4.8). Phase 4 complete. Phase 5 Backend Dashboard begins. |
 | 2026-05-19 | v3.4.8 → v3.4.9 | Pre-Phase 5 audit: asset gating, N+1 fix, cross-module DB violation fixed, dead tracking schemas removed. CLAUDE.md cleaned, VERSION file created, minification pipeline added. |
+| 2026-05-19 | v3.4.10 | Phase 4C deposit infrastructure committed: DB schema, default options, admin UI columns, CSS, WhatsApp deposit line. Deposit flow remains disabled (deposit_enabled = 0). |
 
 
 ## ⚡ Claude Code Operating Rules

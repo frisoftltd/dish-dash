@@ -108,10 +108,12 @@ class DD_Reservations_Admin {
 
         $status_labels = [
             ''           => 'All (' . $total . ')',
-            'pending'    => 'Pending ('    . ( $counts['pending']->n    ?? 0 ) . ')',
-            'confirmed'  => 'Confirmed ('  . ( $counts['confirmed']->n  ?? 0 ) . ')',
-            'cancelled'  => 'Cancelled ('  . ( $counts['cancelled']->n  ?? 0 ) . ')',
-            'no_show'    => 'No-show ('    . ( $counts['no_show']->n    ?? 0 ) . ')',
+            'pending'        => 'Pending ('        . ( $counts['pending']->n        ?? 0 ) . ')',
+            'confirmed'      => 'Confirmed ('      . ( $counts['confirmed']->n      ?? 0 ) . ')',
+            'cancelled'      => 'Cancelled ('      . ( $counts['cancelled']->n      ?? 0 ) . ')',
+            'no_show'        => 'No-show ('        . ( $counts['no_show']->n        ?? 0 ) . ')',
+            'pending_payment'=> 'Awaiting Payment ('  . ( $counts['pending_payment']->n ?? 0 ) . ')',
+            'auto_cancelled' => 'Auto-Cancelled (' . ( $counts['auto_cancelled']->n  ?? 0 ) . ')',
         ];
 
         $base_url = admin_url( 'admin.php?page=dd-reservations' );
@@ -162,12 +164,13 @@ class DD_Reservations_Admin {
                         <th style="width:130px">WhatsApp</th>
                         <th>Special Requests</th>
                         <th style="width:90px">Status</th>
+                        <th style="width:110px">Deposit</th>
                         <th style="width:180px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php if ( empty( $rows ) ) : ?>
-                        <tr><td colspan="11">No reservations found.</td></tr>
+                        <tr><td colspan="12">No reservations found.</td></tr>
                     <?php else : $row_num = $row_number_start; foreach ( $rows as $r ) : ?>
                         <tr>
                             <td><?php echo esc_html( $row_num ); $row_num++; ?></td>
@@ -202,6 +205,25 @@ class DD_Reservations_Admin {
                                     esc_attr( $color ),
                                     esc_html( ucfirst( str_replace( '_', ' ', $r->status ) ) )
                                 );
+                                ?>
+                            </td>
+                            <td>
+                                <?php
+                                if ( ! empty( $r->deposit_required ) ) {
+                                    $deposit_labels = [
+                                        'none'     => '<span style="color:#6E5B4C">—</span>',
+                                        'pending'  => '<span style="color:#C9A24A">⏳ Awaiting</span>',
+                                        'paid'     => '<span style="color:#1a7a3a">✅ Paid</span>',
+                                        'failed'   => '<span style="color:#c0392b">✗ Failed</span>',
+                                        'refunded' => '<span style="color:#6E5B4C">↩ Refunded</span>',
+                                    ];
+                                    $dep_status = $r->deposit_status ?: 'none';
+                                    $dep_cell   = ( $deposit_labels[ $dep_status ] ?? esc_html( $dep_status ) )
+                                                . '<br><small>' . number_format( (int) $r->deposit_amount ) . ' RWF</small>';
+                                    echo $dep_cell; // phpcs:ignore WordPress.Security.EscapeOutput
+                                } else {
+                                    echo '<span style="color:#6E5B4C">—</span>';
+                                }
                                 ?>
                             </td>
                             <td>

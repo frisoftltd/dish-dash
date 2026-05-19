@@ -540,3 +540,70 @@
 }
 
 .dd-res-back-btn:hover { border-color: var(--dd-muted, #6E5B4C); }
+
+/* ── Deposit badge — Screen 1 ────────────────────────────── */
+.dd-res-deposit-notice {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: #FBF7F1;
+  border: 1px solid #EADFCE;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #6E5B4C;
+  margin-top: 8px;
+}
+
+/* ── Deposit panel — Screen 4 ────────────────────────────── */
+.dd-res-deposit-panel {
+  padding: 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dd-res-deposit-badge {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #FBF7F1;
+  border: 1px solid #EADFCE;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.dd-res-deposit-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.dd-res-deposit-label {
+  font-size: 12px;
+  color: #6E5B4C;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dd-res-deposit-amount {
+  font-size: 22px;
+  font-weight: 700;
+  color: #65040d;
+}
+
+.dd-res-deposit-description {
+  font-size: 14px;
+  color: #6E5B4C;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.dd-res-refund-policy {
+  font-size: 12px;
+  color: #6E5B4C;
+  background: #F5EFE6;
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+.dd-res-refund-policy:empty { display: none; }
