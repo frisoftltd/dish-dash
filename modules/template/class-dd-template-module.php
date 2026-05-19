@@ -158,6 +158,28 @@ class DD_Template_Module extends DD_Module {
     // ─────────────────────────────────────────
     //  FRONTEND ASSETS
     // ─────────────────────────────────────────
+
+    private function asset_url( string $type, string $filename ): string {
+        $base = DD_PLUGIN_URL . 'assets/' . $type . '/';
+
+        // Use minified in production (when SCRIPT_DEBUG is not true)
+        if ( ! ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ) {
+            $min_filename = str_replace(
+                [ '.css', '.js' ],
+                [ '.min.css', '.min.js' ],
+                $filename
+            );
+            $min_path = DD_PLUGIN_DIR . 'assets/' . $type . '/' . $min_filename;
+
+            if ( file_exists( $min_path ) ) {
+                return $base . $min_filename;
+            }
+        }
+
+        // Fallback to original (development or if .min file doesn't exist)
+        return $base . $filename;
+    }
+
     private function is_dishdash_page(): bool {
         if ( is_front_page() )                    return true;
         if ( is_page( 'restaurant-menu' ) )       return true;
@@ -175,28 +197,27 @@ class DD_Template_Module extends DD_Module {
     public function enqueue_frontend_assets(): void {
         if ( is_admin() ) return;
         if ( ! $this->is_dishdash_page() ) return;
-        $plugin_url = plugins_url( 'dish-dash' );
 
         $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
         $dark    = get_option( 'dish_dash_dark_color',    '#160F0D' );
 
-        wp_enqueue_style(  'dish-dash-theme',    $plugin_url . '/assets/css/theme.css',    [], DD_VERSION );
-        wp_enqueue_style(  'dish-dash-frontend', DD_PLUGIN_URL . 'assets/css/frontend.css', [ 'dish-dash-theme' ], DD_VERSION );
-        wp_enqueue_style(  'dish-dash-menu',     $plugin_url . '/assets/css/menu.css',     [], DD_VERSION );
-        wp_enqueue_style(  'dish-dash-cart',     $plugin_url . '/assets/css/cart.css',     [], DD_VERSION );
+        wp_enqueue_style(  'dish-dash-theme',    $this->asset_url( 'css', 'theme.css' ),    [], DD_VERSION );
+        wp_enqueue_style(  'dish-dash-frontend', $this->asset_url( 'css', 'frontend.css' ), [ 'dish-dash-theme' ], DD_VERSION );
+        wp_enqueue_style(  'dish-dash-menu',     $this->asset_url( 'css', 'menu.css' ),     [], DD_VERSION );
+        wp_enqueue_style(  'dish-dash-cart',     $this->asset_url( 'css', 'cart.css' ),     [], DD_VERSION );
         wp_enqueue_style(
             'dish-dash-reservations',
-            DD_PLUGIN_URL . 'assets/css/reservations.css',
+            $this->asset_url( 'css', 'reservations.css' ),
             [ 'dish-dash-frontend' ],
             DD_VERSION
         );
-        wp_enqueue_script( 'dish-dash-menu',     $plugin_url . '/assets/js/menu.js',     [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-cart',     $plugin_url . '/assets/js/cart.js',     [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-search',   $plugin_url . '/assets/js/search.js',   [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-frontend', $plugin_url . '/assets/js/frontend.js', [ 'dish-dash-search' ], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-menu',     $this->asset_url( 'js', 'menu.js' ),     [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-search',   $this->asset_url( 'js', 'search.js' ),   [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search' ], DD_VERSION, true );
         wp_enqueue_script(
             'dish-dash-reservations',
-            DD_PLUGIN_URL . 'assets/js/reservations.js',
+            $this->asset_url( 'js', 'reservations.js' ),
             [],
             DD_VERSION,
             true
@@ -973,10 +994,9 @@ class DD_Template_Module extends DD_Module {
         global $post;
         if ( ! $post || get_post_field( 'post_name', $post->ID ) !== 'birthday' ) return;
 
-        $plugin_url = plugins_url( 'dish-dash' );
         wp_enqueue_style(
             'dd-birthday',
-            $plugin_url . '/assets/css/birthday.css',
+            $this->asset_url( 'css', 'birthday.css' ),
             [], DD_VERSION
         );
     }

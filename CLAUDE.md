@@ -99,6 +99,14 @@ Every Claude Code session MUST begin with:
 2. Read CLAUDE.md fully
 3. Never edit without knowing current version
 
+### Local development tip
+To use unminified assets during local development, add to wp-config.php:
+```php
+define('SCRIPT_DEBUG', true);
+```
+This forces all pages to load the original `.css` and `.js` files instead of the `.min` versions, making browser debugging easier.
+Production never sets SCRIPT_DEBUG, so `.min` files load automatically.
+
 ---
 
 ## 🎨 Brand Colors

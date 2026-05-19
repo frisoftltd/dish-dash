@@ -15,6 +15,45 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install minification tools
+        run: |
+          npm install -g clean-css-cli@5 uglify-js@3
+
+      - name: Minify CSS
+        run: |
+          for f in assets/css/*.css; do
+            # Skip files already ending in .min.css
+            case "$f" in *.min.css) continue ;; esac
+            out="${f%.css}.min.css"
+            cleancss \
+              --level 2 \
+              --output "$out" \
+              "$f"
+            original=$(wc -c < "$f")
+            minified=$(wc -c < "$out")
+            echo "CSS: $f → $out ($original → $minified bytes)"
+          done
+
+      - name: Minify JS
+        run: |
+          for f in assets/js/*.js; do
+            # Skip files already ending in .min.js
+            case "$f" in *.min.js) continue ;; esac
+            out="${f%.js}.min.js"
+            uglifyjs "$f" \
+              --compress \
+              --mangle \
+              --output "$out"
+            original=$(wc -c < "$f")
+            minified=$(wc -c < "$out")
+            echo "JS: $f → $out ($original → $minified bytes)"
+          done
+
       - name: Create plugin zip
         run: |
           mkdir -p /tmp/build/dish-dash
