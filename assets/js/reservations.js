@@ -447,8 +447,11 @@
     confirmArea.innerHTML = `
         <p style="margin:0 0 12px;font-weight:600;color:#15803d">✅ Booking received!</p>
         <div style="display:flex;flex-direction:column;gap:10px">
-            ${ adminUrl ? `<a href="${ adminUrl }" style="display:block;padding:12px;background:#65040d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
+            ${ adminUrl ? `<a href="${ adminUrl }" target="_blank" rel="noopener noreferrer" style="display:block;padding:12px;background:#65040d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
                 📲 Notify Restaurant
+            </a>` : '' }
+            ${ customerUrl ? `<a href="${ customerUrl }" target="_blank" rel="noopener noreferrer" style="display:block;padding:12px;background:#15803d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
+                💬 Send My Confirmation
             </a>` : '' }
             <button id="dd-res-close-confirm" type="button" style="padding:12px;background:transparent;border:1px solid #EADFCE;border-radius:8px;cursor:pointer;font-weight:600">
                 Close

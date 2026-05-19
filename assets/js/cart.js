@@ -554,7 +554,7 @@
                         + '; path=/; max-age=7200; SameSite=Lax';
                 }
 
-                // Admin WhatsApp notification — window.location.href works on all devices
+                // Open WhatsApp in new tab via anchor click (avoids mobile popup block)
                 if ( data.whatsapp_url ) {
                     setTimeout( function () {
                         const a = document.createElement('a');
