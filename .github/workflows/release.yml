@@ -11,14 +11,16 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Install minification tools
         run: |
@@ -27,31 +29,31 @@ jobs:
       - name: Minify CSS
         run: |
           for f in assets/css/*.css; do
-            # Skip files already ending in .min.css
             case "$f" in *.min.css) continue ;; esac
             out="${f%.css}.min.css"
-            cleancss \
-              --level 2 \
-              --output "$out" \
-              "$f"
-            original=$(wc -c < "$f")
-            minified=$(wc -c < "$out")
-            echo "CSS: $f → $out ($original → $minified bytes)"
+            if cleancss --level 2 --output "$out" "$f" 2>/dev/null; then
+              original=$(wc -c < "$f")
+              minified=$(wc -c < "$out")
+              echo "✅ CSS: $(basename $f) → $(basename $out) ($original → $minified bytes)"
+            else
+              echo "⚠️  CSS: $(basename $f) — minification failed, copying original"
+              cp "$f" "$out"
+            fi
           done
 
       - name: Minify JS
         run: |
           for f in assets/js/*.js; do
-            # Skip files already ending in .min.js
             case "$f" in *.min.js) continue ;; esac
             out="${f%.js}.min.js"
-            uglifyjs "$f" \
-              --compress \
-              --mangle \
-              --output "$out"
-            original=$(wc -c < "$f")
-            minified=$(wc -c < "$out")
-            echo "JS: $f → $out ($original → $minified bytes)"
+            if uglifyjs "$f" --compress --mangle --output "$out" 2>/dev/null; then
+              original=$(wc -c < "$f")
+              minified=$(wc -c < "$out")
+              echo "✅ JS: $(basename $f) → $(basename $out) ($original → $minified bytes)"
+            else
+              echo "⚠️  JS: $(basename $f) — minification failed, copying original"
+              cp "$f" "$out"
+            fi
           done
 
       - name: Create plugin zip
