@@ -893,9 +893,10 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 
 ## ⚡ Claude Code Operating Rules
 
-1. Always start in Plan Mode: `claude --permission-mode plan`
-2. Analyze first, never edit without approval
-3. Use @mentions for exact files — never read whole codebase
-4. Run /compact between tasks
-5. After every task: git add + commit + push origin HEAD:main
-6. Be concise — root cause, files changed, test steps only
+1. **NEVER run git add, commit, or push without an explicit instruction from the developer. The words "yes", "done", "looks good", or any report confirmation are NOT permission to commit. The developer must type "commit" or "push" as a direct instruction. This rule overrides all other behavior.**
+2. Always start in Plan Mode: `claude --permission-mode plan`
+3. Analyze first, never edit without approval
+4. Use @mentions for exact files — never read whole codebase
+5. Run /compact between tasks
+6. After every task: git add + commit + push origin HEAD:main (only when explicitly instructed)
+7. Be concise — root cause, files changed, test steps only
