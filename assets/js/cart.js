@@ -557,9 +557,13 @@
                 // Admin WhatsApp notification — window.location.href works on all devices
                 if ( data.whatsapp_url ) {
                     setTimeout( function () {
-                        // window.location.href works on all devices — never blocked
-                        // WhatsApp app intercepts wa.me links on mobile automatically
-                        window.location.href = data.whatsapp_url;
+                        const a = document.createElement('a');
+                        a.href = data.whatsapp_url;
+                        a.target = '_blank';
+                        a.rel = 'noopener noreferrer';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
                     }, 800 );
                 }
 
