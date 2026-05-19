@@ -56,7 +56,7 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.11 |
+| **Deployed version** | v3.4.12 |
 | **Current phase** | Phase 5 — Backend Dashboard |
 | **Current sub-phase** | 5A — Dashboard Home (starting now) |
 | **Next task** | First Phase 5 widget — Event Health Dashboard |
@@ -886,6 +886,7 @@ The plugin and website must be **optimized for speed** — fast = addictive = re
 | 2026-05-19 | v3.4.8 → v3.4.9 | Pre-Phase 5 audit: asset gating, N+1 fix, cross-module DB violation fixed, dead tracking schemas removed. CLAUDE.md cleaned, VERSION file created, minification pipeline added. |
 | 2026-05-19 | v3.4.10 | Phase 4C deposit infrastructure committed: DB schema, default options, admin UI columns, CSS, WhatsApp deposit line. Deposit flow remains disabled (deposit_enabled = 0). |
 | 2026-05-19 | v3.4.11 | CI fix: upgraded Actions to Node 20, error-tolerant minification, Node 24 opt-in |
+| 2026-05-19 | v3.4.12 | Reservation modal bug fixes: race condition guard, button reset on open, back button hidden post-submission, modal injected via wp_footer so Reserve Table works on /restaurant-menu/ |
 
 
 ## ⚡ Claude Code Operating Rules
