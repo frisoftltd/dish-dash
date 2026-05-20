@@ -44,6 +44,7 @@ class DD_Hooks {
         // Clean up WP admin noise for restaurant owner.
         self::suppress_update_badges();
         self::suppress_admin_notices();
+        self::replace_admin_bar_logo();
     }
 
     /**
@@ -96,6 +97,31 @@ class DD_Hooks {
                     }
                 }
             }
+        }, 999 );
+    }
+
+    /**
+     * Remove the WP logo from the admin bar and replace it with the
+     * restaurant logo stored in dish_dash_logo_url. If no logo is set,
+     * the WP logo node is still removed (nothing shown in its place).
+     */
+    private static function replace_admin_bar_logo(): void {
+        add_action( 'admin_bar_menu', function( \WP_Admin_Bar $wp_admin_bar ) {
+            $wp_admin_bar->remove_node( 'wp-logo' );
+
+            $logo_url = get_option( 'dish_dash_logo_url', '' );
+            if ( empty( $logo_url ) ) {
+                return;
+            }
+
+            $wp_admin_bar->add_node( [
+                'id'    => 'dd-restaurant-logo',
+                'title' => '<img src="' . esc_url( $logo_url ) . '" '
+                         . 'alt="' . esc_attr( get_option( 'dish_dash_restaurant_name', 'Dish Dash' ) ) . '" '
+                         . 'style="height:24px;width:auto;vertical-align:middle;margin-top:-2px;display:inline-block;" />',
+                'href'  => admin_url(),
+                'meta'  => [ 'class' => 'dd-admin-bar-logo' ],
+            ] );
         }, 999 );
     }
 
