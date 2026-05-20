@@ -132,19 +132,96 @@ class DD_Hooks {
      */
     private static function replace_login_page_logo(): void {
         add_action( 'login_enqueue_scripts', function() {
-            $logo_url = get_option( 'dish_dash_logo_url', '' );
-            if ( empty( $logo_url ) ) {
-                return;
-            }
+            $logo_url    = get_option( 'dish_dash_logo_url', '' );
+            $brand_color = get_option( 'dish_dash_primary_color', '#65040d' );
+            $bg_color    = get_option( 'dish_dash_background_color', '#F5EFE6' );
             ?>
             <style>
+                body.login {
+                    background-color: <?php echo esc_attr( $bg_color ); ?>;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                }
+
                 #login h1 a, .login h1 a {
+                    <?php if ( ! empty( $logo_url ) ) : ?>
                     background-image: url('<?php echo esc_url( $logo_url ); ?>');
+                    <?php endif; ?>
                     background-size: contain;
                     background-repeat: no-repeat;
                     background-position: center;
-                    width: 200px;
+                    width: 180px;
                     height: 80px;
+                }
+
+                #login {
+                    padding-top: 8vh;
+                }
+
+                #loginform,
+                #lostpasswordform {
+                    background: #fff;
+                    border: none;
+                    border-radius: 12px;
+                    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+                    padding: 32px 36px;
+                }
+
+                .login label {
+                    font-size: 13px;
+                    color: #444;
+                    font-weight: 500;
+                }
+
+                .login input[type="text"],
+                .login input[type="password"],
+                .login input[type="email"] {
+                    border: 1.5px solid #ddd;
+                    border-radius: 8px;
+                    padding: 10px 14px;
+                    font-size: 15px;
+                    box-shadow: none;
+                    transition: border-color 0.2s;
+                }
+
+                .login input[type="text"]:focus,
+                .login input[type="password"]:focus {
+                    border-color: <?php echo esc_attr( $brand_color ); ?>;
+                    box-shadow: 0 0 0 2px <?php echo esc_attr( $brand_color ); ?>1a;
+                    outline: none;
+                }
+
+                .login .button-primary,
+                #loginform .button-primary {
+                    background: <?php echo esc_attr( $brand_color ); ?>;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 10px 0;
+                    font-size: 15px;
+                    font-weight: 600;
+                    letter-spacing: 0.3px;
+                    box-shadow: none;
+                    width: 100%;
+                    transition: opacity 0.2s;
+                }
+
+                .login .button-primary:hover {
+                    background: <?php echo esc_attr( $brand_color ); ?>;
+                    opacity: 0.88;
+                }
+
+                #nav a, #backtoblog a {
+                    color: <?php echo esc_attr( $brand_color ); ?>;
+                    text-decoration: none;
+                }
+
+                #nav a:hover, #backtoblog a:hover {
+                    text-decoration: underline;
+                }
+
+                .login #login_error,
+                .login .message {
+                    border-left-color: <?php echo esc_attr( $brand_color ); ?>;
+                    border-radius: 6px;
                 }
             </style>
             <?php
