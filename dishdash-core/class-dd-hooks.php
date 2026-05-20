@@ -120,7 +120,7 @@ class DD_Hooks {
                 'id'    => 'dd-restaurant-logo',
                 'title' => '<img src="' . esc_url( $logo_url ) . '" '
                          . 'alt="' . esc_attr( get_option( 'dish_dash_restaurant_name', 'Dish Dash' ) ) . '" '
-                         . 'style="height:24px;width:auto;vertical-align:middle;margin-top:-2px;display:inline-block;" />',
+                         . 'style="height:28px;width:28px;object-fit:contain;vertical-align:middle;margin-top:-2px;display:inline-block;background:#fff;border-radius:50%;padding:3px;" />',
                 'href'  => admin_url(),
                 'meta'  => [ 'class' => 'dd-admin-bar-logo' ],
             ] );
