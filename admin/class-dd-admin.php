@@ -127,6 +127,14 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_settings' ]
         );
 
+        // Brand Identity
+        add_submenu_page( 'dish-dash',
+            __( 'Brand Identity', 'dish-dash' ),
+            __( '🎨 Brand Identity', 'dish-dash' ),
+            'manage_options', 'dish-dash-brand-identity',
+            [ $this, 'render_brand_identity' ]
+        );
+
         // Tools (Event Health Check + future diagnostics)
         add_submenu_page( 'dish-dash',
             __( 'Tools', 'dish-dash' ),
@@ -163,6 +171,11 @@ class DD_Admin extends DD_Module {
                 'error'         => __( 'An error occurred. Please try again.', 'dish-dash' ),
             ],
         ] );
+
+        // Media uploader for Brand Identity logo picker
+        if ( strpos( $hook, 'dish-dash-brand-identity' ) !== false ) {
+            wp_enqueue_media();
+        }
 
         // Modern admin styles
         wp_add_inline_style( 'dish-dash-admin', $this->get_admin_styles() );
@@ -513,6 +526,10 @@ class DD_Admin extends DD_Module {
 
     public function render_settings(): void {
         include DD_PLUGIN_DIR . 'admin/pages/settings.php';
+    }
+
+    public function render_brand_identity(): void {
+        include DD_PLUGIN_DIR . 'admin/pages/brand-identity.php';
     }
 
     public function render_tools(): void {
