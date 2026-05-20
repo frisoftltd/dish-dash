@@ -342,18 +342,7 @@ class DD_Template_Module extends DD_Module {
         }
 
         $fields = [
-            'dish_dash_restaurant_name' => 'sanitize_text_field',
-            'dish_dash_logo_url'        => 'esc_url_raw',
-            'dish_dash_primary_color'   => 'sanitize_hex_color',
-            'dish_dash_dark_color'      => 'sanitize_hex_color',
-            'dish_dash_address'         => 'sanitize_text_field',
-            'dish_dash_phone'           => 'sanitize_text_field',
-            'dish_dash_contact_email'   => 'sanitize_email',
-            'dish_dash_opening_hours'   => 'sanitize_text_field',
-            'dish_dash_facebook'        => 'esc_url_raw',
-            'dish_dash_instagram'       => 'esc_url_raw',
-            'dish_dash_whatsapp'        => 'sanitize_text_field',
-            'dish_dash_tiktok'          => 'esc_url_raw',
+            'dish_dash_opening_hours' => 'sanitize_text_field',
         ];
 
         foreach ( $fields as $key => $sanitizer ) {
@@ -373,7 +362,9 @@ class DD_Template_Module extends DD_Module {
     //  RENDER ADMIN PAGE
     // ─────────────────────────────────────────
     public function render_admin_page(): void {
-        $saved = isset( $_GET['saved'] ) && '1' === $_GET['saved'];
+        $saved   = isset( $_GET['saved'] ) && '1' === $_GET['saved'];
+        $primary = get_option( 'dish_dash_primary_color', '#65040d' );
+        $brand_url = admin_url( 'admin.php?page=dish-dash-brand-identity' );
         ?>
         <div class="wrap dd-admin-wrap">
 
@@ -381,8 +372,8 @@ class DD_Template_Module extends DD_Module {
                 <div class="dd-admin-header__logo">
                     <span class="dd-logo-icon">🎨</span>
                     <div>
-                        <h1><?php esc_html_e( 'Template Settings', 'dish-dash' ); ?></h1>
-                        <span class="dd-version"><?php esc_html_e( 'Customize your restaurant branding', 'dish-dash' ); ?></span>
+                        <h1><?php esc_html_e( 'Template', 'dish-dash' ); ?></h1>
+                        <span class="dd-version"><?php esc_html_e( 'Choose your restaurant template', 'dish-dash' ); ?></span>
                     </div>
                 </div>
                 <a href="<?php echo esc_url( home_url( '/' ) ); ?>" target="_blank" class="button">
@@ -392,131 +383,89 @@ class DD_Template_Module extends DD_Module {
 
             <?php if ( $saved ) : ?>
             <div class="notice notice-success is-dismissible" style="margin-top:1rem">
-                <p>✅ <strong><?php esc_html_e( 'Settings saved successfully!', 'dish-dash' ); ?></strong>
-                <?php esc_html_e( 'Your changes are now live on the site.', 'dish-dash' ); ?></p>
+                <p>✅ <strong><?php esc_html_e( 'Settings saved.', 'dish-dash' ); ?></strong></p>
             </div>
             <?php endif; ?>
 
-            <form method="post" action="">
-                <?php wp_nonce_field( 'dd_template_settings', 'dd_template_nonce' ); ?>
+            <!-- TEMPLATE CARDS -->
+            <div style="margin-top:1.5rem;">
+                <h2 style="font-size:1rem;font-weight:700;color:#333;margin-bottom:1rem;">
+                    <?php esc_html_e( 'Active Template', 'dish-dash' ); ?>
+                </h2>
+                <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem;">
-
-                    <!-- BRANDING -->
-                    <div class="dd-settings-card">
-                        <h2>🏪 <?php esc_html_e( 'Branding', 'dish-dash' ); ?></h2>
-                        <div class="dd-form-group">
-                            <label><?php esc_html_e( 'Restaurant Name', 'dish-dash' ); ?></label>
-                            <input type="text" name="dish_dash_restaurant_name"
-                                value="<?php echo esc_attr( get_option( 'dish_dash_restaurant_name', get_bloginfo( 'name' ) ) ); ?>" />
-                        </div>
-                        <div class="dd-form-group">
-                            <label><?php esc_html_e( 'Logo', 'dish-dash' ); ?></label>
-                            <div style="display:flex;gap:.5rem;">
-                                <input type="text" id="dd_logo_url" name="dish_dash_logo_url"
-                                    value="<?php echo esc_attr( get_option( 'dish_dash_logo_url', '' ) ); ?>" style="flex:1" />
-                                <button type="button" class="button dd-upload-btn"
-                                    data-target="dd_logo_url" data-preview="dd_logo_preview">
-                                    <?php esc_html_e( 'Upload', 'dish-dash' ); ?>
-                                </button>
+                    <!-- Card 1: Active — Khana Khazana -->
+                    <div style="background:#fff;border:2.5px solid <?php echo esc_attr( $primary ); ?>;border-radius:14px;padding:1.25rem;width:220px;box-shadow:0 4px 16px rgba(0,0,0,.08);position:relative;">
+                        <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#F5EFE6;position:relative;">
+                            <div style="height:28px;background:<?php echo esc_attr( $primary ); ?>;"></div>
+                            <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+                                <div style="height:10px;width:60px;background:#e0d5c8;border-radius:4px;"></div>
+                                <div style="height:10px;width:40px;background:#e0d5c8;border-radius:4px;"></div>
                             </div>
-                            <?php $logo = get_option( 'dish_dash_logo_url', '' ); ?>
-                            <img id="dd_logo_preview" src="<?php echo esc_url( $logo ); ?>"
-                                style="max-height:60px;margin-top:.5rem;<?php echo $logo ? '' : 'display:none'; ?>" />
+                            <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#E8832A;border-radius:6px;opacity:.7;"></div>
                         </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                            <div class="dd-form-group">
-                                <label><?php esc_html_e( 'Primary Color', 'dish-dash' ); ?></label>
-                                <input type="text" name="dish_dash_primary_color" class="dd-color-picker"
-                                    value="<?php echo esc_attr( get_option( 'dish_dash_primary_color', '#E8832A' ) ); ?>" />
-                            </div>
-                            <div class="dd-form-group">
-                                <label><?php esc_html_e( 'Dark Color', 'dish-dash' ); ?></label>
-                                <input type="text" name="dish_dash_dark_color" class="dd-color-picker"
-                                    value="<?php echo esc_attr( get_option( 'dish_dash_dark_color', '#1E3A5F' ) ); ?>" />
-                            </div>
-                        </div>
+                        <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;">Khana Khazana</div>
+                        <span style="display:inline-block;background:<?php echo esc_attr( $primary ); ?>;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;margin-bottom:.75rem;">✓ Active</span>
+                        <br>
+                        <a href="<?php echo esc_url( $brand_url ); ?>" class="button button-primary" style="background:<?php echo esc_attr( $primary ); ?>;border-color:<?php echo esc_attr( $primary ); ?>;width:100%;text-align:center;box-sizing:border-box;">
+                            Customize →
+                        </a>
                     </div>
 
-                    <!-- HERO — moved to Homepage Settings -->
-                    <div class="dd-settings-card">
-                        <h2>🦸 <?php esc_html_e( 'Hero Section', 'dish-dash' ); ?></h2>
-                        <p style="color:#888;font-size:13px;margin:0;">
-                            Hero title, subtitle, image and buttons are now managed in
-                            <a href="<?php echo admin_url('admin.php?page=dish-dash-homepage'); ?>" style="color:#6B1D1D;font-weight:700;">
-                                🏠 Homepage Settings
-                            </a>
-                        </p>
+                    <!-- Card 2: Coming Soon — Modern Dark -->
+                    <div style="background:#fff;border:2px solid #e0e0e0;border-radius:14px;padding:1.25rem;width:220px;opacity:.45;cursor:not-allowed;">
+                        <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#2a2a2a;position:relative;">
+                            <div style="height:28px;background:#1a1a1a;"></div>
+                            <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+                                <div style="height:10px;width:60px;background:#444;border-radius:4px;"></div>
+                                <div style="height:10px;width:40px;background:#444;border-radius:4px;"></div>
+                            </div>
+                            <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#555;border-radius:6px;"></div>
+                        </div>
+                        <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;">Modern Dark</div>
+                        <span style="display:inline-block;background:#ccc;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">Coming Soon</span>
                     </div>
 
-                    <!-- CONTACT -->
-                    <div class="dd-settings-card">
-                        <h2>📍 <?php esc_html_e( 'Contact Information', 'dish-dash' ); ?></h2>
-                        <div class="dd-form-group">
-                            <label><?php esc_html_e( 'Address', 'dish-dash' ); ?></label>
-                            <input type="text" name="dish_dash_address"
-                                value="<?php echo esc_attr( get_option( 'dish_dash_address', '' ) ); ?>" />
-                        </div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                            <div class="dd-form-group">
-                                <label><?php esc_html_e( 'Phone', 'dish-dash' ); ?></label>
-                                <input type="text" name="dish_dash_phone"
-                                    value="<?php echo esc_attr( get_option( 'dish_dash_phone', '' ) ); ?>" />
+                    <!-- Card 3: Coming Soon — Minimal Light -->
+                    <div style="background:#fff;border:2px solid #e0e0e0;border-radius:14px;padding:1.25rem;width:220px;opacity:.45;cursor:not-allowed;">
+                        <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#fafafa;position:relative;">
+                            <div style="height:28px;background:#f0f0f0;"></div>
+                            <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+                                <div style="height:10px;width:60px;background:#ddd;border-radius:4px;"></div>
+                                <div style="height:10px;width:40px;background:#ddd;border-radius:4px;"></div>
                             </div>
-                            <div class="dd-form-group">
-                                <label><?php esc_html_e( 'Email', 'dish-dash' ); ?></label>
-                                <input type="email" name="dish_dash_contact_email"
-                                    value="<?php echo esc_attr( get_option( 'dish_dash_contact_email', '' ) ); ?>" />
-                            </div>
+                            <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#e0e0e0;border-radius:6px;"></div>
                         </div>
+                        <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;">Minimal Light</div>
+                        <span style="display:inline-block;background:#ccc;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">Coming Soon</span>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- OPENING HOURS FORM -->
+            <div style="margin-top:2rem;">
+                <h2 style="font-size:1rem;font-weight:700;color:#333;margin-bottom:1rem;">
+                    <?php esc_html_e( 'Opening Hours', 'dish-dash' ); ?>
+                </h2>
+                <div class="dd-settings-card" style="background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:1.5rem;max-width:480px;">
+                    <form method="post" action="">
+                        <?php wp_nonce_field( 'dd_template_settings', 'dd_template_nonce' ); ?>
                         <div class="dd-form-group">
-                            <label><?php esc_html_e( 'Opening Hours', 'dish-dash' ); ?></label>
+                            <label style="display:block;font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:.35rem;">
+                                <?php esc_html_e( 'Opening Hours', 'dish-dash' ); ?>
+                            </label>
                             <input type="text" name="dish_dash_opening_hours"
                                 value="<?php echo esc_attr( get_option( 'dish_dash_opening_hours', '' ) ); ?>"
-                                placeholder="Monday – Friday 10 AM – 7 PM" />
+                                placeholder="Monday – Friday 10 AM – 7 PM"
+                                style="width:100%;padding:.6rem .85rem;border:1.5px solid #e0e0e0;border-radius:8px;font-size:.9rem;" />
                         </div>
-                    </div>
-
-                    <!-- SOCIAL -->
-                    <div class="dd-settings-card">
-                        <h2>📱 <?php esc_html_e( 'Social Media', 'dish-dash' ); ?></h2>
-                        <?php
-                        $socials = [
-                            'dish_dash_facebook'  => [ '📘', 'Facebook URL' ],
-                            'dish_dash_instagram' => [ '📷', 'Instagram URL' ],
-                            'dish_dash_whatsapp'  => [ '💬', 'WhatsApp Number' ],
-                            'dish_dash_tiktok'    => [ '🎵', 'TikTok URL' ],
-                        ];
-                        foreach ( $socials as $key => [$icon, $label] ) : ?>
-                        <div class="dd-form-group">
-                            <label><?php echo esc_html( $icon . ' ' . $label ); ?></label>
-                            <input type="text" name="<?php echo esc_attr( $key ); ?>"
-                                value="<?php echo esc_attr( get_option( $key, '' ) ); ?>" />
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-
+                        <?php submit_button( '💾 Save', 'primary', 'dd_template_save', false ); ?>
+                    </form>
                 </div>
+            </div>
 
-                <!-- Save -->
-                <div style="margin-top:1.5rem;padding:1.25rem;background:#fff;border-radius:10px;border:1px solid #e0e0e0;display:flex;align-items:center;justify-content:space-between;">
-                    <span style="color:#666;font-size:.9rem;">
-                        <?php esc_html_e( 'Changes apply immediately on your Dish Dash pages.', 'dish-dash' ); ?>
-                    </span>
-                    <?php submit_button( __( '💾 Save All Settings', 'dish-dash' ), 'primary large', 'dd_template_save', false ); ?>
-                </div>
-
-            </form>
         </div>
-
-        <style>
-        .dd-settings-card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:1.5rem;box-shadow:0 2px 8px rgba(0,0,0,.04);}
-        .dd-settings-card h2{font-size:1rem;font-weight:700;margin:0 0 1.25rem;padding-bottom:.75rem;border-bottom:2px solid #f0f0f0;color:#1E3A5F;}
-        .dd-form-group{margin-bottom:1rem;}
-        .dd-form-group label{display:block;font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:.35rem;}
-        .dd-form-group input[type="text"],.dd-form-group input[type="email"]{width:100%;padding:.6rem .85rem;border:1.5px solid #e0e0e0;border-radius:8px;font-size:.9rem;transition:border-color .2s;}
-        .dd-form-group input:focus{border-color:#E8832A;outline:none;box-shadow:0 0 0 3px rgba(232,131,42,.1);}
-        </style>
         <?php
     }
 
