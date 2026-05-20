@@ -46,6 +46,7 @@ class DD_Hooks {
         self::suppress_admin_notices();
         self::replace_admin_bar_logo();
         self::replace_login_page_logo();
+        self::style_admin_area();
     }
 
     /**
@@ -233,6 +234,100 @@ class DD_Hooks {
 
         add_filter( 'login_headertext', function() {
             return get_option( 'dish_dash_restaurant_name', 'Dish Dash' );
+        } );
+    }
+
+    /**
+     * Inject brand colors into the WP admin area — admin bar, sidebar,
+     * page background, buttons. Colors pulled from wp_options so they
+     * update automatically when the restaurant changes their branding.
+     */
+    private static function style_admin_area(): void {
+        add_action( 'admin_enqueue_scripts', function() {
+            $brand_color = get_option( 'dish_dash_primary_color', '#65040d' );
+            $bg_color    = get_option( 'dish_dash_background_color', '#F5EFE6' );
+            ?>
+            <style>
+                /* Admin bar */
+                #wpadminbar {
+                    background: <?php echo esc_attr( $brand_color ); ?> !important;
+                }
+                #wpadminbar .ab-item,
+                #wpadminbar a.ab-item,
+                #wpadminbar .ab-label,
+                #wpadminbar .howdy {
+                    color: #fff !important;
+                }
+                #wpadminbar .ab-top-menu > li:hover > .ab-item,
+                #wpadminbar .ab-top-menu > li.hover > .ab-item {
+                    background: rgba(0,0,0,0.15) !important;
+                    color: #fff !important;
+                }
+
+                /* Sidebar */
+                #adminmenuwrap,
+                #adminmenuback,
+                #adminmenu {
+                    background: #1a1a1a !important;
+                }
+                #adminmenu a,
+                #adminmenu .wp-menu-name {
+                    color: #ccc !important;
+                }
+                #adminmenu .wp-has-current-submenu .wp-submenu,
+                #adminmenu .wp-has-current-submenu.opensub .wp-submenu {
+                    background: #111 !important;
+                }
+                #adminmenu .current a.menu-top,
+                #adminmenu .wp-has-current-submenu a.wp-has-current-submenu,
+                #adminmenu a.current {
+                    background: <?php echo esc_attr( $brand_color ); ?> !important;
+                    color: #fff !important;
+                }
+                #adminmenu li.menu-top:hover,
+                #adminmenu li.opensub > a.menu-top {
+                    background: rgba(255,255,255,0.07) !important;
+                    color: #fff !important;
+                }
+                #adminmenu li.menu-top:hover > a,
+                #adminmenu li.opensub > a.menu-top {
+                    color: #fff !important;
+                }
+
+                /* Sidebar icons */
+                #adminmenu .menu-icon-dashboard div.wp-menu-image:before,
+                #adminmenu a .wp-menu-image:before {
+                    color: #aaa !important;
+                }
+                #adminmenu .current div.wp-menu-image:before,
+                #adminmenu .wp-has-current-submenu div.wp-menu-image:before {
+                    color: #fff !important;
+                }
+
+                /* Page background */
+                #wpcontent, #wpfooter {
+                    background: <?php echo esc_attr( $bg_color ); ?> !important;
+                }
+
+                /* Footer text */
+                #wpfooter {
+                    border-top: 1px solid #ddd;
+                }
+                #wpfooter a {
+                    color: <?php echo esc_attr( $brand_color ); ?>;
+                }
+
+                /* Buttons */
+                .button-primary {
+                    background: <?php echo esc_attr( $brand_color ); ?> !important;
+                    border-color: <?php echo esc_attr( $brand_color ); ?> !important;
+                    color: #fff !important;
+                }
+                .button-primary:hover {
+                    opacity: 0.88;
+                }
+            </style>
+            <?php
         } );
     }
 
