@@ -45,6 +45,7 @@ class DD_Hooks {
         self::suppress_update_badges();
         self::suppress_admin_notices();
         self::replace_admin_bar_logo();
+        self::replace_login_page_logo();
     }
 
     /**
@@ -123,6 +124,39 @@ class DD_Hooks {
                 'meta'  => [ 'class' => 'dd-admin-bar-logo' ],
             ] );
         }, 999 );
+    }
+
+    /**
+     * Replace the WP logo on /wp-login.php with the restaurant logo.
+     * Falls back gracefully if no logo is uploaded (WP default shows).
+     */
+    private static function replace_login_page_logo(): void {
+        add_action( 'login_enqueue_scripts', function() {
+            $logo_url = get_option( 'dish_dash_logo_url', '' );
+            if ( empty( $logo_url ) ) {
+                return;
+            }
+            ?>
+            <style>
+                #login h1 a, .login h1 a {
+                    background-image: url('<?php echo esc_url( $logo_url ); ?>');
+                    background-size: contain;
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    width: 200px;
+                    height: 80px;
+                }
+            </style>
+            <?php
+        } );
+
+        add_filter( 'login_headerurl', function() {
+            return home_url();
+        } );
+
+        add_filter( 'login_headertext', function() {
+            return get_option( 'dish_dash_restaurant_name', 'Dish Dash' );
+        } );
     }
 
     /**
