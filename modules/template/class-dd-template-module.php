@@ -341,16 +341,6 @@ class DD_Template_Module extends DD_Module {
             return;
         }
 
-        $fields = [
-            'dish_dash_opening_hours' => 'sanitize_text_field',
-        ];
-
-        foreach ( $fields as $key => $sanitizer ) {
-            if ( isset( $_POST[ $key ] ) ) {
-                update_option( $key, $sanitizer( $_POST[ $key ] ) );
-            }
-        }
-
         wp_redirect( add_query_arg( [
             'page'  => 'dish-dash-template',
             'saved' => '1',
@@ -440,28 +430,6 @@ class DD_Template_Module extends DD_Module {
                         <span style="display:inline-block;background:#ccc;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">Coming Soon</span>
                     </div>
 
-                </div>
-            </div>
-
-            <!-- OPENING HOURS FORM -->
-            <div style="margin-top:2rem;">
-                <h2 style="font-size:1rem;font-weight:700;color:#333;margin-bottom:1rem;">
-                    <?php esc_html_e( 'Opening Hours', 'dish-dash' ); ?>
-                </h2>
-                <div class="dd-settings-card" style="background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:1.5rem;max-width:480px;">
-                    <form method="post" action="">
-                        <?php wp_nonce_field( 'dd_template_settings', 'dd_template_nonce' ); ?>
-                        <div class="dd-form-group">
-                            <label style="display:block;font-size:.82rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:.35rem;">
-                                <?php esc_html_e( 'Opening Hours', 'dish-dash' ); ?>
-                            </label>
-                            <input type="text" name="dish_dash_opening_hours"
-                                value="<?php echo esc_attr( get_option( 'dish_dash_opening_hours', '' ) ); ?>"
-                                placeholder="Monday – Friday 10 AM – 7 PM"
-                                style="width:100%;padding:.6rem .85rem;border:1.5px solid #e0e0e0;border-radius:8px;font-size:.9rem;" />
-                        </div>
-                        <?php submit_button( '💾 Save', 'primary', 'dd_template_save', false ); ?>
-                    </form>
                 </div>
             </div>
 
