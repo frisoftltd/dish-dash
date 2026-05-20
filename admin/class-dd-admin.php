@@ -169,6 +169,25 @@ class DD_Admin extends DD_Module {
     }
 
     private function get_admin_styles(): string {
+        $brand = get_option( 'dish_dash_primary_color', '#65040d' );
+
+        $hex = ltrim( $brand, '#' );
+        if ( strlen( $hex ) === 3 ) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+        $r = hexdec( substr( $hex, 0, 2 ) );
+        $g = hexdec( substr( $hex, 2, 2 ) );
+        $b = hexdec( substr( $hex, 4, 2 ) );
+
+        $css = $this->get_raw_admin_styles();
+        $css = str_replace( '#6B1D1D', $brand, $css );
+        $css = str_replace( '#8B2020', $brand, $css );
+        $css = str_replace( 'rgba(107,29,29,', "rgba({$r},{$g},{$b},", $css );
+
+        return $css;
+    }
+
+    private function get_raw_admin_styles(): string {
         return '
         /* ── Dish Dash Admin — Modern UI ── */
 

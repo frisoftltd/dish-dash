@@ -114,7 +114,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 'link'  => admin_url( 'admin.php?page=dish-dash-settings' ),
             ],
             [
-                'done'  => wp_count_posts( 'dd_menu_item' )->publish > 0,
+                'done'  => ( wp_count_posts( 'dd_menu_item' )->publish ?? 0 ) > 0,
                 'label' => __( 'At least one menu item added', 'dish-dash' ),
                 'link'  => admin_url( 'post-new.php?post_type=dd_menu_item' ),
             ],
