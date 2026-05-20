@@ -47,6 +47,7 @@ class DD_Hooks {
         self::replace_admin_bar_logo();
         self::replace_login_page_logo();
         self::style_admin_area();
+        self::hide_irrelevant_menu_items();
     }
 
     /**
@@ -235,6 +236,17 @@ class DD_Hooks {
         add_filter( 'login_headertext', function() {
             return get_option( 'dish_dash_restaurant_name', 'Dish Dash' );
         } );
+    }
+
+    /**
+     * Remove Posts and Comments from the admin sidebar — irrelevant
+     * to a restaurant ordering system and confusing for owners.
+     */
+    private static function hide_irrelevant_menu_items(): void {
+        add_action( 'admin_menu', function() {
+            remove_menu_page( 'edit.php' );          // Posts
+            remove_menu_page( 'edit-comments.php' ); // Comments
+        }, 999 );
     }
 
     /**
