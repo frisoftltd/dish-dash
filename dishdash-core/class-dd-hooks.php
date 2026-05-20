@@ -40,6 +40,10 @@ class DD_Hooks {
 
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
+
+        // Clean up WP admin noise for restaurant owner.
+        self::suppress_update_badges();
+        self::suppress_admin_notices();
     }
 
     /**
@@ -62,6 +66,53 @@ class DD_Hooks {
         $links[] = '<a href="' . admin_url( 'admin.php?page=dish-dash-settings' ) . '">'
             . esc_html__( 'Settings', 'dish-dash' ) . '</a>';
         return $links;
+    }
+
+    /**
+     * Remove update count badges from all admin menu items
+     * except the Updates page itself (update-core.php).
+     */
+    private static function suppress_update_badges(): void {
+        add_action( 'admin_menu', function() {
+            global $menu, $submenu;
+
+            $screen = isset( $_GET['page'] ) ? $_GET['page'] : basename( $_SERVER['PHP_SELF'] ?? '' );
+            if ( $screen === 'update-core.php' ) {
+                return;
+            }
+
+            // Strip update count bubbles from all top-level menu items
+            if ( is_array( $menu ) ) {
+                foreach ( $menu as $key => $item ) {
+                    $menu[$key][0] = preg_replace( '/ <span[^>]*>.*?<\/span>/i', '', $item[0] );
+                }
+            }
+
+            // Strip from submenus too
+            if ( is_array( $submenu ) ) {
+                foreach ( $submenu as $parent => $items ) {
+                    foreach ( $items as $k => $item ) {
+                        $submenu[$parent][$k][0] = preg_replace( '/ <span[^>]*>.*?<\/span>/i', '', $item[0] );
+                    }
+                }
+            }
+        }, 999 );
+    }
+
+    /**
+     * Remove all admin notice banners on every screen
+     * except the Updates page (update-core).
+     */
+    private static function suppress_admin_notices(): void {
+        add_action( 'current_screen', function( $screen ) {
+            if ( $screen->id === 'update-core' ) {
+                return;
+            }
+            remove_all_actions( 'admin_notices' );
+            remove_all_actions( 'all_admin_notices' );
+            remove_all_actions( 'update_nag' );
+            remove_all_actions( 'network_admin_notices' );
+        }, 999 );
     }
 
     /*

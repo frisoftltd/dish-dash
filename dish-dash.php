@@ -167,6 +167,7 @@ add_action( 'plugins_loaded', function () {
     }
 
     DD_Loader::instance()->boot();
+    DD_Hooks::init();
 
     // Register DD_API cache-invalidation hooks after WooCommerce is loaded.
     DD_API::register_hooks();
