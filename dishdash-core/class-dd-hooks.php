@@ -258,8 +258,6 @@ class DD_Hooks {
         add_action( 'admin_enqueue_scripts', function() {
             $brand_color = get_option( 'dish_dash_primary_color', '#65040d' );
             $bg_color    = get_option( 'dish_dash_background_color', '#F5EFE6' );
-            $logo_url    = get_option( 'dish_dash_logo_url', '' );
-            $rest_name   = get_option( 'dish_dash_restaurant_name', 'Dish Dash' );
             ?>
             <style>
                 /* ── CSS Variables ───────────────────────────── */
@@ -267,17 +265,11 @@ class DD_Hooks {
                     --dd-brand:       <?php echo esc_attr( $brand_color ); ?>;
                     --dd-brand-light: <?php echo esc_attr( $brand_color ); ?>1a;
                     --dd-bg:          <?php echo esc_attr( $bg_color ); ?>;
-                    --dd-sidebar-w-collapsed: 60px;
-                    --dd-sidebar-w-expanded:  240px;
-                    --dd-topbar-h:    56px;
-                    --dd-transition:  200ms ease;
                 }
 
-                /* ── Google Fonts: Inter ─────────────────────── */
+                /* ── Inter font ──────────────────────────────── */
                 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-                body.wp-admin,
-                body.wp-admin * {
+                body.wp-admin, body.wp-admin * {
                     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
                 }
 
@@ -297,131 +289,64 @@ class DD_Hooks {
                     color: #fff !important;
                 }
 
-                /* ── Sidebar shell ───────────────────────────── */
+                /* ── Sidebar ─────────────────────────────────── */
                 #adminmenuwrap,
                 #adminmenuback,
                 #adminmenu {
                     background: #1a1a1a !important;
-                    width: var(--dd-sidebar-w-collapsed) !important;
-                    transition: width var(--dd-transition) !important;
                 }
-
-                /* Expanded on hover */
-                #adminmenuwrap:hover,
-                #adminmenuwrap:hover #adminmenu {
-                    width: var(--dd-sidebar-w-expanded) !important;
-                }
-
-                /* Push content area */
-                #wpcontent,
-                #wpfooter {
-                    margin-left: var(--dd-sidebar-w-collapsed) !important;
-                    transition: margin-left var(--dd-transition) !important;
-                    background: #f8f8f8 !important;
-                }
-
-                #adminmenuwrap:hover ~ #wpcontent,
-                #adminmenuwrap:hover ~ #wpfooter {
-                    margin-left: var(--dd-sidebar-w-expanded) !important;
-                }
-
-                /* ── Sidebar: menu items ─────────────────────── */
                 #adminmenu a,
                 #adminmenu .wp-menu-name {
-                    color: rgba(255,255,255,0.6) !important;
+                    color: rgba(255,255,255,0.7) !important;
                     font-size: 13px !important;
                     font-weight: 500 !important;
                 }
-
-                /* Hide labels when collapsed */
-                #adminmenu .wp-menu-name {
-                    opacity: 0;
-                    transition: opacity var(--dd-transition);
-                    white-space: nowrap;
-                }
-                #adminmenuwrap:hover #adminmenu .wp-menu-name {
-                    opacity: 1;
-                }
-
-                /* Icons */
-                #adminmenu .menu-icon-dashboard div.wp-menu-image:before,
-                #adminmenu a .wp-menu-image:before {
-                    color: rgba(255,255,255,0.4) !important;
-                    font-size: 18px !important;
-                }
-
-                /* Active item */
                 #adminmenu .current a.menu-top,
                 #adminmenu .wp-has-current-submenu a.wp-has-current-submenu,
                 #adminmenu a.current {
-                    background: transparent !important;
+                    background: var(--dd-brand) !important;
                     color: #fff !important;
-                    border-left: 3px solid var(--dd-brand) !important;
                 }
                 #adminmenu .current div.wp-menu-image:before,
                 #adminmenu .wp-has-current-submenu div.wp-menu-image:before {
-                    color: var(--dd-brand) !important;
-                }
-                #adminmenu .current .wp-menu-name,
-                #adminmenu .wp-has-current-submenu .wp-menu-name {
                     color: #fff !important;
                 }
-
-                /* Hover item */
                 #adminmenu li.menu-top:hover > a,
                 #adminmenu li.opensub > a.menu-top {
-                    background: rgba(255,255,255,0.06) !important;
+                    background: rgba(255,255,255,0.07) !important;
                     color: #fff !important;
                 }
-
-                /* Center icons when collapsed */
-                #adminmenu li a {
-                    padding-left: 0 !important;
-                    display: flex !important;
-                    align-items: center !important;
+                #adminmenu .menu-icon-dashboard div.wp-menu-image:before,
+                #adminmenu a .wp-menu-image:before {
+                    color: rgba(255,255,255,0.5) !important;
                 }
-                #adminmenu .wp-menu-image {
-                    width: 60px !important;
-                    min-width: 60px !important;
-                    display: flex !important;
-                    align-items: center !important;
-                    justify-content: center !important;
-                    float: none !important;
-                }
-
-                /* Hide collapse button */
-                #collapse-button { display: none !important; }
-
-                /* ── Submenus ────────────────────────────────── */
-                #adminmenu .wp-submenu {
+                #adminmenu .wp-has-current-submenu .wp-submenu,
+                #adminmenu .wp-has-current-submenu.opensub .wp-submenu {
                     background: #111 !important;
-                    left: var(--dd-sidebar-w-collapsed) !important;
-                }
-                #adminmenuwrap:hover #adminmenu .wp-submenu {
-                    left: var(--dd-sidebar-w-expanded) !important;
                 }
                 #adminmenu .wp-submenu a {
                     color: rgba(255,255,255,0.6) !important;
-                    font-size: 13px !important;
                 }
                 #adminmenu .wp-submenu a:hover,
                 #adminmenu .wp-submenu .current a {
                     color: #fff !important;
                 }
 
-                /* ── Content area ────────────────────────────── */
-                #wpbody-content {
-                    padding: 32px !important;
-                }
-
                 /* ── Page background ─────────────────────────── */
+                #wpcontent, #wpfooter {
+                    background: #f8f8f8 !important;
+                }
                 #wpfooter {
                     border-top: 1px solid #e5e5e5;
                 }
-                #wpfooter a,
-                #wpfooter #footer-thankyou {
+                #wpfooter a, #wpfooter #footer-thankyou {
                     color: #aaa !important;
                     font-size: 12px !important;
+                }
+
+                /* ── Content area ────────────────────────────── */
+                #wpbody-content {
+                    padding: 24px !important;
                 }
 
                 /* ── Primary buttons ─────────────────────────── */
@@ -434,7 +359,6 @@ class DD_Hooks {
                 }
                 .button-primary:hover {
                     filter: brightness(0.88) !important;
-                    border-color: transparent !important;
                 }
 
                 /* ── Card system ─────────────────────────────── */
@@ -452,7 +376,6 @@ class DD_Hooks {
                 .dd-label         { font-size: 12px; font-weight: 500; color: #888;
                                     text-transform: uppercase; letter-spacing: 0.5px; }
                 .dd-kpi           { font-size: 30px; font-weight: 700; color: #111; }
-
             </style>
             <?php
         } );
