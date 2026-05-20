@@ -84,7 +84,7 @@ class DD_Hooks {
             // Strip update count bubbles from all top-level menu items
             if ( is_array( $menu ) ) {
                 foreach ( $menu as $key => $item ) {
-                    $menu[$key][0] = preg_replace( '/ <span[^>]*>.*?<\/span>/i', '', $item[0] );
+                    $menu[$key][0] = preg_replace( '/ <span[^>]*>.*?<\/span>/i', '', $item[0] ?? '' );
                 }
             }
 
@@ -92,7 +92,7 @@ class DD_Hooks {
             if ( is_array( $submenu ) ) {
                 foreach ( $submenu as $parent => $items ) {
                     foreach ( $items as $k => $item ) {
-                        $submenu[$parent][$k][0] = preg_replace( '/ <span[^>]*>.*?<\/span>/i', '', $item[0] );
+                        $submenu[$parent][$k][0] = preg_replace( '/ <span[^>]*>.*?<\/span>/i', '', $item[0] ?? '' );
                     }
                 }
             }
