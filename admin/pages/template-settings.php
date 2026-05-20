@@ -1,104 +1,62 @@
 <?php
 /**
  * File:    admin/pages/template-settings.php
- * Purpose: Renders and saves the Template / Branding settings page —
- *          restaurant name, logo, brand colors, hero content, address,
- *          phone, opening hours, and social media links.
+ * Purpose: Template picker (display only) + Homepage Content form.
+ *          All brand fields (name, logo, colors, contact, social) have moved
+ *          to admin/pages/brand-identity.php.
  *
  * Dependencies (this file needs):
  *   - ABSPATH (WordPress core guard)
  *   - WordPress update_option(), check_admin_referer(), sanitize_text_field()
+ *   - wp.media JS (wp_enqueue_media() called at bottom)
  *
  * Dependents (files that need this):
  *   - modules/template/class-dd-template-module.php (loaded via a render method)
  *
- * WP options written:
- *   dish_dash_restaurant_name, dish_dash_logo_url,
- *   dish_dash_primary_color, dish_dash_dark_color,
- *   dish_dash_hero_title, dish_dash_hero_subtitle, dish_dash_hero_image,
- *   dish_dash_address, dish_dash_phone, dish_dash_contact_email,
- *   dish_dash_opening_hours, dish_dash_facebook, dish_dash_instagram,
- *   dish_dash_whatsapp, dish_dash_twitter, dish_dash_tiktok
+ * WP options written (4 keys only):
+ *   dish_dash_hero_title, dish_dash_hero_subtitle,
+ *   dish_dash_hero_image, dish_dash_opening_hours
  *
  * Nonce action: dd_template_settings_save
  *
- * Last modified: v3.1.13
+ * Last modified: v3.4.28
  */
-?>
 
-<?php
-/**
- * Admin Page: Template Settings
- */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// Save settings
+// ── Save handler — 4 keys only ────────────────────────────────────────────
 if ( isset( $_POST['dd_save_template_settings'] ) && check_admin_referer( 'dd_template_settings_save' ) ) {
     $fields = [
-        'dish_dash_restaurant_name',
-        'dish_dash_logo_url',
-        'dish_dash_primary_color',
-        'dish_dash_dark_color',
         'dish_dash_hero_title',
         'dish_dash_hero_subtitle',
         'dish_dash_hero_image',
-        'dish_dash_address',
-        'dish_dash_phone',
-        'dish_dash_contact_email',
         'dish_dash_opening_hours',
-        'dish_dash_facebook',
-        'dish_dash_instagram',
-        'dish_dash_whatsapp',
-        'dish_dash_twitter',
-        'dish_dash_tiktok',
     ];
     foreach ( $fields as $field ) {
         if ( isset( $_POST[ $field ] ) ) {
             update_option( $field, sanitize_text_field( $_POST[ $field ] ) );
         }
     }
-    echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Template settings saved!', 'dish-dash' ) . '</p></div>';
+    echo '<div class="notice notice-success is-dismissible"><p>'
+        . esc_html__( 'Homepage content saved!', 'dish-dash' )
+        . '</p></div>';
 }
 
-// Handle logo upload
-if ( isset( $_POST['dd_upload_logo'] ) && check_admin_referer( 'dd_template_settings_save' ) ) {
-    if ( ! empty( $_FILES['dd_logo_file']['name'] ) ) {
-        require_once ABSPATH . 'wp-admin/includes/image.php';
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        require_once ABSPATH . 'wp-admin/includes/media.php';
-        $attachment_id = media_handle_upload( 'dd_logo_file', 0 );
-        if ( ! is_wp_error( $attachment_id ) ) {
-            update_option( 'dish_dash_logo_url', wp_get_attachment_url( $attachment_id ) );
-        }
-    }
-}
-
-// Current values
-$restaurant_name = get_option( 'dish_dash_restaurant_name', get_bloginfo( 'name' ) );
-$logo_url        = get_option( 'dish_dash_logo_url', '' );
-$primary_color   = get_option( 'dish_dash_primary_color', '#E8832A' );
-$dark_color      = get_option( 'dish_dash_dark_color', '#1E3A5F' );
-$hero_title      = get_option( 'dish_dash_hero_title', 'Hello Dear,' );
-$hero_subtitle   = get_option( 'dish_dash_hero_subtitle', "Hungry? You're in the right place..." );
-$hero_image      = get_option( 'dish_dash_hero_image', '' );
-$address         = get_option( 'dish_dash_address', '' );
-$phone           = get_option( 'dish_dash_phone', '' );
-$contact_email   = get_option( 'dish_dash_contact_email', get_option( 'admin_email' ) );
-$opening_hours   = get_option( 'dish_dash_opening_hours', 'Monday – Friday 10 AM – 7 PM' );
-$facebook        = get_option( 'dish_dash_facebook', '' );
-$instagram       = get_option( 'dish_dash_instagram', '' );
-$whatsapp        = get_option( 'dish_dash_whatsapp', '' );
-$twitter         = get_option( 'dish_dash_twitter', '' );
-$tiktok          = get_option( 'dish_dash_tiktok', '' );
+// ── Current values ─────────────────────────────────────────────────────────
+$primary       = esc_attr( get_option( 'dish_dash_primary_color', '#65040d' ) );
+$hero_title    = get_option( 'dish_dash_hero_title',    'Hello Dear,' );
+$hero_subtitle = get_option( 'dish_dash_hero_subtitle', "Hungry? You're in the right place..." );
+$hero_image    = get_option( 'dish_dash_hero_image',    '' );
+$opening_hours = get_option( 'dish_dash_opening_hours', 'Monday – Friday 10 AM – 7 PM' );
 ?>
 <div class="wrap dd-admin-wrap">
 
     <div class="dd-admin-header">
         <div class="dd-admin-header__logo">
-            <span class="dd-logo-icon">🎨</span>
+            <span class="dd-logo-icon">🖼</span>
             <div>
-                <h1><?php esc_html_e( 'Template Settings', 'dish-dash' ); ?></h1>
-                <span class="dd-version"><?php esc_html_e( 'Customize your restaurant branding', 'dish-dash' ); ?></span>
+                <h1><?php esc_html_e( 'Template', 'dish-dash' ); ?></h1>
+                <span class="dd-version"><?php esc_html_e( 'Choose your restaurant template', 'dish-dash' ); ?></span>
             </div>
         </div>
         <div class="dd-admin-header__actions">
@@ -108,85 +66,117 @@ $tiktok          = get_option( 'dish_dash_tiktok', '' );
         </div>
     </div>
 
-    <form method="post" enctype="multipart/form-data">
-        <?php wp_nonce_field( 'dd_template_settings_save' ); ?>
+    <!-- ══════════════════════════════════════════ -->
+    <!-- SECTION 1 — Template Cards (display only)  -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="dd-hp-section" style="margin-bottom:24px;">
+        <div class="dd-hp-section__header">
+            <div class="dd-hp-section__icon">🎨</div>
+            <h2><?php esc_html_e( 'Choose a Template', 'dish-dash' ); ?></h2>
+        </div>
+        <div class="dd-hp-section__body">
 
-        <div class="dd-settings-grid">
+            <div style="display:flex;gap:20px;flex-wrap:wrap;">
 
-            <!-- ── BRANDING ── -->
-            <div class="dd-settings-card">
-                <h2 class="dd-settings-card__title">🏪 <?php esc_html_e( 'Branding', 'dish-dash' ); ?></h2>
-
-                <div class="dd-field">
-                    <label><?php esc_html_e( 'Restaurant Name', 'dish-dash' ); ?></label>
-                    <input type="text" name="dish_dash_restaurant_name"
-                           value="<?php echo esc_attr( $restaurant_name ); ?>"
-                           placeholder="e.g. Khana Khazana" />
-                </div>
-
-                <div class="dd-field">
-                    <label><?php esc_html_e( 'Logo URL', 'dish-dash' ); ?></label>
-                    <div class="dd-field-row">
-                        <input type="url" name="dish_dash_logo_url" id="dd_logo_url"
-                               value="<?php echo esc_attr( $logo_url ); ?>"
-                               placeholder="https://..." />
-                        <button type="button" class="button" onclick="ddMediaUpload()">
-                            <?php esc_html_e( 'Upload', 'dish-dash' ); ?>
-                        </button>
+                <!-- Card 1 — Active: Khana Khazana -->
+                <div style="flex:1;min-width:200px;border:2px solid <?php echo $primary; ?>;border-radius:12px;overflow:hidden;background:#fff;">
+                    <!-- Thumbnail -->
+                    <div style="height:120px;background:#F5EFE6;position:relative;overflow:hidden;">
+                        <div style="height:26px;background:<?php echo $primary; ?>;"></div>
+                        <div style="position:absolute;bottom:16px;left:16px;width:56px;height:10px;background:#E8832A;border-radius:4px;"></div>
+                        <div style="position:absolute;bottom:16px;left:80px;width:36px;height:10px;background:rgba(0,0,0,0.10);border-radius:4px;"></div>
                     </div>
-                    <?php if ( $logo_url ) : ?>
-                    <img src="<?php echo esc_url( $logo_url ); ?>" style="max-height:60px;margin-top:8px;border-radius:6px;" />
-                    <?php endif; ?>
+                    <!-- Footer -->
+                    <div style="padding:14px 16px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                            <strong style="font-size:14px;color:#111;">Khana Khazana</strong>
+                            <span style="background:<?php echo $primary; ?>;color:#fff;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;">
+                                ✓ <?php esc_html_e( 'Active', 'dish-dash' ); ?>
+                            </span>
+                        </div>
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-brand-identity' ) ); ?>"
+                           style="display:block;text-align:center;background:<?php echo $primary; ?>;color:#fff;padding:9px 16px;border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;transition:opacity 0.2s;"
+                           onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                            <?php esc_html_e( 'Customize', 'dish-dash' ); ?> →
+                        </a>
+                    </div>
                 </div>
 
-                <div class="dd-field-row">
-                    <div class="dd-field">
-                        <label><?php esc_html_e( 'Primary Color', 'dish-dash' ); ?></label>
-                        <div class="dd-color-field">
-                            <input type="color" name="dish_dash_primary_color" value="<?php echo esc_attr( $primary_color ); ?>" />
-                            <input type="text" value="<?php echo esc_attr( $primary_color ); ?>"
-                                   oninput="this.previousElementSibling.value=this.value"
-                                   placeholder="#E8832A" />
+                <!-- Card 2 — Coming Soon: Modern Dark -->
+                <div style="flex:1;min-width:200px;border:2px solid #e0e0e0;border-radius:12px;overflow:hidden;background:#fff;opacity:0.5;cursor:not-allowed;">
+                    <div style="height:120px;background:#f0f0f0;position:relative;overflow:hidden;">
+                        <div style="height:26px;background:#333;"></div>
+                        <div style="position:absolute;bottom:16px;left:16px;width:56px;height:10px;background:#666;border-radius:4px;"></div>
+                    </div>
+                    <div style="padding:14px 16px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <strong style="font-size:14px;color:#111;"><?php esc_html_e( 'Modern Dark', 'dish-dash' ); ?></strong>
+                            <span style="background:#f0f0f0;color:#888;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;">
+                                <?php esc_html_e( 'Coming Soon', 'dish-dash' ); ?>
+                            </span>
                         </div>
                     </div>
-                    <div class="dd-field">
-                        <label><?php esc_html_e( 'Dark Color', 'dish-dash' ); ?></label>
-                        <div class="dd-color-field">
-                            <input type="color" name="dish_dash_dark_color" value="<?php echo esc_attr( $dark_color ); ?>" />
-                            <input type="text" value="<?php echo esc_attr( $dark_color ); ?>"
-                                   oninput="this.previousElementSibling.value=this.value"
-                                   placeholder="#1E3A5F" />
+                </div>
+
+                <!-- Card 3 — Coming Soon: Minimal Light -->
+                <div style="flex:1;min-width:200px;border:2px solid #e0e0e0;border-radius:12px;overflow:hidden;background:#fff;opacity:0.5;cursor:not-allowed;">
+                    <div style="height:120px;background:#f8f8f8;position:relative;overflow:hidden;">
+                        <div style="height:26px;background:#bbb;"></div>
+                        <div style="position:absolute;bottom:16px;left:16px;width:56px;height:10px;background:#ccc;border-radius:4px;"></div>
+                    </div>
+                    <div style="padding:14px 16px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;">
+                            <strong style="font-size:14px;color:#111;"><?php esc_html_e( 'Minimal Light', 'dish-dash' ); ?></strong>
+                            <span style="background:#f0f0f0;color:#888;font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap;">
+                                <?php esc_html_e( 'Coming Soon', 'dish-dash' ); ?>
+                            </span>
                         </div>
                     </div>
                 </div>
+
             </div>
+        </div>
+    </div>
 
-            <!-- ── HERO SECTION ── -->
-            <div class="dd-settings-card">
-                <h2 class="dd-settings-card__title">🦸 <?php esc_html_e( 'Hero Section', 'dish-dash' ); ?></h2>
+    <!-- ══════════════════════════════════════════ -->
+    <!-- SECTION 2 — Homepage Content (editable)    -->
+    <!-- ══════════════════════════════════════════ -->
+    <div class="dd-hp-section">
+        <div class="dd-hp-section__header">
+            <div class="dd-hp-section__icon">🏠</div>
+            <h2><?php esc_html_e( 'Homepage Content', 'dish-dash' ); ?></h2>
+        </div>
+        <div class="dd-hp-section__body">
 
-                <div class="dd-field">
-                    <label><?php esc_html_e( 'Hero Title', 'dish-dash' ); ?></label>
-                    <input type="text" name="dish_dash_hero_title"
-                           value="<?php echo esc_attr( $hero_title ); ?>"
-                           placeholder="Hello Dear," />
+            <form method="post">
+                <?php wp_nonce_field( 'dd_template_settings_save' ); ?>
+
+                <div class="dd-hp-grid-2" style="margin-bottom:16px;">
+
+                    <div class="dd-hp-field">
+                        <label><?php esc_html_e( 'Hero Title', 'dish-dash' ); ?></label>
+                        <input type="text" class="dd-hp-input" name="dish_dash_hero_title"
+                               value="<?php echo esc_attr( $hero_title ); ?>"
+                               placeholder="Hello Dear," />
+                    </div>
+
+                    <div class="dd-hp-field">
+                        <label><?php esc_html_e( 'Hero Subtitle', 'dish-dash' ); ?></label>
+                        <input type="text" class="dd-hp-input" name="dish_dash_hero_subtitle"
+                               value="<?php echo esc_attr( $hero_subtitle ); ?>"
+                               placeholder="<?php esc_attr_e( "Hungry? You're in the right place...", 'dish-dash' ); ?>" />
+                    </div>
+
                 </div>
 
-                <div class="dd-field">
-                    <label><?php esc_html_e( 'Hero Subtitle', 'dish-dash' ); ?></label>
-                    <input type="text" name="dish_dash_hero_subtitle"
-                           value="<?php echo esc_attr( $hero_subtitle ); ?>"
-                           placeholder="Hungry? You're in the right place..." />
-                </div>
-
-                <div class="dd-field">
-                    <label><?php esc_html_e( 'Hero Banner Image URL', 'dish-dash' ); ?></label>
-                    <div class="dd-field-row">
-                        <input type="url" name="dish_dash_hero_image" id="dd_hero_image"
+                <div class="dd-hp-field" style="margin-bottom:16px;">
+                    <label><?php esc_html_e( 'Hero Banner Image', 'dish-dash' ); ?></label>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input type="text" class="dd-hp-input" name="dish_dash_hero_image" id="dd_hero_image"
                                value="<?php echo esc_attr( $hero_image ); ?>"
-                               placeholder="https://..." />
+                               placeholder="https://..." style="flex:1;" />
                         <button type="button" class="button" onclick="ddMediaUploadHero()">
-                            <?php esc_html_e( 'Upload', 'dish-dash' ); ?>
+                            📤 <?php esc_html_e( 'Upload', 'dish-dash' ); ?>
                         </button>
                     </div>
                     <?php if ( $hero_image ) : ?>
@@ -194,126 +184,33 @@ $tiktok          = get_option( 'dish_dash_tiktok', '' );
                          style="max-height:80px;margin-top:8px;border-radius:8px;object-fit:cover;" />
                     <?php endif; ?>
                 </div>
-            </div>
 
-            <!-- ── CONTACT INFO ── -->
-            <div class="dd-settings-card">
-                <h2 class="dd-settings-card__title">📍 <?php esc_html_e( 'Contact Information', 'dish-dash' ); ?></h2>
-
-                <div class="dd-field">
-                    <label><?php esc_html_e( 'Address', 'dish-dash' ); ?></label>
-                    <input type="text" name="dish_dash_address"
-                           value="<?php echo esc_attr( $address ); ?>"
-                           placeholder="123 Main Street, City" />
-                </div>
-
-                <div class="dd-field-row">
-                    <div class="dd-field">
-                        <label><?php esc_html_e( 'Phone', 'dish-dash' ); ?></label>
-                        <input type="text" name="dish_dash_phone"
-                               value="<?php echo esc_attr( $phone ); ?>"
-                               placeholder="+1 234 567 890" />
-                    </div>
-                    <div class="dd-field">
-                        <label><?php esc_html_e( 'Email', 'dish-dash' ); ?></label>
-                        <input type="email" name="dish_dash_contact_email"
-                               value="<?php echo esc_attr( $contact_email ); ?>" />
-                    </div>
-                </div>
-
-                <div class="dd-field">
+                <div class="dd-hp-field">
                     <label><?php esc_html_e( 'Opening Hours', 'dish-dash' ); ?></label>
-                    <input type="text" name="dish_dash_opening_hours"
+                    <input type="text" class="dd-hp-input" name="dish_dash_opening_hours"
                            value="<?php echo esc_attr( $opening_hours ); ?>"
                            placeholder="Monday – Friday 10 AM – 7 PM" />
                 </div>
-            </div>
 
-            <!-- ── SOCIAL MEDIA ── -->
-            <div class="dd-settings-card">
-                <h2 class="dd-settings-card__title">📱 <?php esc_html_e( 'Social Media', 'dish-dash' ); ?></h2>
+                <div class="dd-hp-save-bar">
+                    <span><?php esc_html_e( 'Changes apply immediately after saving.', 'dish-dash' ); ?></span>
+                    <button type="submit" name="dd_save_template_settings" class="button button-primary">
+                        <?php esc_html_e( 'Save Homepage Content', 'dish-dash' ); ?>
+                    </button>
+                </div>
 
-                <div class="dd-field">
-                    <label>📘 <?php esc_html_e( 'Facebook URL', 'dish-dash' ); ?></label>
-                    <input type="url" name="dish_dash_facebook"
-                           value="<?php echo esc_attr( $facebook ); ?>"
-                           placeholder="https://facebook.com/yourpage" />
-                </div>
-                <div class="dd-field">
-                    <label>📷 <?php esc_html_e( 'Instagram URL', 'dish-dash' ); ?></label>
-                    <input type="url" name="dish_dash_instagram"
-                           value="<?php echo esc_attr( $instagram ); ?>"
-                           placeholder="https://instagram.com/yourpage" />
-                </div>
-                <div class="dd-field">
-                    <label>💬 <?php esc_html_e( 'WhatsApp Number', 'dish-dash' ); ?></label>
-                    <input type="text" name="dish_dash_whatsapp"
-                           value="<?php echo esc_attr( $whatsapp ); ?>"
-                           placeholder="250788123456 (no + or spaces)" />
-                </div>
-                <div class="dd-field">
-                    <label>🐦 <?php esc_html_e( 'Twitter / X URL', 'dish-dash' ); ?></label>
-                    <input type="url" name="dish_dash_twitter"
-                           value="<?php echo esc_attr( $twitter ); ?>"
-                           placeholder="https://x.com/yourpage" />
-                </div>
-                <div class="dd-field">
-                    <label>🎵 <?php esc_html_e( 'TikTok URL', 'dish-dash' ); ?></label>
-                    <input type="url" name="dish_dash_tiktok"
-                           value="<?php echo esc_attr( $tiktok ); ?>"
-                           placeholder="https://tiktok.com/@yourpage" />
-                </div>
-            </div>
+            </form>
 
         </div>
+    </div>
 
-        <div style="margin-top:1.5rem">
-            <?php submit_button( __( 'Save Template Settings', 'dish-dash' ), 'primary large', 'dd_save_template_settings' ); ?>
-        </div>
-
-    </form>
 </div>
 
-<style>
-.dd-settings-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(440px,1fr)); gap:1.5rem; margin-top:1rem; }
-.dd-settings-card { background:#fff; border:1px solid #e0e0e0; border-radius:12px; padding:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,.05); }
-.dd-settings-card__title { font-size:1rem; font-weight:700; color:#1E3A5F; margin:0 0 1.25rem; padding-bottom:.75rem; border-bottom:2px solid #f0ece6; }
-.dd-field { margin-bottom:1rem; }
-.dd-field label { display:block; font-size:.82rem; font-weight:700; color:#555; margin-bottom:.4rem; text-transform:uppercase; letter-spacing:.04em; }
-.dd-field input[type="text"],
-.dd-field input[type="url"],
-.dd-field input[type="email"] { width:100%; padding:.6rem .85rem; border:2px solid #e8e0d5; border-radius:8px; font-size:.9rem; font-family:inherit; transition:border-color .2s; outline:none; }
-.dd-field input:focus { border-color:#E8832A; }
-.dd-field-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-.dd-field-row .dd-field { margin-bottom:0; }
-.dd-field-row.dd-field-row--btn { display:flex; gap:.5rem; align-items:flex-end; }
-.dd-field-row.dd-field-row--btn input { flex:1; }
-.dd-color-field { display:flex; gap:.5rem; align-items:center; }
-.dd-color-field input[type="color"] { width:44px; height:38px; padding:2px; border:2px solid #e8e0d5; border-radius:8px; cursor:pointer; }
-.dd-color-field input[type="text"] { width:100px !important; }
-</style>
-
 <script>
-// WordPress Media Uploader for Logo
-function ddMediaUpload() {
-    var frame = wp.media({
-        title: 'Select Logo',
-        button: { text: 'Use this image' },
-        multiple: false,
-        library: { type: 'image' }
-    });
-    frame.on('select', function() {
-        var attachment = frame.state().get('selection').first().toJSON();
-        document.getElementById('dd_logo_url').value = attachment.url;
-    });
-    frame.open();
-}
-
-// WordPress Media Uploader for Hero Image
 function ddMediaUploadHero() {
     var frame = wp.media({
-        title: 'Select Hero Image',
-        button: { text: 'Use this image' },
+        title: '<?php echo esc_js( __( 'Select Hero Image', 'dish-dash' ) ); ?>',
+        button: { text: '<?php echo esc_js( __( 'Use this image', 'dish-dash' ) ); ?>' },
         multiple: false,
         library: { type: 'image' }
     });
