@@ -438,8 +438,10 @@ class DD_Hooks {
     }
 
     /**
-     * If a custom admin path is set, return 404 for any request to
-     * /wp-admin or /wp-login.php made by non-administrators.
+     * If a custom admin path is set, return 404 for direct requests to
+     * /wp-admin or /wp-login.php — but only for logged-in users without
+     * manage_options. Non-logged-in users are allowed through so they can
+     * reach the login page via the custom path redirect.
      * Fires on 'init' priority 1 — WP auth cookies are already loaded.
      */
     public static function maybe_block_wp_admin(): void {
@@ -453,19 +455,27 @@ class DD_Hooks {
             ? trim( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' )
             : '';
 
-        // Allow access via the custom path
-        if ( $request_uri === trim( $custom_path, '/' ) ) {
-            return;
-        }
-
         $is_wp_admin = strpos( $request_uri, 'wp-admin' ) === 0;
         $is_wp_login = strpos( $request_uri, 'wp-login.php' ) === 0;
 
-        if ( ( $is_wp_admin || $is_wp_login ) && ! current_user_can( 'manage_options' ) ) {
-            status_header( 404 );
-            nocache_headers();
-            exit( '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1></body></html>' );
+        if ( ! $is_wp_admin && ! $is_wp_login ) {
+            return;
         }
+
+        // Allow if not logged in — they need to reach the login page
+        if ( ! is_user_logged_in() ) {
+            return;
+        }
+
+        // Allow if user has admin rights
+        if ( current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        // Logged in but not admin — block
+        status_header( 404 );
+        nocache_headers();
+        exit( '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1></body></html>' );
     }
 
     /*
