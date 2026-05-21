@@ -428,28 +428,31 @@ class DD_Hooks {
     }
 
     /**
-     * Redirect to wp-admin when the custom path rewrite rule is matched.
-     * Checks get_query_var, $wp_query->query_vars, and raw $_GET as fallbacks
-     * in case the rewrite tag is not yet parsed into the query vars.
+     * Redirect to the login page with ?dd_entry=1 when the custom path rewrite
+     * rule is matched. dd_entry signals maybe_block_wp_admin() to allow through.
+     * Uses wp_login_url() + admin_url() — no hardcoded URLs.
+     * Checks multiple sources in case the rewrite tag is not yet in query vars.
      */
     public static function handle_admin_redirect(): void {
         global $wp_query;
 
         $is_redirect = get_query_var( 'dd_admin_redirect' )
-            || ( isset( $wp_query->query_vars['dd_admin_redirect'] ) && $wp_query->query_vars['dd_admin_redirect'] )
+            || ( isset( $wp_query->query_vars['dd_admin_redirect'] )
+                 && $wp_query->query_vars['dd_admin_redirect'] )
             || isset( $_GET['dd_admin_redirect'] );
 
         if ( $is_redirect ) {
-            wp_redirect( 'https://dishdash.khanakhazana.rw/wp-admin/' );
+            $login_url = add_query_arg( 'dd_entry', '1', wp_login_url( admin_url() ) );
+            wp_redirect( $login_url );
             exit;
         }
     }
 
     /**
-     * If a custom admin path is set, return 404 for direct requests to
-     * /wp-admin or /wp-login.php — but only for logged-in users without
-     * manage_options. Non-logged-in users are allowed through so they can
-     * reach the login page via the custom path redirect.
+     * If a custom admin path is set, block ALL direct requests to /wp-admin
+     * and /wp-login.php with a 404 — unless the request carries ?dd_entry=1
+     * (set by handle_admin_redirect() via the custom path) or the user is
+     * already logged in as an admin.
      * Fires on 'init' priority 1 — WP auth cookies are already loaded.
      */
     public static function maybe_block_wp_admin(): void {
@@ -470,17 +473,17 @@ class DD_Hooks {
             return;
         }
 
-        // Allow if not logged in — they need to reach the login page
-        if ( ! is_user_logged_in() ) {
+        // Allow if user came through the custom path (has dd_entry param)
+        if ( isset( $_GET['dd_entry'] ) ) {
             return;
         }
 
-        // Allow if user has admin rights
-        if ( current_user_can( 'manage_options' ) ) {
+        // Allow if already logged in as admin
+        if ( is_user_logged_in() && current_user_can( 'manage_options' ) ) {
             return;
         }
 
-        // Logged in but not admin — block
+        // Block everything else
         status_header( 404 );
         nocache_headers();
         exit( '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1></body></html>' );
