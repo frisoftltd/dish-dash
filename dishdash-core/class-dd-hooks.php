@@ -451,8 +451,8 @@ class DD_Hooks {
     /**
      * If a custom admin path is set, block ALL direct requests to /wp-admin
      * and /wp-login.php with a 404 — unless the request carries ?dd_entry=1
-     * (set by handle_admin_redirect() via the custom path) or the user is
-     * already logged in as an admin.
+     * (set by handle_admin_redirect() via the custom path), is a login form
+     * POST submission, or the user is already logged in as an admin.
      * Fires on 'init' priority 1 — WP auth cookies are already loaded.
      */
     public static function maybe_block_wp_admin(): void {
@@ -473,7 +473,12 @@ class DD_Hooks {
             return;
         }
 
-        // Allow if user came through the custom path (has dd_entry param)
+        // Never block login form POST submissions
+        if ( $is_wp_login && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
+            return;
+        }
+
+        // Allow if user came through the custom path
         if ( isset( $_GET['dd_entry'] ) ) {
             return;
         }
