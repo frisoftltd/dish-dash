@@ -76,16 +76,21 @@ WooCommerce (payment processing)
 
 ## 🎨 Brand Colors
 
-| Color | Hex | Where used |
-|---|---|---|
-| **Primary (brand)** | `#65040d` | Homepage, header, logo background, hero |
-| **Accent (menu)** | `#E8832A` | Menu page prices, Add to Cart buttons, category active states |
-| **Dark/Secondary** | `#000000` | Text, secondary elements |
-| **Background** | `#F5EFE6` | Page background (warm cream) |
-| **Surface** | `#FBF7F1` | Card backgrounds, filter card |
-| **Gold** | `#C9A24A` | Accent highlights, premium elements |
+Brand colors are dynamic — set by each restaurant in Dish Dash → Brand Identity
+and stored in wp_options. All code must read colors from wp_options or CSS
+variables — never hardcode hex values in templates or CSS.
 
-**Rule:** Homepage uses `#65040d` as primary. Menu page `/restaurant-menu/` uses `#E8832A` for prices and buttons. Do NOT mix them.
+| Option Key | Description |
+|---|---|
+| dish_dash_primary_color | Header, buttons, active states, CTAs |
+| dish_dash_dark_color | Secondary elements, text accents |
+| dish_dash_background_color | Page background |
+| dish_dash_font | Typography (Inter default) |
+
+**Rule:** Never hardcode hex color values anywhere in the codebase.
+Always read from get_option('dish_dash_primary_color') in PHP or
+from CSS variables in stylesheets. Each restaurant has its own
+colors — what Khana Khazana uses is just one configuration.
 
 ---
 
