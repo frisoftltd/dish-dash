@@ -41,6 +41,12 @@ class DD_Hooks {
         // Block /wp-admin and /wp-login.php for non-admins when a custom path is set.
         add_action( 'init', [ __CLASS__, 'maybe_block_wp_admin' ], 1 );
 
+        // Register WP rewrite rule for the custom admin path (LiteSpeed-compatible).
+        add_action( 'init', [ __CLASS__, 'register_admin_rewrite' ], 5 );
+
+        // Handle the redirect when the custom path is hit.
+        add_action( 'template_redirect', [ __CLASS__, 'handle_admin_redirect' ] );
+
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
 
@@ -398,6 +404,37 @@ class DD_Hooks {
             remove_all_actions( 'update_nag' );
             remove_all_actions( 'network_admin_notices' );
         }, 999 );
+    }
+
+    /**
+     * Register a WP rewrite rule for the custom admin path.
+     * Works on LiteSpeed (and any server) without touching .htaccess directly.
+     * Flush rewrite rules after saving a new path for the rule to take effect.
+     */
+    public static function register_admin_rewrite(): void {
+        $custom_path = get_option( 'dd_admin_custom_path', '' );
+
+        if ( empty( $custom_path ) ) {
+            return;
+        }
+
+        add_rewrite_rule(
+            '^' . preg_quote( $custom_path, '/' ) . '/?$',
+            'index.php?dd_admin_redirect=1',
+            'top'
+        );
+
+        add_rewrite_tag( '%dd_admin_redirect%', '([0-9]+)' );
+    }
+
+    /**
+     * Redirect to wp-admin when the custom path rewrite rule is matched.
+     */
+    public static function handle_admin_redirect(): void {
+        if ( get_query_var( 'dd_admin_redirect' ) ) {
+            wp_redirect( admin_url() );
+            exit;
+        }
     }
 
     /**

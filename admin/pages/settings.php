@@ -92,6 +92,8 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     // Security — custom admin path (superadmin only)
     if ( current_user_can( 'manage_options' ) && isset( $_POST['dd_admin_custom_path'] ) ) {
         update_option( 'dd_admin_custom_path', sanitize_title( wp_unslash( $_POST['dd_admin_custom_path'] ) ) );
+        // Flush rewrite rules so new path takes effect immediately
+        flush_rewrite_rules();
     }
 
     echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
