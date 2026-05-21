@@ -587,7 +587,7 @@ class DD_Auth_Module extends DD_Module {
             /* ── Helpers ── */
             function ddAuthAjax(action, data, callback) {
                 var auth    = window.DDAauth || {};
-                var ajaxUrl = auth.ajaxUrl || (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+                var ajaxUrl = auth.ajaxUrl || (window.DD && window.DD.ajaxUrl) || '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>';
                 var nonce   = auth.nonce   || '';
                 var body = new URLSearchParams({ action: action, nonce: nonce });
                 Object.keys(data).forEach(function(k) { body.append(k, data[k]); });

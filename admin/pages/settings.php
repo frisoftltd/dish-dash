@@ -28,6 +28,21 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+// Recovery email handler (separate form, runs before main save)
+if ( isset( $_POST['dd_send_recovery_email'] ) && check_admin_referer( 'dd_settings_save' ) ) {
+    $path = get_option( 'dd_admin_custom_path', '' );
+    if ( $path ) {
+        wp_mail(
+            get_option( 'admin_email' ),
+            'Your Dish Dash admin URL',
+            'Your custom admin URL is: ' . home_url( '/' . $path )
+        );
+        echo '<div class="notice notice-success"><p>Recovery email sent to ' . esc_html( get_option( 'admin_email' ) ) . '.</p></div>';
+    } else {
+        echo '<div class="notice notice-warning"><p>No custom admin path is set yet.</p></div>';
+    }
+}
+
 // Save settings
 if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_save' ) ) {
     $fields = [
@@ -73,6 +88,11 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_reservation_refund_enabled',     isset( $_POST['dd_reservation_refund_enabled'] ) ? 1 : 0 );
     update_option( 'dd_reservation_refund_hours',       absint( $_POST['dd_reservation_refund_hours'] ?? 24 ) );
     update_option( 'dd_reservation_refund_policy_text', sanitize_textarea_field( $_POST['dd_reservation_refund_policy_text'] ?? '' ) );
+
+    // Security — custom admin path (superadmin only)
+    if ( current_user_can( 'manage_options' ) && isset( $_POST['dd_admin_custom_path'] ) ) {
+        update_option( 'dd_admin_custom_path', sanitize_title( wp_unslash( $_POST['dd_admin_custom_path'] ) ) );
+    }
 
     echo '<div class="notice notice-success"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 }
@@ -384,11 +404,44 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
             </tr>
         </table>
 
+        <?php if ( current_user_can( 'manage_options' ) ) : ?>
+        <hr>
+        <h2>🔐 Security</h2>
+
+        <table class="form-table">
+            <tr>
+                <th scope="row">Custom Admin Path</th>
+                <td>
+                    <input type="text" name="dd_admin_custom_path"
+                           value="<?php echo esc_attr( get_option( 'dd_admin_custom_path', '' ) ); ?>"
+                           class="regular-text"
+                           placeholder="e.g. my-restaurant-admin">
+                    <p class="description" style="color:#888;">
+                        Once set, /wp-admin will return 404 for non-admin users.
+                        Use only letters, numbers, and hyphens. Leave blank to disable.
+                    </p>
+                </td>
+            </tr>
+        </table>
+        <?php endif; ?>
+
         <!-- Hidden field: assembled JSON sent on submit -->
         <input type="hidden" name="dd_opening_hours" id="dd_opening_hours_json" value="">
 
         <?php submit_button( __( 'Save Settings', 'dish-dash' ), 'primary', 'dd_save_settings' ); ?>
     </form>
+
+    <?php if ( current_user_can( 'manage_options' ) ) : ?>
+    <form method="post" action="" style="margin-top:12px;">
+        <?php wp_nonce_field( 'dd_settings_save' ); ?>
+        <button type="submit" name="dd_send_recovery_email" class="button button-secondary">
+            📧 Send recovery email
+        </button>
+        <span class="description" style="margin-left:8px;">
+            Sends your custom admin URL to the admin email address.
+        </span>
+    </form>
+    <?php endif; ?>
 
 <script>
 document.querySelector('form').addEventListener('submit', function() {

@@ -38,6 +38,9 @@ class DD_Hooks {
         // Flush rewrite rules when CPTs are registered.
         add_action( 'init', [ __CLASS__, 'maybe_flush_rewrite_rules' ] );
 
+        // Block /wp-admin and /wp-login.php for non-admins when a custom path is set.
+        add_action( 'init', [ __CLASS__, 'maybe_block_wp_admin' ], 1 );
+
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
 
@@ -395,6 +398,37 @@ class DD_Hooks {
             remove_all_actions( 'update_nag' );
             remove_all_actions( 'network_admin_notices' );
         }, 999 );
+    }
+
+    /**
+     * If a custom admin path is set, return 404 for any request to
+     * /wp-admin or /wp-login.php made by non-administrators.
+     * Fires on 'init' priority 1 — WP auth cookies are already loaded.
+     */
+    public static function maybe_block_wp_admin(): void {
+        $custom_path = get_option( 'dd_admin_custom_path', '' );
+
+        if ( empty( $custom_path ) ) {
+            return;
+        }
+
+        $request_uri = isset( $_SERVER['REQUEST_URI'] )
+            ? trim( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ), '/' )
+            : '';
+
+        // Allow access via the custom path
+        if ( $request_uri === trim( $custom_path, '/' ) ) {
+            return;
+        }
+
+        $is_wp_admin = strpos( $request_uri, 'wp-admin' ) === 0;
+        $is_wp_login = strpos( $request_uri, 'wp-login.php' ) === 0;
+
+        if ( ( $is_wp_admin || $is_wp_login ) && ! current_user_can( 'manage_options' ) ) {
+            status_header( 404 );
+            nocache_headers();
+            exit( '<!DOCTYPE html><html><head><title>404 Not Found</title></head><body><h1>Not Found</h1></body></html>' );
+        }
     }
 
     /*
