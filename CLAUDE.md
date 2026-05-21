@@ -400,28 +400,64 @@ Build the layout shell first. Every page inherits it. Get this right before touc
 
 ---
 
-### Phase 5D — Full Admin Pages Redesign
+### Phase 5D — Full Admin Redesign + Frontend Template System
 
-Every page redesigned. Same design system throughout. No page left with WP native styling.
+Phase 5D has two parts:
+- Part 1: Every admin page redesigned to match the DishDash design system
+- Part 2: Frontend page template system — proper WordPress templates, clean URLs, no WooCommerce junk pages
+
+---
+
+#### Part 1 — Admin Pages Redesign
+
+Every page checklist before shipping:
+✅ No WP grey or WP blue anywhere
+✅ Restaurant logo showing in sidebar
+✅ Brand color applied to active states and CTAs
+✅ Inter font loaded
+✅ Spacious cards, 12px radius, soft shadows
+✅ Works for both owner (glance) and manager (daily use)
 
 | Release | What ships |
 |---|---|
-| **v3.4.26** | Dashboard — Live KPIs, date filter (Today/7d/30d/All), revenue chart |
-| **v3.4.27** | Orders page — redesigned list, live status badges, action buttons |
-| **v3.4.28** | Analytics page — Top Products widget, Peak Hours heatmap, Customer Value widget |
-| **v3.4.29** | Customers page — redesigned table, tier badges (New/Regular/VIP/Champion/Diamond), spend data |
-| **v3.4.30** | Reservations page — redesigned booking list, session/date filters, confirm/cancel/no-show actions |
-| **v3.4.31** | Tables + Seating Sections — clean management UI |
-| **v3.4.32** | Settings page — grouped sections, clean inputs, no WP form styling |
-| **v3.4.33** | Homepage + Auth & Login + Tools — remaining pages |
+| **v3.4.39** | Dashboard — Live KPIs, date filter (Today/7d/30d/All), revenue chart |
+| **v3.4.40** | Orders page — redesigned list, live status badges, action buttons |
+| **v3.4.41** | Analytics page — Top Products widget, Peak Hours heatmap, Customer Value widget |
+| **v3.4.42** | Customers page — redesigned table, tier badges (New/Regular/VIP/Champion/Diamond), spend data |
+| **v3.4.43** | Reservations page — redesigned booking list, session/date filters, confirm/cancel/no-show actions |
+| **v3.4.44** | Tables + Seating Sections — clean management UI |
+| **v3.4.45** | Settings page — grouped sections, clean inputs, no WP form styling |
+| **v3.4.46** | Homepage + Auth & Login + Tools — remaining admin pages |
 
-**Every page checklist before shipping:**
-- ✅ No WP grey or WP blue anywhere
-- ✅ Restaurant logo showing in sidebar
-- ✅ Brand color applied to active states and CTAs
-- ✅ Inter font loaded
-- ✅ Spacious cards, 12px radius, soft shadows
-- ✅ Works for both owner (glance) and manager (daily use)
+---
+
+#### Part 2 — Frontend Template System
+
+**Architecture:**
+- All DishDash pages registered as proper WordPress page templates
+- Restaurant owner selects template from Gutenberg Page Attributes → Template dropdown
+- Template files live in `templates/themes/{active-template}/` folder
+- Active template controlled by `dd_active_template` wp_option (default: `khana-khazana`)
+- Switching template = one click, instant site redesign (SaaS-ready)
+
+**Folder structure:**
+
+```
+templates/
+└── themes/
+    └── khana-khazana/       ← default template
+        ├── home.php
+        ├── menu.php
+        ├── cart.php
+        └── checkout.php
+```
+
+**Page template registry:**
+Each DishDash page that needs a frontend template gets registered
+via the `theme_page_templates` filter. The list of pages and their
+templates is decided at implementation time (v3.4.48) based on
+what pages exist and what the restaurant needs. No pages are
+deleted or redirected until v3.4.49 — decisions made then.
 
 ---
 
