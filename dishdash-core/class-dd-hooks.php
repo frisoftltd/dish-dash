@@ -418,21 +418,29 @@ class DD_Hooks {
             return;
         }
 
+        add_rewrite_tag( '%dd_admin_redirect%', '([0-9]+)' );
+
         add_rewrite_rule(
             '^' . preg_quote( $custom_path, '/' ) . '/?$',
             'index.php?dd_admin_redirect=1',
             'top'
         );
-
-        add_rewrite_tag( '%dd_admin_redirect%', '([0-9]+)' );
     }
 
     /**
      * Redirect to wp-admin when the custom path rewrite rule is matched.
+     * Checks get_query_var, $wp_query->query_vars, and raw $_GET as fallbacks
+     * in case the rewrite tag is not yet parsed into the query vars.
      */
     public static function handle_admin_redirect(): void {
-        if ( get_query_var( 'dd_admin_redirect' ) ) {
-            wp_redirect( admin_url() );
+        global $wp_query;
+
+        $is_redirect = get_query_var( 'dd_admin_redirect' )
+            || ( isset( $wp_query->query_vars['dd_admin_redirect'] ) && $wp_query->query_vars['dd_admin_redirect'] )
+            || isset( $_GET['dd_admin_redirect'] );
+
+        if ( $is_redirect ) {
+            wp_redirect( 'https://dishdash.khanakhazana.rw/wp-admin/' );
             exit;
         }
     }
