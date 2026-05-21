@@ -452,7 +452,8 @@ class DD_Hooks {
      * If a custom admin path is set, block ALL direct requests to /wp-admin
      * and /wp-login.php with a 404 — unless the request carries ?dd_entry=1
      * (set by handle_admin_redirect() via the custom path), is a login form
-     * POST submission, or the user is already logged in as an admin.
+     * POST submission, a logout action, or the user is already logged in as
+     * an admin. After logout, redirects to the custom path instead of 404.
      * Fires on 'init' priority 1 — WP auth cookies are already loaded.
      */
     public static function maybe_block_wp_admin(): void {
@@ -476,6 +477,17 @@ class DD_Hooks {
         // Never block login form POST submissions
         if ( $is_wp_login && $_SERVER['REQUEST_METHOD'] === 'POST' ) {
             return;
+        }
+
+        // Allow logout action through (WP needs this to process logout)
+        if ( $is_wp_login && isset( $_GET['action'] ) && $_GET['action'] === 'logout' ) {
+            return;
+        }
+
+        // After logout, redirect to custom path instead of showing 404
+        if ( $is_wp_login && isset( $_GET['loggedout'] ) ) {
+            wp_redirect( home_url( '/' . $custom_path ) );
+            exit;
         }
 
         // Allow if user came through the custom path
