@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.45 (2026-05-24)
+> Last updated: v3.4.46 (2026-05-24)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.45 |
+| **Deployed version** | v3.4.46 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.46 — Tables + Seating Sections |
-| **Last working state** | Orders, Analytics, Customers, Reservations pages redesigned. Dashboard now fully wired with live KPIs, date filter, revenue chart, top items, customer tiers. All other Phase 5A/5B/5C work complete. |
+| **Next task** | v3.4.47 — Tables + Seating Sections |
+| **Last working state** | Orders page fully redesigned (stat cards, filter tabs, clean table card, nonce-protected URL actions). Global max-width constraint removed from .dd-admin-wrap. Dashboard, Analytics, Customers, Reservations pages previously redesigned. All Phase 5A/5B/5C work complete. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -489,10 +489,12 @@ Every page before shipping must pass:
 | Release | Status | What ships |
 |---|---|---|
 | v3.4.39–v3.4.43 | ✅ Done | Orders, Analytics, Customers, Reservations pages redesigned |
-| **v3.4.44** | 🔄 **NEXT** | **Dashboard — live KPIs, date filter, revenue chart, top items, customer tiers** |
-| v3.4.45 | ⏳ | Tables + Seating Sections |
-| v3.4.46 | ⏳ | Settings page redesign |
-| v3.4.47 | ⏳ | Homepage + Auth & Login + Tools |
+| v3.4.44 | ✅ Done | Dashboard — live KPIs, date filter, revenue chart, top items, customer tiers |
+| v3.4.45 | ✅ Done | Fix dashboard Top Items column name and opening hours session keys |
+| **v3.4.46** | ✅ **Done** | **Orders page redesign + remove global max-width constraint** |
+| v3.4.47 | ⏳ **NEXT** | Tables + Seating Sections |
+| v3.4.48 | ⏳ | Settings page redesign |
+| v3.4.49 | ⏳ | Homepage + Auth & Login + Tools |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

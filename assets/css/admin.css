@@ -468,3 +468,150 @@
     text-decoration: none;
 }
 .dd-action-btn .dashicons { font-size: 16px; width: 16px; height: 16px; }
+
+/* ── Orders page v3.4.46 ────────────────────────────────────────────────────── */
+
+.dd-orders-wrap {
+    padding: 24px 28px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+}
+
+.dd-orders-header { margin-bottom: 20px; }
+.dd-page-title { font-size: 22px; font-weight: 600; color: #111; margin: 0; }
+
+/* Stat cards */
+.dd-orders-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
+}
+@media (max-width: 900px) { .dd-orders-stats { grid-template-columns: repeat(2, 1fr); } }
+
+.dd-stat-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid var(--stat-accent, var(--dd-brand));
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-sizing: border-box;
+}
+.dd-stat-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+.dd-stat-value { font-size: 24px; font-weight: 600; color: #111; line-height: 1.2; }
+.dd-stat-value small { font-size: 12px; font-weight: 400; color: #9ca3af; }
+
+/* Filter tabs */
+.dd-orders-filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.dd-tab-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    text-decoration: none;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.dd-tab-btn:hover { color: #111; border-color: #d1d5db; text-decoration: none; }
+.dd-tab-btn.dd-tab-active {
+    background: var(--dd-brand);
+    color: #fff;
+    border-color: var(--dd-brand);
+}
+.dd-tab-count {
+    display: inline-block;
+    background: rgba(0,0,0,0.12);
+    color: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+    line-height: 1.4;
+}
+.dd-tab-btn.dd-tab-active .dd-tab-count { background: rgba(255,255,255,0.25); }
+
+/* Orders table card */
+.dd-orders-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.dd-orders-empty { padding: 32px; color: #9ca3af; font-size: 13px; margin: 0; }
+
+.dd-orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+.dd-orders-table thead tr {
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+.dd-orders-table th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.dd-orders-table tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: background .1s;
+}
+.dd-orders-table tbody tr:last-child { border-bottom: none; }
+.dd-orders-table tbody tr:hover { background: #fafafa; }
+.dd-orders-table td { padding: 12px 16px; vertical-align: middle; }
+
+.dd-order-num { font-weight: 600; color: #111; }
+.dd-customer-name { display: block; font-weight: 500; color: #111; }
+.dd-customer-phone { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
+.dd-type-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #f3f4f6;
+    color: #374151;
+    font-size: 11px;
+    font-weight: 500;
+}
+.dd-order-total { font-weight: 600; color: #111; }
+.dd-order-currency { font-size: 11px; color: #9ca3af; margin-left: 2px; }
+
+.dd-action-link {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    text-decoration: none;
+    margin-right: 4px;
+    white-space: nowrap;
+}
+.dd-action-primary {
+    background: var(--dd-brand);
+    color: #fff;
+}
+.dd-action-primary:hover { opacity: .85; color: #fff; text-decoration: none; }
+.dd-action-cancel {
+    background: #fee2e2;
+    color: #991b1b;
+}
+.dd-action-cancel:hover { background: #fecaca; color: #991b1b; text-decoration: none; }
+.dd-action-done { color: #d1d5db; }
