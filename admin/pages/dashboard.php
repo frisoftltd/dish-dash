@@ -120,6 +120,17 @@ $tier_champion = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total
 $tier_diamond  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_spent >= 500000" );
 $tier_total    = max( 1, $tier_new + $tier_regular + $tier_vip + $tier_champion + $tier_diamond );
 
+// ── Stale orders (unchanged for 24+ hours, not in terminal status) ────────────
+$stale_orders = $wpdb->get_results(
+    "SELECT id, customer_name, status, updated_at
+     FROM `{$ot}`
+     WHERE status NOT IN ('delivered', 'cancelled')
+     AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)
+     ORDER BY updated_at ASC
+     LIMIT 10",
+    ARRAY_A
+);
+
 // ── Open/closed status ────────────────────────────────────────────────────────
 $is_open   = false;
 $hours_raw = get_option( 'dd_opening_hours', '' );
@@ -158,7 +169,7 @@ function dd_dash_status_badge( $status ) {
         'pending'    => [ 'Pending',    '#fef9c3', '#854d0e' ],
         'processing' => [ 'Processing', '#dbeafe', '#1e40af' ],
         'cancelled'  => [ 'Cancelled',  '#fee2e2', '#991b1b' ],
-        'confirmed'  => [ 'Confirmed',  '#dcfce7', '#166534' ],
+        'confirmed'  => [ 'Accepted',   '#dbeafe', '#1e40af' ],
         'no-show'    => [ 'No-show',    '#f3f4f6', '#6b7280' ],
     ];
     $s = $map[ $status ] ?? [ ucfirst( $status ), '#f3f4f6', '#374151' ];
@@ -172,6 +183,36 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
 ?>
 
 <div class="dd-dash-wrap">
+
+  <?php if ( ! empty( $stale_orders ) ) : ?>
+  <div class="dd-stale-banner">
+    <div class="dd-stale-icon">⚠️</div>
+    <div class="dd-stale-content">
+      <strong><?php echo count( $stale_orders ); ?> order<?php echo count( $stale_orders ) > 1 ? 's' : ''; ?> haven't been updated in over 24 hours</strong>
+      <div class="dd-stale-list">
+        <?php foreach ( $stale_orders as $s ) :
+          $order_num = 'DD-' . str_pad( $s['id'], 5, '0', STR_PAD_LEFT );
+          $label_map = [
+            'confirmed'        => 'Accepted',
+            'preparing'        => 'In Kitchen',
+            'ready'            => 'Ready for Pickup',
+            'out_for_delivery' => 'On the Way',
+            'pending'          => 'Pending',
+          ];
+          $label    = $label_map[ $s['status'] ] ?? ucfirst( $s['status'] );
+          $time_ago = dd_dash_time_ago( $s['updated_at'] );
+        ?>
+          <span class="dd-stale-item">
+            <strong><?php echo esc_html( $order_num ); ?></strong>
+            · <?php echo esc_html( $label ); ?>
+            · <?php echo esc_html( $time_ago ); ?>
+          </span>
+        <?php endforeach; ?>
+      </div>
+    </div>
+    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" class="dd-stale-action">View Orders →</a>
+  </div>
+  <?php endif; ?>
 
   <!-- ── Header ────────────────────────────────────────────────────────────── -->
   <div class="dd-dash-header">

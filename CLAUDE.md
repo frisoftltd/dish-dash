@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.47 (2026-05-24)
+> Last updated: v3.4.48 (2026-05-24)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.47 |
+| **Deployed version** | v3.4.48 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.48 — Tables + Seating Sections |
-| **Last working state** | Orders status column replaced with POST-based dropdown (replaces dead GET nonce links from v3.4.46). POST handler at top of orders.php writes directly to DB and redirects back to filtered view. Dashboard, Analytics, Customers, Reservations, Orders pages all redesigned. All Phase 5A/5B/5C work complete. |
+| **Next task** | v3.4.49 — Rider management + rider WhatsApp notifications |
+| **Last working state** | Friendly status names live (Confirmed→Accepted, Preparing→In Kitchen, Ready→Ready for Pickup, Out for Delivery→On the Way). Kitchen WhatsApp fires on Accepted via transient+redirect pattern. Stale order warning banner on Dashboard for orders unchanged 24h+. dd_whatsapp_kitchen setting added. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -492,10 +492,11 @@ Every page before shipping must pass:
 | v3.4.44 | ✅ Done | Dashboard — live KPIs, date filter, revenue chart, top items, customer tiers |
 | v3.4.45 | ✅ Done | Fix dashboard Top Items column name and opening hours session keys |
 | v3.4.46 | ✅ Done | Orders page redesign + remove global max-width constraint |
-| **v3.4.47** | ✅ **Done** | **Orders status dropdown with POST handler, replaces dead GET links** |
-| v3.4.48 | ⏳ **NEXT** | Tables + Seating Sections |
-| v3.4.49 | ⏳ | Settings page redesign |
-| v3.4.50 | ⏳ | Homepage + Auth & Login + Tools |
+| v3.4.47 | ✅ Done | Orders status dropdown with POST handler, replaces dead GET links |
+| **v3.4.48** | ✅ **Done** | **Friendly status names, kitchen WhatsApp notification, stale order warning** |
+| v3.4.49 | ⏳ **NEXT** | Rider management + rider WhatsApp notifications |
+| v3.4.50 | ⏳ | Bulk actions on Orders page |
+| v3.4.51 | ⏳ | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

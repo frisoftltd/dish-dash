@@ -128,10 +128,10 @@ function dd_order_status_transitions(): array {
 function dd_order_status_label( string $status ): string {
     $labels = [
         'pending'           => __( 'Pending',           'dish-dash' ),
-        'confirmed'         => __( 'Confirmed',         'dish-dash' ),
-        'preparing'         => __( 'Preparing',         'dish-dash' ),
-        'ready'             => __( 'Ready',             'dish-dash' ),
-        'out_for_delivery'  => __( 'Out for Delivery',  'dish-dash' ),
+        'confirmed'         => __( 'Accepted',          'dish-dash' ),
+        'preparing'         => __( 'In Kitchen',        'dish-dash' ),
+        'ready'             => __( 'Ready for Pickup',  'dish-dash' ),
+        'out_for_delivery'  => __( 'On the Way',        'dish-dash' ),
         'delivered'         => __( 'Delivered',         'dish-dash' ),
         'cancelled'         => __( 'Cancelled',         'dish-dash' ),
         'refunded'          => __( 'Refunded',          'dish-dash' ),

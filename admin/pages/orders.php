@@ -33,6 +33,15 @@ if (
         );
     }
 
+    // Kitchen WhatsApp notification when order accepted
+    if ( $new_status === 'confirmed' ) {
+        $kitchen_url = DD_Notifications::build_kitchen_whatsapp_url( $order_id );
+        if ( $kitchen_url ) {
+            // Store URL in transient — picked up by JS after redirect
+            set_transient( 'dd_kitchen_notify_' . get_current_user_id(), $kitchen_url, 60 );
+        }
+    }
+
     // Redirect back to same page + filter
     $redirect = add_query_arg(
         'status',
@@ -84,10 +93,10 @@ foreach ( $counts_raw as $row ) {
 function dd_orders_status_badge( $status ) {
     $map = [
         'pending'          => [ 'Pending',          '#fef9c3', '#854d0e' ],
-        'confirmed'        => [ 'Confirmed',        '#dbeafe', '#1e40af' ],
-        'preparing'        => [ 'Preparing',        '#ede9fe', '#5b21b6' ],
-        'ready'            => [ 'Ready',            '#dcfce7', '#166534' ],
-        'out_for_delivery' => [ 'Out for Delivery', '#e0f2fe', '#0369a1' ],
+        'confirmed'        => [ 'Accepted',         '#dbeafe', '#1e40af' ],
+        'preparing'        => [ 'In Kitchen',       '#ede9fe', '#5b21b6' ],
+        'ready'            => [ 'Ready for Pickup', '#dcfce7', '#166534' ],
+        'out_for_delivery' => [ 'On the Way',       '#e0f2fe', '#0369a1' ],
         'delivered'        => [ 'Delivered',        '#dcfce7', '#166534' ],
         'cancelled'        => [ 'Cancelled',        '#fee2e2', '#991b1b' ],
         'processing'       => [ 'Processing',       '#dbeafe', '#1e40af' ],
@@ -108,10 +117,10 @@ $current_url = admin_url( 'admin.php?page=dish-dash-orders' );
 $filter_tabs = [
     'all'              => 'All',
     'pending'          => 'Pending',
-    'confirmed'        => 'Confirmed',
-    'preparing'        => 'Preparing',
-    'ready'            => 'Ready',
-    'out_for_delivery' => 'Out for Delivery',
+    'confirmed'        => 'Accepted',
+    'preparing'        => 'In Kitchen',
+    'ready'            => 'Ready for Pickup',
+    'out_for_delivery' => 'On the Way',
     'delivered'        => 'Delivered',
     'cancelled'        => 'Cancelled',
 ];
@@ -220,10 +229,10 @@ $filter_tabs = [
                   <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
                   <select name="new_status" class="dd-status-select" onchange="this.form.submit()">
                     <option value="pending"          <?php selected( $o['status'], 'pending' ); ?>>Pending</option>
-                    <option value="confirmed"        <?php selected( $o['status'], 'confirmed' ); ?>>Confirmed</option>
-                    <option value="preparing"        <?php selected( $o['status'], 'preparing' ); ?>>Preparing</option>
-                    <option value="ready"            <?php selected( $o['status'], 'ready' ); ?>>Ready</option>
-                    <option value="out_for_delivery" <?php selected( $o['status'], 'out_for_delivery' ); ?>>Out for Delivery</option>
+                    <option value="confirmed"        <?php selected( $o['status'], 'confirmed' ); ?>>Accepted</option>
+                    <option value="preparing"        <?php selected( $o['status'], 'preparing' ); ?>>In Kitchen</option>
+                    <option value="ready"            <?php selected( $o['status'], 'ready' ); ?>>Ready for Pickup</option>
+                    <option value="out_for_delivery" <?php selected( $o['status'], 'out_for_delivery' ); ?>>On the Way</option>
                     <option value="delivered"        <?php selected( $o['status'], 'delivered' ); ?>>Delivered</option>
                     <option value="cancelled"        <?php selected( $o['status'], 'cancelled' ); ?>>Cancelled</option>
                   </select>
@@ -240,3 +249,18 @@ $filter_tabs = [
   </div>
 
 </div><!-- /.dd-orders-wrap -->
+
+<?php
+// Open kitchen WhatsApp if pending
+$kitchen_url = get_transient( 'dd_kitchen_notify_' . get_current_user_id() );
+if ( $kitchen_url ) {
+    delete_transient( 'dd_kitchen_notify_' . get_current_user_id() );
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.location.href = <?php echo wp_json_encode( $kitchen_url ); ?>;
+    });
+    </script>
+    <?php
+}
+?>

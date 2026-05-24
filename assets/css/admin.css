@@ -634,3 +634,38 @@
 }
 .dd-status-select:hover { border-color: var(--dd-brand); }
 .dd-status-select:focus { outline: none; border-color: var(--dd-brand); box-shadow: 0 0 0 2px rgba(var(--dd-brand-rgb),0.15); }
+
+/* ── Stale order warning banner ─────────────────────────────────────────────── */
+.dd-stale-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-left: 4px solid #D97706;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+}
+.dd-stale-icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.dd-stale-content { flex: 1; min-width: 0; }
+.dd-stale-content strong { font-size: 13px; font-weight: 600; color: #92400e; display: block; margin-bottom: 8px; }
+.dd-stale-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.dd-stale-item {
+    font-size: 12px;
+    color: #78350f;
+    background: #fef3c7;
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+.dd-stale-action {
+    font-size: 12px;
+    font-weight: 600;
+    color: #D97706;
+    text-decoration: none;
+    white-space: nowrap;
+    align-self: center;
+    flex-shrink: 0;
+}
+.dd-stale-action:hover { text-decoration: underline; color: #D97706; }

@@ -60,7 +60,8 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_free_delivery_threshold', absint( $_POST['dd_free_delivery_threshold'] ?? 10000 ) );
     update_option( 'dd_delivery_fee',            absint( $_POST['dd_delivery_fee']            ?? 1500  ) );
     update_option( 'dd_delivery_eta',            sanitize_text_field( $_POST['dd_delivery_eta'] ?? '30–45 minutes' ) );
-    update_option( 'dd_whatsapp_admin',          sanitize_text_field( $_POST['dd_whatsapp_admin'] ?? '' ) );
+    update_option( 'dd_whatsapp_admin',          sanitize_text_field( $_POST['dd_whatsapp_admin']   ?? '' ) );
+    update_option( 'dd_whatsapp_kitchen',        sanitize_text_field( $_POST['dd_whatsapp_kitchen'] ?? '' ) );
     update_option( 'dd_admin_email',             sanitize_email( $_POST['dd_admin_email'] ?? '' ) );
 
     // Opening hours — save JSON
@@ -207,6 +208,22 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                        value="<?php echo esc_attr( get_option( 'dd_whatsapp_admin', '' ) ); ?>"
                        class="regular-text" placeholder="+250 78 000 0000">
                 <p class="description"><?php esc_html_e( 'Restaurant WhatsApp number that receives order notifications.', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">
+                <label for="dd_whatsapp_kitchen">Kitchen WhatsApp Number</label>
+                <p class="description">Receives order details when status moves to Accepted.</p>
+            </th>
+            <td>
+                <input
+                    type="text"
+                    id="dd_whatsapp_kitchen"
+                    name="dd_whatsapp_kitchen"
+                    value="<?php echo esc_attr( get_option( 'dd_whatsapp_kitchen', '' ) ); ?>"
+                    placeholder="+250 78 000 0000"
+                    class="regular-text"
+                >
             </td>
         </tr>
         <tr>

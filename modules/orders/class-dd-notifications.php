@@ -315,4 +315,65 @@ class DD_Notifications {
 
         return 'https://wa.me/' . $admin_phone . '?text=' . rawurlencode( $msg );
     }
+
+    /**
+     * Build kitchen WhatsApp notification URL when order is Accepted.
+     *
+     * @param int $order_id wp_dishdash_orders.id
+     * @return string wa.me URL or empty string if no kitchen number configured
+     */
+    public static function build_kitchen_whatsapp_url( int $order_id ): string {
+        $kitchen_number = get_option( 'dd_whatsapp_kitchen', '' );
+        if ( empty( $kitchen_number ) ) return '';
+
+        global $wpdb;
+
+        $order = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
+            $order_id
+        ), ARRAY_A );
+
+        if ( ! $order ) return '';
+
+        $items = $wpdb->get_results( $wpdb->prepare(
+            "SELECT item_name, quantity, variation, special_note
+             FROM {$wpdb->prefix}dishdash_order_items
+             WHERE order_id = %d",
+            $order_id
+        ), ARRAY_A );
+
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
+        $order_num  = ! empty( $order['order_number'] )
+            ? $order['order_number']
+            : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
+
+        $lines   = [];
+        $lines[] = "🍳 Order {$order_num} — {$restaurant}";
+        $lines[] = str_repeat( '─', 30 );
+
+        foreach ( $items as $item ) {
+            $line = $item['quantity'] . '× ' . $item['item_name'];
+            if ( ! empty( $item['variation'] ) ) {
+                $line .= ' (' . $item['variation'] . ')';
+            }
+            $lines[] = $line;
+            if ( ! empty( $item['special_note'] ) ) {
+                $lines[] = '   📝 ' . $item['special_note'];
+            }
+        }
+
+        $lines[] = str_repeat( '─', 30 );
+
+        if ( ! empty( $order['delivery_address'] ) ) {
+            $lines[] = '📍 ' . $order['delivery_address'];
+        }
+
+        $time    = date( 'd M H:i', strtotime( $order['created_at'] ) );
+        $lines[] = '⏱ ' . $time;
+
+        $message = implode( "\n", $lines );
+        $number  = preg_replace( '/[^0-9]/', '', $kitchen_number );
+
+        return 'https://wa.me/' . $number . '?text=' . rawurlencode( $message );
+    }
 }
