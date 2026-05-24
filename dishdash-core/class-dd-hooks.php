@@ -468,6 +468,12 @@ class DD_Hooks {
             : '';
 
         $is_wp_admin = strpos( $request_uri, 'wp-admin' ) === 0;
+
+        // Never block admin-ajax.php — frontend AJAX depends on it
+        if ( str_ends_with( $request_uri, 'admin-ajax.php' ) ) {
+            return;
+        }
+
         $is_wp_login = strpos( $request_uri, 'wp-login.php' ) === 0;
 
         if ( ! $is_wp_admin && ! $is_wp_login ) {
