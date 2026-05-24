@@ -99,11 +99,11 @@ $table_exists = $wpdb->get_var( "SHOW TABLES LIKE '{$items_table}'" ) === $items
 
 if ( $table_exists ) {
     $top_items = $wpdb->get_results( $wpdb->prepare(
-        "SELECT oi.product_name, COUNT(*) as cnt
+        "SELECT oi.item_name as product_name, COUNT(*) as cnt
          FROM `{$items_table}` oi
          JOIN `{$ot}` o ON o.id = oi.order_id
          WHERE o.created_at >= %s
-         GROUP BY oi.product_name
+         GROUP BY oi.item_name
          ORDER BY cnt DESC LIMIT 5",
         $since
     ), ARRAY_A );
@@ -129,7 +129,7 @@ if ( $hours_raw ) {
     $now   = date( 'H:i', $ts );
     if ( ! empty( $hours[ $day ]['open'] ) ) {
         foreach ( $hours[ $day ]['sessions'] ?? [] as $session ) {
-            if ( $now >= $session['from'] && $now <= $session['to'] ) {
+            if ( $now >= $session[0] && $now <= $session[1] ) {
                 $is_open = true;
                 break;
             }
