@@ -200,7 +200,16 @@ class DD_Hours {
      */
     public static function get_state() {
         $schedule = self::get_schedule();
-        $today    = self::get_today_data( $schedule );
+
+        if ( empty( $schedule ) ) {
+            return 'open'; // no hours configured = don't block orders
+        }
+
+        $today = self::get_today_data( $schedule );
+
+        if ( empty( $today ) ) {
+            return 'open'; // today not in schedule = don't block orders
+        }
 
         if ( ! $today['open'] || empty( $today['sessions'] ) ) {
             return 'closed';

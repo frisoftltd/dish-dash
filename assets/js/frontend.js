@@ -252,7 +252,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
-                action:     'dd_remove_from_cart',
+                action:     'dd_cart_remove',
                 product_id: productId,
                 nonce:      nonce,
             }).toString(),

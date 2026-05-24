@@ -709,7 +709,7 @@ class DD_Template_Module extends DD_Module {
         <script>
         window.DD = window.DD || {
             ajaxUrl:      '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
-            nonce:        '<?php echo esc_js( wp_create_nonce( 'dd_nonce' ) ); ?>',
+            nonce:        '<?php echo esc_js( wp_create_nonce( 'dish_dash_frontend' ) ); ?>',
             checkoutUrl:  '<?php echo esc_url( function_exists("wc_get_checkout_url") ? wc_get_checkout_url() : home_url("/checkout/") ); ?>',
             deliveryFee:  <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
             cartCount:    <?php echo (int) $dd_cart_count; ?>,
