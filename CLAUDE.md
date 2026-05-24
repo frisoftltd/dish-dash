@@ -618,6 +618,17 @@ deleted or redirected until v3.4.49 — decisions made then.
    - `git commit -m "release: vX.X.X — [description]"`
    - `git push origin HEAD:main`
    Never commit changed files without dish-dash.php. Never push without the version bumped.
+1a. **Scope is a hard wall, not a guideline.**
+    If a brief says "fix X in file Y", touch ONLY file Y, ONLY the lines
+    that fix X. If you notice another bug while reading the file —
+    REPORT IT. Do not fix it. Do not "clean it up". Do not refactor
+    "while you're in there". Write it in your report and wait for a
+    new brief.
+1b. **Never touch a file not listed in the brief.**
+    If fixing X requires understanding file Z, you may READ file Z.
+    You may NOT edit file Z unless it is explicitly listed.
+    If you believe file Z also needs changing, REPORT IT and stop.
+    Wait for explicit instruction before touching it.
 1. Always start in Plan Mode: `claude --permission-mode plan`
 2. Analyze first, never edit without approval
 3. Use @mentions for exact files — never read whole codebase
