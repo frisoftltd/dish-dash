@@ -292,7 +292,7 @@ class DDMobileMenu {
                 if (quickAdd) {
                     e.stopPropagation();
                     const card = quickAdd.closest('.dd-mobile-product-card');
-                    if (card.dataset.isSimple === 'true') {
+                    if (card.dataset.isSimple === 'true' || card.dataset.isSimple === '1') {
                         this.addToCartById(card.dataset.id, 1);
                     } else {
                         this.showProductDetails(card.dataset.id);
