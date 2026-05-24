@@ -172,6 +172,29 @@ class DD_Admin extends DD_Module {
             ],
         ] );
 
+        // Chart.js — loaded on all admin pages (lightweight, cached by browser)
+        wp_enqueue_script(
+            'chartjs',
+            'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+            [],
+            '4.4.0',
+            true
+        );
+
+        // Dashboard-specific JS — only on the main dashboard page
+        if ( isset( $_GET['page'] ) && $_GET['page'] === 'dish-dash' ) {
+            wp_enqueue_script(
+                'dd-dashboard',
+                DD_PLUGIN_URL . 'assets/js/dashboard.js',
+                [ 'chartjs' ],
+                DD_VERSION,
+                true
+            );
+            wp_localize_script( 'dd-dashboard', 'ddDashboard', [
+                'brandColor' => sanitize_hex_color( get_option( 'dish_dash_primary_color', '#65040d' ) ),
+            ] );
+        }
+
         // Media uploader for Brand Identity logo picker
         if ( strpos( $hook, 'dish-dash-brand-identity' ) !== false ) {
             wp_enqueue_media();
@@ -182,22 +205,25 @@ class DD_Admin extends DD_Module {
     }
 
     private function get_admin_styles(): string {
-        $brand = get_option( 'dish_dash_primary_color', '#65040d' );
+        $primary = sanitize_hex_color( get_option( 'dish_dash_primary_color', '#65040d' ) );
+        $rgb     = $this->hex_to_rgb( $primary );
+        $rgb_str = implode( ',', $rgb );
 
-        $hex = ltrim( $brand, '#' );
+        $css  = ":root, body { --dd-brand: {$primary}; --dd-brand-rgb: {$rgb_str}; }\n";
+        $css .= $this->get_raw_admin_styles();
+        return $css;
+    }
+
+    private function hex_to_rgb( $hex ) {
+        $hex = ltrim( $hex, '#' );
         if ( strlen( $hex ) === 3 ) {
             $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
         }
-        $r = hexdec( substr( $hex, 0, 2 ) );
-        $g = hexdec( substr( $hex, 2, 2 ) );
-        $b = hexdec( substr( $hex, 4, 2 ) );
-
-        $css = $this->get_raw_admin_styles();
-        $css = str_replace( '#6B1D1D', $brand, $css );
-        $css = str_replace( '#8B2020', $brand, $css );
-        $css = str_replace( 'rgba(107,29,29,', "rgba({$r},{$g},{$b},", $css );
-
-        return $css;
+        return [
+            hexdec( substr( $hex, 0, 2 ) ),
+            hexdec( substr( $hex, 2, 2 ) ),
+            hexdec( substr( $hex, 4, 2 ) ),
+        ];
     }
 
     private function get_raw_admin_styles(): string {

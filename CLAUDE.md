@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.43 (2026-05-24)
+> Last updated: v3.4.44 (2026-05-24)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.43 |
+| **Deployed version** | v3.4.44 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.44 — Dashboard full redesign (live KPIs, date filter, revenue chart) |
-| **Last working state** | Orders, Analytics, Customers, Reservations pages redesigned. Dashboard still shows placeholder shells — wiring not done. All other Phase 5A/5B/5C work complete. |
+| **Next task** | v3.4.45 — Tables + Seating Sections |
+| **Last working state** | Orders, Analytics, Customers, Reservations pages redesigned. Dashboard now fully wired with live KPIs, date filter, revenue chart, top items, customer tiers. All other Phase 5A/5B/5C work complete. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
