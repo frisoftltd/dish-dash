@@ -292,7 +292,11 @@ class DDMobileMenu {
                 if (quickAdd) {
                     e.stopPropagation();
                     const card = quickAdd.closest('.dd-mobile-product-card');
-                    this.showProductDetails(card.dataset.id);
+                    if (card.dataset.isSimple === 'true') {
+                        this.addToCartById(card.dataset.id, 1);
+                    } else {
+                        this.showProductDetails(card.dataset.id);
+                    }
                     return;
                 }
                 // Otherwise open product detail
