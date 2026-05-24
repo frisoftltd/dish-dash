@@ -610,6 +610,14 @@ deleted or redirected until v3.4.49 — decisions made then.
 
 ## ⚡ Claude Code Operating Rules
 
+0. **Every brief that changes code MUST end with a version bump + commit + push.**
+   No exceptions. The sequence is always:
+   - Bump `* Version: X.X.X` in dish-dash.php header
+   - Bump `define( 'DD_VERSION', 'X.X.X' );` in dish-dash.php
+   - `git add [all changed files] dish-dash.php`
+   - `git commit -m "release: vX.X.X — [description]"`
+   - `git push origin HEAD:main`
+   Never commit changed files without dish-dash.php. Never push without the version bumped.
 1. Always start in Plan Mode: `claude --permission-mode plan`
 2. Analyze first, never edit without approval
 3. Use @mentions for exact files — never read whole codebase
