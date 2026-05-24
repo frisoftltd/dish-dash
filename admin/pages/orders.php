@@ -12,6 +12,37 @@ if ( ! current_user_can( 'manage_options' ) ) return;
 global $wpdb;
 $ot = $wpdb->prefix . 'dishdash_orders';
 
+// ── Handle status update POST ─────────────────────────────────────────────────
+if (
+    isset( $_POST['dd_update_order_status'] ) &&
+    isset( $_POST['order_id'] ) &&
+    isset( $_POST['new_status'] ) &&
+    check_admin_referer( 'dd_order_status_' . (int) $_POST['order_id'] )
+) {
+    $order_id   = (int) $_POST['order_id'];
+    $new_status = sanitize_key( $_POST['new_status'] );
+    $allowed_statuses = [ 'pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled' ];
+
+    if ( in_array( $new_status, $allowed_statuses, true ) ) {
+        $wpdb->update(
+            $wpdb->prefix . 'dishdash_orders',
+            [ 'status' => $new_status, 'updated_at' => current_time( 'mysql' ) ],
+            [ 'id' => $order_id ],
+            [ '%s', '%s' ],
+            [ '%d' ]
+        );
+    }
+
+    // Redirect back to same page + filter
+    $redirect = add_query_arg(
+        'status',
+        sanitize_key( $_POST['current_status_filter'] ?? 'all' ),
+        admin_url( 'admin.php?page=dish-dash-orders' )
+    );
+    wp_safe_redirect( $redirect );
+    exit;
+}
+
 // ── Status filter ─────────────────────────────────────────────────────────────
 $status_filter = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : 'all';
 $allowed = [ 'all', 'pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled' ];
@@ -182,46 +213,23 @@ $filter_tabs = [
             </td>
             <td class="dd-orders-col-action">
               <?php if ( ! in_array( $o['status'], [ 'delivered', 'cancelled' ], true ) ) : ?>
-                <?php
-                $next_statuses = [
-                    'pending'          => [ 'confirmed'        => 'Confirm' ],
-                    'confirmed'        => [ 'preparing'        => 'Preparing' ],
-                    'preparing'        => [ 'ready'            => 'Ready' ],
-                    'ready'            => [ 'out_for_delivery' => 'Out for Delivery' ],
-                    'out_for_delivery' => [ 'delivered'        => 'Delivered' ],
-                ];
-                $actions = $next_statuses[ $o['status'] ] ?? [];
-                foreach ( $actions as $next_status => $next_label ) :
-                    $action_url = wp_nonce_url(
-                        add_query_arg([
-                            'page'        => 'dish-dash-orders',
-                            'action'      => 'update_status',
-                            'order_id'    => $o['id'],
-                            'new_status'  => $next_status,
-                            'status'      => $status_filter,
-                        ], admin_url( 'admin.php' ) ),
-                        'dd_order_status_' . $o['id']
-                    );
-                ?>
-                  <a href="<?php echo esc_url( $action_url ); ?>" class="dd-action-link dd-action-primary">
-                    → <?php echo esc_html( $next_label ); ?>
-                  </a>
-                <?php endforeach; ?>
-                <a href="<?php echo esc_url( wp_nonce_url(
-                    add_query_arg([
-                        'page'       => 'dish-dash-orders',
-                        'action'     => 'update_status',
-                        'order_id'   => $o['id'],
-                        'new_status' => 'cancelled',
-                        'status'     => $status_filter,
-                    ], admin_url( 'admin.php' ) ),
-                    'dd_order_status_' . $o['id']
-                ) ); ?>" class="dd-action-link dd-action-cancel"
-                   onclick="return confirm('Cancel this order?')">
-                  → Cancel
-                </a>
+                <form method="POST" class="dd-status-form">
+                  <?php wp_nonce_field( 'dd_order_status_' . $o['id'] ); ?>
+                  <input type="hidden" name="dd_update_order_status" value="1">
+                  <input type="hidden" name="order_id" value="<?php echo (int) $o['id']; ?>">
+                  <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+                  <select name="new_status" class="dd-status-select" onchange="this.form.submit()">
+                    <option value="pending"          <?php selected( $o['status'], 'pending' ); ?>>Pending</option>
+                    <option value="confirmed"        <?php selected( $o['status'], 'confirmed' ); ?>>Confirmed</option>
+                    <option value="preparing"        <?php selected( $o['status'], 'preparing' ); ?>>Preparing</option>
+                    <option value="ready"            <?php selected( $o['status'], 'ready' ); ?>>Ready</option>
+                    <option value="out_for_delivery" <?php selected( $o['status'], 'out_for_delivery' ); ?>>Out for Delivery</option>
+                    <option value="delivered"        <?php selected( $o['status'], 'delivered' ); ?>>Delivered</option>
+                    <option value="cancelled"        <?php selected( $o['status'], 'cancelled' ); ?>>Cancelled</option>
+                  </select>
+                </form>
               <?php else : ?>
-                <span class="dd-action-done">—</span>
+                <span class="dd-action-done"><?php echo esc_html( ucfirst( $o['status'] ) ); ?></span>
               <?php endif; ?>
             </td>
           </tr>
