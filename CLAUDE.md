@@ -258,6 +258,7 @@ dish-dash/
 | **Phase 7** | ⏳ | Loyalty & QR (points system, QR scan ordering) |
 | **Phase 8** | ⏳ | Testing + Optimization |
 | **Phase 9** | ⏳ | SaaS Platform (multi-tenant, subscription billing, white-label) |
+| **Phase 10** | ⏳ | SaaS Platform (multi-tenant hosting, subscription billing, white-label branding for other restaurants) — includes: per-restaurant UptimeRobot monitor on admin-ajax.php (5-min interval, SMS alert), post-deploy smoke test script confirming dd_cart_get + dd_cart_add AJAX actions return success before handing over to restaurant | — |
 
 ---
 
@@ -636,3 +637,8 @@ deleted or redirected until v3.4.49 — decisions made then.
 5. After every task: git add + commit + push origin HEAD:main
 6. Be concise — root cause, files changed, test steps only
 7. **NEVER run git add, commit, or push without explicit instruction from the developer**
+- **Multi-tenant deploy checklist (run before handing any site to a restaurant):**
+  1. `curl -s -X POST https://[site]/wp-admin/admin-ajax.php -d "action=dd_cart_get" | grep -q "success" && echo "AJAX ✅" || echo "AJAX ❌ BROKEN"`
+  2. Confirm response is not 404
+  3. Set up UptimeRobot monitor on `https://[site]/wp-admin/admin-ajax.php` — POST method, 5-min interval, SMS + email alert on failure
+  4. Only hand site to restaurant after both checks pass
