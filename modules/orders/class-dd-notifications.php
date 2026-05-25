@@ -353,16 +353,20 @@ class DD_Notifications {
 
             // variation field may contain JSON addons or plain text
             if ( ! empty( $item['variation'] ) && $item['variation'] !== '{}' ) {
-                $var_decoded = json_decode( $item['variation'], true );
+                $var_decoded = json_decode( stripslashes( $item['variation'] ), true );
                 if ( is_array( $var_decoded ) && ! empty( $var_decoded ) ) {
                     $var_parts = [];
                     foreach ( $var_decoded as $k => $v ) {
                         $var_parts[] = $k . ': ' . $v;
                     }
                     $line .= ' (' . implode( ', ', $var_parts ) . ')';
-                } elseif ( ! is_array( $var_decoded ) ) {
-                    // plain text variation
-                    $line .= ' (' . $item['variation'] . ')';
+                } else {
+                    // Plain text fallback — strip any stray braces/quotes
+                    $plain = trim( strip_tags( stripslashes( $item['variation'] ) ) );
+                    $plain = trim( $plain, '{}[]"\'\\' );
+                    if ( $plain !== '' ) {
+                        $line .= ' (' . $plain . ')';
+                    }
                 }
             }
 
