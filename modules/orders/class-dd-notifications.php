@@ -342,35 +342,52 @@ class DD_Notifications {
             : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
 
         $lines   = [];
-        $lines[] = "🍳 NEW ORDER — {$restaurant}";
+        $lines[] = "NEW ORDER — {$restaurant}";
         $lines[] = '';
         $lines[] = "Order:  {$order_num}";
         $lines[] = "Time:   " . date( 'd M Y H:i', strtotime( $order['created_at'] ) );
         $lines[] = '';
 
         foreach ( $items as $item ) {
-            $line = '  ' . $item['quantity'] . '× ' . $item['item_name'];
-            if ( ! empty( $item['variation'] ) ) {
-                $line .= ' (' . $item['variation'] . ')';
+            $line = $item['quantity'] . 'x ' . $item['item_name'];
+
+            // variation field may contain JSON addons or plain text
+            if ( ! empty( $item['variation'] ) && $item['variation'] !== '{}' ) {
+                $var_decoded = json_decode( $item['variation'], true );
+                if ( is_array( $var_decoded ) && ! empty( $var_decoded ) ) {
+                    $var_parts = [];
+                    foreach ( $var_decoded as $k => $v ) {
+                        $var_parts[] = $k . ': ' . $v;
+                    }
+                    $line .= ' (' . implode( ', ', $var_parts ) . ')';
+                } elseif ( ! is_array( $var_decoded ) ) {
+                    // plain text variation
+                    $line .= ' (' . $item['variation'] . ')';
+                }
             }
-            if ( ! empty( $item['addons'] ) ) {
+
+            // addons field — separate JSON column
+            if ( ! empty( $item['addons'] ) && $item['addons'] !== '{}' && $item['addons'] !== '[]' ) {
                 $addons = json_decode( $item['addons'], true );
-                if ( is_array( $addons ) ) {
+                if ( is_array( $addons ) && ! empty( $addons ) ) {
                     foreach ( $addons as $addon_name => $addon_val ) {
                         $line .= ' — ' . $addon_name . ': ' . $addon_val;
                     }
                 }
             }
+
             $lines[] = $line;
-            if ( ! empty( $item['special_note'] ) ) $lines[] = '     📝 ' . $item['special_note'];
+            if ( ! empty( $item['special_note'] ) ) {
+                $lines[] = '   Note: ' . $item['special_note'];
+            }
         }
 
         $lines[] = '';
         if ( ! empty( $order['delivery_address'] ) ) {
-            $lines[] = '📍 ' . $order['delivery_address'];
+            $lines[] = 'Deliver to: ' . $order['delivery_address'];
         }
         if ( ! empty( $order['special_instructions'] ) ) {
-            $lines[] = '📝 ' . $order['special_instructions'];
+            $lines[] = 'Note: ' . $order['special_instructions'];
         }
 
         $message = implode( "\n", $lines );
@@ -394,26 +411,26 @@ class DD_Notifications {
             : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
 
         $lines   = [];
-        $lines[] = "🛵 PICKUP READY — {$restaurant}";
+        $lines[] = "PICKUP READY — {$restaurant}";
         $lines[] = '';
         $lines[] = "Order:   {$order_num}";
         $lines[] = "Action:  Collect from kitchen NOW";
         $lines[] = '';
 
         if ( ! empty( $order['delivery_address'] ) ) {
-            $lines[] = '📍 Deliver to: ' . $order['delivery_address'];
+            $lines[] = 'Deliver to: ' . $order['delivery_address'];
         }
         if ( ! empty( $order['customer_name'] ) ) {
-            $lines[] = '👤 ' . $order['customer_name'];
+            $lines[] = 'Customer:   ' . $order['customer_name'];
         }
         if ( ! empty( $order['customer_phone'] ) ) {
-            $lines[] = '📞 ' . $order['customer_phone'];
+            $lines[] = 'Phone:      ' . $order['customer_phone'];
         }
 
         $total        = number_format( (float) $order['total'], 0, '.', ',' );
         $method       = $order['payment_method'] ?? 'cash';
         $method_label = ( $method === 'cod' || $method === 'cash' ) ? 'Cash on Delivery' : ucfirst( $method );
-        $lines[]      = '💰 Collect: ' . $total . ' RWF (' . $method_label . ')';
+        $lines[]      = 'Collect:    ' . $total . ' RWF (' . $method_label . ')';
         $lines[]      = '';
         $lines[]      = '— ' . $restaurant;
 
@@ -443,7 +460,7 @@ class DD_Notifications {
         $phone_clean   = get_option( 'dish_dash_phone', '' );
 
         $lines   = [];
-        $lines[] = "🛵 YOUR ORDER IS ON THE WAY!";
+        $lines[] = "YOUR ORDER IS ON THE WAY!";
         $lines[] = '';
         if ( $customer_name ) {
             $lines[] = "Hi {$customer_name}, your order {$order_num} has left our kitchen.";
@@ -451,7 +468,7 @@ class DD_Notifications {
             $lines[] = "Your order {$order_num} has left our kitchen.";
         }
         $lines[] = '';
-        $lines[] = "⏱ Estimated arrival: {$eta}";
+        $lines[] = "Estimated arrival: {$eta}";
         $lines[] = '';
         if ( $phone_clean ) {
             $lines[] = "Questions? Call us: {$phone_clean}";

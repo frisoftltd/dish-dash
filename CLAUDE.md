@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.51 (2026-05-25)
+> Last updated: v3.4.52 (2026-05-25)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.51 |
+| **Deployed version** | v3.4.52 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.52 — Bulk actions + stale order filter tab |
-| **Last working state** | WhatsApp links use esc_attr() (not esc_url()) so %0A newlines survive. Kitchen message fetches addons column and decodes JSON for per-item addon display. Mark Ready/Delivered locked until kitchen/rider notified via localStorage. |
+| **Next task** | v3.4.53 — Bulk actions + stale order filter tab |
+| **Last working state** | WhatsApp messages use plain text labels (no emoji). Variation column JSON-decoded with {} guard; plain text fallback retained. Addons column decoded separately. Kitchen/rider/customer messages all emoji-free. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -496,8 +496,9 @@ Every page before shipping must pass:
 | v3.4.48 | ✅ Done | Friendly status names, kitchen WhatsApp notification, stale order warning |
 | v3.4.49 | ✅ Done | 4-status order flow, button-based actions, rider management, customer on-the-way notification |
 | v3.4.50 | ✅ Done | Clean WhatsApp message format, Mark Ready/Delivered locked until notified |
-| **v3.4.51** | ✅ **Done** | **Fix WhatsApp line breaks (esc_url strips %0A), fix addon JSON in kitchen message** |
-| v3.4.52 | ⏳ **NEXT** | Bulk actions + stale order filter tab |
+| v3.4.51 | ✅ Done | Fix WhatsApp line breaks (esc_url strips %0A), fix addon JSON in kitchen message |
+| **v3.4.52** | ✅ **Done** | **Remove emoji from WhatsApp messages, fix variation JSON decode** |
+| v3.4.53 | ⏳ **NEXT** | Bulk actions + stale order filter tab |
 | v3.4.51 | ⏳ | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
