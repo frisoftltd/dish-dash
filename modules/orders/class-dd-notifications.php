@@ -330,7 +330,7 @@ class DD_Notifications {
         global $wpdb;
 
         $items = $wpdb->get_results( $wpdb->prepare(
-            "SELECT item_name, quantity, variation, special_note
+            "SELECT item_name, quantity, variation, addons, special_note
              FROM {$wpdb->prefix}dishdash_order_items
              WHERE order_id = %d",
             (int) $order['id']
@@ -350,7 +350,17 @@ class DD_Notifications {
 
         foreach ( $items as $item ) {
             $line = '  ' . $item['quantity'] . '× ' . $item['item_name'];
-            if ( ! empty( $item['variation'] ) ) $line .= ' (' . $item['variation'] . ')';
+            if ( ! empty( $item['variation'] ) ) {
+                $line .= ' (' . $item['variation'] . ')';
+            }
+            if ( ! empty( $item['addons'] ) ) {
+                $addons = json_decode( $item['addons'], true );
+                if ( is_array( $addons ) ) {
+                    foreach ( $addons as $addon_name => $addon_val ) {
+                        $line .= ' — ' . $addon_name . ': ' . $addon_val;
+                    }
+                }
+            }
             $lines[] = $line;
             if ( ! empty( $item['special_note'] ) ) $lines[] = '     📝 ' . $item['special_note'];
         }

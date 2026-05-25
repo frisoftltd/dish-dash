@@ -245,7 +245,7 @@ if ( ! is_array( $riders ) ) $riders = [];
 
                 <div class="dd-action-row">
                   <?php if ( $kitchen_url ) : ?>
-                  <a href="<?php echo esc_url( $kitchen_url ); ?>"
+                  <a href="<?php echo esc_attr( $kitchen_url ); ?>"
                      target="_blank"
                      class="dd-btn dd-btn-whatsapp dd-notify-kitchen"
                      data-order-id="<?php echo (int) $o['id']; ?>">
@@ -283,7 +283,7 @@ if ( ! is_array( $riders ) ) $riders = [];
                       $rider_url = DD_Notifications::build_rider_whatsapp_url( $o, $rider['whatsapp'] );
                       if ( ! $rider_url ) continue;
                   ?>
-                    <a href="<?php echo esc_url( $rider_url ); ?>"
+                    <a href="<?php echo esc_attr( $rider_url ); ?>"
                        target="_blank"
                        class="dd-btn dd-btn-whatsapp dd-notify-rider"
                        data-order-id="<?php echo (int) $o['id']; ?>">
@@ -291,7 +291,7 @@ if ( ! is_array( $riders ) ) $riders = [];
                     </a>
                   <?php endforeach; endif; ?>
                   <?php if ( $customer_url ) : ?>
-                  <a href="<?php echo esc_url( $customer_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
+                  <a href="<?php echo esc_attr( $customer_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
                     📲 Customer
                   </a>
                   <?php endif; ?>
