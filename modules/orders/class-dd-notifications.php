@@ -342,19 +342,26 @@ class DD_Notifications {
             : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
 
         $lines   = [];
-        $lines[] = "🍳 Order {$order_num} — {$restaurant}";
-        $lines[] = str_repeat( '─', 30 );
+        $lines[] = "🍳 NEW ORDER — {$restaurant}";
+        $lines[] = '';
+        $lines[] = "Order:  {$order_num}";
+        $lines[] = "Time:   " . date( 'd M Y H:i', strtotime( $order['created_at'] ) );
+        $lines[] = '';
 
         foreach ( $items as $item ) {
-            $line = $item['quantity'] . '× ' . $item['item_name'];
+            $line = '  ' . $item['quantity'] . '× ' . $item['item_name'];
             if ( ! empty( $item['variation'] ) ) $line .= ' (' . $item['variation'] . ')';
             $lines[] = $line;
-            if ( ! empty( $item['special_note'] ) ) $lines[] = '   📝 ' . $item['special_note'];
+            if ( ! empty( $item['special_note'] ) ) $lines[] = '     📝 ' . $item['special_note'];
         }
 
-        $lines[] = str_repeat( '─', 30 );
-        if ( ! empty( $order['delivery_address'] ) ) $lines[] = '📍 ' . $order['delivery_address'];
-        $lines[] = '⏱ ' . date( 'd M H:i', strtotime( $order['created_at'] ) );
+        $lines[] = '';
+        if ( ! empty( $order['delivery_address'] ) ) {
+            $lines[] = '📍 ' . $order['delivery_address'];
+        }
+        if ( ! empty( $order['special_instructions'] ) ) {
+            $lines[] = '📝 ' . $order['special_instructions'];
+        }
 
         $message = implode( "\n", $lines );
         $number  = preg_replace( '/[^0-9]/', '', $kitchen_number );
@@ -377,10 +384,11 @@ class DD_Notifications {
             : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
 
         $lines   = [];
-        $lines[] = "🛵 Pickup Ready — Order {$order_num}";
-        $lines[] = str_repeat( '─', 30 );
-        $lines[] = 'Collect from kitchen NOW';
-        $lines[] = str_repeat( '─', 30 );
+        $lines[] = "🛵 PICKUP READY — {$restaurant}";
+        $lines[] = '';
+        $lines[] = "Order:   {$order_num}";
+        $lines[] = "Action:  Collect from kitchen NOW";
+        $lines[] = '';
 
         if ( ! empty( $order['delivery_address'] ) ) {
             $lines[] = '📍 Deliver to: ' . $order['delivery_address'];
@@ -392,11 +400,12 @@ class DD_Notifications {
             $lines[] = '📞 ' . $order['customer_phone'];
         }
 
-        $total   = number_format( (float) $order['total'], 0, '.', ',' );
-        $method  = $order['payment_method'] ?? 'cash';
-        $lines[] = '💰 Collect: ' . $total . ' RWF (' . ucfirst( $method ) . ')';
-        $lines[] = str_repeat( '─', 30 );
-        $lines[] = $restaurant;
+        $total        = number_format( (float) $order['total'], 0, '.', ',' );
+        $method       = $order['payment_method'] ?? 'cash';
+        $method_label = ( $method === 'cod' || $method === 'cash' ) ? 'Cash on Delivery' : ucfirst( $method );
+        $lines[]      = '💰 Collect: ' . $total . ' RWF (' . $method_label . ')';
+        $lines[]      = '';
+        $lines[]      = '— ' . $restaurant;
 
         $message = implode( "\n", $lines );
         $number  = preg_replace( '/[^0-9]/', '', $rider_whatsapp );
@@ -419,15 +428,25 @@ class DD_Notifications {
             ? $order['order_number']
             : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
 
-        $phone_clean = get_option( 'dish_dash_phone', '' );
+        $customer_name = $order['customer_name'] ?? '';
+        $eta           = get_option( 'dd_delivery_eta', '30–45 minutes' );
+        $phone_clean   = get_option( 'dish_dash_phone', '' );
 
         $lines   = [];
-        $lines[] = "🛵 Your order is on the way! — {$restaurant}";
-        $lines[] = str_repeat( '─', 30 );
-        $lines[] = "Order {$order_num} has left our kitchen.";
-        $lines[] = 'Estimated arrival: ' . get_option( 'dd_delivery_eta', '30–45 minutes' );
-        $lines[] = str_repeat( '─', 30 );
-        if ( $phone_clean ) $lines[] = 'Questions? Call us: ' . $phone_clean;
+        $lines[] = "🛵 YOUR ORDER IS ON THE WAY!";
+        $lines[] = '';
+        if ( $customer_name ) {
+            $lines[] = "Hi {$customer_name}, your order {$order_num} has left our kitchen.";
+        } else {
+            $lines[] = "Your order {$order_num} has left our kitchen.";
+        }
+        $lines[] = '';
+        $lines[] = "⏱ Estimated arrival: {$eta}";
+        $lines[] = '';
+        if ( $phone_clean ) {
+            $lines[] = "Questions? Call us: {$phone_clean}";
+        }
+        $lines[] = "— {$restaurant}";
 
         $message = implode( "\n", $lines );
         $number  = preg_replace( '/[^0-9]/', '', $phone );

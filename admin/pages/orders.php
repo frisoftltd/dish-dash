@@ -186,7 +186,7 @@ if ( ! is_array( $riders ) ) $riders = [];
           <?php foreach ( $orders as $o ) :
             $order_num = ! empty( $o['order_number'] ) ? $o['order_number'] : 'DD-' . str_pad( $o['id'], 5, '0', STR_PAD_LEFT );
           ?>
-          <tr>
+          <tr data-order-id="<?php echo (int) $o['id']; ?>">
             <td class="dd-orders-col-id">
               <span class="dd-order-num"><?php echo esc_html( $order_num ); ?></span>
             </td>
@@ -245,7 +245,10 @@ if ( ! is_array( $riders ) ) $riders = [];
 
                 <div class="dd-action-row">
                   <?php if ( $kitchen_url ) : ?>
-                  <a href="<?php echo esc_url( $kitchen_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
+                  <a href="<?php echo esc_url( $kitchen_url ); ?>"
+                     target="_blank"
+                     class="dd-btn dd-btn-whatsapp dd-notify-kitchen"
+                     data-order-id="<?php echo (int) $o['id']; ?>">
                     📲 Notify Kitchen
                   </a>
                   <?php endif; ?>
@@ -255,7 +258,10 @@ if ( ! is_array( $riders ) ) $riders = [];
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
                     <input type="hidden" name="new_status" value="ready">
                     <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit" class="dd-btn dd-btn-primary">✓ Mark Ready</button>
+                    <button type="submit"
+                            class="dd-btn dd-btn-primary dd-requires-kitchen"
+                            data-order-id="<?php echo (int) $o['id']; ?>"
+                            disabled>✓ Mark Ready</button>
                   </form>
                   <form method="POST" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
@@ -277,7 +283,10 @@ if ( ! is_array( $riders ) ) $riders = [];
                       $rider_url = DD_Notifications::build_rider_whatsapp_url( $o, $rider['whatsapp'] );
                       if ( ! $rider_url ) continue;
                   ?>
-                    <a href="<?php echo esc_url( $rider_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
+                    <a href="<?php echo esc_url( $rider_url ); ?>"
+                       target="_blank"
+                       class="dd-btn dd-btn-whatsapp dd-notify-rider"
+                       data-order-id="<?php echo (int) $o['id']; ?>">
                       🛵 <?php echo esc_html( $rider['name'] ); ?>
                     </a>
                   <?php endforeach; endif; ?>
@@ -292,7 +301,10 @@ if ( ! is_array( $riders ) ) $riders = [];
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
                     <input type="hidden" name="new_status" value="delivered">
                     <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit" class="dd-btn dd-btn-delivered">✓ Delivered</button>
+                    <button type="submit"
+                            class="dd-btn dd-btn-delivered dd-requires-rider"
+                            data-order-id="<?php echo (int) $o['id']; ?>"
+                            disabled>✓ Delivered</button>
                   </form>
                   <form method="POST" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
@@ -314,4 +326,63 @@ if ( ! is_array( $riders ) ) $riders = [];
   </div>
 
 </div><!-- /.dd-orders-wrap -->
+
+<script>
+( function () {
+    var LS_KITCHEN = 'dd_kitchen_notified_';
+    var LS_RIDER   = 'dd_rider_notified_';
+
+    // On page load — restore enabled state from localStorage
+    document.querySelectorAll( '.dd-requires-kitchen' ).forEach( function ( btn ) {
+        var id = btn.dataset.orderId;
+        if ( localStorage.getItem( LS_KITCHEN + id ) === '1' ) {
+            btn.disabled = false;
+        }
+    } );
+
+    document.querySelectorAll( '.dd-requires-rider' ).forEach( function ( btn ) {
+        var id = btn.dataset.orderId;
+        if ( localStorage.getItem( LS_RIDER + id ) === '1' ) {
+            btn.disabled = false;
+        }
+    } );
+
+    // Notify Kitchen clicked — enable Mark Ready for this order
+    document.querySelectorAll( '.dd-notify-kitchen' ).forEach( function ( link ) {
+        link.addEventListener( 'click', function () {
+            var id = this.dataset.orderId;
+            localStorage.setItem( LS_KITCHEN + id, '1' );
+            document.querySelectorAll(
+                '.dd-requires-kitchen[data-order-id="' + id + '"]'
+            ).forEach( function ( btn ) {
+                btn.disabled = false;
+            } );
+        } );
+    } );
+
+    // Notify Rider clicked — enable Mark Delivered for this order
+    document.querySelectorAll( '.dd-notify-rider' ).forEach( function ( link ) {
+        link.addEventListener( 'click', function () {
+            var id = this.dataset.orderId;
+            localStorage.setItem( LS_RIDER + id, '1' );
+            document.querySelectorAll(
+                '.dd-requires-rider[data-order-id="' + id + '"]'
+            ).forEach( function ( btn ) {
+                btn.disabled = false;
+            } );
+        } );
+    } );
+
+    // Clean up localStorage when order is marked delivered or cancelled
+    document.querySelectorAll( '.dd-btn-delivered, .dd-btn-cancel' ).forEach( function ( btn ) {
+        btn.addEventListener( 'click', function () {
+            var id = this.dataset.orderId;
+            if ( id ) {
+                localStorage.removeItem( LS_KITCHEN + id );
+                localStorage.removeItem( LS_RIDER + id );
+            }
+        } );
+    } );
+} )();
+</script>
 

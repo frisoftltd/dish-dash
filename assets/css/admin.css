@@ -643,6 +643,13 @@
 .dd-btn-delivered { background: #dcfce7; color: #166534; }
 .dd-btn-whatsapp  { background: #25D366; color: #fff; }
 
+/* Disabled state for locked action buttons */
+.dd-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* ── Stale order warning banner ─────────────────────────────────────────────── */
 .dd-stale-banner {
     display: flex;
