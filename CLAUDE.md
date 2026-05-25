@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.48 (2026-05-24)
+> Last updated: v3.4.49 (2026-05-25)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.48 |
+| **Deployed version** | v3.4.49 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.49 — Rider management + rider WhatsApp notifications |
-| **Last working state** | Friendly status names live (Confirmed→Accepted, Preparing→In Kitchen, Ready→Ready for Pickup, Out for Delivery→On the Way). Kitchen WhatsApp fires on Accepted via transient+redirect pattern. Stale order warning banner on Dashboard for orders unchanged 24h+. dd_whatsapp_kitchen setting added. |
+| **Next task** | v3.4.50 — Bulk actions + stale order filter tab |
+| **Last working state** | 4-status flow live (pending→confirmed→ready→delivered + cancel). Orders page uses button-based actions (no dropdown). Kitchen notified via direct wa.me link on Confirmed. Riders managed in Settings (dd_riders JSON option). Customer on-the-way notification from Ready row. Transient+redirect pattern removed. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -493,9 +493,9 @@ Every page before shipping must pass:
 | v3.4.45 | ✅ Done | Fix dashboard Top Items column name and opening hours session keys |
 | v3.4.46 | ✅ Done | Orders page redesign + remove global max-width constraint |
 | v3.4.47 | ✅ Done | Orders status dropdown with POST handler, replaces dead GET links |
-| **v3.4.48** | ✅ **Done** | **Friendly status names, kitchen WhatsApp notification, stale order warning** |
-| v3.4.49 | ⏳ **NEXT** | Rider management + rider WhatsApp notifications |
-| v3.4.50 | ⏳ | Bulk actions on Orders page |
+| v3.4.48 | ✅ Done | Friendly status names, kitchen WhatsApp notification, stale order warning |
+| **v3.4.49** | ✅ **Done** | **4-status order flow, button-based actions, rider management, customer on-the-way notification** |
+| v3.4.50 | ⏳ **NEXT** | Bulk actions + stale order filter tab |
 | v3.4.51 | ⏳ | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**

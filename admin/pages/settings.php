@@ -64,6 +64,19 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_whatsapp_kitchen',        sanitize_text_field( $_POST['dd_whatsapp_kitchen'] ?? '' ) );
     update_option( 'dd_admin_email',             sanitize_email( $_POST['dd_admin_email'] ?? '' ) );
 
+    // Riders — rebuild array from parallel name/whatsapp POST arrays
+    $rider_names  = $_POST['dd_rider_name']      ?? [];
+    $rider_phones = $_POST['dd_rider_whatsapp']  ?? [];
+    $riders_clean = [];
+    foreach ( $rider_names as $i => $name ) {
+        $name  = sanitize_text_field( $name );
+        $phone = sanitize_text_field( $rider_phones[ $i ] ?? '' );
+        if ( $name && $phone ) {
+            $riders_clean[] = [ 'name' => $name, 'whatsapp' => $phone ];
+        }
+    }
+    update_option( 'dd_riders', wp_json_encode( $riders_clean ) );
+
     // Opening hours — save JSON
     if ( isset( $_POST['dd_opening_hours'] ) ) {
         $raw     = wp_unslash( $_POST['dd_opening_hours'] );
@@ -224,6 +237,49 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                     placeholder="+250 78 000 0000"
                     class="regular-text"
                 >
+            </td>
+        </tr>
+        <tr>
+            <th scope="row" colspan="2">
+                <h3 style="margin:24px 0 8px;font-size:14px;font-weight:600;color:#111;">Delivery Riders</h3>
+            </th>
+        </tr>
+        <tr>
+            <th scope="row">
+                <label>Riders</label>
+                <p class="description">Each rider gets a WhatsApp notification when an order is ready.</p>
+            </th>
+            <td>
+                <div id="dd-riders-list">
+                    <?php
+                    $saved_riders = json_decode( get_option( 'dd_riders', '[]' ), true );
+                    if ( ! is_array( $saved_riders ) ) $saved_riders = [];
+                    foreach ( $saved_riders as $rider ) : ?>
+                    <div class="dd-rider-row" style="display:flex;gap:10px;margin-bottom:8px;align-items:center">
+                        <input type="text" name="dd_rider_name[]"
+                            value="<?php echo esc_attr( $rider['name'] ); ?>"
+                            placeholder="Rider name" class="regular-text" style="max-width:180px">
+                        <input type="text" name="dd_rider_whatsapp[]"
+                            value="<?php echo esc_attr( $rider['whatsapp'] ); ?>"
+                            placeholder="+250 78 000 0000" class="regular-text" style="max-width:180px">
+                        <button type="button" class="button dd-remove-rider"
+                            onclick="this.closest('.dd-rider-row').remove()"
+                            style="color:#991b1b;border-color:#fca5a5">Remove</button>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <button type="button" class="button" id="dd-add-rider" style="margin-top:8px">+ Add Rider</button>
+                <script>
+                document.getElementById('dd-add-rider').addEventListener('click', function() {
+                    var row = document.createElement('div');
+                    row.className = 'dd-rider-row';
+                    row.style = 'display:flex;gap:10px;margin-bottom:8px;align-items:center';
+                    row.innerHTML = '<input type="text" name="dd_rider_name[]" placeholder="Rider name" class="regular-text" style="max-width:180px">'
+                        + '<input type="text" name="dd_rider_whatsapp[]" placeholder="+250 78 000 0000" class="regular-text" style="max-width:180px">'
+                        + '<button type="button" class="button dd-remove-rider" onclick="this.closest(\'.dd-rider-row\').remove()" style="color:#991b1b;border-color:#fca5a5">Remove</button>';
+                    document.getElementById('dd-riders-list').appendChild(row);
+                });
+                </script>
             </td>
         </tr>
         <tr>

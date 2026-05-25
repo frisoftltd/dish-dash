@@ -616,24 +616,32 @@
 .dd-action-cancel:hover { background: #fecaca; color: #991b1b; text-decoration: none; }
 .dd-action-done { color: #d1d5db; }
 
-/* ── Orders status dropdown ─────────────────────────────────────────────────── */
-.dd-status-form { margin: 0; }
-.dd-status-select {
-    appearance: none;
-    -webkit-appearance: none;
-    padding: 5px 28px 5px 10px;
-    border: 1px solid #e5e7eb;
+/* ── Orders action buttons v3.4.49 ─────────────────────────────────────────── */
+.dd-action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+.dd-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 12px;
     border-radius: 6px;
     font-size: 12px;
     font-weight: 500;
-    color: #374151;
-    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center;
+    text-decoration: none;
+    border: none;
     cursor: pointer;
-    min-width: 140px;
-    transition: border-color .15s;
+    white-space: nowrap;
+    line-height: 1.4;
+    transition: opacity .15s;
 }
-.dd-status-select:hover { border-color: var(--dd-brand); }
-.dd-status-select:focus { outline: none; border-color: var(--dd-brand); box-shadow: 0 0 0 2px rgba(var(--dd-brand-rgb),0.15); }
+.dd-btn:hover { opacity: .85; text-decoration: none; }
+.dd-btn-primary   { background: var(--dd-brand); color: #fff; }
+.dd-btn-cancel    { background: #fee2e2; color: #991b1b; }
+.dd-btn-delivered { background: #dcfce7; color: #166534; }
+.dd-btn-whatsapp  { background: #25D366; color: #fff; }
 
 /* ── Stale order warning banner ─────────────────────────────────────────────── */
 .dd-stale-banner {

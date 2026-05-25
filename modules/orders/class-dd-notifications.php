@@ -317,29 +317,23 @@ class DD_Notifications {
     }
 
     /**
-     * Build kitchen WhatsApp notification URL when order is Accepted.
+     * Build kitchen WhatsApp notification URL when order is Confirmed.
+     * Accepts the full order array so orders.php can call it inline without a second DB fetch.
      *
-     * @param int $order_id wp_dishdash_orders.id
+     * @param array $order Row from wp_dishdash_orders as associative array
      * @return string wa.me URL or empty string if no kitchen number configured
      */
-    public static function build_kitchen_whatsapp_url( int $order_id ): string {
+    public static function build_kitchen_whatsapp_url( array $order ): string {
         $kitchen_number = get_option( 'dd_whatsapp_kitchen', '' );
         if ( empty( $kitchen_number ) ) return '';
 
         global $wpdb;
 
-        $order = $wpdb->get_row( $wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
-            $order_id
-        ), ARRAY_A );
-
-        if ( ! $order ) return '';
-
         $items = $wpdb->get_results( $wpdb->prepare(
             "SELECT item_name, quantity, variation, special_note
              FROM {$wpdb->prefix}dishdash_order_items
              WHERE order_id = %d",
-            $order_id
+            (int) $order['id']
         ), ARRAY_A );
 
         $restaurant = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
@@ -353,26 +347,91 @@ class DD_Notifications {
 
         foreach ( $items as $item ) {
             $line = $item['quantity'] . '× ' . $item['item_name'];
-            if ( ! empty( $item['variation'] ) ) {
-                $line .= ' (' . $item['variation'] . ')';
-            }
+            if ( ! empty( $item['variation'] ) ) $line .= ' (' . $item['variation'] . ')';
             $lines[] = $line;
-            if ( ! empty( $item['special_note'] ) ) {
-                $lines[] = '   📝 ' . $item['special_note'];
-            }
+            if ( ! empty( $item['special_note'] ) ) $lines[] = '   📝 ' . $item['special_note'];
         }
 
         $lines[] = str_repeat( '─', 30 );
-
-        if ( ! empty( $order['delivery_address'] ) ) {
-            $lines[] = '📍 ' . $order['delivery_address'];
-        }
-
-        $time    = date( 'd M H:i', strtotime( $order['created_at'] ) );
-        $lines[] = '⏱ ' . $time;
+        if ( ! empty( $order['delivery_address'] ) ) $lines[] = '📍 ' . $order['delivery_address'];
+        $lines[] = '⏱ ' . date( 'd M H:i', strtotime( $order['created_at'] ) );
 
         $message = implode( "\n", $lines );
         $number  = preg_replace( '/[^0-9]/', '', $kitchen_number );
+        return 'https://wa.me/' . $number . '?text=' . rawurlencode( $message );
+    }
+
+    /**
+     * Build rider WhatsApp notification URL when order is Ready for pickup.
+     *
+     * @param array  $order          Row from wp_dishdash_orders as associative array
+     * @param string $rider_whatsapp Rider's WhatsApp number
+     * @return string wa.me URL or empty string if number is missing
+     */
+    public static function build_rider_whatsapp_url( array $order, string $rider_whatsapp ): string {
+        if ( empty( $rider_whatsapp ) ) return '';
+
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
+        $order_num  = ! empty( $order['order_number'] )
+            ? $order['order_number']
+            : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
+
+        $lines   = [];
+        $lines[] = "🛵 Pickup Ready — Order {$order_num}";
+        $lines[] = str_repeat( '─', 30 );
+        $lines[] = 'Collect from kitchen NOW';
+        $lines[] = str_repeat( '─', 30 );
+
+        if ( ! empty( $order['delivery_address'] ) ) {
+            $lines[] = '📍 Deliver to: ' . $order['delivery_address'];
+        }
+        if ( ! empty( $order['customer_name'] ) ) {
+            $lines[] = '👤 ' . $order['customer_name'];
+        }
+        if ( ! empty( $order['customer_phone'] ) ) {
+            $lines[] = '📞 ' . $order['customer_phone'];
+        }
+
+        $total   = number_format( (float) $order['total'], 0, '.', ',' );
+        $method  = $order['payment_method'] ?? 'cash';
+        $lines[] = '💰 Collect: ' . $total . ' RWF (' . ucfirst( $method ) . ')';
+        $lines[] = str_repeat( '─', 30 );
+        $lines[] = $restaurant;
+
+        $message = implode( "\n", $lines );
+        $number  = preg_replace( '/[^0-9]/', '', $rider_whatsapp );
+        return 'https://wa.me/' . $number . '?text=' . rawurlencode( $message );
+    }
+
+    /**
+     * Build customer WhatsApp URL notifying them their order is on the way.
+     * Sent manually from Orders page when status moves to Ready.
+     *
+     * @param array $order Row from wp_dishdash_orders as associative array
+     * @return string wa.me URL or empty string if no customer phone
+     */
+    public static function build_customer_ontheway_url( array $order ): string {
+        $phone = $order['customer_phone'] ?? '';
+        if ( empty( $phone ) ) return '';
+
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
+        $order_num  = ! empty( $order['order_number'] )
+            ? $order['order_number']
+            : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
+
+        $phone_clean = get_option( 'dish_dash_phone', '' );
+
+        $lines   = [];
+        $lines[] = "🛵 Your order is on the way! — {$restaurant}";
+        $lines[] = str_repeat( '─', 30 );
+        $lines[] = "Order {$order_num} has left our kitchen.";
+        $lines[] = 'Estimated arrival: ' . get_option( 'dd_delivery_eta', '30–45 minutes' );
+        $lines[] = str_repeat( '─', 30 );
+        if ( $phone_clean ) $lines[] = 'Questions? Call us: ' . $phone_clean;
+
+        $message = implode( "\n", $lines );
+        $number  = preg_replace( '/[^0-9]/', '', $phone );
+        if ( strlen( $number ) === 9 ) $number = '250' . $number;
 
         return 'https://wa.me/' . $number . '?text=' . rawurlencode( $message );
     }

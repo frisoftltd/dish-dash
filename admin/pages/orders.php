@@ -19,9 +19,9 @@ if (
     isset( $_POST['new_status'] ) &&
     check_admin_referer( 'dd_order_status_' . (int) $_POST['order_id'] )
 ) {
-    $order_id   = (int) $_POST['order_id'];
-    $new_status = sanitize_key( $_POST['new_status'] );
-    $allowed_statuses = [ 'pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled' ];
+    $order_id         = (int) $_POST['order_id'];
+    $new_status       = sanitize_key( $_POST['new_status'] );
+    $allowed_statuses = [ 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
 
     if ( in_array( $new_status, $allowed_statuses, true ) ) {
         $wpdb->update(
@@ -33,16 +33,6 @@ if (
         );
     }
 
-    // Kitchen WhatsApp notification when order accepted
-    if ( $new_status === 'confirmed' ) {
-        $kitchen_url = DD_Notifications::build_kitchen_whatsapp_url( $order_id );
-        if ( $kitchen_url ) {
-            // Store URL in transient — picked up by JS after redirect
-            set_transient( 'dd_kitchen_notify_' . get_current_user_id(), $kitchen_url, 60 );
-        }
-    }
-
-    // Redirect back to same page + filter
     $redirect = add_query_arg(
         'status',
         sanitize_key( $_POST['current_status_filter'] ?? 'all' ),
@@ -54,7 +44,7 @@ if (
 
 // ── Status filter ─────────────────────────────────────────────────────────────
 $status_filter = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : 'all';
-$allowed = [ 'all', 'pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered', 'cancelled' ];
+$allowed = [ 'all', 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
 if ( ! in_array( $status_filter, $allowed, true ) ) $status_filter = 'all';
 
 // ── Summary stats ─────────────────────────────────────────────────────────────
@@ -92,14 +82,11 @@ foreach ( $counts_raw as $row ) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function dd_orders_status_badge( $status ) {
     $map = [
-        'pending'          => [ 'Pending',          '#fef9c3', '#854d0e' ],
-        'confirmed'        => [ 'Accepted',         '#dbeafe', '#1e40af' ],
-        'preparing'        => [ 'In Kitchen',       '#ede9fe', '#5b21b6' ],
-        'ready'            => [ 'Ready for Pickup', '#dcfce7', '#166534' ],
-        'out_for_delivery' => [ 'On the Way',       '#e0f2fe', '#0369a1' ],
-        'delivered'        => [ 'Delivered',        '#dcfce7', '#166534' ],
-        'cancelled'        => [ 'Cancelled',        '#fee2e2', '#991b1b' ],
-        'processing'       => [ 'Processing',       '#dbeafe', '#1e40af' ],
+        'pending'   => [ 'Pending',   '#fef9c3', '#854d0e' ],
+        'confirmed' => [ 'Confirmed', '#dbeafe', '#1e40af' ],
+        'ready'     => [ 'Ready',     '#dcfce7', '#166534' ],
+        'delivered' => [ 'Delivered', '#dcfce7', '#166534' ],
+        'cancelled' => [ 'Cancelled', '#fee2e2', '#991b1b' ],
     ];
     $s = $map[ $status ] ?? [ ucfirst( $status ), '#f3f4f6', '#374151' ];
     return sprintf(
@@ -115,15 +102,17 @@ function dd_orders_format_rwf( $n ) {
 $current_url = admin_url( 'admin.php?page=dish-dash-orders' );
 
 $filter_tabs = [
-    'all'              => 'All',
-    'pending'          => 'Pending',
-    'confirmed'        => 'Accepted',
-    'preparing'        => 'In Kitchen',
-    'ready'            => 'Ready for Pickup',
-    'out_for_delivery' => 'On the Way',
-    'delivered'        => 'Delivered',
-    'cancelled'        => 'Cancelled',
+    'all'       => 'All',
+    'pending'   => 'Pending',
+    'confirmed' => 'Confirmed',
+    'ready'     => 'Ready',
+    'delivered' => 'Delivered',
+    'cancelled' => 'Cancelled',
 ];
+
+// Load riders for Ready → Notify Rider buttons
+$riders = json_decode( get_option( 'dd_riders', '[]' ), true );
+if ( ! is_array( $riders ) ) $riders = [];
 ?>
 
 <div class="dd-orders-wrap">
@@ -221,24 +210,100 @@ $filter_tabs = [
               <?php echo esc_html( date( 'd M Y H:i', strtotime( $o['created_at'] ) ) ); ?>
             </td>
             <td class="dd-orders-col-action">
-              <?php if ( ! in_array( $o['status'], [ 'delivered', 'cancelled' ], true ) ) : ?>
-                <form method="POST" class="dd-status-form">
-                  <?php wp_nonce_field( 'dd_order_status_' . $o['id'] ); ?>
-                  <input type="hidden" name="dd_update_order_status" value="1">
-                  <input type="hidden" name="order_id" value="<?php echo (int) $o['id']; ?>">
-                  <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                  <select name="new_status" class="dd-status-select" onchange="this.form.submit()">
-                    <option value="pending"          <?php selected( $o['status'], 'pending' ); ?>>Pending</option>
-                    <option value="confirmed"        <?php selected( $o['status'], 'confirmed' ); ?>>Accepted</option>
-                    <option value="preparing"        <?php selected( $o['status'], 'preparing' ); ?>>In Kitchen</option>
-                    <option value="ready"            <?php selected( $o['status'], 'ready' ); ?>>Ready for Pickup</option>
-                    <option value="out_for_delivery" <?php selected( $o['status'], 'out_for_delivery' ); ?>>On the Way</option>
-                    <option value="delivered"        <?php selected( $o['status'], 'delivered' ); ?>>Delivered</option>
-                    <option value="cancelled"        <?php selected( $o['status'], 'cancelled' ); ?>>Cancelled</option>
-                  </select>
-                </form>
-              <?php else : ?>
-                <span class="dd-action-done"><?php echo esc_html( ucfirst( $o['status'] ) ); ?></span>
+              <?php
+              $status = $o['status'];
+              $id     = (int) $o['id'];
+
+              if ( in_array( $status, [ 'delivered', 'cancelled' ], true ) ) : ?>
+
+                <span class="dd-action-done">—</span>
+
+              <?php elseif ( $status === 'pending' ) : ?>
+
+                <div class="dd-action-row">
+                  <form method="POST" style="display:inline">
+                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
+                    <input type="hidden" name="dd_update_order_status" value="1">
+                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
+                    <input type="hidden" name="new_status" value="confirmed">
+                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+                    <button type="submit" class="dd-btn dd-btn-primary">✓ Confirm</button>
+                  </form>
+                  <form method="POST" style="display:inline">
+                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
+                    <input type="hidden" name="dd_update_order_status" value="1">
+                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
+                    <input type="hidden" name="new_status" value="cancelled">
+                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+                    <button type="submit" class="dd-btn dd-btn-cancel" onclick="return confirm('Cancel this order?')">✗ Cancel</button>
+                  </form>
+                </div>
+
+              <?php elseif ( $status === 'confirmed' ) :
+                $kitchen_url = DD_Notifications::build_kitchen_whatsapp_url( $o );
+              ?>
+
+                <div class="dd-action-row">
+                  <?php if ( $kitchen_url ) : ?>
+                  <a href="<?php echo esc_url( $kitchen_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
+                    📲 Notify Kitchen
+                  </a>
+                  <?php endif; ?>
+                  <form method="POST" style="display:inline">
+                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
+                    <input type="hidden" name="dd_update_order_status" value="1">
+                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
+                    <input type="hidden" name="new_status" value="ready">
+                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+                    <button type="submit" class="dd-btn dd-btn-primary">✓ Mark Ready</button>
+                  </form>
+                  <form method="POST" style="display:inline">
+                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
+                    <input type="hidden" name="dd_update_order_status" value="1">
+                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
+                    <input type="hidden" name="new_status" value="cancelled">
+                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+                    <button type="submit" class="dd-btn dd-btn-cancel" onclick="return confirm('Cancel this order?')">✗ Cancel</button>
+                  </form>
+                </div>
+
+              <?php elseif ( $status === 'ready' ) :
+                $customer_url = DD_Notifications::build_customer_ontheway_url( $o );
+              ?>
+
+                <div class="dd-action-row">
+                  <?php if ( ! empty( $riders ) ) :
+                    foreach ( $riders as $rider ) :
+                      $rider_url = DD_Notifications::build_rider_whatsapp_url( $o, $rider['whatsapp'] );
+                      if ( ! $rider_url ) continue;
+                  ?>
+                    <a href="<?php echo esc_url( $rider_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
+                      🛵 <?php echo esc_html( $rider['name'] ); ?>
+                    </a>
+                  <?php endforeach; endif; ?>
+                  <?php if ( $customer_url ) : ?>
+                  <a href="<?php echo esc_url( $customer_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
+                    📲 Customer
+                  </a>
+                  <?php endif; ?>
+                  <form method="POST" style="display:inline">
+                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
+                    <input type="hidden" name="dd_update_order_status" value="1">
+                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
+                    <input type="hidden" name="new_status" value="delivered">
+                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+                    <button type="submit" class="dd-btn dd-btn-delivered">✓ Delivered</button>
+                  </form>
+                  <form method="POST" style="display:inline">
+                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
+                    <input type="hidden" name="dd_update_order_status" value="1">
+                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
+                    <input type="hidden" name="new_status" value="cancelled">
+                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+                    <button type="submit" class="dd-btn dd-btn-cancel" onclick="return confirm('Cancel this order?')">✗ Cancel</button>
+                  </form>
+                </div>
+
               <?php endif; ?>
             </td>
           </tr>
@@ -250,17 +315,3 @@ $filter_tabs = [
 
 </div><!-- /.dd-orders-wrap -->
 
-<?php
-// Open kitchen WhatsApp if pending
-$kitchen_url = get_transient( 'dd_kitchen_notify_' . get_current_user_id() );
-if ( $kitchen_url ) {
-    delete_transient( 'dd_kitchen_notify_' . get_current_user_id() );
-    ?>
-    <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        window.location.href = <?php echo wp_json_encode( $kitchen_url ); ?>;
-    });
-    </script>
-    <?php
-}
-?>

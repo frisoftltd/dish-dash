@@ -111,14 +111,11 @@ function dd_valid_order_type( string $type ): string {
  */
 function dd_order_status_transitions(): array {
     return [
-        'pending'           => [ 'confirmed', 'cancelled' ],
-        'confirmed'         => [ 'preparing', 'cancelled' ],
-        'preparing'         => [ 'ready' ],
-        'ready'             => [ 'out_for_delivery', 'delivered' ],
-        'out_for_delivery'  => [ 'delivered' ],
-        'delivered'         => [ 'refunded' ],
-        'cancelled'         => [ 'refunded' ],
-        'refunded'          => [],
+        'pending'   => [ 'confirmed', 'cancelled' ],
+        'confirmed' => [ 'ready', 'cancelled' ],
+        'ready'     => [ 'delivered', 'cancelled' ],
+        'delivered' => [],
+        'cancelled' => [],
     ];
 }
 
@@ -127,14 +124,11 @@ function dd_order_status_transitions(): array {
  */
 function dd_order_status_label( string $status ): string {
     $labels = [
-        'pending'           => __( 'Pending',           'dish-dash' ),
-        'confirmed'         => __( 'Accepted',          'dish-dash' ),
-        'preparing'         => __( 'In Kitchen',        'dish-dash' ),
-        'ready'             => __( 'Ready for Pickup',  'dish-dash' ),
-        'out_for_delivery'  => __( 'On the Way',        'dish-dash' ),
-        'delivered'         => __( 'Delivered',         'dish-dash' ),
-        'cancelled'         => __( 'Cancelled',         'dish-dash' ),
-        'refunded'          => __( 'Refunded',          'dish-dash' ),
+        'pending'   => __( 'Pending',   'dish-dash' ),
+        'confirmed' => __( 'Confirmed', 'dish-dash' ),
+        'ready'     => __( 'Ready',     'dish-dash' ),
+        'delivered' => __( 'Delivered', 'dish-dash' ),
+        'cancelled' => __( 'Cancelled', 'dish-dash' ),
     ];
     return $labels[ $status ] ?? ucfirst( $status );
 }
