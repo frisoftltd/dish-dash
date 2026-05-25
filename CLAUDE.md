@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.53 (2026-05-25)
+> Last updated: v3.4.54 (2026-05-25)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.53 |
+| **Deployed version** | v3.4.54 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.54 — Bulk actions + stale order filter tab |
-| **Last working state** | Variation field decoded with stripslashes() before json_decode() to handle escaped JSON from DB. Plain text fallback strips stray braces/quotes via trim(). All three WhatsApp message types emoji-free with plain text labels. |
+| **Next task** | v3.4.55 — Bulk actions + stale order filter tab |
+| **Last working state** | Orders sorted by FIELD(status, pending, confirmed, ready, ...) ASC then created_at ASC — most urgent status first, oldest within each group at top. Both filtered and all-orders queries updated. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -498,8 +498,9 @@ Every page before shipping must pass:
 | v3.4.50 | ✅ Done | Clean WhatsApp message format, Mark Ready/Delivered locked until notified |
 | v3.4.51 | ✅ Done | Fix WhatsApp line breaks (esc_url strips %0A), fix addon JSON in kitchen message |
 | v3.4.52 | ✅ Done | Remove emoji from WhatsApp messages, fix variation JSON decode |
-| **v3.4.53** | ✅ **Done** | **Fix variation JSON decode with stripslashes, strip stray braces from plain text** |
-| v3.4.54 | ⏳ **NEXT** | Bulk actions + stale order filter tab |
+| v3.4.53 | ✅ Done | Fix variation JSON decode with stripslashes, strip stray braces from plain text |
+| **v3.4.54** | ✅ **Done** | **Sort orders by urgency: Pending first, then Confirmed, Ready, Delivered, Cancelled** |
+| v3.4.55 | ⏳ **NEXT** | Bulk actions + stale order filter tab |
 | v3.4.51 | ⏳ | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**

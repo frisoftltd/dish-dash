@@ -59,12 +59,12 @@ $total_today   = (int)   $wpdb->get_var( $wpdb->prepare(
 // ── Orders query ──────────────────────────────────────────────────────────────
 if ( $status_filter !== 'all' ) {
     $orders = $wpdb->get_results( $wpdb->prepare(
-        "SELECT * FROM `{$ot}` WHERE status = %s ORDER BY created_at DESC LIMIT 100",
+        "SELECT * FROM `{$ot}` WHERE status = %s ORDER BY FIELD(status, 'pending', 'confirmed', 'ready', 'out_for_delivery', 'delivered', 'cancelled') ASC, created_at ASC LIMIT 100",
         $status_filter
     ), ARRAY_A );
 } else {
     $orders = $wpdb->get_results(
-        "SELECT * FROM `{$ot}` ORDER BY created_at DESC LIMIT 100",
+        "SELECT * FROM `{$ot}` ORDER BY FIELD(status, 'pending', 'confirmed', 'ready', 'out_for_delivery', 'delivered', 'cancelled') ASC, created_at ASC LIMIT 100",
         ARRAY_A
     );
 }
