@@ -349,7 +349,8 @@ window.ddOrdersData = {
             .then( function ( res ) {
                 setLoading( false );
                 if ( res.success ) {
-                    renderModal( res.data.order, res.data.items );
+                    var payload = res.data.data || res.data;
+                    renderModal( payload.order, payload.items );
                 }
             } )
             .catch( function () { setLoading( false ); } );
