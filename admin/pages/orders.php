@@ -120,6 +120,28 @@ $filter_tabs = [
 // Load riders for Ready → Notify Rider buttons
 $riders = json_decode( get_option( 'dd_riders', '[]' ), true );
 if ( ! is_array( $riders ) ) $riders = [];
+
+// Build per-order WhatsApp URLs for modal
+$order_wa_urls = [];
+foreach ( $orders as $o ) {
+    $kitchen_url  = DD_Notifications::build_kitchen_whatsapp_url( $o );
+    $customer_url = DD_Notifications::build_customer_ontheway_url( $o );
+    $rider_urls   = [];
+    foreach ( $riders as $rider ) {
+        $url = DD_Notifications::build_rider_whatsapp_url( $o, $rider['whatsapp'] );
+        if ( $url ) {
+            $rider_urls[] = [
+                'name' => $rider['name'],
+                'url'  => $url,
+            ];
+        }
+    }
+    $order_wa_urls[ $o['id'] ] = [
+        'kitchen'  => $kitchen_url,
+        'customer' => $customer_url,
+        'riders'   => $rider_urls,
+    ];
+}
 ?>
 
 <div class="dd-orders-wrap">
@@ -186,14 +208,13 @@ if ( ! is_array( $riders ) ) $riders = [];
             <th>Total</th>
             <th>Status</th>
             <th>Date</th>
-            <th>Action</th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ( $orders as $o ) :
             $order_num = ! empty( $o['order_number'] ) ? $o['order_number'] : 'DD-' . str_pad( $o['id'], 5, '0', STR_PAD_LEFT );
           ?>
-          <tr data-order-id="<?php echo (int) $o['id']; ?>">
+          <tr data-order-id="<?php echo (int) $o['id']; ?>" style="cursor:pointer" class="dd-order-row">
             <td class="dd-orders-col-id">
               <span class="dd-order-num"><?php echo esc_html( $order_num ); ?></span>
             </td>
@@ -210,120 +231,11 @@ if ( ! is_array( $riders ) ) $riders = [];
               <span class="dd-order-total"><?php echo dd_orders_format_rwf( $o['total'] ); ?></span>
               <span class="dd-order-currency">RWF</span>
             </td>
-            <td class="dd-orders-col-status">
+            <td class="dd-orders-col-status dd-status-badge-cell">
               <?php echo dd_orders_status_badge( $o['status'] ); ?>
             </td>
             <td class="dd-orders-col-date">
               <?php echo esc_html( date( 'd M Y H:i', strtotime( $o['created_at'] ) ) ); ?>
-            </td>
-            <td class="dd-orders-col-action">
-              <?php
-              $status = $o['status'];
-              $id     = (int) $o['id'];
-
-              if ( in_array( $status, [ 'delivered', 'cancelled' ], true ) ) : ?>
-
-                <span class="dd-action-done">—</span>
-
-              <?php elseif ( $status === 'pending' ) : ?>
-
-                <div class="dd-action-row">
-                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
-                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
-                    <input type="hidden" name="dd_update_order_status" value="1">
-                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
-                    <input type="hidden" name="new_status" value="confirmed">
-                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit" class="dd-btn dd-btn-primary">✓ Confirm</button>
-                  </form>
-                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
-                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
-                    <input type="hidden" name="dd_update_order_status" value="1">
-                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
-                    <input type="hidden" name="new_status" value="cancelled">
-                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit" class="dd-btn dd-btn-cancel" onclick="return confirm('Cancel this order?')">✗ Cancel</button>
-                  </form>
-                </div>
-
-              <?php elseif ( $status === 'confirmed' ) :
-                $kitchen_url = DD_Notifications::build_kitchen_whatsapp_url( $o );
-              ?>
-
-                <div class="dd-action-row">
-                  <?php if ( $kitchen_url ) : ?>
-                  <a href="<?php echo esc_attr( $kitchen_url ); ?>"
-                     target="_blank"
-                     class="dd-btn dd-btn-whatsapp dd-notify-kitchen"
-                     data-order-id="<?php echo (int) $o['id']; ?>">
-                    📲 Notify Kitchen
-                  </a>
-                  <?php endif; ?>
-                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
-                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
-                    <input type="hidden" name="dd_update_order_status" value="1">
-                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
-                    <input type="hidden" name="new_status" value="ready">
-                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit"
-                            class="dd-btn dd-btn-primary dd-requires-kitchen"
-                            data-order-id="<?php echo (int) $o['id']; ?>"
-                            disabled>✓ Mark Ready</button>
-                  </form>
-                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
-                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
-                    <input type="hidden" name="dd_update_order_status" value="1">
-                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
-                    <input type="hidden" name="new_status" value="cancelled">
-                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit" class="dd-btn dd-btn-cancel" onclick="return confirm('Cancel this order?')">✗ Cancel</button>
-                  </form>
-                </div>
-
-              <?php elseif ( $status === 'ready' ) :
-                $customer_url = DD_Notifications::build_customer_ontheway_url( $o );
-              ?>
-
-                <div class="dd-action-row">
-                  <?php if ( ! empty( $riders ) ) :
-                    foreach ( $riders as $rider ) :
-                      $rider_url = DD_Notifications::build_rider_whatsapp_url( $o, $rider['whatsapp'] );
-                      if ( ! $rider_url ) continue;
-                  ?>
-                    <a href="<?php echo esc_attr( $rider_url ); ?>"
-                       target="_blank"
-                       class="dd-btn dd-btn-whatsapp dd-notify-rider"
-                       data-order-id="<?php echo (int) $o['id']; ?>">
-                      🛵 <?php echo esc_html( $rider['name'] ); ?>
-                    </a>
-                  <?php endforeach; endif; ?>
-                  <?php if ( $customer_url ) : ?>
-                  <a href="<?php echo esc_attr( $customer_url ); ?>" target="_blank" class="dd-btn dd-btn-whatsapp">
-                    📲 Customer
-                  </a>
-                  <?php endif; ?>
-                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
-                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
-                    <input type="hidden" name="dd_update_order_status" value="1">
-                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
-                    <input type="hidden" name="new_status" value="delivered">
-                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit"
-                            class="dd-btn dd-btn-delivered dd-requires-rider"
-                            data-order-id="<?php echo (int) $o['id']; ?>"
-                            disabled>✓ Delivered</button>
-                  </form>
-                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
-                    <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
-                    <input type="hidden" name="dd_update_order_status" value="1">
-                    <input type="hidden" name="order_id" value="<?php echo $id; ?>">
-                    <input type="hidden" name="new_status" value="cancelled">
-                    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
-                    <button type="submit" class="dd-btn dd-btn-cancel" onclick="return confirm('Cancel this order?')">✗ Cancel</button>
-                  </form>
-                </div>
-
-              <?php endif; ?>
             </td>
           </tr>
           <?php endforeach; ?>
@@ -332,64 +244,290 @@ if ( ! is_array( $riders ) ) $riders = [];
     <?php endif; ?>
   </div>
 
-</div><!-- /.dd-orders-wrap -->
+<script>
+window.ddOrdersData = {
+    ajaxUrl:   <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
+    nonce:     <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_admin' ) ); ?>,
+    waUrls:    <?php echo wp_json_encode( $order_wa_urls ); ?>,
+    statusLabels: <?php echo wp_json_encode( [
+        'pending'   => 'Pending',
+        'confirmed' => 'Confirmed',
+        'ready'     => 'Ready',
+        'delivered' => 'Delivered',
+        'cancelled' => 'Cancelled',
+    ] ); ?>
+};
+</script>
 
+<!-- Order Detail Modal -->
+<div id="dd-order-modal" class="dd-modal-overlay" style="display:none">
+    <div class="dd-modal">
+        <div class="dd-modal-header">
+            <div>
+                <span class="dd-modal-order-num"></span>
+                <span class="dd-modal-date"></span>
+            </div>
+            <button class="dd-modal-close" id="dd-modal-close">✕</button>
+        </div>
+        <div class="dd-modal-body">
+            <div class="dd-modal-section">
+                <div class="dd-modal-label">CUSTOMER</div>
+                <div class="dd-modal-customer-name"></div>
+                <div class="dd-modal-customer-phone"></div>
+                <div class="dd-modal-customer-address"></div>
+            </div>
+            <div class="dd-modal-section">
+                <div class="dd-modal-label">ORDER ITEMS</div>
+                <div class="dd-modal-items"></div>
+                <div class="dd-modal-totals"></div>
+            </div>
+            <div class="dd-modal-section dd-modal-status-section">
+                <div class="dd-modal-label">STATUS</div>
+                <div class="dd-modal-status-badge"></div>
+            </div>
+        </div>
+        <div class="dd-modal-footer" id="dd-modal-actions"></div>
+        <div class="dd-modal-loading" id="dd-modal-loading" style="display:none">
+            <span>Updating...</span>
+        </div>
+    </div>
+</div>
+
+<!-- Modal JS -->
 <script>
 ( function () {
-    var LS_KITCHEN = 'dd_kitchen_notified_';
-    var LS_RIDER   = 'dd_rider_notified_';
+    'use strict';
 
-    // On page load — restore enabled state from localStorage
-    document.querySelectorAll( '.dd-requires-kitchen' ).forEach( function ( btn ) {
-        var id = btn.dataset.orderId;
-        if ( localStorage.getItem( LS_KITCHEN + id ) === '1' ) {
-            btn.disabled = false;
-        }
-    } );
+    var modal        = document.getElementById( 'dd-order-modal' );
+    var modalActions = document.getElementById( 'dd-modal-actions' );
+    var modalLoading = document.getElementById( 'dd-modal-loading' );
+    var currentOrderId = null;
+    var LS_KITCHEN   = 'dd_kitchen_notified_';
+    var LS_RIDER     = 'dd_rider_notified_';
 
-    document.querySelectorAll( '.dd-requires-rider' ).forEach( function ( btn ) {
-        var id = btn.dataset.orderId;
-        if ( localStorage.getItem( LS_RIDER + id ) === '1' ) {
-            btn.disabled = false;
-        }
-    } );
-
-    // Notify Kitchen clicked — enable Mark Ready for this order
-    document.querySelectorAll( '.dd-notify-kitchen' ).forEach( function ( link ) {
-        link.addEventListener( 'click', function () {
+    // Open modal on row click
+    document.querySelectorAll( '.dd-order-row' ).forEach( function ( row ) {
+        row.addEventListener( 'click', function () {
             var id = this.dataset.orderId;
-            localStorage.setItem( LS_KITCHEN + id, '1' );
-            document.querySelectorAll(
-                '.dd-requires-kitchen[data-order-id="' + id + '"]'
-            ).forEach( function ( btn ) {
-                btn.disabled = false;
-            } );
+            if ( ! id ) return;
+            currentOrderId = id;
+            openModal( id );
         } );
     } );
 
-    // Notify Rider clicked — enable Mark Delivered for this order
-    document.querySelectorAll( '.dd-notify-rider' ).forEach( function ( link ) {
-        link.addEventListener( 'click', function () {
-            var id = this.dataset.orderId;
-            localStorage.setItem( LS_RIDER + id, '1' );
-            document.querySelectorAll(
-                '.dd-requires-rider[data-order-id="' + id + '"]'
-            ).forEach( function ( btn ) {
-                btn.disabled = false;
-            } );
-        } );
+    // Close modal
+    document.getElementById( 'dd-modal-close' ).addEventListener( 'click', closeModal );
+    modal.addEventListener( 'click', function ( e ) {
+        if ( e.target === modal ) closeModal();
+    } );
+    document.addEventListener( 'keydown', function ( e ) {
+        if ( e.key === 'Escape' ) closeModal();
     } );
 
-    // Clean up localStorage when order is marked delivered or cancelled
-    document.querySelectorAll( '.dd-btn-delivered, .dd-btn-cancel' ).forEach( function ( btn ) {
-        btn.addEventListener( 'click', function () {
-            var id = this.dataset.orderId;
-            if ( id ) {
-                localStorage.removeItem( LS_KITCHEN + id );
-                localStorage.removeItem( LS_RIDER + id );
+    function openModal( orderId ) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        fetchOrder( orderId );
+    }
+
+    function closeModal() {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+        currentOrderId = null;
+    }
+
+    function fetchOrder( orderId ) {
+        setLoading( true );
+        var data = new FormData();
+        data.append( 'action',   'dd_get_order' );
+        data.append( 'order_id', orderId );
+        data.append( 'nonce',    window.ddOrdersData.nonce );
+
+        fetch( window.ddOrdersData.ajaxUrl, { method: 'POST', body: data } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                setLoading( false );
+                if ( res.success ) {
+                    renderModal( res.data.order, res.data.items );
+                }
+            } )
+            .catch( function () { setLoading( false ); } );
+    }
+
+    function renderModal( order, items ) {
+        var id      = order.id;
+        var orderNum = order.order_number || ( 'DD-' + String( id ).padStart( 5, '0' ) );
+        var date    = new Date( order.created_at ).toLocaleDateString( 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' } );
+        var status  = order.status;
+        var labels  = window.ddOrdersData.statusLabels;
+        var waUrls  = window.ddOrdersData.waUrls[ id ] || {};
+
+        // Header
+        modal.querySelector( '.dd-modal-order-num' ).textContent = orderNum;
+        modal.querySelector( '.dd-modal-date' ).textContent      = date + ' · ' + ucfirst( order.order_type || 'delivery' );
+
+        // Customer
+        modal.querySelector( '.dd-modal-customer-name' ).textContent    = order.customer_name || '';
+        modal.querySelector( '.dd-modal-customer-phone' ).textContent   = order.customer_phone || '';
+        modal.querySelector( '.dd-modal-customer-address' ).textContent = order.delivery_address || '';
+
+        // Items
+        var itemsHtml = '';
+        var itemTotal = 0;
+        items.forEach( function ( item ) {
+            var lineTotal = parseFloat( item.line_total ) || 0;
+            itemTotal += lineTotal;
+            itemsHtml += '<div class="dd-modal-item">'
+                + '<span class="dd-modal-item-qty">' + item.quantity + '×</span>'
+                + '<span class="dd-modal-item-name">' + item.item_name + '</span>'
+                + '<span class="dd-modal-item-price">' + formatRwf( lineTotal ) + '</span>'
+                + '</div>';
+        } );
+        modal.querySelector( '.dd-modal-items' ).innerHTML = itemsHtml;
+
+        var method = order.payment_method === 'cod' ? 'Cash on Delivery' : ucfirst( order.payment_method || 'cod' );
+        modal.querySelector( '.dd-modal-totals' ).innerHTML =
+            '<div class="dd-modal-total-row"><span>Total</span><strong>' + formatRwf( parseFloat( order.total ) ) + ' RWF</strong></div>'
+            + '<div class="dd-modal-total-row dd-modal-payment"><span>Payment</span><span>' + method + '</span></div>';
+
+        // Status badge
+        modal.querySelector( '.dd-modal-status-badge' ).innerHTML =
+            '<span class="dd-modal-status dd-status-' + status + '">' + ( labels[ status ] || ucfirst( status ) ) + '</span>';
+
+        // Action buttons
+        var actionsHtml = '';
+
+        if ( status === 'pending' ) {
+            actionsHtml += btn( 'confirmed', '✓ Confirm', 'dd-btn-primary', id );
+            actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
+        }
+
+        if ( status === 'confirmed' ) {
+            var kitchenNotified = localStorage.getItem( LS_KITCHEN + id ) === '1';
+            if ( waUrls.kitchen ) {
+                actionsHtml += '<a href="' + esc( waUrls.kitchen ) + '" target="_blank" class="dd-btn dd-btn-whatsapp dd-modal-notify-kitchen" data-order-id="' + id + '">📲 Notify Kitchen</a>';
             }
+            var readyDisabled = kitchenNotified ? '' : ' disabled';
+            actionsHtml += '<button class="dd-btn dd-btn-primary dd-modal-status-btn dd-requires-kitchen" data-status="ready" data-order-id="' + id + '"' + readyDisabled + '>✓ Mark Ready</button>';
+            actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
+        }
+
+        if ( status === 'ready' ) {
+            var riderNotified = localStorage.getItem( LS_RIDER + id ) === '1';
+            ( waUrls.riders || [] ).forEach( function ( rider ) {
+                actionsHtml += '<a href="' + esc( rider.url ) + '" target="_blank" class="dd-btn dd-btn-whatsapp dd-modal-notify-rider" data-order-id="' + id + '">🛵 ' + rider.name + '</a>';
+            } );
+            if ( waUrls.customer ) {
+                actionsHtml += '<a href="' + esc( waUrls.customer ) + '" target="_blank" class="dd-btn dd-btn-whatsapp">📲 Customer</a>';
+            }
+            var deliveredDisabled = riderNotified ? '' : ' disabled';
+            actionsHtml += '<button class="dd-btn dd-btn-delivered dd-modal-status-btn dd-requires-rider" data-status="delivered" data-order-id="' + id + '"' + deliveredDisabled + '>✓ Delivered</button>';
+            actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
+        }
+
+        modalActions.innerHTML = actionsHtml;
+
+        // Wire action buttons
+        modalActions.querySelectorAll( '.dd-modal-status-btn' ).forEach( function ( b ) {
+            b.addEventListener( 'click', function () {
+                var newStatus = this.dataset.status;
+                var oid      = this.dataset.orderId;
+                if ( newStatus === 'cancelled' && ! confirm( 'Cancel this order?' ) ) return;
+                updateStatus( oid, newStatus );
+            } );
         } );
-    } );
+
+        // Kitchen notified → unlock Mark Ready
+        modalActions.querySelectorAll( '.dd-modal-notify-kitchen' ).forEach( function ( a ) {
+            a.addEventListener( 'click', function () {
+                var oid = this.dataset.orderId;
+                localStorage.setItem( LS_KITCHEN + oid, '1' );
+                modalActions.querySelectorAll( '.dd-requires-kitchen' ).forEach( function ( b ) {
+                    b.disabled = false;
+                } );
+            } );
+        } );
+
+        // Rider notified → unlock Delivered
+        modalActions.querySelectorAll( '.dd-modal-notify-rider' ).forEach( function ( a ) {
+            a.addEventListener( 'click', function () {
+                var oid = this.dataset.orderId;
+                localStorage.setItem( LS_RIDER + oid, '1' );
+                modalActions.querySelectorAll( '.dd-requires-rider' ).forEach( function ( b ) {
+                    b.disabled = false;
+                } );
+            } );
+        } );
+    }
+
+    function updateStatus( orderId, newStatus ) {
+        setLoading( true );
+        var data = new FormData();
+        data.append( 'action',     'dd_update_status' );
+        data.append( 'order_id',   orderId );
+        data.append( 'status', newStatus );
+        data.append( 'nonce',      window.ddOrdersData.nonce );
+
+        fetch( window.ddOrdersData.ajaxUrl, { method: 'POST', body: data } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                setLoading( false );
+                if ( res.success ) {
+                    // Update the row badge in the table without reload
+                    var row = document.querySelector( 'tr[data-order-id="' + orderId + '"]' );
+                    if ( row ) {
+                        var badge = row.querySelector( '.dd-status-badge-cell' );
+                        if ( badge ) {
+                            badge.innerHTML = renderBadge( newStatus );
+                        }
+                    }
+                    // Clean up localStorage on terminal status
+                    if ( newStatus === 'delivered' || newStatus === 'cancelled' ) {
+                        localStorage.removeItem( LS_KITCHEN + orderId );
+                        localStorage.removeItem( LS_RIDER + orderId );
+                    }
+                    closeModal();
+                    // Reload page to re-sort and update counts
+                    window.location.reload();
+                }
+            } )
+            .catch( function () { setLoading( false ); } );
+    }
+
+    function btn( status, label, cls, orderId ) {
+        return '<button class="dd-btn ' + cls + ' dd-modal-status-btn" data-status="' + status + '" data-order-id="' + orderId + '">' + label + '</button>';
+    }
+
+    function setLoading( show ) {
+        modalLoading.style.display = show ? 'flex' : 'none';
+    }
+
+    function ucfirst( s ) {
+        return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+    }
+
+    function formatRwf( n ) {
+        return Number( n ).toLocaleString( 'en-US', { maximumFractionDigits: 0 } );
+    }
+
+    function esc( s ) {
+        return s ? s.replace( /"/g, '&quot;' ) : '';
+    }
+
+    function renderBadge( status ) {
+        var map = {
+            pending:   ['Pending',   '#fef9c3','#854d0e'],
+            confirmed: ['Confirmed', '#dbeafe','#1e40af'],
+            ready:     ['Ready',     '#dcfce7','#166534'],
+            delivered: ['Delivered', '#dcfce7','#166534'],
+            cancelled: ['Cancelled', '#fee2e2','#991b1b'],
+        };
+        var s = map[status] || [status,'#f3f4f6','#374151'];
+        return '<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;background:' + s[1] + ';color:' + s[2] + '">' + s[0] + '</span>';
+    }
+
 } )();
 </script>
+
+</div><!-- /.dd-orders-wrap -->
 
