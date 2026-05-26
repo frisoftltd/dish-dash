@@ -7,6 +7,13 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+// DEBUG — remove after diagnosis
+if ( $_SERVER['REQUEST_METHOD'] === 'POST' ) {
+    error_log( 'DD ORDERS POST received: ' . print_r( $_POST, true ) );
+    error_log( 'DD NONCE check: ' . ( wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'dd_order_status_' . (int) ( $_POST['order_id'] ?? 0 ) ) ? 'PASS' : 'FAIL' ) );
+}
+
 if ( ! current_user_can( 'manage_options' ) ) return;
 
 global $wpdb;
