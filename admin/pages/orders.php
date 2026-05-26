@@ -42,6 +42,13 @@ if (
     exit;
 }
 
+// Show error if nonce failed — helps diagnose silently-failing submissions
+if ( isset( $_POST['dd_update_order_status'] ) && ! isset( $_POST['_wpnonce'] ) ) {
+    add_action( 'admin_notices', function() {
+        echo '<div class="notice notice-error"><p>Order status update failed — missing nonce. Please refresh the page and try again.</p></div>';
+    } );
+}
+
 // ── Status filter ─────────────────────────────────────────────────────────────
 $status_filter = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : 'all';
 $allowed = [ 'all', 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
@@ -221,7 +228,7 @@ if ( ! is_array( $riders ) ) $riders = [];
               <?php elseif ( $status === 'pending' ) : ?>
 
                 <div class="dd-action-row">
-                  <form method="POST" style="display:inline">
+                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
                     <input type="hidden" name="dd_update_order_status" value="1">
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
@@ -229,7 +236,7 @@ if ( ! is_array( $riders ) ) $riders = [];
                     <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
                     <button type="submit" class="dd-btn dd-btn-primary">✓ Confirm</button>
                   </form>
-                  <form method="POST" style="display:inline">
+                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
                     <input type="hidden" name="dd_update_order_status" value="1">
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
@@ -252,7 +259,7 @@ if ( ! is_array( $riders ) ) $riders = [];
                     📲 Notify Kitchen
                   </a>
                   <?php endif; ?>
-                  <form method="POST" style="display:inline">
+                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
                     <input type="hidden" name="dd_update_order_status" value="1">
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
@@ -263,7 +270,7 @@ if ( ! is_array( $riders ) ) $riders = [];
                             data-order-id="<?php echo (int) $o['id']; ?>"
                             disabled>✓ Mark Ready</button>
                   </form>
-                  <form method="POST" style="display:inline">
+                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
                     <input type="hidden" name="dd_update_order_status" value="1">
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
@@ -295,7 +302,7 @@ if ( ! is_array( $riders ) ) $riders = [];
                     📲 Customer
                   </a>
                   <?php endif; ?>
-                  <form method="POST" style="display:inline">
+                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
                     <input type="hidden" name="dd_update_order_status" value="1">
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
@@ -306,7 +313,7 @@ if ( ! is_array( $riders ) ) $riders = [];
                             data-order-id="<?php echo (int) $o['id']; ?>"
                             disabled>✓ Delivered</button>
                   </form>
-                  <form method="POST" style="display:inline">
+                  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" style="display:inline">
                     <?php wp_nonce_field( 'dd_order_status_' . $id ); ?>
                     <input type="hidden" name="dd_update_order_status" value="1">
                     <input type="hidden" name="order_id" value="<?php echo $id; ?>">
