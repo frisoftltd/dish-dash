@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.56 (2026-05-26)
+> Last updated: v3.4.57 (2026-05-26)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.56 |
+| **Deployed version** | v3.4.57 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.57 — Order detail modal + dashboard chart fix |
-| **Last working state** | Order status forms now have explicit action URL pointing to admin.php?page=dish-dash-orders. Nonce failure notice added. Outer if and redirect/exit structure confirmed correct. |
+| **Next task** | v3.4.58 — Order detail modal + dashboard chart fix |
+| **Last working state** | Removed ghost admin-orders.css/js enqueues from orders module (were loading non-existent files). Removed debug logging from orders.php. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -502,7 +502,8 @@ Every page before shipping must pass:
 | **v3.4.54** | ✅ **Done** | **Sort orders by urgency: Pending first, then Confirmed, Ready, Delivered, Cancelled** |
 | **v3.4.55** | ✅ **Done** | **Fix revenue/AOV to use delivered orders, fix chart Y-axis integers, hide chart when empty** |
 | **v3.4.56** | ✅ **Done** | **Fix order status forms: explicit action URL, nonce failure notice** |
-| v3.4.57 | ⏳ **NEXT** | Order detail modal + dashboard chart fix |
+| **v3.4.57** | ✅ **Done** | **Remove ghost admin-orders.css/js enqueues, remove debug logging** |
+| v3.4.58 | ⏳ **NEXT** | Order detail modal + dashboard chart fix |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

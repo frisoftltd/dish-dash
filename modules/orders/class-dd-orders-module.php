@@ -895,8 +895,7 @@ class DD_Orders_Module extends DD_Module {
     // ─────────────────────────────────────────
     public function enqueue_admin_assets( string $hook ): void {
         if ( strpos( $hook, 'dish-dash-orders' ) === false ) return;
-        $this->enqueue_style( 'orders-admin', 'admin-orders.css' );
-        $this->enqueue_script( 'orders-admin', 'admin-orders.js', [ 'jquery' ] );
+
     }
 
     // ─────────────────────────────────────────
