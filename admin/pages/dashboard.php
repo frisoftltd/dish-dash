@@ -45,12 +45,15 @@ $kpi_orders   = (int)   $wpdb->get_var( $wpdb->prepare(
     "SELECT COUNT(*) FROM `{$ot}` WHERE created_at >= %s", $since
 ) );
 $kpi_revenue  = (float) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE payment_status = 'paid' AND created_at >= %s", $since
+    "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s", $since
 ) );
 $kpi_pending  = (int)   $wpdb->get_var(
     "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','processing')"
 );
-$kpi_aov      = $kpi_orders > 0 ? round( $kpi_revenue / $kpi_orders ) : 0;
+$kpi_delivered = (int) $wpdb->get_var( $wpdb->prepare(
+    "SELECT COUNT(*) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s", $since
+) );
+$kpi_aov = $kpi_delivered > 0 ? round( $kpi_revenue / $kpi_delivered ) : 0;
 $kpi_new_cust = (int)   $wpdb->get_var( $wpdb->prepare(
     "SELECT COUNT(*) FROM `{$ct}` WHERE first_order_at >= %s", $since
 ) );
@@ -63,7 +66,7 @@ $kpi_res      = (int)   $wpdb->get_var( $wpdb->prepare(
 if ( $range === 'today' ) {
     $chart_rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT HOUR(created_at) as period, COALESCE(SUM(total),0) as revenue
-         FROM `{$ot}` WHERE payment_status = 'paid' AND DATE(created_at) = %s
+         FROM `{$ot}` WHERE status = 'delivered' AND DATE(created_at) = %s
          GROUP BY HOUR(created_at) ORDER BY period ASC",
         $today_date
     ), ARRAY_A );
@@ -71,7 +74,7 @@ if ( $range === 'today' ) {
 } else {
     $chart_rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT DATE(created_at) as period, COALESCE(SUM(total),0) as revenue
-         FROM `{$ot}` WHERE payment_status = 'paid' AND created_at >= %s
+         FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s
          GROUP BY DATE(created_at) ORDER BY period ASC",
         $since
     ), ARRAY_A );

@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.54 (2026-05-25)
+> Last updated: v3.4.55 (2026-05-26)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.54 |
+| **Deployed version** | v3.4.55 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.55 — Bulk actions + stale order filter tab |
-| **Last working state** | Orders sorted by FIELD(status, pending, confirmed, ready, ...) ASC then created_at ASC — most urgent status first, oldest within each group at top. Both filtered and all-orders queries updated. |
+| **Next task** | v3.4.56 — Tables + Seating Sections redesign |
+| **Last working state** | Revenue and AOV KPIs use status='delivered' (not payment_status='paid'). Chart Y-axis integer-only with beginAtZero. Chart card hidden when all revenue values are 0. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -500,8 +500,8 @@ Every page before shipping must pass:
 | v3.4.52 | ✅ Done | Remove emoji from WhatsApp messages, fix variation JSON decode |
 | v3.4.53 | ✅ Done | Fix variation JSON decode with stripslashes, strip stray braces from plain text |
 | **v3.4.54** | ✅ **Done** | **Sort orders by urgency: Pending first, then Confirmed, Ready, Delivered, Cancelled** |
-| v3.4.55 | ⏳ **NEXT** | Bulk actions + stale order filter tab |
-| v3.4.51 | ⏳ | Tables + Seating Sections redesign |
+| **v3.4.55** | ✅ **Done** | **Fix revenue/AOV to use delivered orders, fix chart Y-axis integers, hide chart when empty** |
+| v3.4.56 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
