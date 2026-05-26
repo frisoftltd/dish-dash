@@ -247,7 +247,8 @@ foreach ( $orders as $o ) {
 <script>
 window.ddOrdersData = {
     ajaxUrl:   <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
-    nonce:     <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_admin' ) ); ?>,
+    nonce:      <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_frontend' ) ); ?>,
+    adminNonce: <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_admin' ) ); ?>,
     waUrls:    <?php echo wp_json_encode( $order_wa_urls ); ?>,
     statusLabels: <?php echo wp_json_encode( [
         'pending'   => 'Pending',
@@ -466,7 +467,7 @@ window.ddOrdersData = {
         data.append( 'action',     'dd_update_status' );
         data.append( 'order_id',   orderId );
         data.append( 'status', newStatus );
-        data.append( 'nonce',      window.ddOrdersData.nonce );
+        data.append( 'nonce',      window.ddOrdersData.adminNonce );
 
         fetch( window.ddOrdersData.ajaxUrl, { method: 'POST', body: data } )
             .then( function ( r ) { return r.json(); } )
