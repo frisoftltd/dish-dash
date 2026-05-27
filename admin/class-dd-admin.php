@@ -55,7 +55,7 @@ class DD_Admin extends DD_Module {
         // Top level menu
         add_menu_page(
             __( 'Dish Dash', 'dish-dash' ),
-            __( 'Dish Dash', 'dish-dash' ),
+            'Dish Dash <span class="dd-menu-badge" id="dd-menu-badge" style="display:none"></span>',
             'read',
             'dish-dash',
             [ $this, 'render_dashboard' ],
@@ -161,11 +161,14 @@ class DD_Admin extends DD_Module {
             true
         );
         wp_localize_script( 'dish-dash-admin', 'dishDashAdmin', [
-            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-            'nonce'   => wp_create_nonce( 'dish_dash_admin' ),
-            'restUrl' => rest_url( 'dish-dash/v1/' ),
-            'version' => DD_VERSION,
-            'i18n'    => [
+            'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
+            'nonce'          => wp_create_nonce( 'dish_dash_admin' ),
+            'restUrl'        => rest_url( 'dish-dash/v1/' ),
+            'version'        => DD_VERSION,
+            'pollNonce'      => wp_create_nonce( 'dish_dash_admin' ),
+            'restaurantName' => esc_js( get_option( 'dish_dash_restaurant_name', 'Restaurant' ) ),
+            'pollInterval'   => 30000,
+            'i18n'           => [
                 'confirmDelete' => __( 'Are you sure you want to delete this?', 'dish-dash' ),
                 'saved'         => __( 'Saved successfully.', 'dish-dash' ),
                 'error'         => __( 'An error occurred. Please try again.', 'dish-dash' ),

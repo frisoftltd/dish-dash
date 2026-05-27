@@ -76,7 +76,8 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_get_order',      [ $this, 'ajax_get_order' ] );
         DD_Ajax::register( 'dd_cancel_order',   [ $this, 'ajax_cancel_order' ] );
         DD_Ajax::register( 'dd_update_status',  [ $this, 'ajax_update_status' ], false );
-        DD_Ajax::register( 'dd_toggle_test',    [ $this, 'ajax_toggle_test' ],   false );
+        DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
+        DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
 
         // WooCommerce bridge — sync payment status
         add_action( 'woocommerce_order_status_completed', [ $this, 'wc_payment_completed' ] );
@@ -867,6 +868,52 @@ class DD_Orders_Module extends DD_Module {
         );
 
         $this->json_success( [ 'is_test' => $is_test ] );
+    }
+
+    /**
+     * Poll for new orders and reservations since last known IDs.
+     * Called every 30s by admin JS. Lightweight — no full page load.
+     */
+    public function ajax_poll_notifications(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            $this->json_error( 'Permission denied.', 403 );
+        }
+
+        global $wpdb;
+
+        $last_order_id = absint( $_POST['last_order_id'] ?? 0 );
+        $last_res_id   = absint( $_POST['last_res_id'] ?? 0 );
+
+        // New orders since last known ID
+        $new_orders = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, order_number, customer_name, total
+             FROM {$wpdb->prefix}dishdash_orders
+             WHERE id > %d AND is_test = 0
+             ORDER BY id ASC LIMIT 10",
+            $last_order_id
+        ), ARRAY_A );
+
+        // New reservations since last known ID
+        $new_reservations = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, name, date, time, guests
+             FROM {$wpdb->prefix}dishdash_reservations
+             WHERE id > %d
+             ORDER BY id ASC LIMIT 10",
+            $last_res_id
+        ), ARRAY_A );
+
+        // Current max IDs for client to store
+        $max_order_id = (int) $wpdb->get_var( "SELECT COALESCE(MAX(id),0) FROM {$wpdb->prefix}dishdash_orders WHERE is_test = 0" );
+        $max_res_id   = (int) $wpdb->get_var( "SELECT COALESCE(MAX(id),0) FROM {$wpdb->prefix}dishdash_reservations" );
+
+        $this->json_success( [
+            'new_orders'       => $new_orders,
+            'new_reservations' => $new_reservations,
+            'max_order_id'     => $max_order_id,
+            'max_res_id'       => $max_res_id,
+        ] );
     }
 
     // ─────────────────────────────────────────

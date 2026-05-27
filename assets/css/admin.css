@@ -926,3 +926,68 @@
     transition: opacity .15s;
 }
 .dd-stale-bulk-btn:hover { opacity: .85; }
+
+/* ── Notification opt-in banner ─────────────────────────────────────────────── */
+#dd-notif-banner {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX( -50% );
+    background: #111;
+    color: #fff;
+    padding: 14px 20px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 999999;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    font-size: 13px;
+    max-width: 600px;
+    width: calc(100% - 48px);
+}
+.dd-notif-banner-text { flex: 1; line-height: 1.4; }
+.dd-notif-btn-enable {
+    background: var(--dd-brand);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.dd-notif-btn-enable:hover { opacity: .85; }
+.dd-notif-btn-dismiss {
+    background: none;
+    color: #9ca3af;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.dd-notif-btn-dismiss:hover { color: #fff; }
+
+/* ── Admin menu notification badge ──────────────────────────────────────────── */
+.dd-menu-badge {
+    display: inline-block;
+    background: #dc2626;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    line-height: 18px;
+    text-align: center;
+    border-radius: 9px;
+    padding: 0 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
