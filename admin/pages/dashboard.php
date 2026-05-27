@@ -291,10 +291,10 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <div class="dd-kpi-top">
         <span class="dashicons dashicons-clock" style="color:#D97706" aria-hidden="true"></span>
         <?php if ( $kpi_pending > 0 ) : ?>
-          <span class="dd-kpi-badge dd-badge-warn"><?php echo $kpi_pending; ?> pending</span>
+          <span class="dd-kpi-badge dd-badge-warn"><?php echo $kpi_pending; ?> need action</span>
         <?php endif; ?>
       </div>
-      <div class="dd-kpi-label">Pending Orders</div>
+      <div class="dd-kpi-label">Active Orders</div>
       <div class="dd-kpi-value"><?php echo $kpi_pending; ?></div>
     </div>
 
