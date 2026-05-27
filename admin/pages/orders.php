@@ -49,29 +49,83 @@ if ( isset( $_POST['dd_update_order_status'] ) && ! isset( $_POST['_wpnonce'] ) 
     } );
 }
 
+// ── Handle bulk status + test flag updates ────────────────────────────────────
+if (
+    isset( $_POST['dd_bulk_action'] ) &&
+    isset( $_POST['dd_bulk_order_ids'] ) &&
+    check_admin_referer( 'dd_bulk_orders' )
+) {
+    $action    = sanitize_key( $_POST['dd_bulk_action'] );
+    $order_ids = array_map( 'absint', (array) $_POST['dd_bulk_order_ids'] );
+    $order_ids = array_filter( $order_ids );
+
+    if ( ! empty( $order_ids ) ) {
+        $placeholders = implode( ',', array_fill( 0, count( $order_ids ), '%d' ) );
+
+        if ( $action === 'mark_test' ) {
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE `{$wpdb->prefix}dishdash_orders` SET is_test = 1, updated_at = NOW() WHERE id IN ({$placeholders})",
+                ...$order_ids
+            ) );
+        } elseif ( $action === 'unmark_test' ) {
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE `{$wpdb->prefix}dishdash_orders` SET is_test = 0, updated_at = NOW() WHERE id IN ({$placeholders})",
+                ...$order_ids
+            ) );
+        } else {
+            $allowed = [ 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
+            if ( in_array( $action, $allowed, true ) ) {
+                $wpdb->query( $wpdb->prepare(
+                    "UPDATE `{$wpdb->prefix}dishdash_orders` SET status = %s, updated_at = NOW() WHERE id IN ({$placeholders})",
+                    $action, ...$order_ids
+                ) );
+            }
+        }
+    }
+
+    $redirect = add_query_arg(
+        'status',
+        sanitize_key( $_POST['current_status_filter'] ?? 'all' ),
+        admin_url( 'admin.php?page=dish-dash-orders' )
+    );
+    wp_safe_redirect( $redirect );
+    exit;
+}
+
 // ── Status filter ─────────────────────────────────────────────────────────────
 $status_filter = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : 'all';
-$allowed = [ 'all', 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
+$allowed = [ 'all', 'pending', 'confirmed', 'ready', 'delivered', 'cancelled', 'test' ];
 if ( ! in_array( $status_filter, $allowed, true ) ) $status_filter = 'all';
 
 // ── Summary stats ─────────────────────────────────────────────────────────────
-$total_orders  = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}`" );
-$total_revenue = (float) $wpdb->get_var( "SELECT COALESCE(SUM(total),0) FROM `{$ot}`" );
-$total_pending = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','processing')" );
+$total_orders  = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 0" );
+$total_revenue = (float) $wpdb->get_var( "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE is_test = 0" );
+$total_pending = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','processing') AND is_test = 0" );
 $total_today   = (int)   $wpdb->get_var( $wpdb->prepare(
     "SELECT COUNT(*) FROM `{$ot}` WHERE DATE(created_at) = %s",
     current_time( 'Y-m-d' )
 ) );
 
 // ── Orders query ──────────────────────────────────────────────────────────────
-if ( $status_filter !== 'all' ) {
+if ( $status_filter === 'test' ) {
+    $orders = $wpdb->get_results(
+        "SELECT * FROM `{$ot}` WHERE is_test = 1
+         ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
+         LIMIT 100",
+        ARRAY_A
+    );
+} elseif ( $status_filter !== 'all' ) {
     $orders = $wpdb->get_results( $wpdb->prepare(
-        "SELECT * FROM `{$ot}` WHERE status = %s ORDER BY FIELD(status, 'pending', 'confirmed', 'ready', 'out_for_delivery', 'delivered', 'cancelled') ASC, created_at ASC LIMIT 100",
+        "SELECT * FROM `{$ot}` WHERE status = %s AND is_test = 0
+         ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
+         LIMIT 100",
         $status_filter
     ), ARRAY_A );
 } else {
     $orders = $wpdb->get_results(
-        "SELECT * FROM `{$ot}` ORDER BY FIELD(status, 'pending', 'confirmed', 'ready', 'out_for_delivery', 'delivered', 'cancelled') ASC, created_at ASC LIMIT 100",
+        "SELECT * FROM `{$ot}` WHERE is_test = 0
+         ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
+         LIMIT 100",
         ARRAY_A
     );
 }
@@ -79,12 +133,13 @@ if ( $status_filter !== 'all' ) {
 // ── Per-status counts for filter tabs ─────────────────────────────────────────
 $status_counts = [];
 $counts_raw = $wpdb->get_results(
-    "SELECT status, COUNT(*) as cnt FROM `{$ot}` GROUP BY status",
+    "SELECT status, COUNT(*) as cnt FROM `{$ot}` WHERE is_test = 0 GROUP BY status",
     ARRAY_A
 );
 foreach ( $counts_raw as $row ) {
     $status_counts[ $row['status'] ] = (int) $row['cnt'];
 }
+$test_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 1" );
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function dd_orders_status_badge( $status ) {
@@ -115,6 +170,7 @@ $filter_tabs = [
     'ready'     => 'Ready',
     'delivered' => 'Delivered',
     'cancelled' => 'Cancelled',
+    'test'      => 'Test',
 ];
 
 // Load riders for Ready → Notify Rider buttons
@@ -181,9 +237,9 @@ foreach ( $orders as $o ) {
     <?php foreach ( $filter_tabs as $key => $lbl ) :
       $active = $status_filter === $key ? 'dd-tab-active' : '';
       $url    = esc_url( add_query_arg( 'status', $key, $current_url ) );
-      $count  = $key === 'all'
-          ? $total_orders
-          : ( $status_counts[ $key ] ?? 0 );
+      $count = $key === 'all'  ? $total_orders
+             : ( $key === 'test' ? $test_count
+             : ( $status_counts[ $key ] ?? 0 ) );
     ?>
       <a href="<?php echo $url; ?>" class="dd-tab-btn <?php echo $active; ?>">
         <?php echo esc_html( $lbl ); ?>
@@ -195,13 +251,37 @@ foreach ( $orders as $o ) {
   </div>
 
   <!-- ── Orders table ───────────────────────────────────────────────────── -->
-  <div class="dd-orders-card">
+  <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" id="dd-bulk-form">
+    <?php wp_nonce_field( 'dd_bulk_orders' ); ?>
+    <input type="hidden" name="current_status_filter" value="<?php echo esc_attr( $status_filter ); ?>">
+    <input type="hidden" name="dd_bulk_action" id="dd-bulk-action-input" value="">
+
+    <!-- Bulk action bar (hidden until rows selected) -->
+    <div class="dd-bulk-bar" id="dd-bulk-bar" style="display:none">
+        <span class="dd-bulk-count" id="dd-bulk-count">0 selected</span>
+        <select class="dd-bulk-select" id="dd-bulk-select">
+            <option value="">Change status to...</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="ready">Ready</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="mark_test">Mark as Test</option>
+            <option value="unmark_test">Remove Test flag</option>
+        </select>
+        <button type="button" class="dd-bulk-apply" id="dd-bulk-apply">Apply</button>
+        <button type="button" class="dd-bulk-clear" id="dd-bulk-clear">Clear</button>
+    </div>
+
+    <div class="dd-orders-card">
     <?php if ( empty( $orders ) ) : ?>
       <p class="dd-orders-empty">No orders found.</p>
     <?php else : ?>
       <table class="dd-orders-table">
         <thead>
           <tr>
+            <th class="dd-col-check">
+                <input type="checkbox" id="dd-check-all" class="dd-check">
+            </th>
             <th>Order</th>
             <th>Customer</th>
             <th>Type</th>
@@ -216,6 +296,11 @@ foreach ( $orders as $o ) {
             $order_num = ! empty( $o['order_number'] ) ? $o['order_number'] : 'DD-' . str_pad( $o['id'], 5, '0', STR_PAD_LEFT );
           ?>
           <tr data-order-id="<?php echo (int) $o['id']; ?>" style="cursor:pointer" class="dd-order-row">
+            <td class="dd-col-check" onclick="event.stopPropagation()">
+              <input type="checkbox" name="dd_bulk_order_ids[]"
+                value="<?php echo (int) $o['id']; ?>"
+                class="dd-row-check dd-check">
+            </td>
             <td class="dd-orders-col-id">
               <span class="dd-order-num"><?php echo esc_html( $order_num ); ?></span>
             </td>
@@ -234,6 +319,9 @@ foreach ( $orders as $o ) {
             </td>
             <td class="dd-orders-col-status dd-status-badge-cell">
               <?php echo dd_orders_status_badge( $o['status'] ); ?>
+              <?php if ( ! empty( $o['is_test'] ) ) : ?>
+                <span class="dd-test-badge">Test</span>
+              <?php endif; ?>
             </td>
             <td class="dd-orders-col-date">
               <?php echo esc_html( date( 'd M Y H:i', strtotime( $o['created_at'] ) ) ); ?>
@@ -246,7 +334,8 @@ foreach ( $orders as $o ) {
         </tbody>
       </table>
     <?php endif; ?>
-  </div>
+    </div><!-- /.dd-orders-card -->
+  </form>
 
 <script>
 window.ddOrdersData = {
@@ -533,6 +622,63 @@ window.ddOrdersData = {
         return '<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;background:' + s[1] + ';color:' + s[2] + '">' + s[0] + '</span>';
     }
 
+} )();
+</script>
+
+<script>
+( function () {
+    var checkAll  = document.getElementById( 'dd-check-all' );
+    var bulkBar   = document.getElementById( 'dd-bulk-bar' );
+    var bulkCount = document.getElementById( 'dd-bulk-count' );
+    var bulkApply = document.getElementById( 'dd-bulk-apply' );
+    var bulkClear = document.getElementById( 'dd-bulk-clear' );
+    var bulkSel   = document.getElementById( 'dd-bulk-select' );
+    var actionInp = document.getElementById( 'dd-bulk-action-input' );
+    var form      = document.getElementById( 'dd-bulk-form' );
+
+    function getChecked() {
+        return document.querySelectorAll( '.dd-row-check:checked' );
+    }
+
+    function updateBar() {
+        var checked = getChecked().length;
+        bulkBar.style.display = checked > 0 ? 'flex' : 'none';
+        bulkCount.textContent = checked + ' order' + ( checked !== 1 ? 's' : '' ) + ' selected';
+        if ( checkAll ) checkAll.indeterminate = checked > 0 && checked < document.querySelectorAll( '.dd-row-check' ).length;
+        if ( checkAll ) checkAll.checked = checked > 0 && checked === document.querySelectorAll( '.dd-row-check' ).length;
+    }
+
+    if ( checkAll ) {
+        checkAll.addEventListener( 'change', function () {
+            document.querySelectorAll( '.dd-row-check' ).forEach( function ( cb ) {
+                cb.checked = checkAll.checked;
+            } );
+            updateBar();
+        } );
+    }
+
+    document.querySelectorAll( '.dd-row-check' ).forEach( function ( cb ) {
+        cb.addEventListener( 'change', updateBar );
+    } );
+
+    if ( bulkApply ) {
+        bulkApply.addEventListener( 'click', function () {
+            var action = bulkSel.value;
+            if ( ! action ) { alert( 'Please select an action.' ); return; }
+            if ( getChecked().length === 0 ) { alert( 'Please select at least one order.' ); return; }
+            if ( ! confirm( 'Apply "' + bulkSel.options[ bulkSel.selectedIndex ].text + '" to ' + getChecked().length + ' orders?' ) ) return;
+            actionInp.value = action;
+            form.submit();
+        } );
+    }
+
+    if ( bulkClear ) {
+        bulkClear.addEventListener( 'click', function () {
+            document.querySelectorAll( '.dd-row-check' ).forEach( function ( cb ) { cb.checked = false; } );
+            if ( checkAll ) checkAll.checked = false;
+            updateBar();
+        } );
+    }
 } )();
 </script>
 

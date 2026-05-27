@@ -20,6 +20,7 @@ if (
         "UPDATE `{$wpdb->prefix}dishdash_orders`
          SET status = 'delivered', updated_at = NOW()
          WHERE status NOT IN ('delivered','cancelled')
+         AND is_test = 0
          AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
     );
     wp_safe_redirect( admin_url( 'admin.php?page=dish-dash' ) );
@@ -57,16 +58,16 @@ $rt = $wpdb->prefix . 'dishdash_reservations';
 
 // ── KPI queries ───────────────────────────────────────────────────────────────
 $kpi_orders   = (int)   $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE created_at >= %s", $since
+    "SELECT COUNT(*) FROM `{$ot}` WHERE created_at >= %s AND is_test = 0", $since
 ) );
 $kpi_revenue  = (float) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s", $since
+    "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0", $since
 ) );
 $kpi_pending  = (int)   $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','processing')"
+    "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','processing') AND is_test = 0"
 );
 $kpi_delivered = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s", $since
+    "SELECT COUNT(*) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0", $since
 ) );
 $kpi_aov = $kpi_delivered > 0 ? round( $kpi_revenue / $kpi_delivered ) : 0;
 $kpi_new_cust = (int)   $wpdb->get_var( $wpdb->prepare(
@@ -81,7 +82,7 @@ $kpi_res      = (int)   $wpdb->get_var( $wpdb->prepare(
 if ( $range === 'today' ) {
     $chart_rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT HOUR(created_at) as period, COALESCE(SUM(total),0) as revenue
-         FROM `{$ot}` WHERE status = 'delivered' AND DATE(created_at) = %s
+         FROM `{$ot}` WHERE status = 'delivered' AND DATE(created_at) = %s AND is_test = 0
          GROUP BY HOUR(created_at) ORDER BY period ASC",
         $today_date
     ), ARRAY_A );
@@ -89,7 +90,7 @@ if ( $range === 'today' ) {
 } else {
     $chart_rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT DATE(created_at) as period, COALESCE(SUM(total),0) as revenue
-         FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s
+         FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0
          GROUP BY DATE(created_at) ORDER BY period ASC",
         $since
     ), ARRAY_A );
@@ -100,7 +101,7 @@ $chart_revenue = array_column( $chart_rows, 'revenue' );
 // ── Recent orders ─────────────────────────────────────────────────────────────
 $recent_orders = $wpdb->get_results(
     "SELECT id, customer_name, total, status, created_at
-     FROM `{$ot}` ORDER BY created_at DESC LIMIT 6",
+     FROM `{$ot}` WHERE is_test = 0 ORDER BY created_at DESC LIMIT 6",
     ARRAY_A
 );
 
@@ -120,6 +121,7 @@ if ( $table_exists ) {
         "SELECT oi.item_name as product_name, COUNT(*) as cnt
          FROM `{$items_table}` oi
          JOIN `{$ot}` o ON o.id = oi.order_id
+         WHERE o.is_test = 0
          GROUP BY oi.item_name
          ORDER BY cnt DESC LIMIT 5",
         ARRAY_A
@@ -142,6 +144,7 @@ $stale_orders = $wpdb->get_results(
     "SELECT id, customer_name, status, updated_at
      FROM `{$ot}`
      WHERE status NOT IN ('delivered', 'cancelled')
+     AND is_test = 0
      AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)
      ORDER BY updated_at ASC
      LIMIT 10",

@@ -848,6 +848,70 @@
 }
 .dd-order-row:hover td:first-child { color: var(--dd-brand); }
 
+/* ── Bulk action bar ─────────────────────────────────────────────────────────── */
+.dd-bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #111;
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.dd-bulk-count { font-size: 13px; font-weight: 500; flex: 1; }
+.dd-bulk-select {
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #222;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+}
+.dd-bulk-apply {
+    background: var(--dd-brand);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.dd-bulk-apply:hover { opacity: .85; }
+.dd-bulk-clear {
+    background: none;
+    color: #aaa;
+    border: 1px solid #444;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.dd-bulk-clear:hover { color: #fff; }
+
+/* Checkbox column */
+.dd-col-check { width: 40px; text-align: center; padding: 0 8px !important; }
+.dd-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--dd-brand); }
+
+/* Test badge */
+.dd-test-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 /* Stale bulk action button */
 .dd-stale-bulk-btn {
     background: #D97706;

@@ -76,6 +76,7 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_get_order',      [ $this, 'ajax_get_order' ] );
         DD_Ajax::register( 'dd_cancel_order',   [ $this, 'ajax_cancel_order' ] );
         DD_Ajax::register( 'dd_update_status',  [ $this, 'ajax_update_status' ], false );
+        DD_Ajax::register( 'dd_toggle_test',    [ $this, 'ajax_toggle_test' ],   false );
 
         // WooCommerce bridge — sync payment status
         add_action( 'woocommerce_order_status_completed', [ $this, 'wc_payment_completed' ] );
@@ -844,6 +845,28 @@ class DD_Orders_Module extends DD_Module {
         }
 
         $this->json_success( [ 'status' => $new_status ], __( 'Status updated.', 'dish-dash' ) );
+    }
+
+    public function ajax_toggle_test(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_orders' ) ) {
+            $this->json_error( __( 'Permission denied.', 'dish-dash' ), 403 );
+        }
+
+        global $wpdb;
+        $order_id = absint( $_POST['order_id'] ?? 0 );
+        $is_test  = (int) ( $_POST['is_test'] ?? 0 );
+
+        $wpdb->update(
+            $wpdb->prefix . 'dishdash_orders',
+            [ 'is_test' => $is_test ? 1 : 0 ],
+            [ 'id' => $order_id ],
+            [ '%d' ],
+            [ '%d' ]
+        );
+
+        $this->json_success( [ 'is_test' => $is_test ] );
     }
 
     // ─────────────────────────────────────────

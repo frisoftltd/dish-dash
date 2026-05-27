@@ -98,12 +98,14 @@ class DD_Install {
             table_id        BIGINT                DEFAULT NULL,
             created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            is_test         TINYINT(1) NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
             UNIQUE KEY order_number (order_number),
             KEY branch_id (branch_id),
             KEY customer_id (customer_id),
             KEY status (status),
-            KEY created_at (created_at)
+            KEY created_at (created_at),
+            KEY is_test (is_test)
         ) $charset;" );
 
         // ── Order Items ───────────────────────────────────────────────────────
