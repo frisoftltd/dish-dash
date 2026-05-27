@@ -64,7 +64,7 @@ $kpi_revenue  = (float) $wpdb->get_var( $wpdb->prepare(
     "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0", $since
 ) );
 $kpi_pending  = (int)   $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','processing') AND is_test = 0"
+    "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','confirmed','ready') AND is_test = 0"
 );
 $kpi_delivered = (int) $wpdb->get_var( $wpdb->prepare(
     "SELECT COUNT(*) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0", $since
