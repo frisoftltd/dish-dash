@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.64 (2026-05-27)
+> Last updated: v3.4.65 (2026-05-27)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.64 |
+| **Deployed version** | v3.4.65 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.65 — Tables + Seating Sections redesign |
-| **Last working state** | is_test column added to orders; bulk status action on orders page; test orders excluded from all dashboard/orders KPIs and queries; Test filter tab; Test badge on order rows. Post-deploy WP-CLI required: DD_Install::create_tables(). |
+| **Next task** | v3.4.66 — Tables + Seating Sections redesign |
+| **Last working state** | View button fixed: type="button" prevents bulk form submission, stopPropagation prevents row click double-fire. Modal no longer disappears on View click. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -510,7 +510,8 @@ Every page before shipping must pass:
 | **v3.4.62** | ✅ **Done** | **Add View button to order rows, fix WP right padding dead zone** |
 | **v3.4.63** | ✅ **Done** | **Top Items all-time query, stale bulk deliver button, recent orders rows clickable** |
 | **v3.4.64** | ✅ **Done** | **Test order flag (is_test), bulk status change, test orders excluded from all reports** |
-| v3.4.65 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.65** | ✅ **Done** | **Fix View button: type="button" + stopPropagation prevents modal disappearing** |
+| v3.4.66 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -327,7 +327,7 @@ foreach ( $orders as $o ) {
               <?php echo esc_html( date( 'd M Y H:i', strtotime( $o['created_at'] ) ) ); ?>
             </td>
             <td class="dd-orders-col-view">
-              <button class="dd-btn-view">View →</button>
+              <button type="button" class="dd-btn-view" onclick="event.stopPropagation()">View →</button>
             </td>
           </tr>
           <?php endforeach; ?>
