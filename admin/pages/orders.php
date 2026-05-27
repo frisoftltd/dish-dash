@@ -622,6 +622,7 @@ window.ddOrdersData = {
         return '<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;background:' + s[1] + ';color:' + s[2] + '">' + s[0] + '</span>';
     }
 
+    window.openModal = openModal;
 } )();
 </script>
 
