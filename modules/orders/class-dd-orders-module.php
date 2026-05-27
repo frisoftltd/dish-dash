@@ -840,10 +840,6 @@ class DD_Orders_Module extends DD_Module {
         $new_status = sanitize_text_field( $_POST['status'] ?? '' );
         $result     = $this->update_status( $order_id, $new_status );
 
-        // DEBUG
-        $order = $this->get_order( $order_id );
-        error_log( 'DD UPDATE STATUS DEBUG: order_id=' . $order_id . ' new_status=' . $new_status . ' order_status=' . ( $order ? $order->status : 'NOT FOUND' ) . ' result=' . ( $result ? 'true' : 'false' ) );
-
         if ( ! $result ) {
             $this->json_error( __( 'Cannot update status.', 'dish-dash' ) );
         }

@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.68 (2026-05-27)
+> Last updated: v3.4.69 (2026-05-27)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.68 |
+| **Deployed version** | v3.4.69 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.69 — Tables + Seating Sections redesign |
-| **Last working state** | Pending Orders KPI now counts pending + confirmed + ready — all orders needing action. |
+| **Next task** | v3.4.70 — Tables + Seating Sections redesign |
+| **Last working state** | Modal re-renders using local state (currentOrder/currentItems) after status change — no re-fetch, no caching delay. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -514,7 +514,8 @@ Every page before shipping must pass:
 | **v3.4.66** | ✅ **Done** | **Fix View button calling openModal() directly with order ID** |
 | **v3.4.67** | ✅ **Done** | **Expose openModal to global scope for View button inline onclick** |
 | **v3.4.68** | ✅ **Done** | **Fix Pending Orders KPI to include confirmed and ready statuses** |
-| v3.4.69 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.69** | ✅ **Done** | **Fix modal re-render using local state instead of re-fetching** |
+| v3.4.70 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

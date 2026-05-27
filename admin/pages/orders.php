@@ -396,6 +396,8 @@ window.ddOrdersData = {
     var modalActions = document.getElementById( 'dd-modal-actions' );
     var modalLoading = document.getElementById( 'dd-modal-loading' );
     var currentOrderId = null;
+    var currentOrder   = null;
+    var currentItems   = [];
     var LS_KITCHEN   = 'dd_kitchen_notified_';
     var LS_RIDER     = 'dd_rider_notified_';
 
@@ -450,6 +452,8 @@ window.ddOrdersData = {
     }
 
     function renderModal( order, items ) {
+        currentOrder = order;
+        currentItems = items;
         var id      = order.id;
         var orderNum = order.order_number || ( 'DD-' + String( id ).padStart( 5, '0' ) );
         var date    = new Date( order.created_at ).toLocaleDateString( 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' } );
@@ -582,8 +586,9 @@ window.ddOrdersData = {
                         closeModal();
                         window.location.reload();
                     } else {
-                        // Re-fetch and re-render modal with new status
-                        fetchOrder( currentOrderId );
+                        // Update local order object and re-render without re-fetching
+                        currentOrder.status = newStatus;
+                        renderModal( currentOrder, currentItems );
                     }
                 }
             } )
