@@ -405,7 +405,7 @@ window.ddOrdersData = {
         }
 
         if ( status === 'confirmed' ) {
-            var kitchenNotified = localStorage.getItem( LS_KITCHEN + id ) === '1';
+            var kitchenNotified = localStorage.getItem( LS_KITCHEN + String( id ) ) === '1';
             if ( waUrls.kitchen ) {
                 actionsHtml += '<a href="' + esc( waUrls.kitchen ) + '" target="_blank" class="dd-btn dd-btn-whatsapp dd-modal-notify-kitchen" data-order-id="' + id + '">📲 Notify Kitchen</a>';
             }
@@ -415,7 +415,7 @@ window.ddOrdersData = {
         }
 
         if ( status === 'ready' ) {
-            var riderNotified = localStorage.getItem( LS_RIDER + id ) === '1';
+            var riderNotified = localStorage.getItem( LS_RIDER + String( id ) ) === '1';
             ( waUrls.riders || [] ).forEach( function ( rider ) {
                 actionsHtml += '<a href="' + esc( rider.url ) + '" target="_blank" class="dd-btn dd-btn-whatsapp dd-modal-notify-rider" data-order-id="' + id + '">🛵 ' + rider.name + '</a>';
             } );
@@ -443,7 +443,7 @@ window.ddOrdersData = {
         modalActions.querySelectorAll( '.dd-modal-notify-kitchen' ).forEach( function ( a ) {
             a.addEventListener( 'click', function () {
                 var oid = this.dataset.orderId;
-                localStorage.setItem( LS_KITCHEN + oid, '1' );
+                localStorage.setItem( LS_KITCHEN + String( oid ), '1' );
                 modalActions.querySelectorAll( '.dd-requires-kitchen' ).forEach( function ( b ) {
                     b.disabled = false;
                 } );
@@ -454,7 +454,7 @@ window.ddOrdersData = {
         modalActions.querySelectorAll( '.dd-modal-notify-rider' ).forEach( function ( a ) {
             a.addEventListener( 'click', function () {
                 var oid = this.dataset.orderId;
-                localStorage.setItem( LS_RIDER + oid, '1' );
+                localStorage.setItem( LS_RIDER + String( oid ), '1' );
                 modalActions.querySelectorAll( '.dd-requires-rider' ).forEach( function ( b ) {
                     b.disabled = false;
                 } );
@@ -483,14 +483,15 @@ window.ddOrdersData = {
                             badge.innerHTML = renderBadge( newStatus );
                         }
                     }
-                    // Clean up localStorage on terminal status
                     if ( newStatus === 'delivered' || newStatus === 'cancelled' ) {
                         localStorage.removeItem( LS_KITCHEN + orderId );
                         localStorage.removeItem( LS_RIDER + orderId );
+                        closeModal();
+                        window.location.reload();
+                    } else {
+                        // Re-fetch and re-render modal with new status
+                        fetchOrder( currentOrderId );
                     }
-                    closeModal();
-                    // Reload page to re-sort and update counts
-                    window.location.reload();
                 }
             } )
             .catch( function () { setLoading( false ); } );

@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.60 (2026-05-26)
+> Last updated: v3.4.61 (2026-05-26)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.60 |
+| **Deployed version** | v3.4.61 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.61 — Dashboard chart fix + remaining admin pages |
-| **Last working state** | Modal nonce fixed: dd_get_order uses dish_dash_frontend nonce, dd_update_status uses dish_dash_admin nonce. Both passed via ddOrdersData as `nonce` and `adminNonce` separately. |
+| **Next task** | v3.4.62 — Dashboard chart fix + remaining admin pages |
+| **Last working state** | Modal stays open on status change; Mark Ready lock fix; orders table full width. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -506,7 +506,8 @@ Every page before shipping must pass:
 | **v3.4.58** | ✅ **Done** | **Order detail modal with AJAX status updates, remove form-based action buttons** |
 | **v3.4.59** | ✅ **Done** | **Fix modal nonce: dish_dash_frontend for get_order, dish_dash_admin for update_status** |
 | **v3.4.60** | ✅ **Done** | **Fix modal data rendering: unwrap double-nested AJAX response** |
-| v3.4.61 | ⏳ **NEXT** | Dashboard chart fix + remaining admin pages |
+| **v3.4.61** | ✅ **Done** | **Modal stays open on status change, Mark Ready lock fix, orders table full width** |
+| v3.4.62 | ⏳ **NEXT** | Dashboard chart fix + remaining admin pages |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
