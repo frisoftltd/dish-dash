@@ -815,4 +815,35 @@
 
 /* Clickable rows */
 .dd-order-row:hover { background: #fafafa; }
+
+/* Fix WP admin right padding on orders page */
+.dish-dash_page_dish-dash-orders #wpcontent {
+    padding-right: 0;
+}
+.dish-dash_page_dish-dash-orders #wpbody-content {
+    padding-bottom: 0;
+}
+
+/* View button */
+.dd-orders-col-view {
+    width: 80px;
+    text-align: right;
+    padding-right: 16px !important;
+}
+.dd-btn-view {
+    background: none;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all .15s;
+}
+.dd-order-row:hover .dd-btn-view {
+    border-color: var(--dd-brand);
+    color: var(--dd-brand);
+}
 .dd-order-row:hover td:first-child { color: var(--dd-brand); }

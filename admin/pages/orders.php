@@ -208,6 +208,7 @@ foreach ( $orders as $o ) {
             <th>Total</th>
             <th>Status</th>
             <th>Date</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -236,6 +237,9 @@ foreach ( $orders as $o ) {
             </td>
             <td class="dd-orders-col-date">
               <?php echo esc_html( date( 'd M Y H:i', strtotime( $o['created_at'] ) ) ); ?>
+            </td>
+            <td class="dd-orders-col-view">
+              <button class="dd-btn-view">View →</button>
             </td>
           </tr>
           <?php endforeach; ?>

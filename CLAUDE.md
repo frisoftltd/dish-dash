@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.61 (2026-05-26)
+> Last updated: v3.4.62 (2026-05-27)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.61 |
+| **Deployed version** | v3.4.62 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.62 — Dashboard chart fix + remaining admin pages |
-| **Last working state** | Modal stays open on status change; Mark Ready lock fix; orders table full width. |
+| **Next task** | v3.4.63 — Dashboard chart fix + remaining admin pages |
+| **Last working state** | View button column added to orders table; WP right padding dead zone fixed with dish-dash_page_dish-dash-orders body class selector. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -507,7 +507,8 @@ Every page before shipping must pass:
 | **v3.4.59** | ✅ **Done** | **Fix modal nonce: dish_dash_frontend for get_order, dish_dash_admin for update_status** |
 | **v3.4.60** | ✅ **Done** | **Fix modal data rendering: unwrap double-nested AJAX response** |
 | **v3.4.61** | ✅ **Done** | **Modal stays open on status change, Mark Ready lock fix, orders table full width** |
-| v3.4.62 | ⏳ **NEXT** | Dashboard chart fix + remaining admin pages |
+| **v3.4.62** | ✅ **Done** | **Add View button to order rows, fix WP right padding dead zone** |
+| v3.4.63 | ⏳ **NEXT** | Dashboard chart fix + remaining admin pages |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
