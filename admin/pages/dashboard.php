@@ -11,6 +11,21 @@ if ( ! current_user_can( 'manage_options' ) ) return;
 
 global $wpdb;
 
+// ── Bulk mark stale orders as Delivered ───────────────────────────────────────
+if (
+    isset( $_POST['dd_bulk_deliver_stale'] ) &&
+    check_admin_referer( 'dd_bulk_deliver_stale' )
+) {
+    $wpdb->query(
+        "UPDATE `{$wpdb->prefix}dishdash_orders`
+         SET status = 'delivered', updated_at = NOW()
+         WHERE status NOT IN ('delivered','cancelled')
+         AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+    );
+    wp_safe_redirect( admin_url( 'admin.php?page=dish-dash' ) );
+    exit;
+}
+
 // ── Date range filter ─────────────────────────────────────────────────────────
 $range   = isset( $_GET['dd_range'] ) ? sanitize_key( $_GET['dd_range'] ) : 'today';
 $allowed = [ 'today', '7days', '30days', 'all' ];
@@ -101,15 +116,14 @@ $items_table = $wpdb->prefix . 'dishdash_order_items';
 $table_exists = $wpdb->get_var( "SHOW TABLES LIKE '{$items_table}'" ) === $items_table;
 
 if ( $table_exists ) {
-    $top_items = $wpdb->get_results( $wpdb->prepare(
+    $top_items = $wpdb->get_results(
         "SELECT oi.item_name as product_name, COUNT(*) as cnt
          FROM `{$items_table}` oi
          JOIN `{$ot}` o ON o.id = oi.order_id
-         WHERE o.created_at >= %s
          GROUP BY oi.item_name
          ORDER BY cnt DESC LIMIT 5",
-        $since
-    ), ARRAY_A );
+        ARRAY_A
+    );
 } else {
     $top_items = [];
 }
@@ -214,6 +228,14 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       </div>
     </div>
     <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" class="dd-stale-action">View Orders →</a>
+    <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash' ) ); ?>" style="margin-left:auto;align-self:center;flex-shrink:0">
+        <?php wp_nonce_field( 'dd_bulk_deliver_stale' ); ?>
+        <input type="hidden" name="dd_bulk_deliver_stale" value="1">
+        <button type="submit" class="dd-stale-bulk-btn"
+            onclick="return confirm('Mark all stale orders as Delivered?')">
+            ✓ Mark all Delivered
+        </button>
+    </form>
   </div>
   <?php endif; ?>
 
@@ -326,7 +348,7 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
         <?php else : ?>
           <table class="dd-list-table">
             <?php foreach ( $recent_orders as $o ) : ?>
-            <tr>
+            <tr style="cursor:pointer" onclick="window.location='<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders&status=' . $o['status'] ) ); ?>'">
               <td class="dd-td-primary">
                 <span class="dd-list-name"><?php echo esc_html( $o['customer_name'] ); ?></span>
                 <span class="dd-list-meta"><?php echo dd_dash_time_ago( $o['created_at'] ); ?> &middot; #<?php echo (int) $o['id']; ?></span>

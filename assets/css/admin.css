@@ -847,3 +847,18 @@
     color: var(--dd-brand);
 }
 .dd-order-row:hover td:first-child { color: var(--dd-brand); }
+
+/* Stale bulk action button */
+.dd-stale-bulk-btn {
+    background: #D97706;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity .15s;
+}
+.dd-stale-bulk-btn:hover { opacity: .85; }
