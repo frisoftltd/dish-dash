@@ -119,20 +119,47 @@ class DD_Hooks {
      */
     private static function replace_admin_bar_logo(): void {
         add_action( 'admin_bar_menu', function( \WP_Admin_Bar $wp_admin_bar ) {
+            // Remove WP clutter from admin bar
             $wp_admin_bar->remove_node( 'wp-logo' );
+            $wp_admin_bar->remove_node( 'site-name' );
+            $wp_admin_bar->remove_node( 'comments' );
+            $wp_admin_bar->remove_node( 'new-content' );
+            $wp_admin_bar->remove_node( 'customize' );
+            $wp_admin_bar->remove_node( 'updates' );
+            $wp_admin_bar->remove_node( 'search' );
+            $wp_admin_bar->remove_node( 'wp-logo-external' );
 
+            // Add restaurant logo if set
             $logo_url = get_option( 'dish_dash_logo_url', '' );
-            if ( empty( $logo_url ) ) {
-                return;
+            if ( ! empty( $logo_url ) ) {
+                $wp_admin_bar->add_node( [
+                    'id'    => 'dd-restaurant-logo',
+                    'title' => '<img src="' . esc_url( $logo_url ) . '" '
+                             . 'alt="' . esc_attr( get_option( 'dish_dash_restaurant_name', 'Dish Dash' ) ) . '" '
+                             . 'style="height:28px;width:28px;object-fit:contain;vertical-align:middle;margin-top:-2px;display:inline-block;background:#fff;border-radius:50%;padding:3px;" />',
+                    'href'  => admin_url(),
+                    'meta'  => [ 'class' => 'dd-admin-bar-logo' ],
+                ] );
             }
 
+            // Add notification bell on the right side
             $wp_admin_bar->add_node( [
-                'id'    => 'dd-restaurant-logo',
-                'title' => '<img src="' . esc_url( $logo_url ) . '" '
-                         . 'alt="' . esc_attr( get_option( 'dish_dash_restaurant_name', 'Dish Dash' ) ) . '" '
-                         . 'style="height:28px;width:28px;object-fit:contain;vertical-align:middle;margin-top:-2px;display:inline-block;background:#fff;border-radius:50%;padding:3px;" />',
-                'href'  => admin_url(),
-                'meta'  => [ 'class' => 'dd-admin-bar-logo' ],
+                'id'    => 'dd-notifications',
+                'title' => '<span class="dd-bell-wrap">
+                                <span class="dd-bell-icon">🔔</span>
+                                <span class="dd-bell-badge" id="dd-bell-badge" style="display:none">0</span>
+                            </span>
+                            <div class="dd-bell-panel" id="dd-bell-panel" style="display:none">
+                                <div class="dd-bell-header">
+                                    <span>Notifications</span>
+                                    <button type="button" id="dd-bell-mark-read">Mark all read</button>
+                                </div>
+                                <div class="dd-bell-items" id="dd-bell-items">
+                                    <p class="dd-bell-empty">No new notifications</p>
+                                </div>
+                            </div>',
+                'href'  => '#',
+                'meta'  => [ 'class' => 'dd-notif-node' ],
             ] );
         }, 999 );
     }
@@ -263,128 +290,123 @@ class DD_Hooks {
      * page background, buttons. Colors pulled from wp_options so they
      * update automatically when the restaurant changes their branding.
      */
-    private static function style_admin_area(): void {
+    public static function style_admin_area(): void {
         add_action( 'admin_enqueue_scripts', function() {
-            $brand_color = get_option( 'dish_dash_primary_color', '#65040d' );
-            $bg_color    = get_option( 'dish_dash_background_color', '#F5EFE6' );
+            $primary = sanitize_hex_color( get_option( 'dish_dash_primary_color', '#65040d' ) );
             ?>
             <style>
-                /* ── CSS Variables ───────────────────────────── */
-                body.wp-admin {
-                    --dd-brand:       <?php echo esc_attr( $brand_color ); ?>;
-                    --dd-brand-light: <?php echo esc_attr( $brand_color ); ?>1a;
-                    --dd-bg:          <?php echo esc_attr( $bg_color ); ?>;
-                }
-
-                /* ── Inter font ──────────────────────────────── */
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-                body.wp-admin, body.wp-admin * {
-                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
-                }
-
-                /* ── Admin bar ───────────────────────────────── */
+                /* Admin bar — clean DishDash style */
                 #wpadminbar {
-                    background: var(--dd-brand) !important;
+                    background: <?php echo $primary; ?> !important;
                 }
                 #wpadminbar .ab-item,
                 #wpadminbar a.ab-item,
-                #wpadminbar .ab-label,
-                #wpadminbar .howdy {
-                    color: #fff !important;
+                #wpadminbar .ab-label {
+                    color: rgba(255,255,255,0.9) !important;
                 }
-                #wpadminbar .ab-top-menu > li:hover > .ab-item,
-                #wpadminbar .ab-top-menu > li.hover > .ab-item {
+                #wpadminbar .ab-item:hover,
+                #wpadminbar a.ab-item:hover {
                     background: rgba(0,0,0,0.15) !important;
                     color: #fff !important;
                 }
-
-                /* ── Sidebar ─────────────────────────────────── */
-                #adminmenuwrap,
-                #adminmenuback,
-                #adminmenu {
-                    background: #1a1a1a !important;
+                /* Hide remaining WP icons we don't want */
+                #wp-admin-bar-my-account .avatar { border-radius: 50%; }
+                #wpadminbar #wp-admin-bar-dd-restaurant-logo img {
+                    height: 28px;
+                    width: auto;
+                    margin-top: 6px;
                 }
-                #adminmenu a,
-                #adminmenu .wp-menu-name {
-                    color: rgba(255,255,255,0.7) !important;
-                    font-size: 13px !important;
-                    font-weight: 500 !important;
+                /* Bell notification node */
+                #wpadminbar #wp-admin-bar-dd-notifications {
+                    position: relative;
                 }
-                #adminmenu .current a.menu-top,
-                #adminmenu .wp-has-current-submenu a.wp-has-current-submenu,
-                #adminmenu a.current {
-                    background: var(--dd-brand) !important;
-                    color: #fff !important;
+                #wpadminbar #wp-admin-bar-dd-notifications > .ab-item {
+                    padding: 0 12px !important;
                 }
-                #adminmenu .current div.wp-menu-image:before,
-                #adminmenu .wp-has-current-submenu div.wp-menu-image:before {
-                    color: #fff !important;
+                .dd-bell-wrap {
+                    position: relative;
+                    display: inline-flex;
+                    align-items: center;
                 }
-                #adminmenu li.menu-top:hover > a,
-                #adminmenu li.opensub > a.menu-top {
-                    background: rgba(255,255,255,0.07) !important;
-                    color: #fff !important;
+                .dd-bell-icon { font-size: 16px; line-height: 32px; }
+                .dd-bell-badge {
+                    position: absolute;
+                    top: 4px;
+                    right: -6px;
+                    background: #dc2626;
+                    color: #fff;
+                    font-size: 10px;
+                    font-weight: 700;
+                    min-width: 16px;
+                    height: 16px;
+                    line-height: 16px;
+                    text-align: center;
+                    border-radius: 8px;
+                    padding: 0 3px;
+                    box-sizing: border-box;
                 }
-                #adminmenu .menu-icon-dashboard div.wp-menu-image:before,
-                #adminmenu a .wp-menu-image:before {
-                    color: rgba(255,255,255,0.5) !important;
-                }
-                #adminmenu .wp-has-current-submenu .wp-submenu,
-                #adminmenu .wp-has-current-submenu.opensub .wp-submenu {
-                    background: #111 !important;
-                }
-                #adminmenu .wp-submenu a {
-                    color: rgba(255,255,255,0.6) !important;
-                }
-                #adminmenu .wp-submenu a:hover,
-                #adminmenu .wp-submenu .current a {
-                    color: #fff !important;
-                }
-
-                /* ── Page background ─────────────────────────── */
-                #wpcontent, #wpfooter {
-                    background: #f8f8f8 !important;
-                }
-                #wpfooter {
-                    border-top: 1px solid #e5e5e5;
-                }
-                #wpfooter a, #wpfooter #footer-thankyou {
-                    color: #aaa !important;
-                    font-size: 12px !important;
-                }
-
-                /* ── Content area ────────────────────────────── */
-                #wpbody-content {
-                    padding: 24px !important;
-                }
-
-                /* ── Primary buttons ─────────────────────────── */
-                .button-primary {
-                    background: var(--dd-brand) !important;
-                    border-color: var(--dd-brand) !important;
-                    color: #fff !important;
-                    border-radius: 8px !important;
-                    font-weight: 500 !important;
-                }
-                .button-primary:hover {
-                    filter: brightness(0.88) !important;
-                }
-
-                /* ── Card system ─────────────────────────────── */
-                .dd-card {
-                    background: #ffffff;
+                /* Bell dropdown panel */
+                .dd-bell-panel {
+                    position: fixed;
+                    top: 46px;
+                    right: 120px;
+                    width: 340px;
+                    background: #fff;
                     border-radius: 12px;
-                    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-                    padding: 24px;
+                    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+                    z-index: 999999;
+                    overflow: hidden;
+                    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
                 }
-
-                /* ── Typography tokens ───────────────────────── */
-                .dd-page-title    { font-size: 20px; font-weight: 600; color: #111; }
-                .dd-section-title { font-size: 16px; font-weight: 600; color: #111; }
-                .dd-body          { font-size: 14px; font-weight: 400; color: #444; }
-                .dd-label         { font-size: 12px; font-weight: 500; color: #888;
-                                    text-transform: uppercase; letter-spacing: 0.5px; }
-                .dd-kpi           { font-size: 30px; font-weight: 700; color: #111; }
+                .dd-bell-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 14px 16px;
+                    border-bottom: 1px solid #f3f4f6;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: #111;
+                }
+                .dd-bell-header button {
+                    background: none;
+                    border: none;
+                    font-size: 12px;
+                    color: #9ca3af;
+                    cursor: pointer;
+                    padding: 0;
+                }
+                .dd-bell-header button:hover { color: #374151; }
+                .dd-bell-items { max-height: 360px; overflow-y: auto; }
+                .dd-bell-item {
+                    display: flex;
+                    flex-direction: column;
+                    padding: 12px 16px;
+                    border-bottom: 1px solid #f9fafb;
+                    cursor: pointer;
+                    transition: background .1s;
+                    text-decoration: none;
+                }
+                .dd-bell-item:hover { background: #f9fafb; }
+                .dd-bell-item-title {
+                    font-size: 13px;
+                    font-weight: 500;
+                    color: #111;
+                    margin-bottom: 2px;
+                }
+                .dd-bell-item-meta {
+                    font-size: 11px;
+                    color: #9ca3af;
+                }
+                .dd-bell-item.dd-unread { background: #fefce8; }
+                .dd-bell-item.dd-unread:hover { background: #fef9c3; }
+                .dd-bell-empty {
+                    padding: 24px 16px;
+                    text-align: center;
+                    color: #9ca3af;
+                    font-size: 13px;
+                    margin: 0;
+                }
             </style>
             <?php
         } );

@@ -18,51 +18,69 @@
 
     var LS_ORDER_ID   = 'dd_last_order_id';
     var LS_RES_ID     = 'dd_last_res_id';
-    var LS_NOTIF_OPT  = 'dd_notif_opted_in';
     var LS_NOTIF_INIT = 'dd_notif_initialised';
-    var badge         = document.getElementById( 'dd-menu-badge' );
+    var badge         = document.getElementById( 'dd-bell-badge' );
+    var bellPanel     = document.getElementById( 'dd-bell-panel' );
+    var bellItems     = document.getElementById( 'dd-bell-items' );
+    var notifications = [];
     var unreadCount   = 0;
 
-    // Show opt-in banner if not yet opted in and not dismissed
-    if ( ! localStorage.getItem( LS_NOTIF_OPT ) ) {
-        showOptInBanner();
-    } else {
-        initPolling();
-    }
-
-    function showOptInBanner() {
-        var banner = document.createElement( 'div' );
-        banner.id        = 'dd-notif-banner';
-        banner.innerHTML =
-            '<span class="dd-notif-banner-text">🔔 Enable notifications to get alerted when new orders or reservations arrive</span>'
-            + '<button type="button" id="dd-notif-enable" class="dd-notif-btn-enable">Enable</button>'
-            + '<button type="button" id="dd-notif-dismiss" class="dd-notif-btn-dismiss">Not now</button>';
-        document.body.appendChild( banner );
-
-        document.getElementById( 'dd-notif-enable' ).addEventListener( 'click', function () {
-            Notification.requestPermission().then( function ( permission ) {
-                localStorage.setItem( LS_NOTIF_OPT, permission === 'granted' ? 'granted' : 'denied' );
-                banner.remove();
-                initPolling();
-            } );
-        } );
-
-        document.getElementById( 'dd-notif-dismiss' ).addEventListener( 'click', function () {
-            localStorage.setItem( LS_NOTIF_OPT, 'dismissed' );
-            banner.remove();
-            // Still poll — just no browser notifications
-            initPolling();
-        } );
-    }
+    // Start polling immediately
+    initPolling();
 
     function initPolling() {
-        // On first run — initialise last known IDs by polling once silently
         if ( ! localStorage.getItem( LS_NOTIF_INIT ) ) {
             poll( true );
         } else {
             poll( false );
         }
         setInterval( function () { poll( false ); }, config.pollInterval || 30000 );
+    }
+
+    function updateBadge() {
+        if ( ! badge ) return;
+        if ( unreadCount > 0 ) {
+            badge.textContent   = unreadCount > 9 ? '9+' : unreadCount;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    // Bell icon click — toggle panel
+    var bellWrap = document.querySelector( '#wp-admin-bar-dd-notifications > a' );
+    if ( bellWrap ) {
+        bellWrap.addEventListener( 'click', function ( e ) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            // Request notification permission on first click
+            if ( typeof Notification !== 'undefined' && Notification.permission === 'default' ) {
+                Notification.requestPermission();
+            }
+
+            if ( ! bellPanel ) return;
+            var isOpen = bellPanel.style.display !== 'none';
+            bellPanel.style.display = isOpen ? 'none' : 'block';
+        } );
+    }
+
+    // Close panel on outside click
+    document.addEventListener( 'click', function ( e ) {
+        if ( bellPanel && ! bellPanel.contains( e.target ) && ! ( bellWrap && bellWrap.contains( e.target ) ) ) {
+            bellPanel.style.display = 'none';
+        }
+    } );
+
+    // Mark all read
+    var markReadBtn = document.getElementById( 'dd-bell-mark-read' );
+    if ( markReadBtn ) {
+        markReadBtn.addEventListener( 'click', function () {
+            unreadCount = 0;
+            updateBadge();
+            notifications = [];
+            if ( bellItems ) bellItems.innerHTML = '<p class="dd-bell-empty">No new notifications</p>';
+        } );
     }
 
     function poll( silent ) {
@@ -101,18 +119,46 @@
                 unreadCount += newOrders.length + newRes.length;
                 updateBadge();
 
+                // Add to panel
+                newOrders.forEach( function ( order ) {
+                    var orderNum = order.order_number || ( 'DD-' + String( order.id ).padStart( 5, '0' ) );
+                    var total    = Number( order.total ).toLocaleString( 'en-US', { maximumFractionDigits: 0 } );
+                    var item     = {
+                        type:  'order',
+                        id:    order.id,
+                        title: '🛍 New Order · ' + orderNum,
+                        meta:  order.customer_name + ' · ' + total + ' RWF',
+                        time:  'Just now',
+                        url:   config.ajaxUrl.replace( 'admin-ajax.php', 'admin.php' ) + '?page=dish-dash-orders',
+                    };
+                    notifications.unshift( item );
+                    addBellItem( item );
+                } );
+
+                newRes.forEach( function ( r ) {
+                    var guests = r.guests + ' guest' + ( parseInt( r.guests ) !== 1 ? 's' : '' );
+                    var item   = {
+                        type:  'reservation',
+                        id:    r.id,
+                        title: '📅 New Reservation · ' + r.date + ' ' + r.time.substring( 0, 5 ),
+                        meta:  guests + ' · ' + r.name,
+                        time:  'Just now',
+                        url:   config.ajaxUrl.replace( 'admin-ajax.php', 'admin.php' ) + '?page=dish-dash-reservations',
+                    };
+                    notifications.unshift( item );
+                    addBellItem( item );
+                } );
+
                 // Play sound
                 playBeep();
 
                 // Browser notifications
-                var canNotify = localStorage.getItem( LS_NOTIF_OPT ) === 'granted'
-                    && typeof Notification !== 'undefined'
+                var canNotify = typeof Notification !== 'undefined'
                     && Notification.permission === 'granted';
 
                 newOrders.forEach( function ( order ) {
                     var orderNum = order.order_number || ( 'DD-' + String( order.id ).padStart( 5, '0' ) );
                     var total    = Number( order.total ).toLocaleString( 'en-US', { maximumFractionDigits: 0 } );
-
                     if ( canNotify ) {
                         new Notification( '🔔 New Order — ' + config.restaurantName, {
                             body: orderNum + ' · ' + order.customer_name + ' · ' + total + ' RWF',
@@ -122,14 +168,13 @@
                     }
                 } );
 
-                newRes.forEach( function ( res ) {
-                    var guests = res.guests + ' guest' + ( res.guests !== '1' ? 's' : '' );
-                    var time   = res.date + ' ' + res.time.substring( 0, 5 );
-
+                newRes.forEach( function ( r ) {
+                    var guests = r.guests + ' guest' + ( parseInt( r.guests ) !== 1 ? 's' : '' );
+                    var time   = r.date + ' ' + r.time.substring( 0, 5 );
                     if ( canNotify ) {
                         new Notification( '📅 New Reservation — ' + config.restaurantName, {
-                            body: time + ' · ' + guests + ' · ' + res.name,
-                            tag:  'dd-res-' + res.id,
+                            body: time + ' · ' + guests + ' · ' + r.name,
+                            tag:  'dd-res-' + r.id,
                         } );
                     }
                 } );
@@ -137,14 +182,17 @@
             .catch( function () {} ); // Silent fail — don't break admin on network error
     }
 
-    function updateBadge() {
-        if ( ! badge ) return;
-        if ( unreadCount > 0 ) {
-            badge.textContent   = unreadCount > 9 ? '9+' : unreadCount;
-            badge.style.display = 'inline-block';
-        } else {
-            badge.style.display = 'none';
-        }
+    function addBellItem( item ) {
+        if ( ! bellItems ) return;
+        var empty = bellItems.querySelector( '.dd-bell-empty' );
+        if ( empty ) empty.remove();
+
+        var el = document.createElement( 'a' );
+        el.className = 'dd-bell-item dd-unread';
+        el.href      = item.url;
+        el.innerHTML = '<span class="dd-bell-item-title">' + item.title + '</span>'
+                     + '<span class="dd-bell-item-meta">' + item.meta + ' · ' + item.time + '</span>';
+        bellItems.insertBefore( el, bellItems.firstChild );
     }
 
     function playBeep() {
