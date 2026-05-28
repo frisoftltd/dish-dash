@@ -145,23 +145,29 @@ class DD_Hooks {
             // Add notification bell on the right side
             $wp_admin_bar->add_node( [
                 'id'    => 'dd-notifications',
-                'title' => '<span class="dd-bell-wrap">
-                                <span class="dd-bell-icon">🔔</span>
-                                <span class="dd-bell-badge" id="dd-bell-badge" style="display:none">0</span>
-                            </span>
-                            <div class="dd-bell-panel" id="dd-bell-panel" style="display:none">
-                                <div class="dd-bell-header">
-                                    <span>Notifications</span>
-                                    <button type="button" id="dd-bell-mark-read">Mark all read</button>
-                                </div>
-                                <div class="dd-bell-items" id="dd-bell-items">
-                                    <p class="dd-bell-empty">No new notifications</p>
-                                </div>
-                            </div>',
+                'title' => '<span class="dd-bell-wrap">'
+                         . '<span class="dd-bell-icon">🔔</span>'
+                         . '<span class="dd-bell-badge" id="dd-bell-badge" style="display:none">0</span>'
+                         . '</span>',
                 'href'  => '#',
                 'meta'  => [ 'class' => 'dd-notif-node' ],
             ] );
         }, 999 );
+        add_action( 'admin_footer', [ __CLASS__, 'render_bell_panel' ] );
+    }
+
+    public static function render_bell_panel(): void {
+        ?>
+        <div class="dd-bell-panel" id="dd-bell-panel" style="display:none">
+            <div class="dd-bell-header">
+                <span>Notifications</span>
+                <button type="button" id="dd-bell-mark-read">Mark all read</button>
+            </div>
+            <div class="dd-bell-items" id="dd-bell-items">
+                <p class="dd-bell-empty">No new notifications</p>
+            </div>
+        </div>
+        <?php
     }
 
     /**

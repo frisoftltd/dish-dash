@@ -126,10 +126,9 @@
                     var item     = {
                         type:  'order',
                         id:    order.id,
-                        title: '🛍 New Order · ' + orderNum,
-                        meta:  order.customer_name + ' · ' + total + ' RWF',
+                        title: orderNum + ' · ' + order.customer_name,
+                        meta:  total + ' RWF · Cash on Delivery',
                         time:  'Just now',
-                        url:   config.ajaxUrl.replace( 'admin-ajax.php', 'admin.php' ) + '?page=dish-dash-orders',
                     };
                     notifications.unshift( item );
                     addBellItem( item );
@@ -140,10 +139,9 @@
                     var item   = {
                         type:  'reservation',
                         id:    r.id,
-                        title: '📅 New Reservation · ' + r.date + ' ' + r.time.substring( 0, 5 ),
-                        meta:  guests + ' · ' + r.name,
+                        title: r.name + ' · ' + r.date + ' at ' + r.time.substring( 0, 5 ),
+                        meta:  guests,
                         time:  'Just now',
-                        url:   config.ajaxUrl.replace( 'admin-ajax.php', 'admin.php' ) + '?page=dish-dash-reservations',
                     };
                     notifications.unshift( item );
                     addBellItem( item );
@@ -192,9 +190,11 @@
 
         // Build URL — orders get open_order param to trigger modal
         var url = item.url;
-        if ( item.type === 'order' ) {
-            url = config.ajaxUrl.replace( 'admin-ajax.php', 'admin.php' )
-                + '?page=dish-dash-orders&open_order=' + item.id;
+        if ( item.type === 'order' && item.id ) {
+            url = '/wp-admin/admin.php?page=dish-dash-orders&open_order=' + item.id;
+        }
+        if ( item.type === 'reservation' ) {
+            url = '/wp-admin/admin.php?page=dish-dash-reservations';
         }
 
         var el = document.createElement( 'a' );
