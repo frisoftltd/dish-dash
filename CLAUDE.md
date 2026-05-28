@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.72 (2026-05-28)
+> Last updated: v3.4.73 (2026-05-28)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.72 |
+| **Deployed version** | v3.4.73 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.73 — Tables + Seating Sections redesign |
-| **Last working state** | Clean admin bar, bell notification icon with dropdown panel added. |
+| **Next task** | v3.4.74 — Tables + Seating Sections redesign |
+| **Last working state** | Bell panel polished — icon layout, click notification opens order modal, mark as read on click. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -518,7 +518,8 @@ Every page before shipping must pass:
 | **v3.4.70** | ✅ **Done** | **Rename Pending Orders KPI to Active Orders** |
 | **v3.4.71** | ✅ **Done** | **Real-time notifications — opt-in banner, 30s polling, browser alerts, sidebar badge** |
 | **v3.4.72** | ✅ **Done** | **Clean admin bar, bell notification icon with dropdown panel** |
-| v3.4.73 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.73** | ✅ **Done** | **Bell panel polish, click notification opens order modal, mark as read** |
+| v3.4.74 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

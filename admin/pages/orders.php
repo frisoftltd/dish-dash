@@ -628,6 +628,22 @@ window.ddOrdersData = {
     }
 
     window.openModal = openModal;
+
+    // Auto-open modal if open_order param in URL
+    ( function () {
+        var params   = new URLSearchParams( window.location.search );
+        var openId   = params.get( 'open_order' );
+        if ( openId && typeof window.openModal === 'function' ) {
+            // Small delay to let page fully render
+            setTimeout( function () {
+                window.openModal( openId );
+                // Clean URL without reloading
+                var cleanUrl = window.location.href.replace( /[?&]open_order=\d+/, '' )
+                    .replace( /\?$/, '' ).replace( /&$/, '' );
+                window.history.replaceState( {}, '', cleanUrl );
+            }, 300 );
+        }
+    } )();
 } )();
 </script>
 

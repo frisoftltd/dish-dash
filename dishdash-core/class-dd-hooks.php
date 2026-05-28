@@ -349,22 +349,25 @@ class DD_Hooks {
                 .dd-bell-panel {
                     position: fixed;
                     top: 46px;
-                    right: 120px;
-                    width: 340px;
+                    right: 16px;
+                    width: 360px;
                     background: #fff;
-                    border-radius: 12px;
-                    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+                    border-radius: 16px;
+                    box-shadow: 0 12px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
                     z-index: 999999;
                     overflow: hidden;
                     font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+                    border: 1px solid rgba(0,0,0,0.06);
                 }
                 .dd-bell-header {
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    padding: 14px 16px;
+                    padding: 16px 18px;
                     border-bottom: 1px solid #f3f4f6;
-                    font-size: 13px;
+                }
+                .dd-bell-header span {
+                    font-size: 14px;
                     font-weight: 600;
                     color: #111;
                 }
@@ -374,38 +377,78 @@ class DD_Hooks {
                     font-size: 12px;
                     color: #9ca3af;
                     cursor: pointer;
-                    padding: 0;
+                    padding: 4px 10px;
+                    border-radius: 6px;
+                    font-family: inherit;
+                    transition: all .15s;
                 }
-                .dd-bell-header button:hover { color: #374151; }
-                .dd-bell-items { max-height: 360px; overflow-y: auto; }
+                .dd-bell-header button:hover { background: #f3f4f6; color: #374151; }
+                .dd-bell-items { max-height: 400px; overflow-y: auto; }
                 .dd-bell-item {
                     display: flex;
-                    flex-direction: column;
-                    padding: 12px 16px;
+                    align-items: flex-start;
+                    gap: 12px;
+                    padding: 14px 18px;
                     border-bottom: 1px solid #f9fafb;
                     cursor: pointer;
-                    transition: background .1s;
-                    text-decoration: none;
+                    transition: background .12s;
+                    text-decoration: none !important;
                 }
+                .dd-bell-item:last-child { border-bottom: none; }
                 .dd-bell-item:hover { background: #f9fafb; }
+                .dd-bell-item.dd-unread { background: #fffbeb; }
+                .dd-bell-item.dd-unread:hover { background: #fef9c3; }
+                .dd-bell-item-icon {
+                    width: 38px;
+                    height: 38px;
+                    border-radius: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 17px;
+                    flex-shrink: 0;
+                }
+                .dd-bell-item-icon.dd-icon-order       { background: #dbeafe; }
+                .dd-bell-item-icon.dd-icon-reservation { background: #dcfce7; }
+                .dd-bell-item-body { flex: 1; min-width: 0; }
                 .dd-bell-item-title {
+                    display: block;
                     font-size: 13px;
-                    font-weight: 500;
+                    font-weight: 600;
                     color: #111;
-                    margin-bottom: 2px;
+                    margin-bottom: 3px;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
                 .dd-bell-item-meta {
-                    font-size: 11px;
-                    color: #9ca3af;
+                    display: block;
+                    font-size: 12px;
+                    color: #6b7280;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
                 }
-                .dd-bell-item.dd-unread { background: #fefce8; }
-                .dd-bell-item.dd-unread:hover { background: #fef9c3; }
+                .dd-bell-item-time {
+                    font-size: 11px;
+                    color: #d1d5db;
+                    white-space: nowrap;
+                    flex-shrink: 0;
+                    padding-top: 2px;
+                }
                 .dd-bell-empty {
-                    padding: 24px 16px;
+                    padding: 36px 18px;
                     text-align: center;
                     color: #9ca3af;
                     font-size: 13px;
                     margin: 0;
+                }
+                .dd-bell-empty::before {
+                    content: '🔔';
+                    display: block;
+                    font-size: 28px;
+                    margin-bottom: 10px;
+                    opacity: 0.35;
                 }
             </style>
             <?php

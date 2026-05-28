@@ -187,11 +187,38 @@
         var empty = bellItems.querySelector( '.dd-bell-empty' );
         if ( empty ) empty.remove();
 
+        var iconClass = item.type === 'order' ? 'dd-icon-order' : 'dd-icon-reservation';
+        var iconEmoji = item.type === 'order' ? '🛍' : '📅';
+
+        // Build URL — orders get open_order param to trigger modal
+        var url = item.url;
+        if ( item.type === 'order' ) {
+            url = config.ajaxUrl.replace( 'admin-ajax.php', 'admin.php' )
+                + '?page=dish-dash-orders&open_order=' + item.id;
+        }
+
         var el = document.createElement( 'a' );
-        el.className = 'dd-bell-item dd-unread';
-        el.href      = item.url;
-        el.innerHTML = '<span class="dd-bell-item-title">' + item.title + '</span>'
-                     + '<span class="dd-bell-item-meta">' + item.meta + ' · ' + item.time + '</span>';
+        el.className        = 'dd-bell-item dd-unread';
+        el.href             = url;
+        el.dataset.orderId  = item.id;
+        el.dataset.itemType = item.type;
+        el.innerHTML =
+            '<div class="dd-bell-item-icon ' + iconClass + '">' + iconEmoji + '</div>'
+            + '<div class="dd-bell-item-body">'
+            +   '<span class="dd-bell-item-title">' + item.title + '</span>'
+            +   '<span class="dd-bell-item-meta">' + item.meta + '</span>'
+            + '</div>'
+            + '<span class="dd-bell-item-time">' + item.time + '</span>';
+
+        // Mark as read on click
+        el.addEventListener( 'click', function () {
+            if ( this.classList.contains( 'dd-unread' ) ) {
+                this.classList.remove( 'dd-unread' );
+                unreadCount = Math.max( 0, unreadCount - 1 );
+                updateBadge();
+            }
+        } );
+
         bellItems.insertBefore( el, bellItems.firstChild );
     }
 
