@@ -119,14 +119,6 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_analytics' ]
         );
 
-        // Analytics — Reservations (sub-page, shown indented)
-        add_submenu_page( 'dish-dash',
-            __( 'Reservations Analytics', 'dish-dash' ),
-            __( '&nbsp;&nbsp;&nbsp;↳ Reservations', 'dish-dash' ),
-            'manage_options', 'dish-dash-analytics-reservations',
-            [ $this, 'render_analytics_reservations' ]
-        );
-
         // Settings
         add_submenu_page( 'dish-dash',
             __( 'Settings', 'dish-dash' ),
@@ -206,7 +198,7 @@ class DD_Admin extends DD_Module {
             ] );
         }
 
-        // Analytics — Orders page JS
+        // Analytics — single page, both tabs
         if ( isset( $_GET['page'] ) && $_GET['page'] === 'dish-dash-analytics' ) {
             wp_enqueue_script(
                 'dd-analytics',
@@ -215,13 +207,6 @@ class DD_Admin extends DD_Module {
                 DD_VERSION,
                 true
             );
-            wp_localize_script( 'dd-analytics', 'ddAnalytics', [
-                'brandColor' => sanitize_hex_color( get_option( 'dish_dash_primary_color', '#65040d' ) ),
-            ] );
-        }
-
-        // Analytics — Reservations page JS
-        if ( isset( $_GET['page'] ) && $_GET['page'] === 'dish-dash-analytics-reservations' ) {
             wp_enqueue_script(
                 'dd-analytics-reservations',
                 DD_PLUGIN_URL . 'assets/js/analytics-reservations.js',
@@ -229,7 +214,7 @@ class DD_Admin extends DD_Module {
                 DD_VERSION,
                 true
             );
-            wp_localize_script( 'dd-analytics-reservations', 'ddAnalytics', [
+            wp_localize_script( 'dd-analytics', 'ddAnalytics', [
                 'brandColor' => sanitize_hex_color( get_option( 'dish_dash_primary_color', '#65040d' ) ),
             ] );
         }
@@ -588,10 +573,6 @@ class DD_Admin extends DD_Module {
 
     public function render_analytics(): void {
         include DD_PLUGIN_DIR . 'admin/pages/analytics.php';
-    }
-
-    public function render_analytics_reservations(): void {
-        include DD_PLUGIN_DIR . 'admin/pages/analytics-reservations.php';
     }
 
     public function render_settings(): void {
