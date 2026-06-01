@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.86 (2026-06-01)
+> Last updated: v3.4.87 (2026-06-01)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.86 |
+| **Deployed version** | v3.4.87 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.87 — Tables + Seating Sections redesign |
-| **Last working state** | Delivery, Branches, POS Terminal removed from admin sidebar alongside Menu Items. |
+| **Next task** | v3.4.88 — Tables + Seating Sections redesign |
+| **Last working state** | Analytics pages live: Orders Analytics + Reservations Analytics with AI Insights engine, Chart.js charts, speed metrics, top items, customer breakdown, payment/type breakdown. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -532,7 +532,8 @@ Every page before shipping must pass:
 | **v3.4.84** | ✅ **Done** | **Fix division by zero and undefined per_page on orders pagination** |
 | **v3.4.85** | ✅ **Done** | **Remove Menu Items from admin sidebar** |
 | **v3.4.86** | ✅ **Done** | **Remove Delivery, Branches, POS Terminal from admin sidebar** |
-| v3.4.87 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.87** | ✅ **Done** | **Analytics pages — Orders Analytics, Reservations Analytics, AI Insights engine (DD_Insights), Chart.js charts, speed metrics, customer breakdown** |
+| v3.4.88 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
