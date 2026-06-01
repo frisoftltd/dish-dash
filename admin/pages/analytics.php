@@ -229,7 +229,7 @@ $returning_customers = (int) $wpdb->get_var( $wpdb->prepare(
 
 // ── Top menu items (by order count + revenue) ─────────────────────────────────
 $top_items = $wpdb->get_results( $wpdb->prepare(
-    "SELECT oi.item_name, COUNT(*) as cnt, COALESCE(SUM(oi.price * oi.quantity),0) as revenue
+    "SELECT oi.item_name, COUNT(*) as cnt, COALESCE(SUM(oi.line_total),0) as revenue
      FROM `{$oit}` oi
      JOIN `{$ot}` o ON o.id=oi.order_id
      WHERE o.status='delivered' AND o.is_test=0 AND o.created_at>=%s
@@ -294,11 +294,6 @@ $base_url = admin_url( 'admin.php?page=dish-dash-analytics' );
     </div>
   </div>
 
-  <!-- Sub-page tabs -->
-  <div class="dd-analytics-tabs">
-    <a href="<?php echo esc_url($base_url); ?>" class="dd-analytics-tab active">📦 Orders</a>
-    <a href="<?php echo esc_url(admin_url('admin.php?page=dish-dash-analytics-reservations')); ?>" class="dd-analytics-tab">📅 Reservations</a>
-  </div>
 
   <!-- ── AI Insights ── -->
   <?php if ( $maturity['state'] === 'seed' ) : ?>

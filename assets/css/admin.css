@@ -1231,11 +1231,20 @@ a.dd-badge-link:hover {
 .dd-insights-confidence { font-weight: 400; text-transform: none; letter-spacing: 0; color: #aaa; }
 
 .dd-insights-strip {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    display: flex;
+    flex-wrap: nowrap;
     gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
+.dd-insights-strip::-webkit-scrollbar { height: 4px; }
+.dd-insights-strip::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 2px; }
+.dd-insights-strip::-webkit-scrollbar-thumb { background: var(--dd-brand); border-radius: 2px; opacity: .5; }
 .dd-insight-card {
+    flex: 0 0 280px; scroll-snap-align: start;
     display: flex; gap: 12px; padding: 14px 16px;
     border-radius: 10px; border: 1px solid transparent;
 }
@@ -1356,5 +1365,37 @@ a.dd-badge-link:hover {
 /* ── Section title (shared) ─────────────────────────────────────────────── */
 .dd-section-title {
     font-size: 14px; font-weight: 700; color: #111;
+}
+
+/* ── Reservations Analytics KPI fix ─────────────────────────────────────── */
+.dd-analytics-wrap .dd-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+.dd-analytics-wrap .dd-kpi-card {
+    padding: 20px;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.dd-analytics-wrap .dd-kpi-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #888;
+    margin-bottom: 6px;
+}
+.dd-analytics-wrap .dd-kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #111;
+    line-height: 1;
+}
+@media(max-width:900px){
+    .dd-analytics-wrap .dd-kpi-row { grid-template-columns: repeat(2,1fr); }
 }
 
