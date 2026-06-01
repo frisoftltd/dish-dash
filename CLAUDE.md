@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.78 (2026-06-01)
+> Last updated: v3.4.79 (2026-06-01)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.78 |
+| **Deployed version** | v3.4.79 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.79 — Tables + Seating Sections redesign |
-| **Last working state** | Bell deduplicates pending orders across polls, removes accepted orders from panel, badge recounted from DOM state. Need-action badge removed from Active Orders KPI. |
+| **Next task** | v3.4.80 — Tables + Seating Sections redesign |
+| **Last working state** | Beep fires only when a genuinely new order is added to the bell panel, not on every 30s poll. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -524,7 +524,8 @@ Every page before shipping must pass:
 | **v3.4.76** | ✅ **Done** | **Add status timestamp columns, kitchen prep time setting, record timestamps on status change** |
 | **v3.4.77** | ✅ **Done** | **Bell pending-only, kitchen queue with live timer and Mark Ready, dd_kitchen_queue endpoint** |
 | **v3.4.78** | ✅ **Done** | **Bell dedup — merge approach, remove accepted orders, badge from DOM state; remove need-action badge** |
-| v3.4.79 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.79** | ✅ **Done** | **Beep only on genuinely new bell items, not every poll cycle** |
+| v3.4.80 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

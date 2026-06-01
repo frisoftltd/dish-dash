@@ -140,6 +140,7 @@
                 }
 
                 var orderNotifCount = bellItems ? bellItems.querySelectorAll( '[data-item-type="order"]' ).length : 0;
+                var shouldBeep = false;
 
                 // Add to panel — skip orders already displayed
                 newOrders.forEach( function ( order ) {
@@ -157,6 +158,7 @@
                     notifications.unshift( item );
                     addBellItem( item );
                     orderNotifCount++;
+                    shouldBeep = true;
                 } );
 
                 newRes.forEach( function ( r ) {
@@ -177,8 +179,7 @@
                 unreadCount = orderNotifCount + resItems;
                 updateBadge();
 
-                // Play sound
-                playBeep();
+                if ( shouldBeep ) playBeep();
 
                 // Browser notifications
                 var canNotify = typeof Notification !== 'undefined'
