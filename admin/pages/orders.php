@@ -97,6 +97,14 @@ $status_filter = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : 'a
 $allowed = [ 'all', 'pending', 'confirmed', 'ready', 'delivered', 'cancelled', 'test' ];
 if ( ! in_array( $status_filter, $allowed, true ) ) $status_filter = 'all';
 
+// ── Pagination params ─────────────────────────────────────────────────────────
+$per_page_options = [ 25, 50, 75 ];
+$per_page         = in_array( (int) ( $_GET['per_page'] ?? 25 ), array_merge( $per_page_options, [ 99999 ] ), true )
+                    ? (int) $_GET['per_page']
+                    : 25;
+$paged            = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+$offset           = ( $paged - 1 ) * $per_page;
+
 // ── Summary stats ─────────────────────────────────────────────────────────────
 $total_orders  = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 0" );
 $total_revenue = (float) $wpdb->get_var( "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE is_test = 0" );
@@ -108,27 +116,34 @@ $total_today   = (int)   $wpdb->get_var( $wpdb->prepare(
 
 // ── Orders query ──────────────────────────────────────────────────────────────
 if ( $status_filter === 'test' ) {
-    $orders = $wpdb->get_results(
+    $paginated_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 1" );
+    $orders = $wpdb->get_results( $wpdb->prepare(
         "SELECT * FROM `{$ot}` WHERE is_test = 1
          ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
-         LIMIT 100",
-        ARRAY_A
-    );
+         LIMIT %d OFFSET %d",
+        $per_page, $offset
+    ), ARRAY_A );
 } elseif ( $status_filter !== 'all' ) {
+    $paginated_total = (int) $wpdb->get_var( $wpdb->prepare(
+        "SELECT COUNT(*) FROM `{$ot}` WHERE status = %s AND is_test = 0",
+        $status_filter
+    ) );
     $orders = $wpdb->get_results( $wpdb->prepare(
         "SELECT * FROM `{$ot}` WHERE status = %s AND is_test = 0
          ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
-         LIMIT 100",
-        $status_filter
+         LIMIT %d OFFSET %d",
+        $status_filter, $per_page, $offset
     ), ARRAY_A );
 } else {
-    $orders = $wpdb->get_results(
+    $paginated_total = $total_orders; // same WHERE as stat query above — no extra query needed
+    $orders = $wpdb->get_results( $wpdb->prepare(
         "SELECT * FROM `{$ot}` WHERE is_test = 0
          ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
-         LIMIT 100",
-        ARRAY_A
-    );
+         LIMIT %d OFFSET %d",
+        $per_page, $offset
+    ), ARRAY_A );
 }
+$total_pages = $paginated_total > 0 ? (int) ceil( $paginated_total / $per_page ) : 1;
 
 // ── Per-status counts for filter tabs ─────────────────────────────────────────
 $status_counts = [];
@@ -272,6 +287,31 @@ foreach ( $orders as $o ) {
         <button type="button" class="dd-bulk-clear" id="dd-bulk-clear">Clear</button>
     </div>
 
+    <div class="dd-table-controls">
+        <div class="dd-per-page">
+            <span class="dd-label">Show:</span>
+            <?php foreach ( $per_page_options as $opt ) :
+                $pp_url = add_query_arg( [ 'per_page' => $opt, 'paged' => 1 ] );
+            ?>
+            <a href="<?php echo esc_url( $pp_url ); ?>"
+               class="dd-per-page-btn <?php echo $per_page === $opt ? 'active' : ''; ?>">
+                <?php echo $opt; ?>
+            </a>
+            <?php endforeach; ?>
+            <a href="<?php echo esc_url( add_query_arg( [ 'per_page' => 99999, 'paged' => 1 ] ) ); ?>"
+               class="dd-per-page-btn <?php echo $per_page === 99999 ? 'active' : ''; ?>">
+                All
+            </a>
+        </div>
+        <div class="dd-table-info">
+            <?php
+            $from = $paginated_total > 0 ? $offset + 1 : 0;
+            $to   = min( $offset + $per_page, $paginated_total );
+            echo "Showing {$from}–{$to} of {$paginated_total} orders";
+            ?>
+        </div>
+    </div>
+
     <div class="dd-orders-card">
     <?php if ( empty( $orders ) ) : ?>
       <p class="dd-orders-empty">No orders found.</p>
@@ -333,6 +373,36 @@ foreach ( $orders as $o ) {
           <?php endforeach; ?>
         </tbody>
       </table>
+
+      <?php if ( $total_pages > 1 ) : ?>
+      <div class="dd-pagination">
+          <?php if ( $paged > 1 ) : ?>
+              <a href="<?php echo esc_url( add_query_arg( 'paged', $paged - 1 ) ); ?>"
+                 class="dd-page-btn">← Prev</a>
+          <?php endif; ?>
+
+          <?php
+          $start = max( 1, $paged - 3 );
+          $end   = min( $total_pages, $paged + 3 );
+          if ( $start > 1 ) echo '<a href="' . esc_url( add_query_arg( 'paged', 1 ) ) . '" class="dd-page-btn">1</a>';
+          if ( $start > 2 ) echo '<span class="dd-page-ellipsis">…</span>';
+          for ( $i = $start; $i <= $end; $i++ ) :
+              $cls = $i === $paged ? 'dd-page-btn active' : 'dd-page-btn';
+          ?>
+              <a href="<?php echo esc_url( add_query_arg( 'paged', $i ) ); ?>"
+                 class="<?php echo $cls; ?>"><?php echo $i; ?></a>
+          <?php endfor;
+          if ( $end < $total_pages - 1 ) echo '<span class="dd-page-ellipsis">…</span>';
+          if ( $end < $total_pages ) echo '<a href="' . esc_url( add_query_arg( 'paged', $total_pages ) ) . '" class="dd-page-btn">' . $total_pages . '</a>';
+          ?>
+
+          <?php if ( $paged < $total_pages ) : ?>
+              <a href="<?php echo esc_url( add_query_arg( 'paged', $paged + 1 ) ); ?>"
+                 class="dd-page-btn">Next →</a>
+          <?php endif; ?>
+      </div>
+      <?php endif; ?>
+
     <?php endif; ?>
     </div><!-- /.dd-orders-card -->
   </form>

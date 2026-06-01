@@ -1062,3 +1062,92 @@ a.dd-badge-link:hover {
 .dd-btn-reopen:hover {
     background: #e4e4e4;
 }
+
+/* ── Table controls — per-page + info ───────────────────────────────────────── */
+.dd-table-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.dd-per-page {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dd-per-page-btn {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    color: #444;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dd-per-page-btn:hover {
+    border-color: var(--dd-brand);
+    color: var(--dd-brand);
+}
+
+.dd-per-page-btn.active {
+    background: var(--dd-brand);
+    border-color: var(--dd-brand);
+    color: #fff;
+}
+
+.dd-table-info {
+    font-size: 13px;
+    color: #888;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────────── */
+.dd-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 24px;
+    padding-bottom: 8px;
+}
+
+.dd-page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    color: #444;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.15s;
+}
+
+.dd-page-btn:hover {
+    border-color: var(--dd-brand);
+    color: var(--dd-brand);
+}
+
+.dd-page-btn.active {
+    background: var(--dd-brand);
+    border-color: var(--dd-brand);
+    color: #fff;
+    pointer-events: none;
+}
+
+.dd-page-ellipsis {
+    color: #aaa;
+    font-size: 14px;
+    padding: 0 4px;
+}
