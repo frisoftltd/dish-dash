@@ -545,6 +545,18 @@ window.ddOrdersData = {
             actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
         }
 
+        if ( status === 'delivered' ) {
+            actionsHtml += '<button class="dd-btn dd-btn-reopen dd-modal-status-btn" '
+                         + 'data-status="ready" data-order-id="' + id + '">'
+                         + '↩ Reopen as Ready</button>';
+        }
+
+        if ( status === 'cancelled' ) {
+            actionsHtml += '<button class="dd-btn dd-btn-reopen dd-modal-status-btn" '
+                         + 'data-status="pending" data-order-id="' + id + '">'
+                         + '↩ Reopen as Pending</button>';
+        }
+
         modalActions.innerHTML = actionsHtml;
 
         // Wire action buttons
@@ -604,8 +616,14 @@ window.ddOrdersData = {
                     if ( newStatus === 'delivered' || newStatus === 'cancelled' ) {
                         localStorage.removeItem( LS_KITCHEN + orderId );
                         localStorage.removeItem( LS_RIDER + orderId );
-                        closeModal();
-                        window.location.reload();
+                        currentOrder.status = newStatus;
+                        renderModal( currentOrder, currentItems );
+                        // Reload the background table row without closing modal
+                        var row2 = document.querySelector( 'tr[data-order-id="' + orderId + '"]' );
+                        if ( row2 ) {
+                            var badge2 = row2.querySelector( '.dd-status-badge-cell' );
+                            if ( badge2 ) badge2.innerHTML = renderBadge( newStatus );
+                        }
                     } else {
                         // Update local order object and re-render without re-fetching
                         currentOrder.status = newStatus;

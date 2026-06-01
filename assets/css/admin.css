@@ -1047,3 +1047,18 @@ a.dd-badge-link:hover {
 
 .dd-btn--brand:hover { opacity: 0.88; }
 .dd-btn--brand:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Reopen button ──────────────────────────────────────────────────────────── */
+.dd-btn-reopen {
+    background: #f0f0f0;
+    color: #444;
+    border: 1px solid #ddd;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.dd-btn-reopen:hover {
+    background: #e4e4e4;
+}

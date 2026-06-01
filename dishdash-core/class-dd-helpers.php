@@ -114,8 +114,8 @@ function dd_order_status_transitions(): array {
         'pending'   => [ 'confirmed', 'cancelled' ],
         'confirmed' => [ 'ready', 'cancelled' ],
         'ready'     => [ 'delivered', 'cancelled' ],
-        'delivered' => [],
-        'cancelled' => [],
+        'delivered' => [ 'ready' ],
+        'cancelled' => [ 'pending' ],
     ];
 }
 

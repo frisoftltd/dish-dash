@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.81 (2026-06-01)
+> Last updated: v3.4.82 (2026-06-01)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.81 |
+| **Deployed version** | v3.4.82 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.82 — Tables + Seating Sections redesign |
-| **Last working state** | Fix waUrls missing for orders opened from dashboard (buildWaUrls fallback), fix Mark Ready disabled when no kitchen phone configured. |
+| **Next task** | v3.4.83 — Tables + Seating Sections redesign |
+| **Last working state** | Reopen button on delivered/cancelled orders; modal stays open on terminal status change; reverse transitions allowed. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -527,7 +527,8 @@ Every page before shipping must pass:
 | **v3.4.79** | ✅ **Done** | **Beep only on genuinely new bell items, not every poll cycle** |
 | **v3.4.80** | ✅ **Done** | **Mark Ready navigates to order modal instead of silent AJAX change** |
 | **v3.4.81** | ✅ **Done** | **Fix waUrls missing for cross-page modal opens, fix Mark Ready disabled when no kitchen phone** |
-| v3.4.82 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.82** | ✅ **Done** | **Reopen cancelled/delivered orders, modal stays open on terminal status, reverse transitions** |
+| v3.4.83 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
