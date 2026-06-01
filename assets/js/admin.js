@@ -201,6 +201,7 @@
         el.className        = 'dd-bell-item dd-unread';
         el.href             = url;
         el.dataset.orderId  = item.id;
+        el.dataset.id       = item.id;
         el.dataset.itemType = item.type;
         el.innerHTML =
             '<div class="dd-bell-item-icon ' + iconClass + '">' + iconEmoji + '</div>'
@@ -210,12 +211,20 @@
             + '</div>'
             + '<span class="dd-bell-item-time">' + item.time + '</span>';
 
-        // Mark as read on click
+        // Mark as read on click (client + server)
         el.addEventListener( 'click', function () {
+            const notifId = parseInt( this.dataset.id, 10 );
             if ( this.classList.contains( 'dd-unread' ) ) {
                 this.classList.remove( 'dd-unread' );
                 unreadCount = Math.max( 0, unreadCount - 1 );
                 updateBadge();
+            }
+            if ( notifId && this.dataset.itemType === 'order' ) {
+                var fd = new FormData();
+                fd.append( 'action',      'dd_mark_notifications_read' );
+                fd.append( 'nonce',       config.pollNonce );
+                fd.append( 'order_ids[]', notifId );
+                fetch( config.ajaxUrl, { method: 'POST', body: fd } );
             }
         } );
 

@@ -926,3 +926,12 @@
     transition: opacity .15s;
 }
 .dd-stale-bulk-btn:hover { opacity: .85; }
+
+/* ── Need-action badge link ─────────────────────────────────────────────────── */
+a.dd-badge-link {
+    text-decoration: none;
+    cursor: pointer;
+}
+a.dd-badge-link:hover {
+    opacity: 0.85;
+}

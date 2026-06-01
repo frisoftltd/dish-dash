@@ -204,44 +204,6 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
 
 <div class="dd-dash-wrap">
 
-  <?php if ( ! empty( $stale_orders ) ) : ?>
-  <div class="dd-stale-banner">
-    <div class="dd-stale-icon">⚠️</div>
-    <div class="dd-stale-content">
-      <strong><?php echo count( $stale_orders ); ?> order<?php echo count( $stale_orders ) > 1 ? 's' : ''; ?> haven't been updated in over 24 hours</strong>
-      <div class="dd-stale-list">
-        <?php foreach ( $stale_orders as $s ) :
-          $order_num = 'DD-' . str_pad( $s['id'], 5, '0', STR_PAD_LEFT );
-          $label_map = [
-            'confirmed'        => 'Accepted',
-            'preparing'        => 'In Kitchen',
-            'ready'            => 'Ready for Pickup',
-            'out_for_delivery' => 'On the Way',
-            'pending'          => 'Pending',
-          ];
-          $label    = $label_map[ $s['status'] ] ?? ucfirst( $s['status'] );
-          $time_ago = dd_dash_time_ago( $s['updated_at'] );
-        ?>
-          <span class="dd-stale-item">
-            <strong><?php echo esc_html( $order_num ); ?></strong>
-            · <?php echo esc_html( $label ); ?>
-            · <?php echo esc_html( $time_ago ); ?>
-          </span>
-        <?php endforeach; ?>
-      </div>
-    </div>
-    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders' ) ); ?>" class="dd-stale-action">View Orders →</a>
-    <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash' ) ); ?>" style="margin-left:auto;align-self:center;flex-shrink:0">
-        <?php wp_nonce_field( 'dd_bulk_deliver_stale' ); ?>
-        <input type="hidden" name="dd_bulk_deliver_stale" value="1">
-        <button type="submit" class="dd-stale-bulk-btn"
-            onclick="return confirm('Mark all stale orders as Delivered?')">
-            ✓ Mark all Delivered
-        </button>
-    </form>
-  </div>
-  <?php endif; ?>
-
   <!-- ── Header ────────────────────────────────────────────────────────────── -->
   <div class="dd-dash-header">
     <div class="dd-dash-header-left">
@@ -291,7 +253,10 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <div class="dd-kpi-top">
         <span class="dashicons dashicons-clock" style="color:#D97706" aria-hidden="true"></span>
         <?php if ( $kpi_pending > 0 ) : ?>
-          <span class="dd-kpi-badge dd-badge-warn"><?php echo $kpi_pending; ?> need action</span>
+          <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders&status=pending' ) ); ?>"
+             class="dd-kpi-badge dd-badge-warn dd-badge-link">
+            <?php echo $kpi_pending; ?> need action
+          </a>
         <?php endif; ?>
       </div>
       <div class="dd-kpi-label">Active Orders</div>

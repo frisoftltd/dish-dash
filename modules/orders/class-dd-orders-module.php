@@ -78,6 +78,7 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_update_status',  [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
+        add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
 
         // WooCommerce bridge — sync payment status
         add_action( 'woocommerce_order_status_completed', [ $this, 'wc_payment_completed' ] );
@@ -886,14 +887,31 @@ class DD_Orders_Module extends DD_Module {
         $last_order_id = absint( $_POST['last_order_id'] ?? 0 );
         $last_res_id   = absint( $_POST['last_res_id'] ?? 0 );
 
-        // New orders since last known ID
-        $new_orders = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, order_number, customer_name, total
-             FROM {$wpdb->prefix}dishdash_orders
-             WHERE id > %d AND is_test = 0
-             ORDER BY id ASC LIMIT 10",
-            $last_order_id
-        ), ARRAY_A );
+        // New orders since last known ID (exclude already-read notifications)
+        $read_ids = get_option( 'dd_notifications_read', [] );
+        $read_ids = array_map( 'intval', $read_ids );
+
+        $exclude_sql = '';
+        if ( ! empty( $read_ids ) ) {
+            $placeholders = implode( ',', array_fill( 0, count( $read_ids ), '%d' ) );
+            $exclude_sql  = "AND id NOT IN ($placeholders)";
+        }
+
+        $args = array_merge( [ $last_order_id ], $read_ids );
+
+        $new_orders = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id, order_number, customer_name, total
+                 FROM {$wpdb->prefix}dishdash_orders
+                 WHERE id > %d
+                 AND is_test = 0
+                 $exclude_sql
+                 ORDER BY id ASC
+                 LIMIT 10",
+                ...$args
+            ),
+            ARRAY_A
+        );
 
         // New reservations since last known ID
         $new_reservations = $wpdb->get_results( $wpdb->prepare(
@@ -914,6 +932,31 @@ class DD_Orders_Module extends DD_Module {
             'max_order_id'     => $max_order_id,
             'max_res_id'       => $max_res_id,
         ] );
+    }
+
+    public function ajax_mark_notifications_read(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( 'Unauthorized' );
+        }
+
+        $ids = isset( $_POST['order_ids'] ) ? array_map( 'intval', (array) $_POST['order_ids'] ) : [];
+
+        if ( empty( $ids ) ) {
+            wp_send_json_success();
+            return;
+        }
+
+        $read = get_option( 'dd_notifications_read', [] );
+        $read = array_unique( array_merge( $read, $ids ) );
+
+        if ( count( $read ) > 200 ) {
+            $read = array_slice( $read, -200 );
+        }
+
+        update_option( 'dd_notifications_read', array_values( $read ), false );
+        wp_send_json_success();
     }
 
     // ─────────────────────────────────────────
