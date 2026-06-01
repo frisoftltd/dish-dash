@@ -79,6 +79,7 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
         add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
+        add_action( 'wp_ajax_dd_kitchen_queue', [ $this, 'ajax_kitchen_queue' ] );
 
         // WooCommerce bridge — sync payment status
         add_action( 'woocommerce_order_status_completed', [ $this, 'wc_payment_completed' ] );
@@ -902,32 +903,16 @@ class DD_Orders_Module extends DD_Module {
 
         global $wpdb;
 
-        $last_order_id = absint( $_POST['last_order_id'] ?? 0 );
-        $last_res_id   = absint( $_POST['last_res_id'] ?? 0 );
+        $last_res_id = absint( $_POST['last_res_id'] ?? 0 );
 
-        // New orders since last known ID (exclude already-read notifications)
-        $read_ids = get_option( 'dd_notifications_read', [] );
-        $read_ids = array_map( 'intval', $read_ids );
-
-        $exclude_sql = '';
-        if ( ! empty( $read_ids ) ) {
-            $placeholders = implode( ',', array_fill( 0, count( $read_ids ), '%d' ) );
-            $exclude_sql  = "AND id NOT IN ($placeholders)";
-        }
-
-        $args = array_merge( [ $last_order_id ], $read_ids );
-
+        // Pending orders — new orders awaiting acceptance
         $new_orders = $wpdb->get_results(
-            $wpdb->prepare(
-                "SELECT id, order_number, customer_name, total
-                 FROM {$wpdb->prefix}dishdash_orders
-                 WHERE id > %d
-                 AND is_test = 0
-                 $exclude_sql
-                 ORDER BY id ASC
-                 LIMIT 10",
-                ...$args
-            ),
+            "SELECT id, order_number, customer_name, total, payment_method
+             FROM {$wpdb->prefix}dishdash_orders
+             WHERE status = 'pending'
+             AND is_test = 0
+             ORDER BY id DESC
+             LIMIT 20",
             ARRAY_A
         );
 
@@ -949,6 +934,32 @@ class DD_Orders_Module extends DD_Module {
             'new_reservations' => $new_reservations,
             'max_order_id'     => $max_order_id,
             'max_res_id'       => $max_res_id,
+        ] );
+    }
+
+    public function ajax_kitchen_queue(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+        if ( ! current_user_can( 'manage_options' ) ) {
+            $this->json_error( 'Permission denied.', 403 );
+        }
+
+        global $wpdb;
+
+        $orders = $wpdb->get_results(
+            "SELECT id, order_number, customer_name, total, payment_method,
+                    order_type, confirmed_at
+             FROM {$wpdb->prefix}dishdash_orders
+             WHERE status = 'confirmed'
+             AND is_test = 0
+             ORDER BY confirmed_at ASC",
+            ARRAY_A
+        );
+
+        $prep_time = (int) get_option( 'dd_kitchen_prep_time', 30 );
+
+        $this->json_success( [
+            'orders'    => $orders,
+            'prep_time' => $prep_time,
         ] );
     }
 

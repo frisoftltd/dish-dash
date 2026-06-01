@@ -300,6 +300,65 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
     </div>
   </div>
 
+  <!-- ── Kitchen Queue ───────────────────────────────────────────────────── -->
+  <?php
+  $kitchen_orders = $wpdb->get_results(
+      "SELECT id, order_number, customer_name, total, order_type, confirmed_at
+       FROM {$wpdb->prefix}dishdash_orders
+       WHERE status = 'confirmed'
+       AND is_test = 0
+       ORDER BY confirmed_at ASC",
+      ARRAY_A
+  );
+  $prep_time = (int) get_option( 'dd_kitchen_prep_time', 30 );
+  ?>
+
+  <?php if ( ! empty( $kitchen_orders ) ) : ?>
+  <div class="dd-card dd-kitchen-queue">
+      <div class="dd-kitchen-queue__header">
+          <h2 class="dd-section-title">
+              🍳 Kitchen Queue
+              <span class="dd-kitchen-count"><?php echo count( $kitchen_orders ); ?></span>
+          </h2>
+          <span class="dd-kitchen-target">Target: <?php echo $prep_time; ?> min</span>
+      </div>
+      <div class="dd-kitchen-queue__list">
+          <?php foreach ( $kitchen_orders as $ko ) :
+              $confirmed_ts = $ko['confirmed_at'] ? strtotime( $ko['confirmed_at'] ) : 0;
+          ?>
+          <div class="dd-kitchen-item"
+               data-confirmed="<?php echo $confirmed_ts; ?>"
+               data-prep="<?php echo $prep_time; ?>"
+               data-order-id="<?php echo (int) $ko['id']; ?>">
+              <div class="dd-kitchen-item__left">
+                  <span class="dd-kitchen-item__number">
+                      <?php echo esc_html( $ko['order_number'] ); ?>
+                  </span>
+                  <span class="dd-kitchen-item__customer">
+                      <?php echo esc_html( $ko['customer_name'] ); ?>
+                  </span>
+                  <span class="dd-kitchen-item__type">
+                      <?php echo esc_html( ucfirst( $ko['order_type'] ) ); ?>
+                  </span>
+              </div>
+              <div class="dd-kitchen-item__right">
+                  <span class="dd-kitchen-item__total">
+                      <?php echo number_format( (float) $ko['total'], 0 ); ?> RWF
+                  </span>
+                  <span class="dd-kitchen-item__timer" data-confirmed="<?php echo $confirmed_ts; ?>">
+                      --:--
+                  </span>
+                  <button class="dd-kitchen-item__ready dd-btn dd-btn--sm dd-btn--brand"
+                          onclick="ddMarkReady(<?php echo (int) $ko['id']; ?>)">
+                      Mark Ready
+                  </button>
+              </div>
+          </div>
+          <?php endforeach; ?>
+      </div>
+  </div>
+  <?php endif; ?>
+
   <!-- ── Two-column split ──────────────────────────────────────────────────── -->
   <div class="dd-dash-cols">
 
@@ -448,6 +507,72 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <span class="dashicons dashicons-admin-settings" aria-hidden="true"></span> Settings
     </a>
   </div>
+
+<script>
+(function() {
+    var prepTime = <?php echo (int) get_option( 'dd_kitchen_prep_time', 30 ); ?> * 60; // seconds
+
+    function updateTimers() {
+        var now = Math.floor( Date.now() / 1000 );
+        document.querySelectorAll( '.dd-kitchen-item__timer' ).forEach( function( el ) {
+            var confirmed = parseInt( el.dataset.confirmed, 10 );
+            if ( ! confirmed ) { el.textContent = '--:--'; return; }
+            var elapsed = now - confirmed;
+            var mins    = Math.floor( elapsed / 60 );
+            var secs    = elapsed % 60;
+            el.textContent = String( mins ).padStart( 2, '0' ) + ':' + String( secs ).padStart( 2, '0' );
+
+            // Turn red when over prep time
+            var item = el.closest( '.dd-kitchen-item' );
+            if ( elapsed > prepTime ) {
+                item.classList.add( 'dd-kitchen-item--overdue' );
+            } else {
+                item.classList.remove( 'dd-kitchen-item--overdue' );
+            }
+        });
+    }
+
+    updateTimers();
+    setInterval( updateTimers, 1000 );
+
+    // Mark Ready button
+    window.ddMarkReady = function( orderId ) {
+        var btn = document.querySelector( '.dd-kitchen-item[data-order-id="' + orderId + '"] .dd-kitchen-item__ready' );
+        if ( btn ) { btn.disabled = true; btn.textContent = 'Updating…'; }
+
+        var fd = new FormData();
+        fd.append( 'action',   'dd_update_status' );
+        fd.append( 'nonce',    '<?php echo wp_create_nonce( 'dish_dash_admin' ); ?>' );
+        fd.append( 'order_id', orderId );
+        fd.append( 'status',   'ready' );
+
+        fetch( '<?php echo admin_url( 'admin-ajax.php' ); ?>', { method: 'POST', body: fd } )
+            .then( function(r) { return r.json(); } )
+            .then( function(res) {
+                if ( res.success ) {
+                    var item = document.querySelector( '.dd-kitchen-item[data-order-id="' + orderId + '"]' );
+                    if ( item ) {
+                        item.style.transition = 'opacity 0.3s';
+                        item.style.opacity    = '0';
+                        setTimeout( function() { item.remove(); }, 300 );
+                    }
+                    // Update queue count badge
+                    var countEl = document.querySelector( '.dd-kitchen-count' );
+                    if ( countEl ) {
+                        var c = parseInt( countEl.textContent, 10 ) - 1;
+                        countEl.textContent = c;
+                        if ( c <= 0 ) {
+                            var queue = document.querySelector( '.dd-kitchen-queue' );
+                            if ( queue ) queue.remove();
+                        }
+                    }
+                } else {
+                    if ( btn ) { btn.disabled = false; btn.textContent = 'Mark Ready'; }
+                }
+            });
+    };
+})();
+</script>
 
 </div><!-- /.dd-dash-wrap -->
 
