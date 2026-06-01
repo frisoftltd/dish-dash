@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.75 (2026-06-01)
+> Last updated: v3.4.76 (2026-06-01)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.75 |
+| **Deployed version** | v3.4.76 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.76 — Tables + Seating Sections redesign |
-| **Last working state** | Remove stale banner, need-action badge links to orders, server-side notification read persistence via dd_notifications_read wp_option. |
+| **Next task** | v3.4.77 — Kitchen Queue dashboard section + bell pending-only filter |
+| **Last working state** | Add status timestamp columns (confirmed_at, ready_at, delivered_at, cancelled_at), kitchen prep time setting, record timestamps on every status transition. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -521,7 +521,8 @@ Every page before shipping must pass:
 | **v3.4.73** | ✅ **Done** | **Bell panel polish, click notification opens order modal, mark as read** |
 | **v3.4.74** | ✅ **Done** | **Fix bell panel HTML rendering, notification click opens order modal** |
 | **v3.4.75** | ✅ **Done** | **Remove stale banner, need-action badge link, server-side notification read persistence** |
-| v3.4.76 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.76** | ✅ **Done** | **Add status timestamp columns, kitchen prep time setting, record timestamps on status change** |
+| v3.4.77 | ⏳ **NEXT** | Kitchen Queue dashboard section + bell pending-only filter |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

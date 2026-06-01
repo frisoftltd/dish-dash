@@ -511,11 +511,29 @@ class DD_Orders_Module extends DD_Module {
             return false;
         }
 
+        $now = current_time( 'mysql' );
+
+        $timestamp_col = null;
+        switch ( $new_status ) {
+            case 'confirmed': $timestamp_col = 'confirmed_at'; break;
+            case 'ready':     $timestamp_col = 'ready_at';     break;
+            case 'delivered': $timestamp_col = 'delivered_at'; break;
+            case 'cancelled': $timestamp_col = 'cancelled_at'; break;
+        }
+
+        $update_data   = [ 'status' => $new_status ];
+        $update_format = [ '%s' ];
+
+        if ( $timestamp_col ) {
+            $update_data[ $timestamp_col ] = $now;
+            $update_format[]               = '%s';
+        }
+
         $updated = $wpdb->update(
             $wpdb->prefix . 'dishdash_orders',
-            [ 'status' => $new_status ],
-            [ 'id'     => $order_id ],
-            [ '%s' ],
+            $update_data,
+            [ 'id' => $order_id ],
+            $update_format,
             [ '%d' ]
         );
 

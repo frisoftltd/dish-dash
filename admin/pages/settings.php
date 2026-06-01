@@ -60,6 +60,7 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_free_delivery_threshold', absint( $_POST['dd_free_delivery_threshold'] ?? 10000 ) );
     update_option( 'dd_delivery_fee',            absint( $_POST['dd_delivery_fee']            ?? 1500  ) );
     update_option( 'dd_delivery_eta',            sanitize_text_field( $_POST['dd_delivery_eta'] ?? '30–45 minutes' ) );
+    update_option( 'dd_kitchen_prep_time',       absint( $_POST['dd_kitchen_prep_time'] ?? 30 ) );
     update_option( 'dd_whatsapp_admin',          sanitize_text_field( $_POST['dd_whatsapp_admin']   ?? '' ) );
     update_option( 'dd_whatsapp_kitchen',        sanitize_text_field( $_POST['dd_whatsapp_kitchen'] ?? '' ) );
     update_option( 'dd_admin_email',             sanitize_email( $_POST['dd_admin_email'] ?? '' ) );
@@ -212,6 +213,22 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                        value="<?php echo esc_attr( get_option( 'dd_delivery_eta', '30–45 minutes' ) ); ?>"
                        class="regular-text" placeholder="30–45 minutes">
                 <p class="description"><?php esc_html_e( 'Shown to customer after placing order.', 'dish-dash' ); ?></p>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row"><label for="dd_kitchen_prep_time"><?php esc_html_e( 'Kitchen Prep Time (minutes)', 'dish-dash' ); ?></label></th>
+            <td>
+                <div class="dd-field-row">
+                    <input type="number"
+                           id="dd_kitchen_prep_time"
+                           name="dd_kitchen_prep_time"
+                           value="<?php echo esc_attr( get_option( 'dd_kitchen_prep_time', 30 ) ); ?>"
+                           min="1" max="180" step="1"
+                           class="dd-input dd-input--short" />
+                    <p class="dd-field-hint">
+                        <?php esc_html_e( 'Expected time from order confirmed → ready. Used for kitchen queue alerts.', 'dish-dash' ); ?>
+                    </p>
+                </div>
             </td>
         </tr>
         <tr>
