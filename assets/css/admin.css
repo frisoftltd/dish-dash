@@ -1154,7 +1154,10 @@ a.dd-badge-link:hover {
 
 /* ── Analytics pages ────────────────────────────────────────────────────── */
 
-.dd-analytics-wrap { padding-bottom: 40px; }
+.dd-analytics-wrap {
+    padding: 24px 24px 60px;
+    max-width: 1400px;
+}
 
 .dd-analytics-header {
     display: flex; align-items: flex-start;
@@ -1367,35 +1370,178 @@ a.dd-badge-link:hover {
     font-size: 14px; font-weight: 700; color: #111;
 }
 
-/* ── Reservations Analytics KPI fix ─────────────────────────────────────── */
+/* ── Analytics pages — full padding & spacing system ────────────────────── */
+
+/* KPI row */
 .dd-analytics-wrap .dd-kpi-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
-    margin-bottom: 24px;
+    margin: 0 0 24px;
 }
+@media(max-width:1100px) { .dd-analytics-wrap .dd-kpi-row { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:600px)  { .dd-analytics-wrap .dd-kpi-row { grid-template-columns: 1fr; } }
+
+/* KPI cards */
 .dd-analytics-wrap .dd-kpi-card {
-    padding: 20px;
-    min-height: 90px;
+    padding: 20px 20px 16px;
+    min-height: 100px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    gap: 4px;
+}
+.dd-analytics-wrap .dd-kpi-top {
+    margin-bottom: 8px;
 }
 .dd-analytics-wrap .dd-kpi-label {
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: .04em;
+    letter-spacing: .05em;
     color: #888;
-    margin-bottom: 6px;
+    margin: 0 0 4px;
 }
 .dd-analytics-wrap .dd-kpi-value {
-    font-size: 28px;
+    font-size: 26px;
     font-weight: 700;
     color: #111;
-    line-height: 1;
+    line-height: 1.1;
+    margin: 0;
 }
-@media(max-width:900px){
-    .dd-analytics-wrap .dd-kpi-row { grid-template-columns: repeat(2,1fr); }
+
+/* All cards in analytics get consistent internal padding */
+.dd-analytics-wrap .dd-dash-card {
+    margin-bottom: 24px;
+    border-radius: 14px;
+}
+
+/* Card content padding — all direct children that aren't chart or header */
+.dd-analytics-wrap .dd-dash-card > p,
+.dd-analytics-wrap .dd-dash-card > ul,
+.dd-analytics-wrap .dd-dash-card > table,
+.dd-analytics-wrap .dd-dash-card > .dd-speed-kpi-row,
+.dd-analytics-wrap .dd-dash-card > .dd-speed-benchmark,
+.dd-analytics-wrap .dd-dash-card > .dd-speed-slowest,
+.dd-analytics-wrap .dd-dash-card > .dd-speed-tips,
+.dd-analytics-wrap .dd-dash-card > .dd-hbar-row,
+.dd-analytics-wrap .dd-dash-card > .dd-section-title,
+.dd-analytics-wrap .dd-dash-card > .dd-empty-state {
+    padding-left: 24px;
+    padding-right: 24px;
+}
+.dd-analytics-wrap .dd-dash-card > .dd-speed-kpi-row   { padding-top: 20px; }
+.dd-analytics-wrap .dd-dash-card > .dd-speed-benchmark { padding-top: 4px; padding-bottom: 4px; }
+.dd-analytics-wrap .dd-dash-card > .dd-speed-slowest   { padding-bottom: 4px; }
+.dd-analytics-wrap .dd-dash-card > .dd-speed-tips      { padding-bottom: 20px; }
+.dd-analytics-wrap .dd-dash-card > .dd-hbar-row        { padding-top: 6px; padding-bottom: 6px; }
+.dd-analytics-wrap .dd-dash-card > .dd-hbar-row:last-child { padding-bottom: 20px; }
+.dd-analytics-wrap .dd-dash-card > .dd-section-title   { padding-top: 20px; }
+.dd-analytics-wrap .dd-dash-card > .dd-empty-state     { padding-top: 28px; padding-bottom: 28px; }
+
+/* Top items list padding */
+.dd-analytics-wrap .dd-top-items-list {
+    padding: 8px 24px 16px;
+}
+.dd-analytics-wrap .dd-top-items-list li {
+    padding: 10px 0;
+    gap: 12px;
+}
+
+/* Tier table padding */
+.dd-analytics-wrap .dd-tier-table {
+    margin: 8px 24px 20px;
+    width: calc(100% - 48px);
+}
+
+/* Chart wrap in analytics — consistent padding */
+.dd-analytics-wrap .dd-chart-wrap {
+    padding: 16px 20px 20px;
+}
+
+/* Two-column layouts */
+.dd-analytics-wrap .dd-dash-cols {
+    gap: 24px;
+    margin-bottom: 24px;
+    align-items: stretch;
+}
+.dd-analytics-wrap .dd-dash-cols .dd-dash-card,
+.dd-analytics-wrap .dd-cols-50 .dd-dash-card {
+    margin-bottom: 0;
+    height: 100%;
+    box-sizing: border-box;
+}
+.dd-analytics-wrap .dd-cols-50 {
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+/* Speed KPI row */
+.dd-analytics-wrap .dd-speed-kpi-row {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 0;
+}
+@media(max-width:1000px) { .dd-analytics-wrap .dd-speed-kpi-row { grid-template-columns: repeat(2,1fr); } }
+
+/* Speed benchmark bar */
+.dd-analytics-wrap .dd-speed-benchmark {
+    margin: 16px 0 8px;
+}
+
+/* Speed tips */
+.dd-analytics-wrap .dd-speed-tip {
+    padding: 12px 0;
+    border-bottom: 1px solid #f5f5f5;
+    gap: 14px;
+}
+.dd-analytics-wrap .dd-speed-tip:last-child { border-bottom: none; }
+.dd-analytics-wrap .dd-speed-tip p { margin: 4px 0 0; }
+
+/* Slowest orders table */
+.dd-analytics-wrap .dd-speed-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-top: 8px;
+}
+.dd-analytics-wrap .dd-speed-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #aaa;
+    padding: 6px 0 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.dd-analytics-wrap .dd-speed-table td {
+    padding: 9px 0;
+    border-bottom: 1px solid #f8f8f8;
+    color: #333;
+}
+.dd-analytics-wrap .dd-speed-table tr:last-child td { border-bottom: none; }
+
+/* hbar padding inside cards */
+.dd-analytics-wrap .dd-dash-card .dd-hbar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 24px;
+    font-size: 13px;
+}
+.dd-analytics-wrap .dd-dash-card .dd-hbar-label { width: 140px; }
+
+/* AI Insights section top spacing */
+.dd-analytics-wrap .dd-insights-section {
+    margin-bottom: 24px;
+}
+
+/* Analytics header spacing */
+.dd-analytics-header {
+    margin-bottom: 16px;
+}
+.dd-analytics-tabs {
+    margin-bottom: 24px;
 }
 
