@@ -339,10 +339,12 @@ foreach ( $orders as $o ) {
 
 <script>
 window.ddOrdersData = {
-    ajaxUrl:   <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
-    nonce:      <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_frontend' ) ); ?>,
-    adminNonce: <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_admin' ) ); ?>,
-    waUrls:    <?php echo wp_json_encode( $order_wa_urls ); ?>,
+    ajaxUrl:      <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
+    nonce:        <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_frontend' ) ); ?>,
+    adminNonce:   <?php echo wp_json_encode( wp_create_nonce( 'dish_dash_admin' ) ); ?>,
+    waUrls:       <?php echo wp_json_encode( $order_wa_urls ); ?>,
+    kitchenPhone: <?php echo wp_json_encode( get_option( 'dd_whatsapp_kitchen', '' ) ); ?>,
+    adminPhone:   <?php echo wp_json_encode( get_option( 'dd_whatsapp_admin', '' ) ); ?>,
     statusLabels: <?php echo wp_json_encode( [
         'pending'   => 'Pending',
         'confirmed' => 'Confirmed',
@@ -451,6 +453,25 @@ window.ddOrdersData = {
             .catch( function () { setLoading( false ); } );
     }
 
+    function buildWaUrls( order ) {
+        var phone   = ( order.customer_phone || '' ).replace( /\D/g, '' );
+        var kitchen = ( window.ddOrdersData.kitchenPhone || '' ).replace( /\D/g, '' );
+        var adminWa = ( window.ddOrdersData.adminPhone   || '' ).replace( /\D/g, '' );
+
+        var summary = ( order.order_number || ( 'DD-' + order.id ) )
+                    + ' · ' + ( order.customer_name || '' )
+                    + ' · ' + Number( order.total ).toLocaleString( 'en-US', { maximumFractionDigits: 0 } ) + ' RWF';
+
+        var kitchenMsg  = encodeURIComponent( '🍳 Kitchen Order\n' + summary );
+        var customerMsg = encodeURIComponent( '✅ Your order ' + summary + ' is ready!' );
+
+        return {
+            kitchen:  kitchen ? 'https://wa.me/' + kitchen + '?text=' + kitchenMsg  : '',
+            customer: phone   ? 'https://wa.me/' + phone   + '?text=' + customerMsg : '',
+            admin:    adminWa ? 'https://wa.me/' + adminWa                           : '',
+        };
+    }
+
     function renderModal( order, items ) {
         currentOrder = order;
         currentItems = items;
@@ -459,7 +480,7 @@ window.ddOrdersData = {
         var date    = new Date( order.created_at ).toLocaleDateString( 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' } );
         var status  = order.status;
         var labels  = window.ddOrdersData.statusLabels;
-        var waUrls  = window.ddOrdersData.waUrls[ id ] || {};
+        var waUrls  = window.ddOrdersData.waUrls[ id ] || buildWaUrls( order );
 
         // Header
         modal.querySelector( '.dd-modal-order-num' ).textContent = orderNum;
@@ -506,7 +527,7 @@ window.ddOrdersData = {
             if ( waUrls.kitchen ) {
                 actionsHtml += '<a href="' + esc( waUrls.kitchen ) + '" target="_blank" class="dd-btn dd-btn-whatsapp dd-modal-notify-kitchen" data-order-id="' + id + '">📲 Notify Kitchen</a>';
             }
-            var readyDisabled = kitchenNotified ? '' : ' disabled';
+            var readyDisabled = ( kitchenNotified || ! waUrls.kitchen ) ? '' : ' disabled';
             actionsHtml += '<button class="dd-btn dd-btn-primary dd-modal-status-btn dd-requires-kitchen" data-status="ready" data-order-id="' + id + '"' + readyDisabled + '>✓ Mark Ready</button>';
             actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
         }
