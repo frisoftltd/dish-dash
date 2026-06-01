@@ -99,10 +99,11 @@ if ( ! in_array( $status_filter, $allowed, true ) ) $status_filter = 'all';
 
 // ── Pagination params ─────────────────────────────────────────────────────────
 $per_page_options = [ 25, 50, 75 ];
-$per_page         = in_array( (int) ( $_GET['per_page'] ?? 25 ), array_merge( $per_page_options, [ 99999 ] ), true )
-                    ? (int) $_GET['per_page']
+$per_page_raw     = isset( $_GET['per_page'] ) ? (int) $_GET['per_page'] : 25;
+$per_page         = in_array( $per_page_raw, array_merge( $per_page_options, [ 99999 ] ), true )
+                    ? $per_page_raw
                     : 25;
-$paged            = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+$paged            = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
 $offset           = ( $paged - 1 ) * $per_page;
 
 // ── Summary stats ─────────────────────────────────────────────────────────────
@@ -143,7 +144,7 @@ if ( $status_filter === 'test' ) {
         $per_page, $offset
     ), ARRAY_A );
 }
-$total_pages = $paginated_total > 0 ? (int) ceil( $paginated_total / $per_page ) : 1;
+$total_pages = ( $paginated_total > 0 && $per_page > 0 ) ? (int) ceil( $paginated_total / $per_page ) : 1;
 
 // ── Per-status counts for filter tabs ─────────────────────────────────────────
 $status_counts = [];
