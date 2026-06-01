@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.77 (2026-06-01)
+> Last updated: v3.4.78 (2026-06-01)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.77 |
+| **Deployed version** | v3.4.78 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.78 — Tables + Seating Sections redesign |
-| **Last working state** | Bell shows pending-only orders, kitchen queue section on dashboard with live elapsed timer and Mark Ready button, dd_kitchen_queue AJAX endpoint. |
+| **Next task** | v3.4.79 — Tables + Seating Sections redesign |
+| **Last working state** | Bell deduplicates pending orders across polls, removes accepted orders from panel, badge recounted from DOM state. Need-action badge removed from Active Orders KPI. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -523,7 +523,8 @@ Every page before shipping must pass:
 | **v3.4.75** | ✅ **Done** | **Remove stale banner, need-action badge link, server-side notification read persistence** |
 | **v3.4.76** | ✅ **Done** | **Add status timestamp columns, kitchen prep time setting, record timestamps on status change** |
 | **v3.4.77** | ✅ **Done** | **Bell pending-only, kitchen queue with live timer and Mark Ready, dd_kitchen_queue endpoint** |
-| v3.4.78 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.78** | ✅ **Done** | **Bell dedup — merge approach, remove accepted orders, badge from DOM state; remove need-action badge** |
+| v3.4.79 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -113,14 +113,38 @@
                 var newOrders = payload.new_orders || [];
                 var newRes    = payload.new_reservations || [];
 
-                if ( newOrders.length === 0 && newRes.length === 0 ) return;
+                // Remove bell items for orders no longer pending
+                var currentPendingIds = new Set( newOrders.map( function(o) { return parseInt( o.id, 10 ); } ) );
+                if ( bellItems ) {
+                    bellItems.querySelectorAll( '[data-item-type="order"]' ).forEach( function( el ) {
+                        if ( ! currentPendingIds.has( parseInt( el.dataset.id, 10 ) ) ) {
+                            el.remove();
+                        }
+                    } );
+                }
 
-                // Update badge
-                unreadCount += newOrders.length + newRes.length;
-                updateBadge();
+                if ( newOrders.length === 0 && newRes.length === 0 ) {
+                    var orderCountR = bellItems ? bellItems.querySelectorAll( '[data-item-type="order"]' ).length : 0;
+                    var resCountR   = bellItems ? bellItems.querySelectorAll( '[data-item-type="reservation"].dd-unread' ).length : 0;
+                    unreadCount = orderCountR + resCountR;
+                    updateBadge();
+                    return;
+                }
 
-                // Add to panel
+                // Build a set of order IDs already in the panel
+                var existingOrderIds = new Set();
+                if ( bellItems ) {
+                    bellItems.querySelectorAll( '[data-item-type="order"]' ).forEach( function( el ) {
+                        existingOrderIds.add( parseInt( el.dataset.id, 10 ) );
+                    } );
+                }
+
+                var orderNotifCount = bellItems ? bellItems.querySelectorAll( '[data-item-type="order"]' ).length : 0;
+
+                // Add to panel — skip orders already displayed
                 newOrders.forEach( function ( order ) {
+                    if ( existingOrderIds.has( parseInt( order.id, 10 ) ) ) return;
+
                     var orderNum = order.order_number || ( 'DD-' + String( order.id ).padStart( 5, '0' ) );
                     var total    = Number( order.total ).toLocaleString( 'en-US', { maximumFractionDigits: 0 } );
                     var item     = {
@@ -132,6 +156,7 @@
                     };
                     notifications.unshift( item );
                     addBellItem( item );
+                    orderNotifCount++;
                 } );
 
                 newRes.forEach( function ( r ) {
@@ -146,6 +171,11 @@
                     notifications.unshift( item );
                     addBellItem( item );
                 } );
+
+                // Update badge from DOM state
+                var resItems = bellItems ? bellItems.querySelectorAll( '[data-item-type="reservation"].dd-unread' ).length : 0;
+                unreadCount = orderNotifCount + resItems;
+                updateBadge();
 
                 // Play sound
                 playBeep();
