@@ -531,39 +531,7 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
 
     // Mark Ready button
     window.ddMarkReady = function( orderId ) {
-        var btn = document.querySelector( '.dd-kitchen-item[data-order-id="' + orderId + '"] .dd-kitchen-item__ready' );
-        if ( btn ) { btn.disabled = true; btn.textContent = 'Updating…'; }
-
-        var fd = new FormData();
-        fd.append( 'action',   'dd_update_status' );
-        fd.append( 'nonce',    '<?php echo wp_create_nonce( 'dish_dash_admin' ); ?>' );
-        fd.append( 'order_id', orderId );
-        fd.append( 'status',   'ready' );
-
-        fetch( '<?php echo admin_url( 'admin-ajax.php' ); ?>', { method: 'POST', body: fd } )
-            .then( function(r) { return r.json(); } )
-            .then( function(res) {
-                if ( res.success ) {
-                    var item = document.querySelector( '.dd-kitchen-item[data-order-id="' + orderId + '"]' );
-                    if ( item ) {
-                        item.style.transition = 'opacity 0.3s';
-                        item.style.opacity    = '0';
-                        setTimeout( function() { item.remove(); }, 300 );
-                    }
-                    // Update queue count badge
-                    var countEl = document.querySelector( '.dd-kitchen-count' );
-                    if ( countEl ) {
-                        var c = parseInt( countEl.textContent, 10 ) - 1;
-                        countEl.textContent = c;
-                        if ( c <= 0 ) {
-                            var queue = document.querySelector( '.dd-kitchen-queue' );
-                            if ( queue ) queue.remove();
-                        }
-                    }
-                } else {
-                    if ( btn ) { btn.disabled = false; btn.textContent = 'Mark Ready'; }
-                }
-            });
+        window.location.href = '<?php echo admin_url( 'admin.php?page=dish-dash-orders&open_order=' ); ?>' + orderId;
     };
 })();
 </script>
