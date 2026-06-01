@@ -288,6 +288,7 @@ class DD_Hooks {
         add_action( 'admin_menu', function() {
             remove_menu_page( 'edit.php' );          // Posts
             remove_menu_page( 'edit-comments.php' ); // Comments
+            remove_submenu_page( 'dish-dash', 'dish-dash-menu' ); // Menu Items
         }, 999 );
     }
 
