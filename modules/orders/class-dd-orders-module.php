@@ -207,6 +207,10 @@ class DD_Orders_Module extends DD_Module {
         $order->set_status( 'pending' );
         $order->save();
 
+        // Internal tracking only — NOT shown to customer, NOT deducted from total
+        $order->update_meta_data( '_dd_platform_fee', absint( get_option( 'dd_per_order_fee', 750 ) ) );
+        $order->save_meta_data();
+
         return $order;
     }
 
@@ -327,6 +331,9 @@ class DD_Orders_Module extends DD_Module {
         // Generate order number
         $order_number = dd_generate_order_number();
 
+        // Snapshot platform fee at order time — stored for month-end invoicing
+        $dd_platform_fee = absint( get_option( 'dd_per_order_fee', 750 ) );
+
         // Build order row
         $order_data = [
             'order_number'        => $order_number,
@@ -348,6 +355,7 @@ class DD_Orders_Module extends DD_Module {
             'delivery_address'    => isset( $data['delivery_address'] ) ? wp_json_encode( $data['delivery_address'] ) : null,
             'special_instructions' => sanitize_textarea_field( $data['special_instructions'] ?? '' ),
             'scheduled_at'        => ! empty( $data['scheduled_at'] ) ? sanitize_text_field( $data['scheduled_at'] ) : null,
+            'platform_fee'        => $dd_platform_fee,
         ];
 
         // Insert order
@@ -363,8 +371,20 @@ class DD_Orders_Module extends DD_Module {
 
         $order_id = $wpdb->insert_id;
 
+        // Stamp platform fee — column added by class-dd-install.php v3.4.91+
+        $wpdb->update(
+            $wpdb->prefix . 'dishdash_orders',
+            [ 'platform_fee' => $dd_platform_fee ],
+            [ 'id'           => $order_id ],
+            [ '%d' ],
+            [ '%d' ]
+        );
+
         // Insert order items
         $this->insert_order_items( $order_id, $data['items'] );
+
+        // Pass platform_fee in hook payload so listeners can read it
+        $order_data['platform_fee'] = $dd_platform_fee;
 
         // Fire action hook
         do_action( 'dish_dash_order_placed', $order_id, $order_data );

@@ -103,6 +103,7 @@ class DD_Install {
             delivered_at    DATETIME NULL,
             cancelled_at    DATETIME NULL,
             is_test         TINYINT(1) NOT NULL DEFAULT 0,
+            platform_fee    INT UNSIGNED NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
             UNIQUE KEY order_number (order_number),
             KEY branch_id (branch_id),
