@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.90 (2026-06-01)
+> Last updated: v3.4.91 (2026-06-02)
 
 ---
 
@@ -65,11 +65,11 @@ WooCommerce (payment processing)
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.90 |
+| **Deployed version** | v3.4.91 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.91 — Tables + Seating Sections redesign |
-| **Last working state** | Analytics pages live: Orders Analytics + Reservations Analytics with AI Insights engine, Chart.js charts, speed metrics, top items, customer breakdown, payment/type breakdown. |
+| **Next task** | v3.4.92 — Tables + Seating Sections redesign |
+| **Last working state** | Settings page redesigned with card layout + CSS grid. New Pricing & Fees section: flat fee, minimum order advisory panel (live JS), payment method toggles. platform_fee column added to dishdash_orders; fee stamped on every order at placement. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -536,7 +536,8 @@ Every page before shipping must pass:
 | **v3.4.88** | ✅ **Done** | **Fix oi.price DB error (line_total), insights horizontal scroll, remove orders tab, reservations KPI padding** |
 | **v3.4.89** | ✅ **Done** | **Analytics padding overhaul — consistent 24px card spacing, KPI sizing, chart wrap, speed section, hbars, two-column gaps** |
 | **v3.4.90** | ✅ **Done** | **Analytics merged into single page — Orders + Reservations tabs, sidebar sub-item removed, both JS loaded on one page, max-width removed** |
-| v3.4.91 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.91** | ✅ **Done** | **Settings page redesign (card layout, CSS grid); Pricing & Fees section (flat fee, minimum order advisory, payment method toggles, platform fee stamped on every order)** |
+| v3.4.92 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
@@ -609,6 +610,13 @@ Every page before shipping must pass:
 
 **Hours:**
 `dd_opening_hours`, `dd_closing_soon_minutes` (30), `dd_timezone` (Africa/Kigali)
+
+**Pricing & Fees (Phase 5D v3.4.91+):**
+`dd_per_order_fee` (750, INT) — flat fee (RWF) charged per confirmed order for Dish Dash invoicing
+`dd_minimum_order_amount` (10000, INT) — advisory minimum shown to customers at checkout
+`dd_payment_card_enabled` ('1', '0'|'1') — whether Pesapal card is offered
+`dd_payment_momo_enabled` ('1', '0'|'1') — whether MTN MoMo Pay is offered
+`dd_payment_cod_enabled` ('1', '0'|'1') — whether Cash on Delivery is offered
 
 **Admin (Phase 5):**
 `dd_admin_custom_path` — custom admin URL path, superadmin only
