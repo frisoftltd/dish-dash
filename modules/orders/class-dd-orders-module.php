@@ -372,7 +372,7 @@ class DD_Orders_Module extends DD_Module {
 
         $order_id = $wpdb->insert_id;
 
-        // Stamp platform fee — column added by class-dd-install.php v3.4.91+
+        // Stamp platform fee — column declared in install.php, added by auto-migration guard
         $wpdb->update(
             $wpdb->prefix . 'dishdash_orders',
             [ 'platform_fee' => $dd_platform_fee ],

@@ -3,7 +3,7 @@
  * Plugin Name:       Dish Dash
  * Plugin URI:        https://frisoftltd.com/dish-dash
  * Description:       DishDash is a smart ordering system that learns customer behavior and makes ordering faster, easier, and more personalized every time.
- * Version:           3.4.96
+ * Version:           3.4.97
  * Author:            Fri Soft Ltd
  * Author URI:        https://frisoft.rw
  * License:           GPL-2.0+
@@ -25,7 +25,6 @@
  *   - dishdash-core/class-dd-loader.php          (via autoloader)
  *   - dishdash-core/class-dd-requirements.php    (via autoloader)
  *   - dishdash-core/class-dd-theme-installer.php (via autoloader)
- *   - dishdash-core/class-dd-install.php         (DEPRECATED — defines DD_Schema_Upgrader, not loaded actively)
  *
  * Dependents (files that need this):
  *   - Every other plugin file (reads DD_VERSION, DD_PLUGIN_DIR, DD_ASSETS_URL etc.)
@@ -45,7 +44,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────
-define( 'DD_VERSION',         '3.4.96' );
+define( 'DD_VERSION',         '3.4.97' );
 define( 'DD_PLUGIN_FILE',     __FILE__ );
 define( 'DD_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'DD_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
