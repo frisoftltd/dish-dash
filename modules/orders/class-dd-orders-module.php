@@ -332,7 +332,8 @@ class DD_Orders_Module extends DD_Module {
         $order_number = dd_generate_order_number();
 
         // Snapshot platform fee at order time — stored for month-end invoicing
-        $dd_platform_fee = absint( get_option( 'dd_per_order_fee', 750 ) );
+        $fees_enabled    = get_option( 'dd_fees_enabled', '1' ) === '1';
+        $dd_platform_fee = $fees_enabled ? absint( get_option( 'dd_per_order_fee', 750 ) ) : 0;
 
         // Build order row
         $order_data = [

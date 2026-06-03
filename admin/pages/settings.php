@@ -112,6 +112,7 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_payment_card_enabled', isset( $_POST['dd_payment_card_enabled'] ) ? '1' : '0' );
     update_option( 'dd_payment_momo_enabled', isset( $_POST['dd_payment_momo_enabled'] ) ? '1' : '0' );
     update_option( 'dd_payment_cod_enabled',  isset( $_POST['dd_payment_cod_enabled']  ) ? '1' : '0' );
+    update_option( 'dd_fees_enabled',         isset( $_POST['dd_fees_enabled']          ) ? '1' : '0' );
 
     // Security — custom admin path (superadmin only)
     if ( current_user_can( 'manage_options' ) && isset( $_POST['dd_admin_custom_path'] ) ) {
@@ -778,6 +779,27 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                 update();
             })();
             </script>
+
+            <div style="margin:24px 0;border-top:1px solid #f0f0f0"></div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">Fee Tracking
+                    <span class="dd-label-hint">Controls platform fee recording</span>
+                </div>
+                <div class="dd-field-control">
+                    <label class="dd-check-label">
+                        <input type="checkbox" name="dd_fees_enabled" value="1"
+                            <?php checked( '1', get_option( 'dd_fees_enabled', '1' ) ); ?>>
+                        <span>
+                            Enable platform fee tracking
+                            <span class="dd-check-desc">
+                                When enabled, RWF <?php echo number_format( (int) get_option( 'dd_per_order_fee', 750 ) ); ?>
+                                is recorded on each delivered order. Disable to pause without losing history.
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </div>
         </div>
 
         <?php if ( current_user_can( 'manage_options' ) ) : ?>

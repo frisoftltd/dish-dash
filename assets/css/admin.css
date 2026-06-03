@@ -320,6 +320,18 @@
     border-radius: 20px;
 }
 .dd-badge-warn { background: #fef9c3; color: #854d0e; }
+.dd-kpi-meta {
+    font-size: 11px;
+    color: #888;
+    margin-top: 6px;
+    line-height: 1.4;
+}
+.dd-kpi-rate {
+    display: block;
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 2px;
+}
 
 /* Cards */
 .dd-dash-card {

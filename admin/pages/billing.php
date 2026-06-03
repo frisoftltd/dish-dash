@@ -89,6 +89,21 @@ $status_breakdown = $wpdb->get_results(
     <p class="dd-page-subtitle">Platform fee tracking — RWF <?php echo number_format( $fee ); ?> per delivered order</p>
   </div>
 
+  <?php
+  $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
+  if ( ! $fees_enabled ) : ?>
+  <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:16px 20px;margin-bottom:24px;display:flex;align-items:center;gap:12px">
+    <span style="font-size:20px">⏸</span>
+    <div>
+      <div style="font-weight:600;color:#92400e;font-size:14px">Fee tracking is paused</div>
+      <div style="color:#b45309;font-size:13px;margin-top:2px">
+        No fees are being recorded on new orders.
+        <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-settings' ) ); ?>" style="color:#92400e;text-decoration:underline">Enable in Settings → Pricing &amp; Fees</a>
+      </div>
+    </div>
+  </div>
+  <?php endif; ?>
+
   <!-- ── KPI row ───────────────────────────────────────────────────────────── -->
   <div class="dd-billing-kpis">
 
@@ -268,6 +283,7 @@ $status_breakdown = $wpdb->get_results(
   font-size: 11px;
   color: #888;
   margin-top: 4px;
+  line-height: 1.4;
 }
 
 /* Status badge base — colors come from admin.css dd-status-* rules */

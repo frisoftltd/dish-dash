@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.93 (2026-06-03)
+> Last updated: v3.4.94 (2026-06-03)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.93 |
+| **Deployed version** | v3.4.94 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.94 — Tables + Seating Sections redesign |
-| **Last working state** | Billing page added (💳 sidebar entry between Analytics and Settings, monthly history, status breakdown, all-time fees). Fees This Month KPI card added as 7th card on dashboard. KPI grid updated to auto-fit. |
+| **Next task** | v3.4.95 — Tables + Seating Sections redesign |
+| **Last working state** | Fee enable/disable toggle added to Settings → Pricing & Fees. Toggle respected in place_order() — writes 0 when disabled. Dashboard Fees card wrapped in fees_enabled check, layout improved (dd-kpi-meta/dd-kpi-rate). Analytics fees KPI card added (5th card, orders tab only). Billing page shows paused notice when disabled. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -564,7 +564,8 @@ Every page before shipping must pass:
 | **v3.4.91** | ✅ **Done** | **Settings page redesign (card layout, CSS grid); Pricing & Fees section (flat fee, minimum order advisory, payment method toggles, platform fee stamped on every order)** |
 | **v3.4.92** | ✅ **Done** | **Installer consolidation: single canonical install.php (13 tables), class-name conflict resolved (DD_Schema_Upgrader), auto-migration guard in dish-dash.php, no more manual WP-CLI for schema updates** |
 | **v3.4.93** | ✅ **Done** | **Billing page (💳 sidebar between Analytics and Settings, monthly history, status breakdown, all-time fees) + Fees This Month KPI card on dashboard** |
-| v3.4.94 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.94** | ✅ **Done** | **Fee enable/disable toggle in Settings, dashboard card fixed (dd-kpi-meta layout), Analytics fees KPI card, Billing disabled notice** |
+| v3.4.95 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

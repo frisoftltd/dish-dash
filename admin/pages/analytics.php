@@ -88,6 +88,13 @@ if ( $active_tab === 'orders' ) {
     $kpi_revenue = (float) $wpdb->get_var( $wpdb->prepare(
         "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status='delivered' AND is_test=0 AND created_at>=%s", $since
     ) );
+    $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
+    $kpi_fees_analytics = $fees_enabled ? (int) $wpdb->get_var( $wpdb->prepare(
+        "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}`
+         WHERE status = 'delivered' AND platform_fee > 0
+         AND created_at >= %s AND is_test = 0",
+        $since
+    ) ) : 0;
     $kpi_orders = (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COUNT(*) FROM `{$ot}` WHERE is_test=0 AND created_at>=%s", $since
     ) );
@@ -441,6 +448,20 @@ if ( $active_tab === 'reservations' ) {
       <div class="dd-kpi-label">Repeat Customer Rate</div>
       <div class="dd-kpi-value"><?php echo $kpi_return_rate; ?>%</div>
     </div>
+    <?php if ( $fees_enabled ) : ?>
+    <div class="dd-kpi-card" style="--kpi-accent:#0EA5E9">
+      <div class="dd-kpi-top"><span class="dd-kpi-icon">💳</span></div>
+      <div class="dd-kpi-label">Platform Fees</div>
+      <div class="dd-kpi-value"><?php echo dd_an_rwf( $kpi_fees_analytics ); ?></div>
+      <div class="dd-kpi-delta" style="font-size:11px;color:#888;margin-top:4px">
+        <?php
+        $fee_per = (int) get_option( 'dd_per_order_fee', 750 );
+        $fee_cnt = $fee_per > 0 ? round( $kpi_fees_analytics / $fee_per ) : 0;
+        echo number_format( $fee_cnt ) . ' orders &times; RWF ' . number_format( $fee_per );
+        ?>
+      </div>
+    </div>
+    <?php endif; ?>
   </div>
 
   <!-- ── Revenue Chart ── -->
