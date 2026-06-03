@@ -16,6 +16,12 @@ if (
     isset( $_POST['dd_bulk_deliver_stale'] ) &&
     check_admin_referer( 'dd_bulk_deliver_stale' )
 ) {
+    $stale_rows = $wpdb->get_results(
+        "SELECT id, status FROM `{$wpdb->prefix}dishdash_orders`
+         WHERE status NOT IN ('delivered','cancelled')
+         AND is_test = 0
+         AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+    );
     $wpdb->query(
         "UPDATE `{$wpdb->prefix}dishdash_orders`
          SET status = 'delivered', updated_at = NOW()
@@ -23,6 +29,11 @@ if (
          AND is_test = 0
          AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
     );
+    if ( class_exists( 'DD_Orders_Module' ) ) {
+        foreach ( $stale_rows as $row ) {
+            DD_Orders_Module::recalculate_fee_for_status_change( (int) $row->id, $row->status, 'delivered' );
+        }
+    }
     wp_safe_redirect( admin_url( 'admin.php?page=dish-dash' ) );
     exit;
 }

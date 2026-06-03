@@ -232,6 +232,10 @@ class DD_Orders_Module extends DD_Module {
 
         // Update DD order status to processing
         global $wpdb;
+        $old_dd_status = $wpdb->get_var( $wpdb->prepare(
+            "SELECT status FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
+            (int) $dd_order_id
+        ) );
         $wpdb->update(
             $wpdb->prefix . 'dishdash_orders',
             [
@@ -242,6 +246,9 @@ class DD_Orders_Module extends DD_Module {
             [ '%s', '%s' ],
             [ '%d' ]
         );
+        if ( $old_dd_status ) {
+            self::recalculate_fee_for_status_change( (int) $dd_order_id, $old_dd_status, 'processing' );
+        }
 
         // Get wa.me URL from transient
         $whatsapp_url = get_transient( 'dd_whatsapp_' . $wc_order_id );
@@ -568,9 +575,87 @@ class DD_Orders_Module extends DD_Module {
 
             // Notify customer of status change
             $this->send_status_update( $order_id, $new_status );
+
+            self::recalculate_fee_for_status_change( $order_id, $old_status, $new_status );
         }
 
         return (bool) $updated;
+    }
+
+    // ─────────────────────────────────────────
+    //  FEE RECALCULATION
+    // ─────────────────────────────────────────
+    /**
+     * Recalculate platform_fee when an order status changes.
+     *
+     * Policy:
+     *  - Cancel: zero the fee
+     *  - Revert from delivered: zero the fee
+     *  - Re-deliver after revert (fee currently 0): restore from dd_per_order_fee
+     *  - All other transitions: no-op
+     *
+     * Idempotent: if fee is already at the target value, skips the DB write.
+     * WC post meta _dd_platform_fee is mirrored for orders with wc_order_id set.
+     *
+     * @param int    $order_id   dishdash_orders.id
+     * @param string $old_status Status before transition
+     * @param string $new_status Status after transition
+     */
+    public static function recalculate_fee_for_status_change( int $order_id, string $old_status, string $new_status ): void {
+        global $wpdb;
+
+        if ( $order_id <= 0 || $old_status === $new_status ) {
+            return;
+        }
+
+        $table = $wpdb->prefix . 'dishdash_orders';
+
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT platform_fee, wc_order_id FROM {$table} WHERE id = %d",
+            $order_id
+        ) );
+
+        if ( ! $row ) {
+            return;
+        }
+
+        $current_fee = (int) $row->platform_fee;
+        $wc_order_id = $row->wc_order_id ? (int) $row->wc_order_id : 0;
+
+        $target_fee = null;
+
+        if ( $new_status === 'cancelled' ) {
+            $target_fee = 0;
+        } elseif ( $old_status === 'delivered' && $new_status !== 'delivered' ) {
+            $target_fee = 0;
+        } elseif ( $new_status === 'delivered' && $old_status !== 'delivered' && $current_fee === 0 ) {
+            $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
+            $target_fee   = $fees_enabled ? (int) get_option( 'dd_per_order_fee', 750 ) : 0;
+        }
+
+        if ( $target_fee === null ) {
+            return;
+        }
+
+        if ( $current_fee === $target_fee ) {
+            return;
+        }
+
+        $wpdb->update(
+            $table,
+            [ 'platform_fee' => $target_fee ],
+            [ 'id'           => $order_id ],
+            [ '%d' ],
+            [ '%d' ]
+        );
+
+        if ( $wc_order_id > 0 && function_exists( 'wc_get_order' ) ) {
+            $wc_order = wc_get_order( $wc_order_id );
+            if ( $wc_order ) {
+                $wc_order->update_meta_data( '_dd_platform_fee', $target_fee );
+                $wc_order->save();
+            }
+        }
     }
 
     // ─────────────────────────────────────────
@@ -589,6 +674,10 @@ class DD_Orders_Module extends DD_Module {
 
     public function wc_payment_cancelled( int $wc_order_id ): void {
         global $wpdb;
+        $dd_row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, status FROM {$wpdb->prefix}dishdash_orders WHERE wc_order_id = %d",
+            $wc_order_id
+        ) );
         $wpdb->update(
             $wpdb->prefix . 'dishdash_orders',
             [ 'payment_status' => 'unpaid', 'status' => 'cancelled' ],
@@ -596,6 +685,9 @@ class DD_Orders_Module extends DD_Module {
             [ '%s', '%s' ],
             [ '%d' ]
         );
+        if ( $dd_row ) {
+            self::recalculate_fee_for_status_change( (int) $dd_row->id, $dd_row->status, 'cancelled' );
+        }
     }
 
     // ─────────────────────────────────────────

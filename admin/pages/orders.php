@@ -23,6 +23,11 @@ if (
     $new_status       = sanitize_key( $_POST['new_status'] );
     $allowed_statuses = [ 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
 
+    $old_status = $wpdb->get_var( $wpdb->prepare(
+        "SELECT status FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
+        $order_id
+    ) );
+
     if ( in_array( $new_status, $allowed_statuses, true ) ) {
         $wpdb->update(
             $wpdb->prefix . 'dishdash_orders',
@@ -31,6 +36,9 @@ if (
             [ '%s', '%s' ],
             [ '%d' ]
         );
+        if ( $old_status && class_exists( 'DD_Orders_Module' ) ) {
+            DD_Orders_Module::recalculate_fee_for_status_change( (int) $order_id, $old_status, $new_status );
+        }
     }
 
     $redirect = add_query_arg(
@@ -73,12 +81,21 @@ if (
                 ...$order_ids
             ) );
         } else {
+            $ids_in   = implode( ',', array_map( 'intval', $order_ids ) );
+            $pre_rows = $wpdb->get_results(
+                "SELECT id, status FROM `{$wpdb->prefix}dishdash_orders` WHERE id IN ({$ids_in})"
+            );
             $allowed = [ 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
             if ( in_array( $action, $allowed, true ) ) {
                 $wpdb->query( $wpdb->prepare(
                     "UPDATE `{$wpdb->prefix}dishdash_orders` SET status = %s, updated_at = NOW() WHERE id IN ({$placeholders})",
                     $action, ...$order_ids
                 ) );
+                if ( class_exists( 'DD_Orders_Module' ) ) {
+                    foreach ( $pre_rows as $row ) {
+                        DD_Orders_Module::recalculate_fee_for_status_change( (int) $row->id, $row->status, $action );
+                    }
+                }
             }
         }
     }

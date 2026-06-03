@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.97 (2026-06-03)
+> Last updated: v3.4.98 (2026-06-03)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.97 |
+| **Deployed version** | v3.4.98 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.98 — Tables + Seating Sections redesign |
-| **Last working state** | Deleted dishdash-core/class-dd-install.php (deprecated DD_Schema_Upgrader); updated stale comments in dish-dash.php and class-dd-orders-module.php. Canonical installer is install.php exclusively. |
+| **Next task** | v3.4.99 — Tables + Seating Sections redesign |
+| **Last working state** | Fee reversal on cancel/revert: recalculate_fee_for_status_change() static helper added to DD_Orders_Module, wired into all 6 status-change sites (update_status canonical path, wc_payment_cancelled, on_order_received_page, admin single-order POST, admin bulk POST, dashboard bulk stale delivery). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -568,7 +568,8 @@ Every page before shipping must pass:
 | **v3.4.95** | ✅ **Done** | **Billing fixes: Monthly History 3-column (no Fee Per Order), Status Breakdown delivered+cancelled only, dashboard fees card layout fix (no RWF prefix in value)** |
 | **v3.4.96** | ✅ **Done** | **Dashboard: fees KPI card replaced with inline line below revenue chart** |
 | **v3.4.97** | ✅ **Done** | **Phase C — deleted dishdash-core/class-dd-install.php (deprecated DD_Schema_Upgrader), updated stale comments** |
-| v3.4.98 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.98** | ✅ **Done** | **Phase D — fee reversal on cancel/revert: recalculate_fee_for_status_change() helper wired into all 6 status-change sites** |
+| v3.4.99 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
