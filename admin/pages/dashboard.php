@@ -293,15 +293,14 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <div class="dd-kpi-top">
         <span class="dashicons dashicons-money-alt" style="color:#0EA5E9" aria-hidden="true"></span>
       </div>
-      <div class="dd-kpi-label">Fees This Month</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $kpi_fees ); ?></div>
+      <div class="dd-kpi-label">Fees This Month <span style="font-size:10px;font-weight:400;color:#aaa">(RWF)</span></div>
+      <div class="dd-kpi-value"><?php echo number_format( $kpi_fees ); ?></div>
       <div class="dd-kpi-meta">
         <?php
         $fee_per_order         = (int) get_option( 'dd_per_order_fee', 750 );
         $fee_orders_this_month = $fee_per_order > 0 ? round( $kpi_fees / $fee_per_order ) : 0;
-        echo number_format( $fee_orders_this_month ) . ' delivered';
+        echo number_format( $fee_orders_this_month ) . ' delivered orders';
         ?>
-        <span class="dd-kpi-rate">&times; RWF <?php echo number_format( $fee_per_order ); ?></span>
       </div>
     </div>
     <?php endif; ?>

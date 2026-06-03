@@ -72,13 +72,13 @@ $monthly_history = $wpdb->get_results(
      LIMIT 6"
 );
 
-// Status breakdown (all time)
+// Only delivered (billable) and cancelled (not billable)
 $status_breakdown = $wpdb->get_results(
     "SELECT status, COUNT(*) AS cnt, COALESCE(SUM(platform_fee),0) AS fees
      FROM `{$ot}`
-     WHERE is_test = 0
+     WHERE status IN ('delivered','cancelled') AND is_test = 0
      GROUP BY status
-     ORDER BY FIELD(status,'delivered','ready','confirmed','pending','cancelled')"
+     ORDER BY FIELD(status,'delivered','cancelled')"
 );
 ?>
 
@@ -156,7 +156,6 @@ $status_breakdown = $wpdb->get_results(
           <tr>
             <th>Month</th>
             <th>Delivered Orders</th>
-            <th>Fee per Order</th>
             <th>Total Fees</th>
           </tr>
         </thead>
@@ -165,13 +164,14 @@ $status_breakdown = $wpdb->get_results(
             <?php foreach ( $monthly_history as $row ) : ?>
             <tr>
               <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
-              <td><?php echo number_format( $row->orders ); ?></td>
-              <td>RWF <?php echo number_format( $fee ); ?></td>
-              <td><strong>RWF <?php echo number_format( $row->fees ); ?></strong></td>
+              <td><?php echo number_format( (int) $row->orders ); ?></td>
+              <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
             </tr>
             <?php endforeach; ?>
           <?php else : ?>
-            <tr><td colspan="4" style="text-align:center;color:#888;padding:24px">No billing data yet</td></tr>
+            <tr>
+              <td colspan="3" style="text-align:center;color:#888;padding:24px">No billing data yet</td>
+            </tr>
           <?php endif; ?>
         </tbody>
       </table>
@@ -186,31 +186,42 @@ $status_breakdown = $wpdb->get_results(
           <tr>
             <th>Status</th>
             <th>Orders</th>
-            <th>Fees</th>
+            <th>Total Fees</th>
             <th>Billable</th>
           </tr>
         </thead>
         <tbody>
-          <?php
-          $billable_statuses = [ 'delivered' ];
-          foreach ( $status_breakdown as $row ) :
-              $billable = in_array( $row->status, $billable_statuses, true ) ? '✅ Yes' : '—';
-          ?>
+          <?php foreach ( $status_breakdown as $row ) : ?>
           <tr>
-            <td><span class="dd-status-badge dd-status-<?php echo esc_attr( $row->status ); ?>"><?php echo esc_html( ucfirst( $row->status ) ); ?></span></td>
-            <td><?php echo number_format( $row->cnt ); ?></td>
-            <td><?php echo $row->fees > 0 ? 'RWF ' . number_format( $row->fees ) : '—'; ?></td>
-            <td><?php echo $billable; ?></td>
+            <td>
+              <span class="dd-status-badge dd-status-<?php echo esc_attr( $row->status ); ?>">
+                <?php echo esc_html( ucfirst( $row->status ) ); ?>
+              </span>
+            </td>
+            <td><?php echo number_format( (int) $row->cnt ); ?></td>
+            <td>
+              <?php echo $row->fees > 0
+                  ? 'RWF ' . number_format( (int) $row->fees )
+                  : '—';
+              ?>
+            </td>
+            <td><?php echo $row->status === 'delivered' ? '✅ Yes' : '—'; ?></td>
           </tr>
           <?php endforeach; ?>
+          <?php if ( empty( $status_breakdown ) ) : ?>
+          <tr>
+            <td colspan="4" style="text-align:center;color:#888;padding:24px">No data yet</td>
+          </tr>
+          <?php endif; ?>
         </tbody>
       </table>
 
       <div style="margin-top:24px;padding:16px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10B981">
         <p style="margin:0;font-size:13px;color:#065f46">
-          <strong>Billing policy:</strong> RWF <?php echo number_format( $fee ); ?> is charged per delivered order.
-          Cancelled, pending, confirmed, and ready orders are not billed.
-          Fee is snapshotted at order placement time — rate changes do not affect past orders.
+          <strong>Billing policy:</strong> A flat fee is charged per delivered order.
+          The fee is snapshotted at order placement time — if the rate changes,
+          past orders keep their original fee. Cancelled orders are never billed.
+          Pending, confirmed, and ready orders are excluded — their outcome is not yet final.
         </p>
       </div>
     </div>
