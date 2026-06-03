@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.95 (2026-06-03)
+> Last updated: v3.4.96 (2026-06-03)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.95 |
+| **Deployed version** | v3.4.96 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.96 — Tables + Seating Sections redesign |
-| **Last working state** | Billing fixes: Monthly History reduced to 3 columns (removed misleading Fee Per Order column), Status Breakdown scoped to delivered+cancelled only via query filter, policy note de-hardcoded. Dashboard Fees card: RWF prefix removed from value, sub-text simplified to "N delivered orders". |
+| **Next task** | v3.4.97 — Tables + Seating Sections redesign |
+| **Last working state** | Dashboard: fees KPI card removed from KPI row entirely; replaced with a compact inline line (dd-fees-inline) below the Revenue chart — only shown when fees_enabled and kpi_fees > 0. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -566,7 +566,8 @@ Every page before shipping must pass:
 | **v3.4.93** | ✅ **Done** | **Billing page (💳 sidebar between Analytics and Settings, monthly history, status breakdown, all-time fees) + Fees This Month KPI card on dashboard** |
 | **v3.4.94** | ✅ **Done** | **Fee enable/disable toggle in Settings, dashboard card fixed (dd-kpi-meta layout), Analytics fees KPI card, Billing disabled notice** |
 | **v3.4.95** | ✅ **Done** | **Billing fixes: Monthly History 3-column (no Fee Per Order), Status Breakdown delivered+cancelled only, dashboard fees card layout fix (no RWF prefix in value)** |
-| v3.4.96 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.96** | ✅ **Done** | **Dashboard: fees KPI card replaced with inline line below revenue chart** |
+| v3.4.97 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

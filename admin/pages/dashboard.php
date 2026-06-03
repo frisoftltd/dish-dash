@@ -288,22 +288,6 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <div class="dd-kpi-value"><?php echo $kpi_res; ?></div>
     </div>
 
-    <?php if ( $fees_enabled ) : ?>
-    <div class="dd-kpi-card" style="--kpi-accent:#0EA5E9">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-money-alt" style="color:#0EA5E9" aria-hidden="true"></span>
-      </div>
-      <div class="dd-kpi-label">Fees This Month <span style="font-size:10px;font-weight:400;color:#aaa">(RWF)</span></div>
-      <div class="dd-kpi-value"><?php echo number_format( $kpi_fees ); ?></div>
-      <div class="dd-kpi-meta">
-        <?php
-        $fee_per_order         = (int) get_option( 'dd_per_order_fee', 750 );
-        $fee_orders_this_month = $fee_per_order > 0 ? round( $kpi_fees / $fee_per_order ) : 0;
-        echo number_format( $fee_orders_this_month ) . ' delivered orders';
-        ?>
-      </div>
-    </div>
-    <?php endif; ?>
 
   </div><!-- /.dd-kpi-row -->
 
@@ -317,6 +301,24 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <canvas id="dd-revenue-chart"></canvas>
     </div>
   </div>
+
+  <?php if ( $fees_enabled && $kpi_fees > 0 ) : ?>
+  <div class="dd-fees-inline">
+    <span class="dd-fees-inline-icon">💳</span>
+    <span class="dd-fees-inline-text">
+      Platform fees this month:
+      <strong>RWF <?php echo number_format( $kpi_fees ); ?></strong>
+      <span class="dd-fees-inline-sub">
+        &middot; <?php
+          $fee_per_order = (int) get_option( 'dd_per_order_fee', 750 );
+          $fee_count     = $fee_per_order > 0 ? round( $kpi_fees / $fee_per_order ) : 0;
+          echo number_format( $fee_count );
+        ?> delivered orders
+      </span>
+    </span>
+    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-billing' ) ); ?>" class="dd-fees-inline-link">View Billing →</a>
+  </div>
+  <?php endif; ?>
 
   <!-- ── Kitchen Queue ───────────────────────────────────────────────────── -->
   <?php
@@ -561,6 +563,33 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
 </script>
 
 </div><!-- /.dd-dash-wrap -->
+
+<style>
+.dd-fees-inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 12px;
+    font-size: 13px;
+    color: #0369a1;
+}
+.dd-fees-inline-icon { font-size: 16px; flex-shrink: 0; }
+.dd-fees-inline-text { flex: 1; color: #0c4a6e; }
+.dd-fees-inline-sub  { color: #0369a1; font-weight: 400; }
+.dd-fees-inline-link {
+    font-size: 12px;
+    color: #0369a1;
+    text-decoration: none;
+    font-weight: 600;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+.dd-fees-inline-link:hover { text-decoration: underline; }
+</style>
 
 <!-- Chart data for JS -->
 <script>
