@@ -3,7 +3,7 @@
  * Plugin Name:       Dish Dash
  * Plugin URI:        https://frisoftltd.com/dish-dash
  * Description:       DishDash is a smart ordering system that learns customer behavior and makes ordering faster, easier, and more personalized every time.
- * Version:           3.4.91
+ * Version:           3.4.92
  * Author:            Fri Soft Ltd
  * Author URI:        https://frisoft.rw
  * License:           GPL-2.0+
@@ -25,7 +25,7 @@
  *   - dishdash-core/class-dd-loader.php          (via autoloader)
  *   - dishdash-core/class-dd-requirements.php    (via autoloader)
  *   - dishdash-core/class-dd-theme-installer.php (via autoloader)
- *   - dishdash-core/class-dd-install.php         (via autoloader, activation hook)
+ *   - dishdash-core/class-dd-install.php         (DEPRECATED — defines DD_Schema_Upgrader, not loaded actively)
  *
  * Dependents (files that need this):
  *   - Every other plugin file (reads DD_VERSION, DD_PLUGIN_DIR, DD_ASSETS_URL etc.)
@@ -45,7 +45,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────
-define( 'DD_VERSION',         '3.4.91' );
+define( 'DD_VERSION',         '3.4.92' );
 define( 'DD_PLUGIN_FILE',     __FILE__ );
 define( 'DD_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'DD_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
@@ -102,6 +102,45 @@ spl_autoload_register( function ( string $class ) {
         require_once $file;
     }
 } );
+
+// ─────────────────────────────────────────────
+//  AUTO-MIGRATION GUARD
+//  Runs dbDelta on every admin page load where
+//  DD_VERSION > dd_db_version. Eliminates the
+//  long-standing pattern of manual WP-CLI calls
+//  after zip updates that skip activation hook.
+// ─────────────────────────────────────────────
+
+/**
+ * Auto-migration on version mismatch.
+ *
+ * Compares the running plugin version (DD_VERSION) against the stored
+ * dd_db_version option. If they differ, re-runs DD_Install::create_tables()
+ * which uses dbDelta to add new columns/tables non-destructively.
+ *
+ * Eliminates the long-standing pattern where zip updates skipped schema
+ * changes and required manual WP-CLI calls.
+ *
+ * Runs on admin_init priority 5 so it fires before other admin_init handlers.
+ */
+add_action( 'admin_init', function () {
+    $code_version = defined( 'DD_VERSION' ) ? DD_VERSION : '0.0.0';
+    $db_version   = get_option( 'dd_db_version', '0.0.0' );
+
+    if ( version_compare( $db_version, $code_version, '<' ) ) {
+        if ( ! class_exists( 'DD_Install' ) ) {
+            $install_file = plugin_dir_path( __FILE__ ) . 'install.php';
+            if ( file_exists( $install_file ) ) {
+                require_once $install_file;
+            }
+        }
+        if ( class_exists( 'DD_Install' ) && method_exists( 'DD_Install', 'create_tables' ) ) {
+            DD_Install::create_tables();
+            update_option( 'dd_db_version', $code_version );
+            error_log( 'DishDash: schema auto-migrated from ' . $db_version . ' to ' . $code_version );
+        }
+    }
+}, 5 );
 
 // ─────────────────────────────────────────────
 //  GITHUB AUTO-UPDATER
@@ -185,6 +224,10 @@ register_activation_hook( __FILE__, function () {
     // Run plugin install routine
     require_once DD_PLUGIN_DIR . 'install.php';
     DD_Install::run();
+
+    // Stamp the schema version so the auto-migration guard doesn't
+    // fire unnecessarily on the first admin page load after activation.
+    update_option( 'dd_db_version', DD_VERSION );
 
     flush_rewrite_rules();
 } );

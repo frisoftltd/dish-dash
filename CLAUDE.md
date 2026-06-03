@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.91 (2026-06-02)
+> Last updated: v3.4.92 (2026-06-02)
 
 ---
 
@@ -61,15 +61,40 @@ WooCommerce (payment processing)
 
 ---
 
+## 🗄️ Schema Changes — IMPORTANT
+
+There is **one** installer file: `install.php` at the repo root. All `CREATE TABLE` definitions live there. `dishdash-core/class-dd-install.php` is deprecated — it defines `DD_Schema_Upgrader` (renamed from `DD_Install` in v3.4.92) and contains no live schema declarations. Do not add new tables or columns to it.
+
+### How to add a new table or column
+
+1. Edit `install.php` — add the column to the `CREATE TABLE` block or append a new `CREATE TABLE` block inside `create_tables()`
+2. Bump `DD_VERSION` in `dish-dash.php` (both the header comment and the constant)
+3. Commit, tag, release as usual
+
+**No WP-CLI step needed.** The auto-migration guard in `dish-dash.php` runs `dbDelta()` on the next admin page load after a version mismatch is detected, and updates `dd_db_version` to match.
+
+### What auto-migration can and can't do
+
+- ✅ Add new tables
+- ✅ Add new columns to existing tables
+- ✅ Add new indexes
+- ❌ Drop columns (dbDelta limitation — never drops anything)
+- ❌ Change column types in destructive ways (dbDelta is conservative)
+- ❌ Rename columns (must be a manual ALTER TABLE via WP-CLI)
+
+For drops/renames, use a manual migration step and document it in the release notes.
+
+---
+
 ## 📌 Current State
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.91 |
+| **Deployed version** | v3.4.92 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.92 — Tables + Seating Sections redesign |
-| **Last working state** | Settings page redesigned with card layout + CSS grid. New Pricing & Fees section: flat fee, minimum order advisory panel (live JS), payment method toggles. platform_fee column added to dishdash_orders; fee stamped on every order at placement. |
+| **Next task** | v3.4.93 — Tables + Seating Sections redesign |
+| **Last working state** | Installer consolidation: single canonical install.php with all 13 tables, class-name conflict resolved (DD_Schema_Upgrader), auto-migration guard in dish-dash.php eliminates manual WP-CLI schema updates. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -537,7 +562,8 @@ Every page before shipping must pass:
 | **v3.4.89** | ✅ **Done** | **Analytics padding overhaul — consistent 24px card spacing, KPI sizing, chart wrap, speed section, hbars, two-column gaps** |
 | **v3.4.90** | ✅ **Done** | **Analytics merged into single page — Orders + Reservations tabs, sidebar sub-item removed, both JS loaded on one page, max-width removed** |
 | **v3.4.91** | ✅ **Done** | **Settings page redesign (card layout, CSS grid); Pricing & Fees section (flat fee, minimum order advisory, payment method toggles, platform fee stamped on every order)** |
-| v3.4.92 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.92** | ✅ **Done** | **Installer consolidation: single canonical install.php (13 tables), class-name conflict resolved (DD_Schema_Upgrader), auto-migration guard in dish-dash.php, no more manual WP-CLI for schema updates** |
+| v3.4.93 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

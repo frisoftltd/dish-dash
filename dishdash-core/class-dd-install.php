@@ -1,38 +1,33 @@
 <?php
 /**
  * File:    dishdash-core/class-dd-install.php
- * Module:  DD_Install (static class)
- * Purpose: Handles plugin activation — creates/upgrades DB tables via
- *          dbDelta(), creates WP user roles, sets default options, and
- *          flushes rewrite rules.  Safe to run multiple times.
+ * Module:  DD_Schema_Upgrader (formerly DD_Install — renamed v3.4.92)
+ * Purpose: DEPRECATED — this class was historically a second installer with
+ *          divergent schema declarations. Renamed in v3.4.92 to resolve the
+ *          class-name conflict with the canonical install.php at the repo root.
+ *          Retained temporarily so no existing code paths fatal on load.
+ *          Do not add new tables or columns here.
  *
- * Dependencies (this file needs):
- *   - ABSPATH, dbDelta() (wp-admin/includes/upgrade.php)
- *   - DD_VERSION constant
- *   - $wpdb global
+ * Canonical installer: install.php (repo root)
+ * Phase A audit:       INSTALLER_CONSOLIDATION.md, recommendations R1 and R14.
  *
- * Dependents (files that need this):
- *   - dish-dash.php  (calls DD_Install::run() on register_activation_hook)
- *
- * DB tables created/updated:
- *   dishdash_branches, dishdash_orders, dishdash_order_items,
- *   dishdash_delivery_zones, dishdash_tables, dishdash_reservations,
- *   dishdash_pos_sessions, dishdash_analytics,
- *   dishdash_user_events, dishdash_user_profiles
- *
- * WP roles created:
- *   dd_restaurant_manager, dd_branch_manager, dd_cashier,
- *   dd_delivery_driver, dd_kitchen_staff
- *
- * Hooks fired:
- *   - dish_dash_activated (on successful activation)
- *
- * Last modified: v3.1.13
+ * Last modified: v3.4.92
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
+if ( class_exists( 'DD_Schema_Upgrader' ) ) return;
 
-class DD_Install {
+/**
+ * DD_Schema_Upgrader — DEPRECATED, will be removed in a future release.
+ *
+ * This class was historically a second DD_Install with divergent schema
+ * declarations. As of v3.4.92, the canonical installer is install.php at
+ * the repo root. This file is retained temporarily so any code paths that
+ * still reference its methods don't fatal. Do not add new logic here.
+ *
+ * Phase A audit: see INSTALLER_CONSOLIDATION.md, recommendation R14.
+ */
+class DD_Schema_Upgrader {
 
     // ── Activation ────────────────────────────────────────────────────────────
 
@@ -63,6 +58,8 @@ class DD_Install {
     /**
      * Create or upgrade all Dish Dash custom database tables.
      * Safe to call multiple times — dbDelta only adds missing columns/tables.
+     *
+     * @deprecated As of v3.4.92. Use DD_Install::create_tables() in install.php.
      */
     public static function create_tables(): void {
         global $wpdb;
