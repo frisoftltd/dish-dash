@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.92 (2026-06-02)
+> Last updated: v3.4.93 (2026-06-03)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.92 |
+| **Deployed version** | v3.4.93 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.93 — Tables + Seating Sections redesign |
-| **Last working state** | Installer consolidation: single canonical install.php with all 13 tables, class-name conflict resolved (DD_Schema_Upgrader), auto-migration guard in dish-dash.php eliminates manual WP-CLI schema updates. |
+| **Next task** | v3.4.94 — Tables + Seating Sections redesign |
+| **Last working state** | Billing page added (💳 sidebar entry between Analytics and Settings, monthly history, status breakdown, all-time fees). Fees This Month KPI card added as 7th card on dashboard. KPI grid updated to auto-fit. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -563,7 +563,8 @@ Every page before shipping must pass:
 | **v3.4.90** | ✅ **Done** | **Analytics merged into single page — Orders + Reservations tabs, sidebar sub-item removed, both JS loaded on one page, max-width removed** |
 | **v3.4.91** | ✅ **Done** | **Settings page redesign (card layout, CSS grid); Pricing & Fees section (flat fee, minimum order advisory, payment method toggles, platform fee stamped on every order)** |
 | **v3.4.92** | ✅ **Done** | **Installer consolidation: single canonical install.php (13 tables), class-name conflict resolved (DD_Schema_Upgrader), auto-migration guard in dish-dash.php, no more manual WP-CLI for schema updates** |
-| v3.4.93 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.93** | ✅ **Done** | **Billing page (💳 sidebar between Analytics and Settings, monthly history, status breakdown, all-time fees) + Fees This Month KPI card on dashboard** |
+| v3.4.94 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

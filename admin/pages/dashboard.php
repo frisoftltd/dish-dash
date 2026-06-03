@@ -63,6 +63,12 @@ $kpi_orders   = (int)   $wpdb->get_var( $wpdb->prepare(
 $kpi_revenue  = (float) $wpdb->get_var( $wpdb->prepare(
     "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0", $since
 ) );
+// Fees this month — always current month regardless of $range filter
+$month_start_for_fees = current_time( 'Y-m-' ) . '01 00:00:00';
+$kpi_fees = (int) $wpdb->get_var( $wpdb->prepare(
+    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}` WHERE status = 'delivered' AND platform_fee > 0 AND created_at >= %s AND is_test = 0",
+    $month_start_for_fees
+) );
 $kpi_pending  = (int)   $wpdb->get_var(
     "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','confirmed','ready') AND is_test = 0"
 );
@@ -279,6 +285,25 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       </div>
       <div class="dd-kpi-label">Reservations Today</div>
       <div class="dd-kpi-value"><?php echo $kpi_res; ?></div>
+    </div>
+
+    <div class="dd-kpi-card" style="--kpi-accent:#0EA5E9">
+      <div class="dd-kpi-top">
+        <span class="dashicons dashicons-money-alt" style="color:#0EA5E9" aria-hidden="true"></span>
+      </div>
+      <div class="dd-kpi-label">Fees This Month</div>
+      <div class="dd-kpi-value">
+        <?php
+          $fee_per_order = (int) get_option( 'dd_per_order_fee', 750 );
+          echo 'RWF ' . number_format( $kpi_fees );
+        ?>
+      </div>
+      <div class="dd-kpi-sub" style="font-size:11px;color:#888;margin-top:4px">
+        <?php
+          $fee_orders_this_month = $fee_per_order > 0 ? round( $kpi_fees / $fee_per_order ) : 0;
+          echo number_format( $fee_orders_this_month ) . ' delivered &times; RWF ' . number_format( $fee_per_order );
+        ?>
+      </div>
     </div>
 
   </div><!-- /.dd-kpi-row -->

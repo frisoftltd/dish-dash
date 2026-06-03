@@ -119,6 +119,16 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_analytics' ]
         );
 
+        // Billing
+        add_submenu_page(
+            'dish-dash',
+            __( 'Billing', 'dish-dash' ),
+            __( '💳 Billing', 'dish-dash' ),
+            'manage_options',
+            'dish-dash-billing',
+            [ $this, 'render_billing' ]
+        );
+
         // Settings
         add_submenu_page( 'dish-dash',
             __( 'Settings', 'dish-dash' ),
@@ -573,6 +583,10 @@ class DD_Admin extends DD_Module {
 
     public function render_analytics(): void {
         include DD_PLUGIN_DIR . 'admin/pages/analytics.php';
+    }
+
+    public function render_billing(): void {
+        include DD_PLUGIN_DIR . 'admin/pages/billing.php';
     }
 
     public function render_settings(): void {
