@@ -21,7 +21,7 @@ class DD_Reservations_Module extends DD_Module {
         ( new DD_Reservations_Admin() )->init();
         ( new DD_Tables_Admin() )->init();
         ( new DD_Sections_Admin() )->init();
-        add_action( 'admin_menu', [ $this, 'hide_sub_submenus' ], 999 );
+        add_action( 'admin_head', [ $this, 'hide_sidebar_links' ] );
 
         DD_Ajax::register( 'dd_submit_reservation',        [ $this, 'ajax_submit_reservation' ] );
         DD_Ajax::register( 'dd_reservation_availability',  [ $this, 'ajax_check_availability' ] );
@@ -31,9 +31,15 @@ class DD_Reservations_Module extends DD_Module {
         add_action( 'dd_reservation_autocancel',    [ $this, 'run_autocancel' ], 10, 1 );
     }
 
-    public function hide_sub_submenus(): void {
-        remove_submenu_page( 'dish-dash', 'dd-tables' );
-        remove_submenu_page( 'dish-dash', 'dd-sections' );
+    public function hide_sidebar_links(): void {
+        ?>
+        <style>
+        .toplevel_page_dish-dash .wp-submenu a[href*="dd-tables"],
+        .toplevel_page_dish-dash .wp-submenu a[href*="dd-sections"] {
+            display: none !important;
+        }
+        </style>
+        <?php
     }
 
     // ── AJAX: Submit reservation ───────────────────────────────────────────
