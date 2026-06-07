@@ -103,6 +103,7 @@ class DD_Customers_Module extends DD_Module {
                             ? $per_page_raw : 25;
         $page             = max( 1, isset( $_GET['paged'] ) ? (int) $_GET['paged'] : 1 );
         $offset           = ( $page - 1 ) * $per_page;
+        $active_tab       = ( isset( $_GET['tab'] ) && $_GET['tab'] === 'reservations' ) ? 'reservations' : 'orders';
 
         // ── Stats ──────────────────────────────────────
         $stats = $wpdb->get_row(
@@ -129,40 +130,60 @@ class DD_Customers_Module extends DD_Module {
         $params = [];
 
         if ( $search ) {
-            $where   .= ' AND (name LIKE %s OR whatsapp LIKE %s)';
+            $where   .= ' AND (c.name LIKE %s OR c.whatsapp LIKE %s)';
             $like     = '%' . $wpdb->esc_like( $search ) . '%';
             $params[] = $like;
             $params[] = $like;
         }
         if ( $date_from ) {
-            $where   .= ' AND DATE(created_at) >= %s';
+            $where   .= ' AND DATE(c.created_at) >= %s';
             $params[] = $date_from;
         }
         if ( $date_to ) {
-            $where   .= ' AND DATE(created_at) <= %s';
+            $where   .= ' AND DATE(c.created_at) <= %s';
             $params[] = $date_to;
         }
         if ( $tier_filter ) {
             switch ( $tier_filter ) {
-                case 'new':      $where .= ' AND total_orders = 0'; break;
-                case 'regular':  $where .= ' AND total_orders > 0 AND total_spent < 100000'; break;
-                case 'vip':      $where .= ' AND total_spent >= 100000 AND total_spent < 250000'; break;
-                case 'champion': $where .= ' AND total_spent >= 250000 AND total_spent < 500000'; break;
-                case 'diamond':  $where .= ' AND total_spent >= 500000'; break;
+                case 'new':      $where .= ' AND c.total_orders = 0'; break;
+                case 'regular':  $where .= ' AND c.total_orders > 0 AND c.total_spent < 100000'; break;
+                case 'vip':      $where .= ' AND c.total_spent >= 100000 AND c.total_spent < 250000'; break;
+                case 'champion': $where .= ' AND c.total_spent >= 250000 AND c.total_spent < 500000'; break;
+                case 'diamond':  $where .= ' AND c.total_spent >= 500000'; break;
             }
         }
 
+        // ── Tab filter ─────────────────────────────────
+        if ( $active_tab === 'orders' ) {
+            $where_tab   = 'AND c.total_orders > 0';
+            $from_clause = "{$table} c";
+        } else {
+            $where_tab   = 'AND r.id IS NOT NULL AND c.total_orders = 0';
+            $from_clause = "{$table} c
+                LEFT JOIN {$wpdb->prefix}dishdash_reservations r ON r.customer_id = c.id";
+        }
+
         // ── Rows ───────────────────────────────────────
-        $sql        = "SELECT * FROM {$table} {$where} ORDER BY total_spent DESC, created_at DESC LIMIT %d OFFSET %d";
         $row_params = array_merge( $params, [ $per_page, $offset ] );
-        $customers  = $wpdb->get_results( $wpdb->prepare( $sql, ...$row_params ) );
+        $customers  = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT DISTINCT c.* FROM {$from_clause} {$where} {$where_tab}
+                 ORDER BY c.total_spent DESC, c.created_at DESC LIMIT %d OFFSET %d",
+                ...$row_params
+            )
+        );
 
         if ( $params ) {
             $total_rows = (int) $wpdb->get_var(
-                $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where}", ...$params )
+                $wpdb->prepare(
+                    "SELECT COUNT(DISTINCT c.id) FROM {$from_clause} {$where} {$where_tab}",
+                    ...$params
+                )
             );
         } else {
-            $total_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
+            $total_rows = (int) $wpdb->get_var(
+                "SELECT COUNT(DISTINCT c.id) FROM {$from_clause} {$where} {$where_tab}"
+            );
         }
 
         $export_url = add_query_arg(
@@ -203,6 +224,29 @@ class DD_Customers_Module extends DD_Module {
                     <div class="dd-kpi-label">Avg Spend / Customer</div>
                     <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->avg_spend ); ?></div>
                 </div>
+            </div>
+
+            <!-- Tabs -->
+            <?php
+            $tab_base = add_query_arg( array_filter( [
+                's'        => $_GET['s']        ?? '',
+                'from'     => $_GET['from']     ?? '',
+                'to'       => $_GET['to']       ?? '',
+                'per_page' => $per_page !== 25 ? $per_page : '',
+            ] ), admin_url( 'admin.php?page=dish-dash-customers' ) );
+
+            $orders_url       = add_query_arg( [ 'tab' => 'orders',       'paged' => 1 ], $tab_base );
+            $reservations_url = add_query_arg( [ 'tab' => 'reservations', 'paged' => 1 ], $tab_base );
+            ?>
+            <div class="dd-tabs">
+                <a href="<?php echo esc_url( $orders_url ); ?>"
+                   class="dd-tab<?php echo $active_tab === 'orders' ? ' dd-tab--active' : ''; ?>">
+                    🛒 Ordering Customers
+                </a>
+                <a href="<?php echo esc_url( $reservations_url ); ?>"
+                   class="dd-tab<?php echo $active_tab === 'reservations' ? ' dd-tab--active' : ''; ?>">
+                    🪑 Reservation Guests
+                </a>
             </div>
 
             <!-- Tier Breakdown (clickable filter chips) -->
@@ -272,6 +316,7 @@ class DD_Customers_Module extends DD_Module {
                         'from' => $_GET['from'] ?? '',
                         'to'   => $_GET['to']   ?? '',
                         'tier' => $_GET['tier'] ?? '',
+                        'tab'  => $active_tab,
                     ] ), admin_url( 'admin.php?page=dish-dash-customers' ) );
 
                     foreach ( [ 25, 50, 75 ] as $opt ) :
@@ -360,7 +405,7 @@ class DD_Customers_Module extends DD_Module {
             <div class="dd-cust-pagination">
                 <?php
                 echo paginate_links( [
-                    'base'      => add_query_arg( [ 'paged' => '%#%', 'per_page' => $per_page ] ),
+                    'base'      => add_query_arg( [ 'paged' => '%#%', 'per_page' => $per_page, 'tab' => $active_tab ] ),
                     'format'    => '',
                     'total'     => $total_pages,
                     'current'   => $page,
@@ -698,6 +743,34 @@ class DD_Customers_Module extends DD_Module {
             border: none;
             background: transparent;
             color: #aaa;
+        }
+
+        /* ── Tabs ── */
+        .dd-tabs {
+            display: flex;
+            gap: 4px;
+            border-bottom: 2px solid #e5e7eb;
+            margin-bottom: 20px;
+        }
+
+        .dd-tab {
+            padding: 10px 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #666;
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            border-radius: 4px 4px 0 0;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .dd-tab:hover { color: {$brand}; text-decoration: none; }
+
+        .dd-tab--active {
+            color: {$brand};
+            border-bottom-color: {$brand};
+            font-weight: 600;
         }
         ";
     }

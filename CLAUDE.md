@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.04 (2026-06-07)
+> Last updated: v3.5.05 (2026-06-07)
 
 ---
 
@@ -90,7 +90,7 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.04 |
+| **Deployed version** | v3.5.05 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
 | **Next task** | v3.5.05 — Tables + Seating Sections redesign |
