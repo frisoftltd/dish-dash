@@ -97,9 +97,12 @@ class DD_Customers_Module extends DD_Module {
         $date_from   = sanitize_text_field( $_GET['from'] ?? '' );
         $date_to     = sanitize_text_field( $_GET['to']   ?? '' );
         $tier_filter = sanitize_text_field( $_GET['tier'] ?? '' );
-        $per_page    = 20;
-        $page        = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
-        $offset      = ( $page - 1 ) * $per_page;
+        $per_page_options = [ 25, 50, 75 ];
+        $per_page_raw     = isset( $_GET['per_page'] ) ? (int) $_GET['per_page'] : 25;
+        $per_page         = in_array( $per_page_raw, array_merge( $per_page_options, [ 99999 ] ), true )
+                            ? $per_page_raw : 25;
+        $page             = max( 1, isset( $_GET['paged'] ) ? (int) $_GET['paged'] : 1 );
+        $offset           = ( $page - 1 ) * $per_page;
 
         // ── Stats ──────────────────────────────────────
         $stats = $wpdb->get_row(
@@ -257,18 +260,36 @@ class DD_Customers_Module extends DD_Module {
                     <button type="submit" class="button button-primary"><?php esc_html_e( 'Filter', 'dish-dash' ); ?></button>
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers' ) ); ?>"
                        class="button"><?php esc_html_e( 'Reset', 'dish-dash' ); ?></a>
-                    <span class="dd-cust-count-note">
-                        <?php printf(
-                            /* translators: 1: shown count, 2: total count */
-                            esc_html__( 'Showing %1$s of %2$s customers', 'dish-dash' ),
-                            count( $customers ),
-                            $total_rows
-                        ); ?>
-                    </span>
                 </form>
             </div>
 
             <!-- Table -->
+            <div class="dd-table-controls">
+                <div class="dd-per-page">
+                    <?php
+                    $base_url = add_query_arg( array_filter( [
+                        's'    => $_GET['s']    ?? '',
+                        'from' => $_GET['from'] ?? '',
+                        'to'   => $_GET['to']   ?? '',
+                        'tier' => $_GET['tier'] ?? '',
+                    ] ), admin_url( 'admin.php?page=dish-dash-customers' ) );
+
+                    foreach ( [ 25, 50, 75 ] as $opt ) :
+                        $url    = add_query_arg( [ 'per_page' => $opt, 'paged' => 1 ], $base_url );
+                        $active = ( $per_page === $opt ) ? ' active' : '';
+                        echo '<a href="' . esc_url( $url ) . '" class="dd-per-page-btn' . $active . '">' . $opt . '</a>';
+                    endforeach;
+
+                    $url_all    = add_query_arg( [ 'per_page' => 99999, 'paged' => 1 ], $base_url );
+                    $active_all = ( $per_page === 99999 ) ? ' active' : '';
+                    echo '<a href="' . esc_url( $url_all ) . '" class="dd-per-page-btn' . $active_all . '">All</a>';
+                    ?>
+                </div>
+                <div class="dd-table-info">
+                    Showing <?php echo number_format( min( $offset + 1, $total_rows ) ); ?>–<?php echo number_format( min( $offset + $per_page, $total_rows ) ); ?> of <?php echo number_format( $total_rows ); ?> customers
+                </div>
+            </div>
+
             <div class="dd-card dd-card--table">
                 <?php if ( empty( $customers ) ) : ?>
                 <div class="dd-coming-soon">
@@ -339,10 +360,10 @@ class DD_Customers_Module extends DD_Module {
             <div class="dd-cust-pagination">
                 <?php
                 echo paginate_links( [
-                    'base'      => add_query_arg( 'paged', '%#%' ),
+                    'base'      => add_query_arg( [ 'paged' => '%#%', 'per_page' => $per_page ] ),
                     'format'    => '',
-                    'current'   => $page,
                     'total'     => $total_pages,
+                    'current'   => $page,
                     'prev_text' => '&larr; ' . __( 'Prev', 'dish-dash' ),
                     'next_text' => __( 'Next', 'dish-dash' ) . ' &rarr;',
                 ] );
@@ -422,7 +443,7 @@ class DD_Customers_Module extends DD_Module {
 
         return "
         /* ── Customers page layout ── */
-        .dd-page-wrap { max-width: 1400px; }
+        .dd-page-wrap { max-width: 100%; }
 
         .dd-page-subtitle {
             font-size: 13px;
