@@ -106,24 +106,42 @@ class DD_Customers_Module extends DD_Module {
         $active_tab       = ( isset( $_GET['tab'] ) && $_GET['tab'] === 'reservations' ) ? 'reservations' : 'orders';
 
         // ── Stats ──────────────────────────────────────
-        $stats = $wpdb->get_row(
-            "SELECT
-                COUNT(*)                                                 AS total_customers,
-                COALESCE(SUM(total_spent), 0)                           AS total_revenue,
-                COALESCE(AVG(total_spent), 0)                           AS avg_spend,
-                SUM(total_orders = 0)                                   AS tier_new,
-                SUM(total_orders > 0 AND total_spent < 100000)          AS tier_regular,
-                SUM(total_spent >= 100000 AND total_spent < 250000)     AS tier_vip,
-                SUM(total_spent >= 250000 AND total_spent < 500000)     AS tier_champion,
-                SUM(total_spent >= 500000)                              AS tier_diamond
-             FROM {$table}"
-        );
+        $res_table = $wpdb->prefix . 'dishdash_reservations';
 
-        $new_this_month = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$table}
-             WHERE MONTH(created_at) = MONTH(NOW())
-             AND YEAR(created_at) = YEAR(NOW())"
-        );
+        if ( $active_tab === 'orders' ) {
+
+            $stats = $wpdb->get_row(
+                "SELECT
+                    COUNT(*)                        AS total_customers,
+                    COALESCE(SUM(total_spent), 0)   AS total_revenue,
+                    COALESCE(AVG(total_spent), 0)   AS avg_spend
+                 FROM {$table}
+                 WHERE total_orders > 0"
+            );
+
+            $new_this_month = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$table}
+                 WHERE total_orders > 0
+                 AND MONTH(created_at) = MONTH(NOW())
+                 AND YEAR(created_at) = YEAR(NOW())"
+            );
+
+        } else {
+
+            $stats = $wpdb->get_row(
+                "SELECT
+                    COUNT(DISTINCT c.id)                                        AS total_customers,
+                    COUNT(r.id)                                                 AS total_reservations,
+                    SUM(r.date >= CURDATE() AND r.status != 'cancelled')        AS upcoming,
+                    COALESCE(AVG(r.guests), 0)                                  AS avg_party
+                 FROM {$table} c
+                 LEFT JOIN {$res_table} r ON r.customer_id = c.id
+                 WHERE c.total_orders = 0 AND r.id IS NOT NULL"
+            );
+
+            $new_this_month = null; // not used on reservations tab
+
+        }
 
         // ── WHERE clause ───────────────────────────────
         $where  = 'WHERE 1=1';
@@ -206,26 +224,6 @@ class DD_Customers_Module extends DD_Module {
                 </div>
             </div>
 
-            <!-- KPI Cards -->
-            <div class="dd-kpi-grid dd-kpi-grid--4">
-                <div class="dd-kpi-card">
-                    <div class="dd-kpi-label">Total Customers</div>
-                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->total_customers ); ?></div>
-                </div>
-                <div class="dd-kpi-card">
-                    <div class="dd-kpi-label">Total Revenue</div>
-                    <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->total_revenue ); ?></div>
-                </div>
-                <div class="dd-kpi-card">
-                    <div class="dd-kpi-label">New This Month</div>
-                    <div class="dd-kpi-value"><?php echo number_format( $new_this_month ); ?></div>
-                </div>
-                <div class="dd-kpi-card">
-                    <div class="dd-kpi-label">Avg Spend / Customer</div>
-                    <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->avg_spend ); ?></div>
-                </div>
-            </div>
-
             <!-- Tabs -->
             <?php
             $tab_base = add_query_arg( array_filter( [
@@ -249,7 +247,49 @@ class DD_Customers_Module extends DD_Module {
                 </a>
             </div>
 
-            <!-- Tier Breakdown (clickable filter chips) -->
+            <!-- KPI Cards (per-tab) -->
+            <?php if ( $active_tab === 'orders' ) : ?>
+            <div class="dd-kpi-grid dd-kpi-grid--4">
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Ordering Customers</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->total_customers ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Total Revenue</div>
+                    <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->total_revenue ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Avg Spend / Customer</div>
+                    <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->avg_spend ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">New This Month</div>
+                    <div class="dd-kpi-value"><?php echo number_format( $new_this_month ); ?></div>
+                </div>
+            </div>
+            <?php else : ?>
+            <div class="dd-kpi-grid dd-kpi-grid--4">
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Reservation Guests</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->total_customers ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Total Reservations</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->total_reservations ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Upcoming</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->upcoming ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Avg Party Size</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (float) $stats->avg_party, 1 ); ?></div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <!-- Tier Breakdown (clickable filter chips — orders tab only) -->
+            <?php if ( $active_tab === 'orders' ) : ?>
             <div class="dd-card dd-card--tiers">
                 <div class="dd-card-label">Customer Tiers</div>
                 <div class="dd-cust-tiers-row">
@@ -282,6 +322,7 @@ class DD_Customers_Module extends DD_Module {
                     <?php endif; ?>
                 </div>
             </div>
+            <?php endif; ?>
 
             <!-- Filters -->
             <div class="dd-card dd-card--filters">

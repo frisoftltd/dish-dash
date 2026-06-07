@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.05 (2026-06-07)
+> Last updated: v3.5.06 (2026-06-07)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.05 |
+| **Deployed version** | v3.5.06 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.05 — Tables + Seating Sections redesign |
-| **Last working state** | Customers page full-width (max-width removed), per-page selector 25/50/75/All added (matches Orders pattern), pagination carries per_page param, old inline count removed. |
+| **Next task** | v3.5.07 — Tables + Seating Sections redesign |
+| **Last working state** | Customers page: per-tab KPI cards — Ordering tab shows ordering customers/revenue/avg spend/new this month; Reservations tab shows guests/total reservations/upcoming/avg party size. Customer Tiers hidden on Reservations tab. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -575,7 +575,9 @@ Every page before shipping must pass:
 | **v3.5.02** | ✅ **Done** | **Billing paid/unpaid tracking: new dd_billing_payments table, Mark as Paid button on monthly history, dashboard fees line shows paid/unpaid badge** |
 | **v3.5.03** | ✅ **Done** | **Customers page redesign: new header pattern, dd-kpi-grid--4 KPI cards, dd-card wrappers for tiers/filters/table, dead dd-cust-kpi-* CSS removed, hardcoded hex fixed** |
 | **v3.5.04** | ✅ **Done** | **Customers page full width, per-page selector 25/50/75/All, pagination carries per_page param, inline count removed** |
-| v3.5.05 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.5.05** | ✅ **Done** | **Customers page: Orders/Reservations tabs, tab-filtered rows, paginate_links carries tab param** |
+| **v3.5.06** | ✅ **Done** | **Customers — per-tab KPI cards, hide tiers on reservations tab** |
+| v3.5.07 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
