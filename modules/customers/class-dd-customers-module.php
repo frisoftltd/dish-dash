@@ -2,16 +2,14 @@
 /**
  * File:    modules/customers/class-dd-customers-module.php
  * Module:  DD_Customers_Module (extends DD_Module)
- * Purpose: Customer CRM dashboard — lists all WP users with calculated
- *          spend, order count, reservation count, and tier status
- *          (New / Regular / VIP / Champion). Allows editing customer
- *          profile meta from the admin.
+ * Purpose: Customer CRM dashboard — lists all customers from the
+ *          dishdash_customers table with spend data, order count,
+ *          and tier status (New / Regular / VIP / Champion / Diamond).
  *
  * Dependencies (this file needs):
  *   - DD_Module base class
- *   - WordPress: get_users(), get_user_meta()
- *   - WooCommerce: wc_get_orders() (optional, degrades gracefully)
- *   - {prefix}dishdash_reservations table (read-only)
+ *   - WordPress: global $wpdb
+ *   - {prefix}dishdash_customers table (read-only)
  *
  * Dependents (files that need this):
  *   - dishdash-core/class-dd-loader.php (instantiates this module)
@@ -25,12 +23,12 @@
  *
  * Admin page: dish-dash-customers
  *
- * Customer tiers:
- *   New (0 orders), Regular (≥1), VIP (≥50,000 RWF), Champion (≥200,000 RWF)
+ * Customer tiers (RWF thresholds):
+ *   New (0 orders), Regular (<100K), VIP (≥100K), Champion (≥250K), Diamond (≥500K)
  *
  * Depends on (modules): NONE — architecture rule
  *
- * Last modified: v3.1.13
+ * Last modified: v3.5.03
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -40,15 +38,13 @@ class DD_Customers_Module extends DD_Module {
 
     protected string $id = 'customers';
 
-    // ── Status thresholds (RWF) ──────────────────────
-    const STATUS_CHAMPION = 200000;
-    const STATUS_VIP      = 50000;
-    const STATUS_REGULAR  = 1;   // at least 1 order
+    const TIER_DIAMOND  = 500000;
+    const TIER_CHAMPION = 250000;
+    const TIER_VIP      = 100000;
 
     public function init(): void {
-        add_action( 'admin_menu',            [ $this, 'register_admin_page' ] );
-        add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
-        // Save extra profile fields from our customer edit
+        add_action( 'admin_menu',               [ $this, 'register_admin_page' ] );
+        add_action( 'admin_enqueue_scripts',    [ $this, 'enqueue_admin_assets' ] );
         add_action( 'wp_ajax_dd_save_customer', [ $this, 'ajax_save_customer' ] );
     }
 
@@ -68,82 +64,28 @@ class DD_Customers_Module extends DD_Module {
 
     public function enqueue_admin_assets( string $hook ): void {
         if ( strpos( $hook, 'dish-dash-customers' ) === false ) return;
-        wp_add_inline_style( 'wp-admin', $this->admin_css() );
+        wp_add_inline_style( 'dish-dash-admin', $this->admin_css() );
     }
 
     // ─────────────────────────────────────────
-    //  HELPERS — get customer data
+    //  TIER HELPER
     // ─────────────────────────────────────────
-
-    /** Get all WP users who are customers (not admins) */
-    private function get_customers( string $date_from = '', string $date_to = '' ): array {
-        $args = [
-            'role__not_in' => [ 'administrator', 'editor', 'author', 'contributor' ],
-            'orderby'      => 'registered',
-            'order'        => 'DESC',
-            'number'       => -1,
-        ];
-
-        if ( $date_from ) $args['date_query'][] = [ 'after' => $date_from, 'column' => 'user_registered' ];
-        if ( $date_to )   $args['date_query'][] = [ 'before' => $date_to, 'column' => 'user_registered', 'inclusive' => true ];
-
-        return get_users( $args );
-    }
-
-    /** Get total spent + order count for a user */
-    private function get_user_spend( int $user_id ): array {
-        if ( ! function_exists( 'wc_get_orders' ) ) return [ 'total' => 0, 'count' => 0 ];
-
-        $orders = wc_get_orders( [
-            'customer_id' => $user_id,
-            'status'      => [ 'completed', 'processing', 'on-hold' ],
-            'limit'       => -1,
-            'return'      => 'ids',
-        ] );
-
-        $total = 0;
-        foreach ( $orders as $order_id ) {
-            $order  = wc_get_order( $order_id );
-            if ( $order ) $total += (float) $order->get_total();
-        }
-
-        return [ 'total' => $total, 'count' => count( $orders ) ];
-    }
-
-    /** Get reservation count for a user (by email) */
-    private function get_user_reservations( string $email ): int {
-        global $wpdb;
-        $table = $wpdb->prefix . 'dishdash_reservations';
-        if ( $wpdb->get_var( "SHOW TABLES LIKE '{$table}'" ) !== $table ) return 0;
-        return (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$table} WHERE customer_email = %s", $email
-        ) );
-    }
-
-    /** Determine customer status from total spend */
-    private function get_status( float $total, int $orders ): array {
-        if ( $orders === 0 ) return [ 'label' => 'New',      'icon' => '🌱', 'class' => 'dd-status--new' ];
-        if ( $total >= self::STATUS_CHAMPION ) return [ 'label' => 'Champion', 'icon' => '🥇', 'class' => 'dd-status--champion' ];
-        if ( $total >= self::STATUS_VIP      ) return [ 'label' => 'VIP',      'icon' => '🥈', 'class' => 'dd-status--vip' ];
-        return [ 'label' => 'Regular', 'icon' => '🥉', 'class' => 'dd-status--regular' ];
-    }
-
-    /** Format RWF amount */
-    private function fmt( float $n ): string {
-        return 'RWF ' . number_format( $n, 0, '.', ',' );
+    private function get_tier( float $spent, int $orders ): array {
+        if ( $orders === 0 )                return [ 'New',      '🌱', 'new' ];
+        if ( $spent >= self::TIER_DIAMOND ) return [ 'Diamond',  '💎', 'diamond' ];
+        if ( $spent >= self::TIER_CHAMPION )return [ 'Champion', '🏆', 'champion' ];
+        if ( $spent >= self::TIER_VIP )     return [ 'VIP',      '👑', 'vip' ];
+        return                                     [ 'Regular',  '🧡', 'regular' ];
     }
 
     // ─────────────────────────────────────────
-    //  RENDER ADMIN PAGE
+    //  RENDER
     // ─────────────────────────────────────────
     public function render_admin_page(): void {
-
-        // CSV export
         if ( isset( $_GET['export'] ) && $_GET['export'] === 'csv' ) {
             $this->export_csv();
             exit;
         }
-
         $this->render_page();
     }
 
@@ -151,15 +93,35 @@ class DD_Customers_Module extends DD_Module {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_customers';
 
-        // --- Filters ---
-        $search    = sanitize_text_field( $_GET['s']    ?? '' );
-        $date_from = sanitize_text_field( $_GET['from'] ?? '' );
-        $date_to   = sanitize_text_field( $_GET['to']   ?? '' );
-        $per_page  = 20;
-        $page      = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
-        $offset    = ( $page - 1 ) * $per_page;
+        $search      = sanitize_text_field( $_GET['s']    ?? '' );
+        $date_from   = sanitize_text_field( $_GET['from'] ?? '' );
+        $date_to     = sanitize_text_field( $_GET['to']   ?? '' );
+        $tier_filter = sanitize_text_field( $_GET['tier'] ?? '' );
+        $per_page    = 20;
+        $page        = max( 1, (int) ( $_GET['paged'] ?? 1 ) );
+        $offset      = ( $page - 1 ) * $per_page;
 
-        // --- Build WHERE ---
+        // ── Stats ──────────────────────────────────────
+        $stats = $wpdb->get_row(
+            "SELECT
+                COUNT(*)                                                 AS total_customers,
+                COALESCE(SUM(total_spent), 0)                           AS total_revenue,
+                COALESCE(AVG(total_spent), 0)                           AS avg_spend,
+                SUM(total_orders = 0)                                   AS tier_new,
+                SUM(total_orders > 0 AND total_spent < 100000)          AS tier_regular,
+                SUM(total_spent >= 100000 AND total_spent < 250000)     AS tier_vip,
+                SUM(total_spent >= 250000 AND total_spent < 500000)     AS tier_champion,
+                SUM(total_spent >= 500000)                              AS tier_diamond
+             FROM {$table}"
+        );
+
+        $new_this_month = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$table}
+             WHERE MONTH(created_at) = MONTH(NOW())
+             AND YEAR(created_at) = YEAR(NOW())"
+        );
+
+        // ── WHERE clause ───────────────────────────────
         $where  = 'WHERE 1=1';
         $params = [];
 
@@ -177,33 +139,21 @@ class DD_Customers_Module extends DD_Module {
             $where   .= ' AND DATE(created_at) <= %s';
             $params[] = $date_to;
         }
+        if ( $tier_filter ) {
+            switch ( $tier_filter ) {
+                case 'new':      $where .= ' AND total_orders = 0'; break;
+                case 'regular':  $where .= ' AND total_orders > 0 AND total_spent < 100000'; break;
+                case 'vip':      $where .= ' AND total_spent >= 100000 AND total_spent < 250000'; break;
+                case 'champion': $where .= ' AND total_spent >= 250000 AND total_spent < 500000'; break;
+                case 'diamond':  $where .= ' AND total_spent >= 500000'; break;
+            }
+        }
 
-        // --- Stats ---
-        $stats_sql = "SELECT
-            COUNT(*)                        AS total_customers,
-            COALESCE(SUM(total_spent), 0)   AS total_revenue,
-            COALESCE(AVG(total_spent), 0)   AS avg_spend,
-            SUM(total_spent >= 500000)                              AS diamonds,
-            SUM(total_spent >= 250000 AND total_spent < 500000)     AS champions,
-            SUM(total_spent >= 100000 AND total_spent < 250000)     AS vips
-            FROM {$table}";
-
-        $stats = $wpdb->get_row( $stats_sql );
-
-        // New this month
-        $new_this_month = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$table}
-             WHERE MONTH(created_at) = MONTH(NOW())
-             AND YEAR(created_at) = YEAR(NOW())"
-        );
-
-        // --- Customer rows ---
-        // $params holds only filter values (search, dates). Keep separate from pagination.
-        $sql        = "SELECT * FROM {$table} {$where} ORDER BY created_at DESC LIMIT %d OFFSET %d";
+        // ── Rows ───────────────────────────────────────
+        $sql        = "SELECT * FROM {$table} {$where} ORDER BY total_spent DESC, created_at DESC LIMIT %d OFFSET %d";
         $row_params = array_merge( $params, [ $per_page, $offset ] );
         $customers  = $wpdb->get_results( $wpdb->prepare( $sql, ...$row_params ) );
 
-        // COUNT — only use prepare when filter params exist (avoids prepare-without-placeholders notice)
         if ( $params ) {
             $total_rows = (int) $wpdb->get_var(
                 $wpdb->prepare( "SELECT COUNT(*) FROM {$table} {$where}", ...$params )
@@ -212,150 +162,196 @@ class DD_Customers_Module extends DD_Module {
             $total_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table}" );
         }
 
-        // --- Status helper ---
-        $get_status = function( float $spent, int $orders ): array {
-            if ( $orders === 0 )       return [ 'New',      '🌱', '#27ae60' ];
-            if ( $spent >= 500000 )    return [ 'Diamond',  '💎', '#00bcd4' ];
-            if ( $spent >= 250000 )    return [ 'Champion', '🏆', '#C9A24A' ];
-            if ( $spent >= 100000 )    return [ 'VIP',      '👑', '#8e44ad' ];
-            return                            [ 'Regular',  '🧡', '#E8832A' ];
-        };
-
-        // --- Render ---
+        $export_url = add_query_arg(
+            [ 'page' => 'dish-dash-customers', 'export' => 'csv' ],
+            admin_url( 'admin.php' )
+        );
         ?>
-        <div class="wrap dd-customers-wrap">
+        <div class="wrap dd-admin-wrap">
+        <div class="dd-page-wrap">
 
-            <!-- Header -->
-            <div class="dd-customers-header">
-                <div class="dd-customers-header__info">
-                    <span class="dashicons dashicons-groups"></span>
-                    <div>
-                        <h1>Customers</h1>
-                        <p>Know your guests, grow your restaurant</p>
-                    </div>
+            <div class="dd-page-header">
+                <div>
+                    <h1 class="dd-page-title">Customers</h1>
+                    <p class="dd-page-subtitle">Know your guests, grow your restaurant</p>
                 </div>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers&export=csv' ) ); ?>"
-                   class="button button-secondary">⬇ Export CSV</a>
+                <div class="dd-page-header-actions">
+                    <a href="<?php echo esc_url( $export_url ); ?>" class="dd-btn dd-btn-secondary">
+                        ⬇ Export CSV
+                    </a>
+                </div>
             </div>
 
-            <!-- Stats -->
-            <div class="dd-customers-stats">
-                <?php
-                $stat_cards = [
-                    [ 'icon' => '👥', 'value' => number_format( $stats->total_customers ), 'label' => 'Total Customers' ],
-                    [ 'icon' => '💰', 'value' => 'RWF ' . number_format( $stats->total_revenue ), 'label' => 'Total Revenue' ],
-                    [ 'icon' => '🆕', 'value' => $new_this_month, 'label' => 'New This Month' ],
-                    [ 'icon' => '📊', 'value' => 'RWF ' . number_format( $stats->avg_spend ), 'label' => 'Avg Spend / Customer' ],
-                    [ 'icon' => '💎', 'value' => number_format( $stats->diamonds ?? 0 ), 'label' => 'Diamond' ],
-                    [ 'icon' => '🏆', 'value' => number_format( $stats->champions ),     'label' => 'Champions' ],
-                    [ 'icon' => '👑', 'value' => number_format( $stats->vips ),          'label' => 'VIP Customers' ],
-                ];
-                foreach ( $stat_cards as $card ) :
-                ?>
-                <div class="dd-stat-card">
-                    <div class="dd-stat-card__icon"><?php echo $card['icon']; ?></div>
-                    <div class="dd-stat-card__value"><?php echo esc_html( $card['value'] ); ?></div>
-                    <div class="dd-stat-card__label"><?php echo esc_html( $card['label'] ); ?></div>
+            <!-- KPI Cards -->
+            <div class="dd-kpi-grid dd-kpi-grid--4">
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Total Customers</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->total_customers ); ?></div>
                 </div>
-                <?php endforeach; ?>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Total Revenue</div>
+                    <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->total_revenue ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">New This Month</div>
+                    <div class="dd-kpi-value"><?php echo number_format( $new_this_month ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Avg Spend / Customer</div>
+                    <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->avg_spend ); ?></div>
+                </div>
             </div>
 
-            <!-- Status legend -->
-            <div class="dd-customers-legend">
-                <strong>Customer Status:</strong>
-                <span class="dd-legend-item" style="color:#27ae60">🌱 New — No orders yet</span>
-                <span class="dd-legend-item" style="color:#E8832A">🧡 Regular — Has ordered</span>
-                <span class="dd-legend-item" style="color:#8e44ad">👑 VIP — RWF 100,000+</span>
-                <span class="dd-legend-item" style="color:#C9A24A">🏆 Champion — RWF 250,000+</span>
-                <span class="dd-legend-item" style="color:#00bcd4">💎 Diamond — RWF 500,000+</span>
+            <!-- Tier Breakdown (clickable filter chips) -->
+            <div class="dd-card dd-card--tiers">
+                <div class="dd-card-label">Customer Tiers</div>
+                <div class="dd-cust-tiers-row">
+                    <?php
+                    $tier_defs = [
+                        [ 'slug' => 'new',      'icon' => '🌱', 'label' => __( 'New',      'dish-dash' ), 'count' => (int) $stats->tier_new ],
+                        [ 'slug' => 'regular',  'icon' => '🧡', 'label' => __( 'Regular',  'dish-dash' ), 'count' => (int) $stats->tier_regular ],
+                        [ 'slug' => 'vip',      'icon' => '👑', 'label' => __( 'VIP',      'dish-dash' ), 'count' => (int) $stats->tier_vip ],
+                        [ 'slug' => 'champion', 'icon' => '🏆', 'label' => __( 'Champion', 'dish-dash' ), 'count' => (int) $stats->tier_champion ],
+                        [ 'slug' => 'diamond',  'icon' => '💎', 'label' => __( 'Diamond',  'dish-dash' ), 'count' => (int) $stats->tier_diamond ],
+                    ];
+                    foreach ( $tier_defs as $t ) :
+                        $is_active = $tier_filter === $t['slug'];
+                        $href = add_query_arg(
+                            [ 'page' => 'dish-dash-customers', 'tier' => $t['slug'] ],
+                            admin_url( 'admin.php' )
+                        );
+                    ?>
+                    <a href="<?php echo esc_url( $href ); ?>"
+                       class="dd-cust-tier-chip<?php echo $is_active ? ' dd-cust-tier-chip--active' : ''; ?>">
+                        <span class="dd-tier-badge dd-tier-badge--<?php echo esc_attr( $t['slug'] ); ?>">
+                            <?php echo $t['icon'] . ' ' . esc_html( $t['label'] ); ?>
+                        </span>
+                        <span class="dd-cust-tier-count"><?php echo number_format( $t['count'] ); ?></span>
+                    </a>
+                    <?php endforeach; ?>
+                    <?php if ( $tier_filter ) : ?>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers' ) ); ?>"
+                       class="dd-cust-tier-clear">✕ <?php esc_html_e( 'Clear filter', 'dish-dash' ); ?></a>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <!-- Filters -->
-            <form method="get" class="dd-customers-filters">
-                <input type="hidden" name="page" value="dish-dash-customers">
-                <input type="text" name="s" value="<?php echo esc_attr( $search ); ?>"
-                       placeholder="Search name or WhatsApp..." class="regular-text">
-                <label>From <input type="date" name="from" value="<?php echo esc_attr( $date_from ); ?>"></label>
-                <label>To   <input type="date" name="to"   value="<?php echo esc_attr( $date_to );   ?>"></label>
-                <button type="submit" class="button button-primary">Filter</button>
-                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers' ) ); ?>"
-                   class="button">Reset</a>
-                <span style="float:right;line-height:30px;color:#666;">
-                    Showing <?php echo count( $customers ); ?> of <?php echo $total_rows; ?> customers
-                </span>
-            </form>
+            <div class="dd-card dd-card--filters">
+                <form method="get" class="dd-filters-row">
+                    <input type="hidden" name="page" value="dish-dash-customers">
+                    <?php if ( $tier_filter ) : ?>
+                    <input type="hidden" name="tier" value="<?php echo esc_attr( $tier_filter ); ?>">
+                    <?php endif; ?>
+                    <input type="text" name="s" value="<?php echo esc_attr( $search ); ?>"
+                           placeholder="<?php esc_attr_e( 'Search name or WhatsApp…', 'dish-dash' ); ?>"
+                           class="dd-cust-search">
+                    <label class="dd-cust-date-label">
+                        <?php esc_html_e( 'From', 'dish-dash' ); ?>
+                        <input type="date" name="from" value="<?php echo esc_attr( $date_from ); ?>">
+                    </label>
+                    <label class="dd-cust-date-label">
+                        <?php esc_html_e( 'To', 'dish-dash' ); ?>
+                        <input type="date" name="to" value="<?php echo esc_attr( $date_to ); ?>">
+                    </label>
+                    <button type="submit" class="button button-primary"><?php esc_html_e( 'Filter', 'dish-dash' ); ?></button>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers' ) ); ?>"
+                       class="button"><?php esc_html_e( 'Reset', 'dish-dash' ); ?></a>
+                    <span class="dd-cust-count-note">
+                        <?php printf(
+                            /* translators: 1: shown count, 2: total count */
+                            esc_html__( 'Showing %1$s of %2$s customers', 'dish-dash' ),
+                            count( $customers ),
+                            $total_rows
+                        ); ?>
+                    </span>
+                </form>
+            </div>
 
             <!-- Table -->
-            <table class="widefat dd-customers-table">
-                <thead>
-                    <tr>
-                        <th>Customer</th>
-                        <th>WhatsApp</th>
-                        <th>Birthday</th>
-                        <th>Orders</th>
-                        <th>Total Spend</th>
-                        <th>Status</th>
-                        <th>Joined</th>
-                    </tr>
-                </thead>
-                <tbody>
+            <div class="dd-card dd-card--table">
                 <?php if ( empty( $customers ) ) : ?>
-                    <tr><td colspan="7" style="text-align:center;padding:40px;color:#aaa;">
-                        No customers yet. Orders will create customer records automatically.
-                    </td></tr>
+                <div class="dd-coming-soon">
+                    <span>👥</span>
+                    <h2><?php esc_html_e( 'No customers found', 'dish-dash' ); ?></h2>
+                    <p><?php esc_html_e( 'Customer records are created automatically when orders are placed.', 'dish-dash' ); ?></p>
+                </div>
                 <?php else : ?>
+                <table class="dd-cust-table">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Customer', 'dish-dash' ); ?></th>
+                            <th><?php esc_html_e( 'WhatsApp', 'dish-dash' ); ?></th>
+                            <th><?php esc_html_e( 'Birthday', 'dish-dash' ); ?></th>
+                            <th><?php esc_html_e( 'Orders', 'dish-dash' ); ?></th>
+                            <th><?php esc_html_e( 'Total Spend', 'dish-dash' ); ?></th>
+                            <th><?php esc_html_e( 'Tier', 'dish-dash' ); ?></th>
+                            <th><?php esc_html_e( 'Joined', 'dish-dash' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
                     <?php foreach ( $customers as $c ) :
-                        [ $status_label, $status_icon, $status_color ] = $get_status(
+                        [ $tier_label, $tier_icon, $tier_slug ] = $this->get_tier(
                             (float) $c->total_spent,
                             (int)   $c->total_orders
                         );
                         $birthday = $c->birthday
-                            ? date( 'M j', strtotime( $c->birthday ) )
+                            ? date_i18n( 'M j', strtotime( $c->birthday ) )
                             : '—';
                         $address = $c->delivery_address
                             ? wp_trim_words( $c->delivery_address, 6, '…' )
-                            : '—';
+                            : '';
+                        $initial = mb_strtoupper( mb_substr( trim( $c->name ), 0, 1 ) );
                     ?>
                     <tr>
                         <td>
-                            <strong><?php echo esc_html( $c->name ); ?></strong><br>
-                            <small style="color:#888;"><?php echo esc_html( $address ); ?></small>
+                            <div class="dd-cust-name-cell">
+                                <div class="dd-cust-avatar"><?php echo esc_html( $initial ); ?></div>
+                                <div>
+                                    <strong><?php echo esc_html( $c->name ); ?></strong>
+                                    <?php if ( $address ) : ?>
+                                    <small><?php echo esc_html( $address ); ?></small>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                         </td>
-                        <td><?php echo esc_html( '+' . ltrim( $c->whatsapp, '0' ) ); ?></td>
+                        <td class="dd-cust-phone"><?php echo esc_html( $c->whatsapp ); ?></td>
                         <td><?php echo esc_html( $birthday ); ?></td>
-                        <td><?php echo (int) $c->total_orders; ?></td>
-                        <td><strong style="color:#65040d;">
-                            RWF <?php echo number_format( $c->total_spent ); ?>
-                        </strong></td>
-                        <td><span style="color:<?php echo $status_color; ?>;font-weight:600;">
-                            <?php echo $status_icon . ' ' . $status_label; ?>
-                        </span></td>
-                        <td><?php echo esc_html( date( 'M j, Y', strtotime( $c->created_at ) ) ); ?></td>
+                        <td class="dd-cust-orders"><?php echo (int) $c->total_orders; ?></td>
+                        <td class="dd-cust-spend">RWF <?php echo number_format( (float) $c->total_spent ); ?></td>
+                        <td>
+                            <span class="dd-tier-badge dd-tier-badge--<?php echo esc_attr( $tier_slug ); ?>">
+                                <?php echo $tier_icon . ' ' . esc_html( $tier_label ); ?>
+                            </span>
+                        </td>
+                        <td class="dd-cust-joined"><?php echo esc_html( date_i18n( 'M j, Y', strtotime( $c->created_at ) ) ); ?></td>
                     </tr>
                     <?php endforeach; ?>
+                    </tbody>
+                </table>
                 <?php endif; ?>
-                </tbody>
-            </table>
+            </div>
 
             <!-- Pagination -->
             <?php if ( $total_rows > $per_page ) :
                 $total_pages = ceil( $total_rows / $per_page );
             ?>
-            <div class="tablenav bottom">
-                <div class="tablenav-pages">
-                    <?php
-                    echo paginate_links( [
-                        'base'    => add_query_arg( 'paged', '%#%' ),
-                        'format'  => '',
-                        'current' => $page,
-                        'total'   => $total_pages,
-                    ] );
-                    ?>
-                </div>
+            <div class="dd-cust-pagination">
+                <?php
+                echo paginate_links( [
+                    'base'      => add_query_arg( 'paged', '%#%' ),
+                    'format'    => '',
+                    'current'   => $page,
+                    'total'     => $total_pages,
+                    'prev_text' => '&larr; ' . __( 'Prev', 'dish-dash' ),
+                    'next_text' => __( 'Next', 'dish-dash' ) . ' &rarr;',
+                ] );
+                ?>
             </div>
             <?php endif; ?>
 
-        </div>
+        </div><!-- /dd-page-wrap -->
+        </div><!-- /wrap dd-admin-wrap -->
         <?php
     }
 
@@ -367,7 +363,7 @@ class DD_Customers_Module extends DD_Module {
         $rows = $wpdb->get_results(
             "SELECT name, whatsapp, delivery_address, total_orders, total_spent, birthday, created_at
              FROM {$wpdb->prefix}dishdash_customers
-             ORDER BY created_at DESC",
+             ORDER BY total_spent DESC",
             ARRAY_A
         );
 
@@ -375,11 +371,21 @@ class DD_Customers_Module extends DD_Module {
         header( 'Content-Disposition: attachment; filename="customers-' . date( 'Y-m-d' ) . '.csv"' );
 
         $out = fopen( 'php://output', 'w' );
-        fputcsv( $out, [ 'Name', 'WhatsApp', 'Address', 'Orders', 'Total Spent (RWF)', 'Birthday', 'Joined' ] );
+        fputcsv( $out, [ 'Name', 'WhatsApp', 'Address', 'Orders', 'Total Spent (RWF)', 'Tier', 'Birthday', 'Joined' ] );
         foreach ( $rows as $row ) {
-            $row['birthday']   = $row['birthday']   ? date( 'M j', strtotime( $row['birthday'] ) )   : '';
+            [ $tier_label ] = $this->get_tier( (float) $row['total_spent'], (int) $row['total_orders'] );
+            $row['birthday']   = $row['birthday']   ? date( 'M j', strtotime( $row['birthday'] ) )    : '';
             $row['created_at'] = $row['created_at'] ? date( 'Y-m-d', strtotime( $row['created_at'] ) ) : '';
-            fputcsv( $out, array_values( $row ) );
+            fputcsv( $out, [
+                $row['name'],
+                $row['whatsapp'],
+                $row['delivery_address'],
+                $row['total_orders'],
+                $row['total_spent'],
+                $tier_label,
+                $row['birthday'],
+                $row['created_at'],
+            ] );
         }
         fclose( $out );
     }
@@ -402,7 +408,6 @@ class DD_Customers_Module extends DD_Module {
         update_user_meta( $user_id, 'dd_address',  $address );
         update_user_meta( $user_id, 'dd_birthday', $birthday );
 
-        // Also sync to WooCommerce billing fields
         if ( $phone )   update_user_meta( $user_id, 'billing_phone',     $phone );
         if ( $address ) update_user_meta( $user_id, 'billing_address_1', $address );
 
@@ -413,110 +418,266 @@ class DD_Customers_Module extends DD_Module {
     //  ADMIN CSS
     // ─────────────────────────────────────────
     private function admin_css(): string {
-        return '
-        .dd-customers-wrap { max-width: 1200px; }
+        $brand = esc_attr( get_option( 'dish_dash_primary_color', '#65040d' ) );
 
-        /* ── Header ── */
-        .dd-customers-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #65040d;
-            border-radius: 12px;
-            padding: 20px 28px;
-            margin-bottom: 24px;
-            color: #fff;
-        }
-        .dd-customers-header__info {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-        }
-        .dd-customers-header .dashicons {
-            font-size: 40px;
-            width: 40px;
-            height: 40px;
-            color: rgba(255,255,255,0.7);
-        }
-        .dd-customers-header h1 {
-            color: #fff;
-            margin: 0;
-            font-size: 22px;
-        }
-        .dd-customers-header p {
-            color: rgba(255,255,255,0.75);
-            margin: 2px 0 0;
+        return "
+        /* ── Customers page layout ── */
+        .dd-page-wrap { max-width: 1400px; }
+
+        .dd-page-subtitle {
             font-size: 13px;
+            color: #888;
+            margin: 2px 0 0;
         }
 
-        /* ── Stats grid ── */
-        .dd-customers-stats {
+        .dd-page-header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        /* ── KPI grid (4-up) ── */
+        .dd-kpi-grid--4 {
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 12px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
             margin-bottom: 20px;
         }
-        @media (max-width: 1100px) {
-            .dd-customers-stats { grid-template-columns: repeat(3, 1fr); }
-        }
-        .dd-stat-card {
-            background: #fff;
-            border: 1px solid #e8e0d8;
-            border-radius: 10px;
-            padding: 16px 12px;
-            text-align: center;
-        }
-        .dd-stat-card__icon { font-size: 24px; margin-bottom: 6px; }
-        .dd-stat-card__value {
-            font-size: 18px;
-            font-weight: 700;
-            color: #65040d;
-            line-height: 1.2;
-            word-break: break-word;
-        }
-        .dd-stat-card__label {
-            font-size: 11px;
-            color: #888;
-            margin-top: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
+
+        @media (max-width: 900px) {
+            .dd-kpi-grid--4 { grid-template-columns: repeat(2, 1fr); }
         }
 
-        /* ── Legend ── */
-        .dd-customers-legend {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
+        /* ── Cards ── */
+        .dd-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px 20px;
             margin-bottom: 16px;
+        }
+
+        .dd-card-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #999;
+            margin-bottom: 12px;
+        }
+
+        /* ── Tier chips ── */
+        .dd-cust-tiers-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .dd-cust-tier-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 2px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+            color: #555;
+            background: #f5f5f5;
+            transition: border-color 0.15s;
+        }
+
+        .dd-cust-tier-chip--active {
+            border-color: {$brand} !important;
+            box-shadow: 0 0 0 3px color-mix(in srgb, {$brand} 12%, transparent) !important;
+        }
+
+        /* ── Filter bar ── */
+        .dd-card--filters .dd-filters-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        /* ── Table ── */
+        .dd-cust-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 13px;
         }
-        .dd-legend-item { font-weight: 500; }
 
-        /* ── Filters ── */
-        .dd-customers-filters {
+        .dd-cust-table th {
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #999;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .dd-cust-table td {
+            padding: 12px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            vertical-align: middle;
+        }
+
+        .dd-cust-table tr:last-child td { border-bottom: none; }
+        .dd-cust-table tr:hover td { background: #fafafa; }
+
+        /* ── Status badges ── */
+        .dd-cust-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .dd-cust-badge--new      { background: #e8f5e9; color: #2e7d32; }
+        .dd-cust-badge--regular  { background: #e3f2fd; color: #1565c0; }
+        .dd-cust-badge--vip      { background: #f3e5f5; color: #6a1b9a; }
+        .dd-cust-badge--champion { background: #fff8e1; color: #e65100; }
+        .dd-cust-badge--diamond  { background: #e8eaf6; color: #283593; }
+
+        /* ── Pagination ── */
+        .dd-cust-pagination {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 6px;
+            padding-top: 12px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* ── Tier badges (chips + table rows) ── */
+        .dd-tier-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+        }
+        .dd-tier-badge--new      { background: #e8f5e9; color: #2e7d32; }
+        .dd-tier-badge--regular  { background: #fff3e0; color: #e65100; }
+        .dd-tier-badge--vip      { background: #f3e5f5; color: #7b1fa2; }
+        .dd-tier-badge--champion { background: #fff8e1; color: #f57f17; }
+        .dd-tier-badge--diamond  { background: #e0f7fa; color: #00838f; }
+
+        /* ── Customer name cell ── */
+        .dd-cust-name-cell {
             display: flex;
             align-items: center;
             gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-            padding: 12px 16px;
-            background: #f9f5f0;
-            border-radius: 8px;
         }
-        .dd-customers-filters input[type="text"] { min-width: 220px; }
-        .dd-customers-filters label { font-size: 13px; }
+        .dd-cust-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: {$brand};
+            color: #fff;
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .dd-cust-name-cell strong { display: block; line-height: 1.3; }
+        .dd-cust-name-cell small  { display: block; color: #aaa; font-size: 11px; margin-top: 1px; }
+        .dd-cust-spend  { font-weight: 700; color: #111; }
+        .dd-cust-orders { font-weight: 600; color: #444; text-align: center; }
+        .dd-cust-phone  { font-family: monospace; font-size: 12px; color: #555; }
+        .dd-cust-joined { color: #888; font-size: 12px; }
 
-        /* ── Table ── */
-        .dd-customers-table th {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #888;
-            background: #fafafa;
+        /* ── Tier chip count + clear ── */
+        .dd-cust-tier-count {
+            font-size: 17px;
+            font-weight: 700;
+            color: #111;
+            line-height: 1;
         }
-        .dd-customers-table td { padding: 12px 10px; vertical-align: middle; }
-        .dd-customers-table tr:hover td { background: #fdf9f5; }
-        ';
+        .dd-cust-tier-clear {
+            font-size: 12px;
+            color: #aaa;
+            text-decoration: none !important;
+            padding: 6px 10px;
+            border: 1px dashed #ddd;
+            border-radius: 8px;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .dd-cust-tier-clear:hover { color: #c00 !important; border-color: #c00; }
+
+        /* ── Filter inputs ── */
+        .dd-cust-search {
+            min-width: 220px !important;
+            border: 1.5px solid #e8e8e8 !important;
+            border-radius: 8px !important;
+            padding: 7px 12px !important;
+            font-size: 13px !important;
+        }
+        .dd-cust-date-label {
+            font-size: 13px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .dd-cust-date-label input {
+            border: 1.5px solid #e8e8e8 !important;
+            border-radius: 8px !important;
+            padding: 6px 10px !important;
+            font-size: 13px !important;
+        }
+        .dd-cust-count-note {
+            margin-left: auto;
+            font-size: 12px;
+            color: #888;
+        }
+
+        /* ── Pagination links ── */
+        .dd-cust-pagination .page-numbers {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 34px;
+            padding: 0 10px;
+            border: 1.5px solid #e8e8e8;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #444;
+            text-decoration: none;
+            background: #fff;
+            transition: border-color 0.15s, color 0.15s;
+        }
+        .dd-cust-pagination .page-numbers:hover {
+            border-color: {$brand};
+            color: {$brand};
+        }
+        .dd-cust-pagination .page-numbers.current {
+            background: {$brand};
+            border-color: {$brand};
+            color: #fff;
+        }
+        .dd-cust-pagination .page-numbers.dots {
+            border: none;
+            background: transparent;
+            color: #aaa;
+        }
+        ";
     }
 }
