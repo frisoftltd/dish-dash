@@ -29,10 +29,11 @@ class DD_Reservations_Admin {
 
     public function enqueue_assets( string $hook ): void {
         if ( strpos( $hook, 'dd-reservations' ) === false ) return;
+        wp_enqueue_style( 'dashicons' );
         wp_enqueue_style(
             'dd-reservations-admin',
             plugin_dir_url( __FILE__ ) . '../../assets/css/reservations-admin.css',
-            [],
+            [ 'dashicons' ],
             DD_VERSION
         );
     }
