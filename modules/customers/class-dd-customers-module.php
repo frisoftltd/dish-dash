@@ -94,9 +94,35 @@ class DD_Customers_Module extends DD_Module {
         $table = $wpdb->prefix . 'dishdash_customers';
 
         $search      = sanitize_text_field( $_GET['s']    ?? '' );
-        $date_from   = sanitize_text_field( $_GET['from'] ?? '' );
-        $date_to     = sanitize_text_field( $_GET['to']   ?? '' );
         $tier_filter = sanitize_text_field( $_GET['tier'] ?? '' );
+
+        // Date range — default to last 7 days
+        $range_options = [ 'today', '7days', '30days', '90days', 'custom' ];
+        $range         = ( isset( $_GET['range'] ) && in_array( $_GET['range'], $range_options, true ) )
+                         ? $_GET['range'] : '7days';
+
+        switch ( $range ) {
+            case 'today':
+                $date_from = date( 'Y-m-d' );
+                $date_to   = date( 'Y-m-d' );
+                break;
+            case '7days':
+                $date_from = date( 'Y-m-d', strtotime( '-6 days' ) );
+                $date_to   = date( 'Y-m-d' );
+                break;
+            case '30days':
+                $date_from = date( 'Y-m-d', strtotime( '-29 days' ) );
+                $date_to   = date( 'Y-m-d' );
+                break;
+            case '90days':
+                $date_from = date( 'Y-m-d', strtotime( '-89 days' ) );
+                $date_to   = date( 'Y-m-d' );
+                break;
+            case 'custom':
+                $date_from = sanitize_text_field( $_GET['from'] ?? '' );
+                $date_to   = sanitize_text_field( $_GET['to']   ?? '' );
+                break;
+        }
         $per_page_options = [ 25, 50, 75 ];
         $per_page_raw     = isset( $_GET['per_page'] ) ? (int) $_GET['per_page'] : 25;
         $per_page         = in_array( $per_page_raw, array_merge( $per_page_options, [ 99999 ] ), true )
@@ -110,7 +136,7 @@ class DD_Customers_Module extends DD_Module {
 
         if ( $active_tab === 'orders' ) {
 
-            $stats = $wpdb->get_row(
+            $stats = $wpdb->get_row( $wpdb->prepare(
                 "SELECT
                     COUNT(*)                                                    AS total_customers,
                     COALESCE(SUM(total_spent), 0)                               AS total_revenue,
@@ -121,28 +147,36 @@ class DD_Customers_Module extends DD_Module {
                     SUM(total_spent >= 250000 AND total_spent < 500000)         AS tier_champion,
                     SUM(total_spent >= 500000)                                  AS tier_diamond
                  FROM {$table}
-                 WHERE total_orders > 0"
-            );
+                 WHERE total_orders > 0
+                   AND DATE(created_at) >= %s
+                   AND DATE(created_at) <= %s",
+                $date_from, $date_to
+            ) );
 
-            $new_this_month = (int) $wpdb->get_var(
+            $new_this_month = (int) $wpdb->get_var( $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$table}
                  WHERE total_orders > 0
-                 AND MONTH(created_at) = MONTH(NOW())
-                 AND YEAR(created_at) = YEAR(NOW())"
-            );
+                   AND DATE(created_at) >= %s
+                   AND DATE(created_at) <= %s",
+                $date_from, $date_to
+            ) );
 
         } else {
 
-            $stats = $wpdb->get_row(
+            $stats = $wpdb->get_row( $wpdb->prepare(
                 "SELECT
-                    COUNT(DISTINCT c.id)                                        AS total_customers,
-                    COUNT(r.id)                                                 AS total_reservations,
-                    SUM(r.date >= CURDATE() AND r.status != 'cancelled')        AS upcoming,
-                    COALESCE(AVG(r.guests), 0)                                  AS avg_party
+                    COUNT(DISTINCT c.id)                                            AS total_customers,
+                    COUNT(r.id)                                                     AS total_reservations,
+                    SUM(r.date >= CURDATE() AND r.status != 'cancelled')            AS upcoming,
+                    COALESCE(AVG(r.guests), 0)                                      AS avg_party
                  FROM {$table} c
                  LEFT JOIN {$res_table} r ON r.customer_id = c.id
-                 WHERE c.total_orders = 0 AND r.id IS NOT NULL"
-            );
+                 WHERE c.total_orders = 0
+                   AND r.id IS NOT NULL
+                   AND DATE(c.created_at) >= %s
+                   AND DATE(c.created_at) <= %s",
+                $date_from, $date_to
+            ) );
 
             $new_this_month = null; // not used on reservations tab
 
@@ -268,7 +302,7 @@ class DD_Customers_Module extends DD_Module {
                     <div class="dd-kpi-value">RWF <?php echo number_format( (float) $stats->avg_spend ); ?></div>
                 </div>
                 <div class="dd-kpi-card">
-                    <div class="dd-kpi-label">New This Month</div>
+                    <div class="dd-kpi-label">New Customers</div>
                     <div class="dd-kpi-value"><?php echo number_format( $new_this_month ); ?></div>
                 </div>
             </div>
@@ -331,38 +365,84 @@ class DD_Customers_Module extends DD_Module {
 
             <!-- Filters -->
             <div class="dd-card dd-card--filters">
-                <form method="get" class="dd-filters-row">
-                    <input type="hidden" name="page" value="dish-dash-customers">
+                <form method="get" class="dd-filters-row" id="dd-cust-filter-form">
+                    <input type="hidden" name="page"     value="dish-dash-customers">
+                    <input type="hidden" name="tab"      value="<?php echo esc_attr( $active_tab ); ?>">
+                    <input type="hidden" name="per_page" value="<?php echo esc_attr( $per_page ); ?>">
+                    <input type="hidden" name="paged"    value="1">
+
                     <?php if ( $tier_filter ) : ?>
                     <input type="hidden" name="tier" value="<?php echo esc_attr( $tier_filter ); ?>">
                     <?php endif; ?>
+
+                    <!-- Search -->
                     <input type="text" name="s" value="<?php echo esc_attr( $search ); ?>"
                            placeholder="<?php esc_attr_e( 'Search name or WhatsApp…', 'dish-dash' ); ?>"
                            class="dd-cust-search">
-                    <label class="dd-cust-date-label">
-                        <?php esc_html_e( 'From', 'dish-dash' ); ?>
-                        <input type="date" name="from" value="<?php echo esc_attr( $date_from ); ?>">
-                    </label>
-                    <label class="dd-cust-date-label">
-                        <?php esc_html_e( 'To', 'dish-dash' ); ?>
-                        <input type="date" name="to" value="<?php echo esc_attr( $date_to ); ?>">
-                    </label>
-                    <button type="submit" class="button button-primary"><?php esc_html_e( 'Filter', 'dish-dash' ); ?></button>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers' ) ); ?>"
-                       class="button"><?php esc_html_e( 'Reset', 'dish-dash' ); ?></a>
+
+                    <!-- Quick range buttons -->
+                    <div class="dd-range-btns">
+                        <?php
+                        $ranges = [ 'today' => 'Today', '7days' => '7 Days', '30days' => '30 Days', '90days' => '90 Days', 'custom' => 'Custom' ];
+                        foreach ( $ranges as $val => $label ) :
+                            $active_r = ( $range === $val ) ? ' dd-range-btn--active' : '';
+                        ?>
+                        <button type="button"
+                                class="dd-range-btn<?php echo $active_r; ?>"
+                                data-range="<?php echo esc_attr( $val ); ?>">
+                            <?php echo esc_html( $label ); ?>
+                        </button>
+                        <?php endforeach; ?>
+                        <input type="hidden" name="range" id="dd-range-input" value="<?php echo esc_attr( $range ); ?>">
+                    </div>
+
+                    <!-- Custom date pickers — shown only when range=custom -->
+                    <div class="dd-custom-dates<?php echo $range === 'custom' ? '' : ' dd-hidden'; ?>" id="dd-custom-dates">
+                        <label>From <input type="date" name="from" value="<?php echo esc_attr( $range === 'custom' ? $date_from : '' ); ?>"></label>
+                        <label>To   <input type="date" name="to"   value="<?php echo esc_attr( $range === 'custom' ? $date_to   : '' ); ?>"></label>
+                    </div>
+
+                    <button type="submit" class="button button-primary">Filter</button>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers&tab=' . $active_tab ) ); ?>"
+                       class="button">Reset</a>
                 </form>
             </div>
+
+            <script>
+            (function() {
+                const btns   = document.querySelectorAll('.dd-range-btn');
+                const input  = document.getElementById('dd-range-input');
+                const custom = document.getElementById('dd-custom-dates');
+                const form   = document.getElementById('dd-cust-filter-form');
+
+                btns.forEach(function(btn) {
+                    btn.addEventListener('click', function() {
+                        const val = this.dataset.range;
+                        input.value = val;
+                        btns.forEach(function(b) { b.classList.remove('dd-range-btn--active'); });
+                        this.classList.add('dd-range-btn--active');
+                        if (val === 'custom') {
+                            custom.classList.remove('dd-hidden');
+                        } else {
+                            custom.classList.add('dd-hidden');
+                            form.submit();
+                        }
+                    });
+                });
+            })();
+            </script>
 
             <!-- Table -->
             <div class="dd-table-controls">
                 <div class="dd-per-page">
                     <?php
                     $base_url = add_query_arg( array_filter( [
-                        's'    => $_GET['s']    ?? '',
-                        'from' => $_GET['from'] ?? '',
-                        'to'   => $_GET['to']   ?? '',
-                        'tier' => $_GET['tier'] ?? '',
-                        'tab'  => $active_tab,
+                        's'     => $_GET['s']    ?? '',
+                        'tier'  => $_GET['tier'] ?? '',
+                        'tab'   => $active_tab,
+                        'range' => $range,
+                        'from'  => $range === 'custom' ? ( $_GET['from'] ?? '' ) : '',
+                        'to'    => $range === 'custom' ? ( $_GET['to']   ?? '' ) : '',
                     ] ), admin_url( 'admin.php?page=dish-dash-customers' ) );
 
                     foreach ( [ 25, 50, 75 ] as $opt ) :
@@ -451,7 +531,7 @@ class DD_Customers_Module extends DD_Module {
             <div class="dd-cust-pagination">
                 <?php
                 echo paginate_links( [
-                    'base'      => add_query_arg( [ 'paged' => '%#%', 'per_page' => $per_page, 'tab' => $active_tab ] ),
+                    'base'      => add_query_arg( [ 'paged' => '%#%', 'per_page' => $per_page, 'tab' => $active_tab, 'range' => $range ] ),
                     'format'    => '',
                     'total'     => $total_pages,
                     'current'   => $page,
@@ -818,6 +898,45 @@ class DD_Customers_Module extends DD_Module {
             border-bottom-color: {$brand};
             font-weight: 600;
         }
+
+        /* ── Range buttons ── */
+        .dd-range-btns {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        .dd-range-btn {
+            padding: 5px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            font-size: 12px;
+            font-weight: 500;
+            color: #555;
+            cursor: pointer;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        .dd-range-btn:hover {
+            border-color: {$brand};
+            color: {$brand};
+        }
+
+        .dd-range-btn--active {
+            border-color: {$brand};
+            background: {$brand};
+            color: #fff;
+        }
+
+        .dd-custom-dates {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .dd-hidden { display: none; }
         ";
     }
 }

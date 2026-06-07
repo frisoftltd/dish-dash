@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.07 (2026-06-07)
+> Last updated: v3.5.08 (2026-06-07)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.07 |
+| **Deployed version** | v3.5.08 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.08 — Tables + Seating Sections redesign |
-| **Last working state** | Customers page: per-tab KPI cards — Ordering tab shows ordering customers/revenue/avg spend/new this month; Reservations tab shows guests/total reservations/upcoming/avg party size. Customer Tiers hidden on Reservations tab. |
+| **Next task** | v3.5.09 — Tables + Seating Sections redesign |
+| **Last working state** | Customers page: date range filter (today/7d/30d/90d/custom, default 7d), KPIs range-aware, filter bar preserves tab+per_page, per-page and pagination carry range param. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -578,7 +578,8 @@ Every page before shipping must pass:
 | **v3.5.05** | ✅ **Done** | **Customers page: Orders/Reservations tabs, tab-filtered rows, paginate_links carries tab param** |
 | **v3.5.06** | ✅ **Done** | **Customers — per-tab KPI cards, hide tiers on reservations tab** |
 | **v3.5.07** | ✅ **Done** | **Fix: restore tier counts to orders-tab stats query (tier_new/regular/vip/champion/diamond)** |
-| v3.5.08 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.5.08** | ✅ **Done** | **Customers — date range filter today/7d/30d/90d/custom, KPIs range-aware, filter preserves tab+per_page** |
+| v3.5.09 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
