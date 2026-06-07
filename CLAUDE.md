@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.4.98 (2026-06-03)
+> Last updated: v3.4.99 (2026-06-07)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.4.98 |
+| **Deployed version** | v3.4.99 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.4.99 — Tables + Seating Sections redesign |
-| **Last working state** | Fee reversal on cancel/revert: recalculate_fee_for_status_change() static helper added to DD_Orders_Module, wired into all 6 status-change sites (update_status canonical path, wc_payment_cancelled, on_order_received_page, admin single-order POST, admin bulk POST, dashboard bulk stale delivery). |
+| **Next task** | v3.5.00 — Tables + Seating Sections redesign |
+| **Last working state** | Orders page: recent-first sort (created_at DESC), live search by order number/customer name/phone (350ms debounce), date range filter (from/to), payment method filter. Single dynamic WHERE builder replaces three-variant query block. All filters preserved across pagination and per-page links via $base_query_args. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -569,7 +569,8 @@ Every page before shipping must pass:
 | **v3.4.96** | ✅ **Done** | **Dashboard: fees KPI card replaced with inline line below revenue chart** |
 | **v3.4.97** | ✅ **Done** | **Phase C — deleted dishdash-core/class-dd-install.php (deprecated DD_Schema_Upgrader), updated stale comments** |
 | **v3.4.98** | ✅ **Done** | **Phase D — fee reversal on cancel/revert: recalculate_fee_for_status_change() helper wired into all 6 status-change sites** |
-| v3.4.99 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.4.99** | ✅ **Done** | **Orders page: recent-first sort, live search (order number/name/phone), date range filter, payment method filter** |
+| v3.5.00 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

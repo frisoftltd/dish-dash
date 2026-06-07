@@ -123,6 +123,12 @@ $per_page         = in_array( $per_page_raw, array_merge( $per_page_options, [ 9
 $paged            = isset( $_GET['paged'] ) ? max( 1, (int) $_GET['paged'] ) : 1;
 $offset           = ( $paged - 1 ) * $per_page;
 
+// ── Search and filter params ──────────────────────────────────────────────────
+$search_query     = isset( $_GET['dd_search'] )    ? sanitize_text_field( wp_unslash( $_GET['dd_search'] ) ) : '';
+$filter_date_from = isset( $_GET['dd_date_from'] ) ? sanitize_text_field( $_GET['dd_date_from'] ) : '';
+$filter_date_to   = isset( $_GET['dd_date_to'] )   ? sanitize_text_field( $_GET['dd_date_to'] ) : '';
+$filter_payment   = isset( $_GET['dd_payment'] )   ? sanitize_key( $_GET['dd_payment'] ) : '';
+
 // ── Summary stats ─────────────────────────────────────────────────────────────
 $total_orders  = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 0" );
 $total_revenue = (float) $wpdb->get_var( "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE is_test = 0" );
@@ -133,34 +139,59 @@ $total_today   = (int)   $wpdb->get_var( $wpdb->prepare(
 ) );
 
 // ── Orders query ──────────────────────────────────────────────────────────────
+$where_clauses = [];
+$where_values  = [];
+
+// Test / non-test base filter (always first — ensures $where_clauses is never empty)
 if ( $status_filter === 'test' ) {
-    $paginated_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 1" );
-    $orders = $wpdb->get_results( $wpdb->prepare(
-        "SELECT * FROM `{$ot}` WHERE is_test = 1
-         ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
-         LIMIT %d OFFSET %d",
-        $per_page, $offset
-    ), ARRAY_A );
-} elseif ( $status_filter !== 'all' ) {
-    $paginated_total = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$ot}` WHERE status = %s AND is_test = 0",
-        $status_filter
-    ) );
-    $orders = $wpdb->get_results( $wpdb->prepare(
-        "SELECT * FROM `{$ot}` WHERE status = %s AND is_test = 0
-         ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
-         LIMIT %d OFFSET %d",
-        $status_filter, $per_page, $offset
-    ), ARRAY_A );
+    $where_clauses[] = 'is_test = 1';
 } else {
-    $paginated_total = $total_orders; // same WHERE as stat query above — no extra query needed
-    $orders = $wpdb->get_results( $wpdb->prepare(
-        "SELECT * FROM `{$ot}` WHERE is_test = 0
-         ORDER BY FIELD(status,'pending','confirmed','ready','out_for_delivery','delivered','cancelled') ASC, created_at ASC
-         LIMIT %d OFFSET %d",
-        $per_page, $offset
-    ), ARRAY_A );
+    $where_clauses[] = 'is_test = 0';
+    if ( $status_filter !== 'all' ) {
+        $where_clauses[] = 'status = %s';
+        $where_values[]  = $status_filter;
+    }
 }
+
+// Search: order number, customer name, customer phone
+if ( $search_query !== '' ) {
+    $like = '%' . $wpdb->esc_like( $search_query ) . '%';
+    $where_clauses[] = '(order_number LIKE %s OR customer_name LIKE %s OR customer_phone LIKE %s)';
+    $where_values[]  = $like;
+    $where_values[]  = $like;
+    $where_values[]  = $like;
+}
+
+// Date from
+if ( $filter_date_from !== '' ) {
+    $where_clauses[] = 'created_at >= %s';
+    $where_values[]  = $filter_date_from . ' 00:00:00';
+}
+
+// Date to
+if ( $filter_date_to !== '' ) {
+    $where_clauses[] = 'created_at <= %s';
+    $where_values[]  = $filter_date_to . ' 23:59:59';
+}
+
+// Payment method
+if ( $filter_payment !== '' ) {
+    $where_clauses[] = 'payment_method = %s';
+    $where_values[]  = $filter_payment;
+}
+
+$where_sql = 'WHERE ' . implode( ' AND ', $where_clauses );
+
+$count_sql              = "SELECT COUNT(*) FROM `{$ot}` {$where_sql}";
+$list_sql               = "SELECT * FROM `{$ot}` {$where_sql} ORDER BY created_at DESC LIMIT %d OFFSET %d";
+$where_values_paginated = array_merge( $where_values, [ $per_page, $offset ] );
+
+$paginated_total = ! empty( $where_values )
+    ? (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $where_values ) )
+    : (int) $wpdb->get_var( $count_sql );
+
+$orders = $wpdb->get_results( $wpdb->prepare( $list_sql, $where_values_paginated ), ARRAY_A );
+
 $total_pages = ( $paginated_total > 0 && $per_page > 0 ) ? (int) ceil( $paginated_total / $per_page ) : 1;
 
 // ── Per-status counts for filter tabs ─────────────────────────────────────────
@@ -173,6 +204,19 @@ foreach ( $counts_raw as $row ) {
     $status_counts[ $row['status'] ] = (int) $row['cnt'];
 }
 $test_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 1" );
+
+// ── Payment methods for filter dropdown ───────────────────────────────────────
+$payment_methods = $wpdb->get_col(
+    "SELECT DISTINCT payment_method FROM `{$ot}` WHERE is_test = 0 AND payment_method != '' ORDER BY payment_method ASC"
+);
+
+// ── Base query args for pagination links (preserves active filters) ───────────
+$base_query_args = [ 'page' => 'dish-dash-orders', 'status' => $status_filter ];
+if ( $search_query     !== '' ) $base_query_args['dd_search']    = $search_query;
+if ( $filter_date_from !== '' ) $base_query_args['dd_date_from'] = $filter_date_from;
+if ( $filter_date_to   !== '' ) $base_query_args['dd_date_to']   = $filter_date_to;
+if ( $filter_payment   !== '' ) $base_query_args['dd_payment']   = $filter_payment;
+if ( $per_page         !== 25 ) $base_query_args['per_page']     = $per_page;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function dd_orders_status_badge( $status ) {
@@ -232,6 +276,80 @@ foreach ( $orders as $o ) {
     ];
 }
 ?>
+
+<style>
+.dd-orders-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.dd-search-field {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+.dd-search-field input[type="text"] {
+    width: 100%;
+    padding: 8px 32px 8px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #111;
+    background: #fff;
+    box-sizing: border-box;
+}
+.dd-search-field input[type="text"]:focus {
+    outline: none;
+    border-color: var(--dd-brand);
+    box-shadow: 0 0 0 2px var(--dd-brand-light);
+}
+.dd-search-clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #888;
+    font-size: 12px;
+}
+.dd-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.dd-filter-group input[type="date"],
+.dd-filter-group select {
+    padding: 8px 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #111;
+    background: #fff;
+    cursor: pointer;
+}
+.dd-filter-group select:focus,
+.dd-filter-group input[type="date"]:focus {
+    outline: none;
+    border-color: var(--dd-brand);
+}
+.dd-filter-clear-all {
+    font-size: 12px;
+    color: #888;
+    text-decoration: none;
+    white-space: nowrap;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+.dd-filter-clear-all:hover {
+    color: #333;
+    border-color: #ccc;
+}
+</style>
 
 <div class="dd-orders-wrap">
 
@@ -305,18 +423,68 @@ foreach ( $orders as $o ) {
         <button type="button" class="dd-bulk-clear" id="dd-bulk-clear">Clear</button>
     </div>
 
+    <div class="dd-orders-search-bar" id="dd-search-bar">
+        <div class="dd-search-field">
+            <input
+                type="text"
+                id="dd-search-input"
+                placeholder="Search order number, name, phone…"
+                value="<?php echo esc_attr( $search_query ); ?>"
+                autocomplete="off"
+            >
+            <?php if ( $search_query !== '' ) : ?>
+                <span class="dd-search-clear" id="dd-search-clear" title="Clear search">✕</span>
+            <?php endif; ?>
+        </div>
+
+        <div class="dd-filter-group">
+            <input
+                type="date"
+                id="dd-date-from"
+                value="<?php echo esc_attr( $filter_date_from ); ?>"
+                title="From date"
+            >
+            <span style="color:#888;font-size:12px">→</span>
+            <input
+                type="date"
+                id="dd-date-to"
+                value="<?php echo esc_attr( $filter_date_to ); ?>"
+                title="To date"
+            >
+        </div>
+
+        <div class="dd-filter-group">
+            <select id="dd-payment-filter">
+                <option value="">All payment methods</option>
+                <?php foreach ( $payment_methods as $pm ) : ?>
+                    <option value="<?php echo esc_attr( $pm ); ?>"
+                        <?php selected( $filter_payment, $pm ); ?>>
+                        <?php echo esc_html( ucwords( str_replace( '_', ' ', $pm ) ) ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <?php if ( $search_query !== '' || $filter_date_from !== '' || $filter_date_to !== '' || $filter_payment !== '' ) : ?>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-orders&status=' . $status_filter ) ); ?>"
+               class="dd-filter-clear-all">Clear all filters</a>
+        <?php endif; ?>
+    </div>
+
     <div class="dd-table-controls">
         <div class="dd-per-page">
             <span class="dd-label">Show:</span>
-            <?php foreach ( $per_page_options as $opt ) :
-                $pp_url = add_query_arg( [ 'per_page' => $opt, 'paged' => 1 ] );
+            <?php
+            $pp_base = add_query_arg( $base_query_args, admin_url( 'admin.php' ) );
+            foreach ( $per_page_options as $opt ) :
+                $pp_url = add_query_arg( [ 'per_page' => $opt, 'paged' => 1 ], $pp_base );
             ?>
             <a href="<?php echo esc_url( $pp_url ); ?>"
                class="dd-per-page-btn <?php echo $per_page === $opt ? 'active' : ''; ?>">
                 <?php echo $opt; ?>
             </a>
             <?php endforeach; ?>
-            <a href="<?php echo esc_url( add_query_arg( [ 'per_page' => 99999, 'paged' => 1 ] ) ); ?>"
+            <a href="<?php echo esc_url( add_query_arg( [ 'per_page' => 99999, 'paged' => 1 ], $pp_base ) ); ?>"
                class="dd-per-page-btn <?php echo $per_page === 99999 ? 'active' : ''; ?>">
                 All
             </a>
@@ -392,30 +560,32 @@ foreach ( $orders as $o ) {
         </tbody>
       </table>
 
-      <?php if ( $total_pages > 1 ) : ?>
+      <?php if ( $total_pages > 1 ) :
+          $paged_base = add_query_arg( $base_query_args, admin_url( 'admin.php' ) );
+      ?>
       <div class="dd-pagination">
           <?php if ( $paged > 1 ) : ?>
-              <a href="<?php echo esc_url( add_query_arg( 'paged', $paged - 1 ) ); ?>"
+              <a href="<?php echo esc_url( add_query_arg( 'paged', $paged - 1, $paged_base ) ); ?>"
                  class="dd-page-btn">← Prev</a>
           <?php endif; ?>
 
           <?php
           $start = max( 1, $paged - 3 );
           $end   = min( $total_pages, $paged + 3 );
-          if ( $start > 1 ) echo '<a href="' . esc_url( add_query_arg( 'paged', 1 ) ) . '" class="dd-page-btn">1</a>';
+          if ( $start > 1 ) echo '<a href="' . esc_url( add_query_arg( 'paged', 1, $paged_base ) ) . '" class="dd-page-btn">1</a>';
           if ( $start > 2 ) echo '<span class="dd-page-ellipsis">…</span>';
           for ( $i = $start; $i <= $end; $i++ ) :
               $cls = $i === $paged ? 'dd-page-btn active' : 'dd-page-btn';
           ?>
-              <a href="<?php echo esc_url( add_query_arg( 'paged', $i ) ); ?>"
+              <a href="<?php echo esc_url( add_query_arg( 'paged', $i, $paged_base ) ); ?>"
                  class="<?php echo $cls; ?>"><?php echo $i; ?></a>
           <?php endfor;
           if ( $end < $total_pages - 1 ) echo '<span class="dd-page-ellipsis">…</span>';
-          if ( $end < $total_pages ) echo '<a href="' . esc_url( add_query_arg( 'paged', $total_pages ) ) . '" class="dd-page-btn">' . $total_pages . '</a>';
+          if ( $end < $total_pages ) echo '<a href="' . esc_url( add_query_arg( 'paged', $total_pages, $paged_base ) ) . '" class="dd-page-btn">' . $total_pages . '</a>';
           ?>
 
           <?php if ( $paged < $total_pages ) : ?>
-              <a href="<?php echo esc_url( add_query_arg( 'paged', $paged + 1 ) ); ?>"
+              <a href="<?php echo esc_url( add_query_arg( 'paged', $paged + 1, $paged_base ) ); ?>"
                  class="dd-page-btn">Next →</a>
           <?php endif; ?>
       </div>
@@ -441,6 +611,87 @@ window.ddOrdersData = {
         'cancelled' => 'Cancelled',
     ] ); ?>
 };
+</script>
+
+<!-- Live Search + Filter JS -->
+<script>
+( function () {
+    'use strict';
+
+    var searchInput   = document.getElementById( 'dd-search-input' );
+    var dateFrom      = document.getElementById( 'dd-date-from' );
+    var dateTo        = document.getElementById( 'dd-date-to' );
+    var paymentFilter = document.getElementById( 'dd-payment-filter' );
+    var clearBtn      = document.getElementById( 'dd-search-clear' );
+    var debounceTimer = null;
+
+    function buildUrl() {
+        var url    = new URL( window.location.href );
+        var params = url.searchParams;
+
+        var search = searchInput   ? searchInput.value.trim() : '';
+        var from   = dateFrom      ? dateFrom.value           : '';
+        var to     = dateTo        ? dateTo.value             : '';
+        var pay    = paymentFilter ? paymentFilter.value      : '';
+
+        if ( search ) { params.set( 'dd_search', search ); }
+        else           { params.delete( 'dd_search' ); }
+
+        if ( from ) { params.set( 'dd_date_from', from ); }
+        else         { params.delete( 'dd_date_from' ); }
+
+        if ( to ) { params.set( 'dd_date_to', to ); }
+        else       { params.delete( 'dd_date_to' ); }
+
+        if ( pay ) { params.set( 'dd_payment', pay ); }
+        else        { params.delete( 'dd_payment' ); }
+
+        // Reset to page 1 on any filter change
+        params.delete( 'paged' );
+
+        return url.toString();
+    }
+
+    function applyFilters() {
+        window.location.href = buildUrl();
+    }
+
+    function debounce( fn, delay ) {
+        clearTimeout( debounceTimer );
+        debounceTimer = setTimeout( fn, delay );
+    }
+
+    // Live search — 350ms debounce
+    if ( searchInput ) {
+        searchInput.addEventListener( 'input', function () {
+            debounce( applyFilters, 350 );
+        } );
+    }
+
+    // Clear search button
+    if ( clearBtn ) {
+        clearBtn.addEventListener( 'click', function () {
+            if ( searchInput ) { searchInput.value = ''; }
+            applyFilters();
+        } );
+    }
+
+    // Date filters — apply immediately on change
+    if ( dateFrom ) { dateFrom.addEventListener( 'change', applyFilters ); }
+    if ( dateTo )   { dateTo.addEventListener( 'change', applyFilters ); }
+
+    // Payment filter — apply immediately on change
+    if ( paymentFilter ) { paymentFilter.addEventListener( 'change', applyFilters ); }
+
+    // Auto-focus search input on page load if search is active
+    if ( searchInput && searchInput.value !== '' ) {
+        searchInput.focus();
+        var val = searchInput.value;
+        searchInput.value = '';
+        searchInput.value = val;
+    }
+
+}() );
 </script>
 
 <!-- Order Detail Modal -->
