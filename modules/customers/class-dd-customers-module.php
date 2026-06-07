@@ -96,10 +96,10 @@ class DD_Customers_Module extends DD_Module {
         $search      = sanitize_text_field( $_GET['s']    ?? '' );
         $tier_filter = sanitize_text_field( $_GET['tier'] ?? '' );
 
-        // Date range — default to last 7 days
-        $range_options = [ 'today', '7days', '30days', '90days', 'custom' ];
+        // Date range — default to all
+        $range_options = [ 'today', '7days', '30days', '90days', 'custom', 'all' ];
         $range         = ( isset( $_GET['range'] ) && in_array( $_GET['range'], $range_options, true ) )
-                         ? $_GET['range'] : '7days';
+                         ? $_GET['range'] : 'all';
 
         switch ( $range ) {
             case 'today':
@@ -122,6 +122,10 @@ class DD_Customers_Module extends DD_Module {
                 $date_from = sanitize_text_field( $_GET['from'] ?? '' );
                 $date_to   = sanitize_text_field( $_GET['to']   ?? '' );
                 break;
+            case 'all':
+                $date_from = '';
+                $date_to   = '';
+                break;
         }
         $per_page_options = [ 25, 50, 75 ];
         $per_page_raw     = isset( $_GET['per_page'] ) ? (int) $_GET['per_page'] : 25;
@@ -134,7 +138,17 @@ class DD_Customers_Module extends DD_Module {
         // ── Stats ──────────────────────────────────────
         $res_table = $wpdb->prefix . 'dishdash_reservations';
 
+        $date_where  = '';
+        $date_params = [];
+        if ( $date_from && $date_to ) {
+            $date_params = [ $date_from, $date_to ];
+        }
+
         if ( $active_tab === 'orders' ) {
+
+            if ( $date_from && $date_to ) {
+                $date_where = "AND DATE(last_order_at) >= %s AND DATE(last_order_at) <= %s";
+            }
 
             $stats = $wpdb->get_row( $wpdb->prepare(
                 "SELECT
@@ -147,21 +161,21 @@ class DD_Customers_Module extends DD_Module {
                     SUM(total_spent >= 250000 AND total_spent < 500000)         AS tier_champion,
                     SUM(total_spent >= 500000)                                  AS tier_diamond
                  FROM {$table}
-                 WHERE total_orders > 0
-                   AND DATE(created_at) >= %s
-                   AND DATE(created_at) <= %s",
-                $date_from, $date_to
+                 WHERE total_orders > 0 {$date_where}",
+                ...$date_params
             ) );
 
             $new_this_month = (int) $wpdb->get_var( $wpdb->prepare(
                 "SELECT COUNT(*) FROM {$table}
-                 WHERE total_orders > 0
-                   AND DATE(created_at) >= %s
-                   AND DATE(created_at) <= %s",
-                $date_from, $date_to
+                 WHERE total_orders > 0 {$date_where}",
+                ...$date_params
             ) );
 
         } else {
+
+            if ( $date_from && $date_to ) {
+                $date_where = "AND DATE(c.created_at) >= %s AND DATE(c.created_at) <= %s";
+            }
 
             $stats = $wpdb->get_row( $wpdb->prepare(
                 "SELECT
@@ -172,10 +186,8 @@ class DD_Customers_Module extends DD_Module {
                  FROM {$table} c
                  LEFT JOIN {$res_table} r ON r.customer_id = c.id
                  WHERE c.total_orders = 0
-                   AND r.id IS NOT NULL
-                   AND DATE(c.created_at) >= %s
-                   AND DATE(c.created_at) <= %s",
-                $date_from, $date_to
+                   AND r.id IS NOT NULL {$date_where}",
+                ...$date_params
             ) );
 
             $new_this_month = null; // not used on reservations tab
@@ -192,12 +204,13 @@ class DD_Customers_Module extends DD_Module {
             $params[] = $like;
             $params[] = $like;
         }
-        if ( $date_from ) {
-            $where   .= ' AND DATE(c.created_at) >= %s';
+        if ( $date_from && $date_to ) {
+            if ( $active_tab === 'orders' ) {
+                $where .= ' AND DATE(c.last_order_at) >= %s AND DATE(c.last_order_at) <= %s';
+            } else {
+                $where .= ' AND DATE(c.created_at) >= %s AND DATE(c.created_at) <= %s';
+            }
             $params[] = $date_from;
-        }
-        if ( $date_to ) {
-            $where   .= ' AND DATE(c.created_at) <= %s';
             $params[] = $date_to;
         }
         if ( $tier_filter ) {
@@ -383,7 +396,7 @@ class DD_Customers_Module extends DD_Module {
                     <!-- Quick range buttons -->
                     <div class="dd-range-btns">
                         <?php
-                        $ranges = [ 'today' => 'Today', '7days' => '7 Days', '30days' => '30 Days', '90days' => '90 Days', 'custom' => 'Custom' ];
+                        $ranges = [ 'all' => 'All', 'today' => 'Today', '7days' => '7 Days', '30days' => '30 Days', '90days' => '90 Days', 'custom' => 'Custom' ];
                         foreach ( $ranges as $val => $label ) :
                             $active_r = ( $range === $val ) ? ' dd-range-btn--active' : '';
                         ?>
