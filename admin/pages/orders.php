@@ -155,10 +155,8 @@ if ( $status_filter === 'test' ) {
 
 // Search: order number, customer name, customer phone
 if ( $search_query !== '' ) {
-    $like = '%' . $wpdb->esc_like( $search_query ) . '%';
-    $where_clauses[] = '(order_number LIKE %s OR customer_name LIKE %s OR customer_phone LIKE %s)';
-    $where_values[]  = $like;
-    $where_values[]  = $like;
+    $like            = '%' . $wpdb->esc_like( $search_query ) . '%';
+    $where_clauses[] = 'order_number LIKE %s';
     $where_values[]  = $like;
 }
 
@@ -428,7 +426,7 @@ foreach ( $orders as $o ) {
             <input
                 type="text"
                 id="dd-search-input"
-                placeholder="Search order number, name, phone…"
+                placeholder="Search by order number (e.g. DD-00092 or 92)…"
                 value="<?php echo esc_attr( $search_query ); ?>"
                 autocomplete="off"
             >
@@ -664,7 +662,7 @@ window.ddOrdersData = {
     // Live search — 350ms debounce
     if ( searchInput ) {
         searchInput.addEventListener( 'input', function () {
-            debounce( applyFilters, 350 );
+            debounce( applyFilters, 800 );
         } );
     }
 
