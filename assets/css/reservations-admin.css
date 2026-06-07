@@ -322,3 +322,140 @@
 #dd-res-toast.show   { opacity: 1; }
 #dd-res-toast.success { background: #065f46; }
 #dd-res-toast.error   { background: #991b1b; }
+
+/* ── Page-level tabs (Reservations / Tables / Seating Sections) ──────────── */
+.dd-res-page-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 24px;
+}
+.dd-res-page-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color .15s, border-color .15s;
+}
+.dd-res-page-tab:hover { color: #111827; text-decoration: none; }
+.dd-res-page-tab.active {
+    color: var(--dd-brand, #E8832A);
+    border-bottom-color: var(--dd-brand, #E8832A);
+    font-weight: 600;
+}
+.dd-res-page-tab .dashicons { font-size: 16px; width: 16px; height: 16px; }
+
+/* ── Date range pills ────────────────────────────────────────────────────── */
+.dd-res-range-pills {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.dd-res-range-pill {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, border-color .15s, color .15s;
+    line-height: 1.4;
+    font-family: inherit;
+}
+.dd-res-range-pill:hover { background: #f3f4f6; border-color: #9ca3af; }
+.dd-res-range-pill.active {
+    background: var(--dd-brand, #E8832A);
+    border-color: var(--dd-brand, #E8832A);
+    color: #fff;
+}
+
+/* ── Custom date input ───────────────────────────────────────────────────── */
+.dd-res-custom-date { display: none; }
+.dd-res-custom-date.visible { display: flex; align-items: center; }
+.dd-res-custom-date input[type="date"] {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 7px 12px;
+    font-size: 13px;
+    height: 36px;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+/* ── Per-page pills ──────────────────────────────────────────────────────── */
+.dd-res-perpage-pills {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.dd-res-perpage-pill {
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background .15s, border-color .15s, color .15s;
+    line-height: 1.6;
+}
+.dd-res-perpage-pill:hover {
+    background: #f3f4f6;
+    border-color: #9ca3af;
+    color: #111827;
+    text-decoration: none;
+}
+.dd-res-perpage-pill.active {
+    background: var(--dd-brand, #E8832A);
+    border-color: var(--dd-brand, #E8832A);
+    color: #fff;
+}
+
+/* ── Action buttons — refined ────────────────────────────────────────────── */
+.dd-res-action-btn {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background .15s, color .15s;
+    line-height: 1.6;
+    font-family: inherit;
+}
+.dd-res-action-btn--confirm { border-color: #6ee7b7; background: #ecfdf5; color: #065f46; }
+.dd-res-action-btn--confirm:hover { background: #d1fae5; }
+.dd-res-action-btn--cancel  { border-color: #fca5a5; background: #fff5f5; color: #991b1b; }
+.dd-res-action-btn--cancel:hover  { background: #fee2e2; }
+.dd-res-action-btn--noshow  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+.dd-res-action-btn--noshow:hover  { background: #e5e7eb; }
+.dd-res-wa-btn {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: #25d366;
+    color: #fff;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.6;
+    transition: background .15s;
+}
+.dd-res-wa-btn:hover { background: #1da851; color: #fff; text-decoration: none; }
+
+/* ── Search input width ──────────────────────────────────────────────────── */
+.dd-res-search-input { width: 220px; }

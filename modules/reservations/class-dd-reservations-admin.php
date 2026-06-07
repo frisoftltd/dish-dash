@@ -54,10 +54,13 @@ class DD_Reservations_Admin {
             }
         }
 
-        // ── Filters ───────────────────────────────────────────────────────
-        $filter_status = isset( $_GET['status'] ) ? sanitize_text_field( wp_unslash( $_GET['status'] ) ) : '';
-        $filter_date   = isset( $_GET['res_date'] ) ? sanitize_text_field( wp_unslash( $_GET['res_date'] ) ) : '';
-        $search        = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+        // ── Filter variables ──────────────────────────────────────────────
+        $filter_status = isset( $_GET['status'] )     ? sanitize_text_field( wp_unslash( $_GET['status'] ) )     : '';
+        $status_filter = $filter_status; // alias used in filter bar HTML
+        $search        = isset( $_GET['s'] )          ? sanitize_text_field( wp_unslash( $_GET['s'] ) )           : '';
+        $s             = $search; // alias used in filter bar HTML
+        $date_range    = isset( $_GET['date_range'] ) ? sanitize_key( wp_unslash( $_GET['date_range'] ) )         : '';
+        $res_date      = isset( $_GET['res_date'] )   ? sanitize_text_field( wp_unslash( $_GET['res_date'] ) )    : '';
 
         // ── Pagination ────────────────────────────────────────────────────
         $per_page_raw = isset( $_GET['per_page'] ) ? sanitize_text_field( wp_unslash( $_GET['per_page'] ) ) : '25';
@@ -72,10 +75,21 @@ class DD_Reservations_Admin {
             $where   .= ' AND status = %s';
             $params[] = $filter_status;
         }
-        if ( $filter_date ) {
+
+        // Date range filter
+        if ( $date_range === 'today' ) {
+            $where .= ' AND date = CURDATE()';
+        } elseif ( $date_range === '7' ) {
+            $where .= ' AND date >= DATE_SUB( CURDATE(), INTERVAL 7 DAY )';
+        } elseif ( $date_range === '30' ) {
+            $where .= ' AND date >= DATE_SUB( CURDATE(), INTERVAL 30 DAY )';
+        } elseif ( $date_range === '90' ) {
+            $where .= ' AND date >= DATE_SUB( CURDATE(), INTERVAL 90 DAY )';
+        } elseif ( $date_range === 'custom' && $res_date ) {
             $where   .= ' AND date = %s';
-            $params[] = $filter_date;
+            $params[] = $res_date;
         }
+
         if ( $search ) {
             $where   .= ' AND (name LIKE %s OR whatsapp LIKE %s OR booking_ref LIKE %s)';
             $like     = '%' . $wpdb->esc_like( $search ) . '%';
@@ -131,7 +145,7 @@ class DD_Reservations_Admin {
         $today_confirmed = (int) ( $today_row->confirmed_today ?? 0 );
         $today_guests    = (int) ( $today_row->guests_today    ?? 0 );
 
-        // ── Status map for tabs and badges ────────────────────────────────
+        // ── Status map ────────────────────────────────────────────────────
         $statuses = [
             'pending'         => 'Pending',
             'confirmed'       => 'Confirmed',
@@ -142,14 +156,47 @@ class DD_Reservations_Admin {
         ];
 
         $base_url = admin_url( 'admin.php?page=dd-reservations' );
+
+        // ── Range pills config ────────────────────────────────────────────
+        $range_pills = [
+            ''       => 'All',
+            'today'  => 'Today',
+            '7'      => '7 Days',
+            '30'     => '30 Days',
+            '90'     => '90 Days',
+            'custom' => 'Custom',
+        ];
+
+        // ── Page tabs config ──────────────────────────────────────────────
+        $page_tabs = [
+            'dd-reservations' => [ 'label' => 'Reservations',    'icon' => 'dashicons-calendar-alt' ],
+            'dd-tables'       => [ 'label' => 'Tables',           'icon' => 'dashicons-grid-view'    ],
+            'dd-sections'     => [ 'label' => 'Seating Sections', 'icon' => 'dashicons-layout'       ],
+        ];
+        $current_page_tab = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : 'dd-reservations';
         ?>
         <div class="wrap dd-admin-wrap">
         <div class="dd-page-wrap">
 
             <!-- Header -->
             <div class="dd-res-header">
-                <h1>📅 Reservations</h1>
+                <h1>
+                    <span class="dashicons dashicons-calendar-alt"
+                          style="font-size:26px;width:26px;height:26px;margin-right:8px;vertical-align:middle;"></span>
+                    Reservations
+                </h1>
                 <p>Manage all table bookings for <?php echo esc_html( get_option( 'dish_dash_restaurant_name', 'your restaurant' ) ); ?></p>
+            </div>
+
+            <!-- Page-level tabs -->
+            <div class="dd-res-page-tabs">
+                <?php foreach ( $page_tabs as $slug => $tab ) : ?>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $slug ) ); ?>"
+                   class="dd-res-page-tab <?php echo $current_page_tab === $slug ? 'active' : ''; ?>">
+                    <span class="dashicons <?php echo esc_attr( $tab['icon'] ); ?>"></span>
+                    <?php echo esc_html( $tab['label'] ); ?>
+                </a>
+                <?php endforeach; ?>
             </div>
 
             <!-- KPI Cards -->
@@ -194,20 +241,36 @@ class DD_Reservations_Admin {
 
             <!-- Filter Bar -->
             <div class="dd-res-filters">
-                <form method="get" style="display:contents">
+                <form method="get" id="dd-res-filter-form" style="display:contents">
                     <input type="hidden" name="page" value="dd-reservations">
-                    <?php if ( $filter_status ) : ?>
-                        <input type="hidden" name="status" value="<?php echo esc_attr( $filter_status ); ?>">
+                    <?php if ( $status_filter ) : ?>
+                    <input type="hidden" name="status" value="<?php echo esc_attr( $status_filter ); ?>">
                     <?php endif; ?>
-                    <input type="text" name="s"
-                           placeholder="Name, WhatsApp or Ref…"
-                           value="<?php echo esc_attr( $search ); ?>">
-                    <input type="date" name="res_date"
-                           value="<?php echo esc_attr( $filter_date ); ?>">
-                    <button type="submit" class="button button-primary">Filter</button>
-                    <?php if ( $search || $filter_date ) : ?>
-                        <a href="<?php echo esc_url( $base_url . ( $filter_status ? '&status=' . $filter_status : '' ) ); ?>"
-                           class="dd-clear-link">✕ Clear</a>
+
+                    <input type="text" name="s" value="<?php echo esc_attr( $s ); ?>"
+                           placeholder="Name, WhatsApp or Ref…" class="dd-res-search-input">
+
+                    <div class="dd-res-range-pills">
+                        <?php foreach ( $range_pills as $val => $label ) : ?>
+                        <button type="submit" name="date_range" value="<?php echo esc_attr( $val ); ?>"
+                                class="dd-res-range-pill <?php echo $date_range === $val ? 'active' : ''; ?>">
+                            <?php echo esc_html( $label ); ?>
+                        </button>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <div class="dd-res-custom-date <?php echo $date_range === 'custom' ? 'visible' : ''; ?>"
+                         id="dd-res-custom-date">
+                        <input type="date" name="res_date" value="<?php echo esc_attr( $res_date ); ?>">
+                    </div>
+
+                    <button type="submit" name="date_range"
+                            value="<?php echo esc_attr( $date_range ); ?>"
+                            class="button button-primary">Filter</button>
+
+                    <?php if ( $s || $date_range || $res_date ) : ?>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=dd-reservations' . ( $status_filter ? '&status=' . $status_filter : '' ) ) ); ?>"
+                       class="dd-clear-link">Reset</a>
                     <?php endif; ?>
                 </form>
             </div>
@@ -281,7 +344,6 @@ class DD_Reservations_Admin {
                                 <td>
                                     <div class="dd-res-actions">
                                         <?php
-                                        // WhatsApp contextual message button
                                         $restaurant  = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
                                         $admin_phone = get_option( 'dish_dash_phone', '' );
                                         $date_fmt    = date( 'D, d M Y', strtotime( $r->date ) );
@@ -380,66 +442,63 @@ class DD_Reservations_Admin {
                 <!-- Pagination -->
                 <?php
                 $pagination_base_args = [ 'page' => 'dd-reservations' ];
-                if ( $filter_status ) { $pagination_base_args['status']   = $filter_status; }
-                if ( $filter_date )   { $pagination_base_args['res_date'] = $filter_date; }
-                if ( $search )        { $pagination_base_args['s']        = $search; }
+                if ( $filter_status ) { $pagination_base_args['status']     = $filter_status; }
+                if ( $date_range )    { $pagination_base_args['date_range'] = $date_range; }
+                if ( $res_date )      { $pagination_base_args['res_date']   = $res_date; }
+                if ( $search )        { $pagination_base_args['s']          = $search; }
                 $pagination_base_args['per_page'] = $per_page;
                 ?>
                 <div class="dd-res-pagination">
-                    <div>
-                        <?php
-                        if ( $total_rows === 0 ) {
-                            echo 'No reservations';
-                        } elseif ( $per_page === 'all' ) {
-                            echo 'Showing all ' . esc_html( $total_rows ) . ' reservations';
-                        } else {
-                            $showing_to = min( $row_number_start + count( $rows ) - 1, $total_rows );
-                            echo 'Showing ' . esc_html( $row_number_start ) . '–'
-                                . esc_html( $showing_to ) . ' of ' . esc_html( $total_rows );
-                        }
-                        ?>
-                    </div>
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <!-- Per-page pills -->
+                        <div class="dd-res-perpage-pills">
+                            <?php foreach ( [ '25', '50', '75', 'all' ] as $opt ) : ?>
+                            <a href="<?php echo esc_url( add_query_arg( [ 'per_page' => $opt, 'paged' => 1 ] ) ); ?>"
+                               class="dd-res-perpage-pill <?php echo $per_page === $opt ? 'active' : ''; ?>">
+                                <?php echo esc_html( strtoupper( $opt ) ); ?>
+                            </a>
+                            <?php endforeach; ?>
+                        </div>
 
-                    <div style="display:flex;align-items:center;gap:14px;">
-                        <!-- Per-page selector -->
-                        <form method="get" style="display:flex;align-items:center;gap:6px;margin:0;">
-                            <input type="hidden" name="page" value="dd-reservations">
-                            <?php if ( $filter_status ) : ?><input type="hidden" name="status" value="<?php echo esc_attr( $filter_status ); ?>"><?php endif; ?>
-                            <?php if ( $filter_date )   : ?><input type="hidden" name="res_date" value="<?php echo esc_attr( $filter_date ); ?>"><?php endif; ?>
-                            <?php if ( $search )        : ?><input type="hidden" name="s" value="<?php echo esc_attr( $search ); ?>"><?php endif; ?>
-                            <label for="dd-res-per-page" style="font-size:13px;color:#6b7280;">Per page:</label>
-                            <select name="per_page" id="dd-res-per-page" onchange="this.form.submit()">
-                                <?php foreach ( [ '25', '50', '75', 'all' ] as $opt ) : ?>
-                                    <option value="<?php echo esc_attr( $opt ); ?>" <?php selected( $per_page, $opt ); ?>>
-                                        <?php echo $opt === 'all' ? 'All' : esc_html( $opt ); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </form>
+                        <span style="font-size:13px;color:#9ca3af;">|</span>
 
-                        <!-- Page navigation -->
-                        <?php if ( $per_page !== 'all' && $total_pages > 1 ) : ?>
-                        <div style="display:flex;align-items:center;gap:4px;">
+                        <div style="font-size:13px;color:#6b7280;">
                             <?php
-                            if ( $current_page > 1 ) {
-                                $prev_url = add_query_arg( array_merge( $pagination_base_args, [ 'paged' => $current_page - 1 ] ), admin_url( 'admin.php' ) );
-                                echo '<a href="' . esc_url( $prev_url ) . '">‹ Prev</a>';
+                            if ( $total_rows === 0 ) {
+                                echo 'No reservations';
+                            } elseif ( $per_page === 'all' ) {
+                                echo 'Showing all ' . esc_html( $total_rows ) . ' reservations';
                             } else {
-                                echo '<span class="dd-nav-disabled">‹ Prev</span>';
-                            }
-                            ?>
-                            <span class="dd-page-current">Page <?php echo esc_html( $current_page ); ?> of <?php echo esc_html( $total_pages ); ?></span>
-                            <?php
-                            if ( $current_page < $total_pages ) {
-                                $next_url = add_query_arg( array_merge( $pagination_base_args, [ 'paged' => $current_page + 1 ] ), admin_url( 'admin.php' ) );
-                                echo '<a href="' . esc_url( $next_url ) . '">Next ›</a>';
-                            } else {
-                                echo '<span class="dd-nav-disabled">Next ›</span>';
+                                $showing_to = min( $row_number_start + count( $rows ) - 1, $total_rows );
+                                echo 'Showing ' . esc_html( $row_number_start ) . '–'
+                                    . esc_html( $showing_to ) . ' of ' . esc_html( $total_rows );
                             }
                             ?>
                         </div>
-                        <?php endif; ?>
                     </div>
+
+                    <!-- Page navigation -->
+                    <?php if ( $per_page !== 'all' && $total_pages > 1 ) : ?>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        <?php
+                        if ( $current_page > 1 ) {
+                            $prev_url = add_query_arg( array_merge( $pagination_base_args, [ 'paged' => $current_page - 1 ] ), admin_url( 'admin.php' ) );
+                            echo '<a href="' . esc_url( $prev_url ) . '">‹ Prev</a>';
+                        } else {
+                            echo '<span class="dd-nav-disabled">‹ Prev</span>';
+                        }
+                        ?>
+                        <span class="dd-page-current">Page <?php echo esc_html( $current_page ); ?> of <?php echo esc_html( $total_pages ); ?></span>
+                        <?php
+                        if ( $current_page < $total_pages ) {
+                            $next_url = add_query_arg( array_merge( $pagination_base_args, [ 'paged' => $current_page + 1 ] ), admin_url( 'admin.php' ) );
+                            echo '<a href="' . esc_url( $next_url ) . '">Next ›</a>';
+                        } else {
+                            echo '<span class="dd-nav-disabled">Next ›</span>';
+                        }
+                        ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div><!-- /dd-res-table-wrap -->
 
@@ -449,6 +508,15 @@ class DD_Reservations_Admin {
         <div id="dd-res-toast"></div>
         <script>
         (function () {
+            // Show/hide custom date input based on range pill selection
+            document.querySelectorAll('.dd-res-range-pill').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var isCustom = this.value === 'custom';
+                    document.getElementById('dd-res-custom-date').classList.toggle('visible', isCustom);
+                });
+            });
+
+            // AJAX status updates
             var nonce = '<?php echo wp_create_nonce( 'dish_dash_admin' ); ?>';
             var toast = document.getElementById('dd-res-toast');
             var toastTimer;

@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.11 (2026-06-07)
+> Last updated: v3.5.12 (2026-06-07)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.11 |
+| **Deployed version** | v3.5.12 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.12 — Tables + Seating Sections redesign |
-| **Last working state** | Reservations admin page: DD design system, KPI cards (total/pending/confirmed today/guests today), pill status tabs, card filter bar, badge statuses, AJAX action buttons, toast notifications. CSS in reservations-admin.css. |
+| **Next task** | v3.5.13 — next admin page or frontend work |
+| **Last working state** | Reservations page: Tables + Seating Sections collapsed into page-level tabs, date range pills (All/Today/7d/30d/90d/Custom), per-page pills (25/50/75/All), refined action buttons. reservations-admin.css extended with tab/pill/button CSS. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -582,7 +582,8 @@ Every page before shipping must pass:
 | **v3.5.09** | ✅ **Done** | **Fix: default range=All, orders tab filters on last_order_at, no prepare() with empty params** |
 | **v3.5.10** | ✅ **Done** | **Fix: skip prepare() when no date params — conditional pattern on all 3 stats queries** |
 | **v3.5.11** | ✅ **Done** | **Reservations admin redesign: DD design system, KPI cards, pill tabs, AJAX status updates, badge statuses, toast** |
-| v3.5.12 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.5.12** | ✅ **Done** | **Tab consolidation: Tables + Sections into page tabs, date range pills, per-page pills, action button refinement** |
+| v3.5.13 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
