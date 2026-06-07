@@ -1,0 +1,324 @@
+/**
+ * Reservations Admin — DD Design System
+ * Admin → Dish Dash → Reservations
+ *
+ * @package DishDash
+ * @since   3.5.11
+ */
+
+/* ── Page Header ─────────────────────────────────────────────────────────── */
+.dd-res-header {
+    background: var(--dd-dark, #1e293b);
+    padding: 28px 32px;
+    margin: -10px -20px 24px;
+    border-radius: 0;
+}
+.dd-res-header h1 {
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    margin: 0 0 4px;
+    padding: 0;
+    line-height: 1.2;
+}
+.dd-res-header p {
+    color: rgba(255,255,255,0.65);
+    margin: 0;
+    font-size: 14px;
+}
+
+/* ── KPI Grid ────────────────────────────────────────────────────────────── */
+.dd-res-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+@media (max-width: 1100px) {
+    .dd-res-kpis { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .dd-res-kpis { grid-template-columns: 1fr; }
+}
+.dd-res-kpi {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.dd-res-kpi__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+.dd-res-kpi__value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #111;
+    margin: 6px 0 0;
+    line-height: 1;
+}
+.dd-res-kpi__sub {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 5px;
+}
+
+/* ── Status Pill Tabs ────────────────────────────────────────────────────── */
+.dd-res-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+.dd-res-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    text-decoration: none;
+    transition: border-color 140ms, color 140ms, background 140ms;
+}
+.dd-res-tab .count {
+    font-weight: 400;
+    color: #9ca3af;
+}
+.dd-res-tab:hover {
+    border-color: var(--dd-brand);
+    color: var(--dd-brand);
+    text-decoration: none;
+}
+.dd-res-tab.active {
+    background: var(--dd-brand);
+    color: #fff;
+    border-color: var(--dd-brand);
+}
+.dd-res-tab.active .count {
+    color: rgba(255,255,255,0.75);
+}
+
+/* ── Filter Bar ──────────────────────────────────────────────────────────── */
+.dd-res-filters {
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+.dd-res-filters input[type="text"],
+.dd-res-filters input[type="date"] {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    color: #111;
+    background: #fff;
+}
+.dd-res-filters input[type="text"] { width: 220px; }
+.dd-res-filters input[type="text"]:focus,
+.dd-res-filters input[type="date"]:focus {
+    outline: none;
+    border-color: var(--dd-brand);
+    box-shadow: 0 0 0 3px rgba(var(--dd-brand-rgb), 0.12);
+}
+.dd-res-filters .button-primary {
+    background: var(--dd-brand) !important;
+    border-color: var(--dd-brand) !important;
+    color: #fff !important;
+    border-radius: 8px;
+    box-shadow: none;
+}
+.dd-res-filters .button-primary:hover {
+    opacity: .88;
+}
+.dd-res-filters .dd-clear-link {
+    font-size: 13px;
+    color: #6b7280;
+    text-decoration: none;
+}
+.dd-res-filters .dd-clear-link:hover {
+    color: #374151;
+}
+
+/* ── Table Wrapper ───────────────────────────────────────────────────────── */
+.dd-res-table-wrap {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+.dd-res-table-wrap .wp-list-table {
+    margin: 0;
+    border: none;
+    box-shadow: none;
+}
+.dd-res-table-wrap .wp-list-table thead th {
+    background: #f9fafb;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: #6b7280;
+    border-bottom: 1px solid #f3f4f6;
+    padding: 12px 14px;
+}
+.dd-res-table-wrap .wp-list-table tbody td {
+    font-size: 13px;
+    color: #374151;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f9fafb;
+    vertical-align: middle;
+}
+.dd-res-table-wrap .wp-list-table tbody tr:last-child td {
+    border-bottom: none;
+}
+.dd-res-table-wrap .wp-list-table.striped > tbody > :nth-child(odd) {
+    background-color: #fafafa;
+}
+.dd-res-table-wrap .wp-list-table tbody code {
+    font-size: 11px;
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #374151;
+}
+
+/* ── Status Badges ───────────────────────────────────────────────────────── */
+.dd-res-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .03em;
+    white-space: nowrap;
+}
+.dd-res-badge--pending         { background: #fef3c7; color: #92400e; }
+.dd-res-badge--confirmed       { background: #d1fae5; color: #065f46; }
+.dd-res-badge--cancelled       { background: #f3f4f6; color: #6b7280; }
+.dd-res-badge--no_show         { background: #fee2e2; color: #991b1b; }
+.dd-res-badge--pending_payment { background: #e0f2fe; color: #075985; }
+.dd-res-badge--auto_cancelled  { background: #f3f4f6; color: #6b7280; }
+
+/* ── Action Buttons ──────────────────────────────────────────────────────── */
+.dd-res-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+.dd-res-action-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 120ms, color 120ms;
+    line-height: 1.4;
+    background: none;
+    font-family: inherit;
+}
+.dd-res-action-btn--confirm { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+.dd-res-action-btn--confirm:hover { background: #065f46; color: #fff; border-color: #065f46; }
+.dd-res-action-btn--cancel  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+.dd-res-action-btn--cancel:hover  { background: #6b7280; color: #fff; border-color: #6b7280; }
+.dd-res-action-btn--noshow  { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.dd-res-action-btn--noshow:hover  { background: #991b1b; color: #fff; border-color: #991b1b; }
+.dd-res-action-btn.loading  { opacity: .55; pointer-events: none; }
+
+.dd-res-wa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #25d366;
+    color: #fff;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 120ms;
+}
+.dd-res-wa-btn:hover { background: #1da851; color: #fff; text-decoration: none; }
+
+/* ── Pagination Bar ──────────────────────────────────────────────────────── */
+.dd-res-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    border-top: 1px solid #f3f4f6;
+    font-size: 13px;
+    color: #6b7280;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.dd-res-pagination a {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    text-decoration: none;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+    transition: border-color 120ms, color 120ms;
+}
+.dd-res-pagination a:hover {
+    border-color: var(--dd-brand);
+    color: var(--dd-brand);
+}
+.dd-res-pagination .dd-page-current {
+    font-size: 13px;
+    color: #6b7280;
+    padding: 4px 10px;
+}
+.dd-res-pagination span.dd-nav-disabled {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #d1d5db;
+    border: 1px solid #f3f4f6;
+}
+.dd-res-pagination select {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 13px;
+    color: #374151;
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#dd-res-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    opacity: 0;
+    transition: opacity 200ms;
+    pointer-events: none;
+    z-index: 99999;
+    font-family: Inter, sans-serif;
+}
+#dd-res-toast.show   { opacity: 1; }
+#dd-res-toast.success { background: #065f46; }
+#dd-res-toast.error   { background: #991b1b; }
