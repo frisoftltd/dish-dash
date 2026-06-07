@@ -459,3 +459,8 @@
 
 /* ── Search input width ──────────────────────────────────────────────────── */
 .dd-res-search-input { width: 220px; }
+
+/* Dashicons on dark header */
+.dd-res-header .dashicons {
+    color: #fff;
+}
