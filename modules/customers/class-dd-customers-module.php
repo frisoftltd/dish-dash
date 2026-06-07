@@ -150,8 +150,7 @@ class DD_Customers_Module extends DD_Module {
                 $date_where = "AND DATE(last_order_at) >= %s AND DATE(last_order_at) <= %s";
             }
 
-            $stats = $wpdb->get_row( $wpdb->prepare(
-                "SELECT
+            $q     = "SELECT
                     COUNT(*)                                                    AS total_customers,
                     COALESCE(SUM(total_spent), 0)                               AS total_revenue,
                     COALESCE(AVG(total_spent), 0)                               AS avg_spend,
@@ -161,15 +160,15 @@ class DD_Customers_Module extends DD_Module {
                     SUM(total_spent >= 250000 AND total_spent < 500000)         AS tier_champion,
                     SUM(total_spent >= 500000)                                  AS tier_diamond
                  FROM {$table}
-                 WHERE total_orders > 0 {$date_where}",
-                ...$date_params
-            ) );
+                 WHERE total_orders > 0 {$date_where}";
+            $stats = $date_params
+                ? $wpdb->get_row( $wpdb->prepare( $q, ...$date_params ) )
+                : $wpdb->get_row( $q );
 
-            $new_this_month = (int) $wpdb->get_var( $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table}
-                 WHERE total_orders > 0 {$date_where}",
-                ...$date_params
-            ) );
+            $qc             = "SELECT COUNT(*) FROM {$table} WHERE total_orders > 0 {$date_where}";
+            $new_this_month = (int) ( $date_params
+                ? $wpdb->get_var( $wpdb->prepare( $qc, ...$date_params ) )
+                : $wpdb->get_var( $qc ) );
 
         } else {
 
@@ -177,8 +176,7 @@ class DD_Customers_Module extends DD_Module {
                 $date_where = "AND DATE(c.created_at) >= %s AND DATE(c.created_at) <= %s";
             }
 
-            $stats = $wpdb->get_row( $wpdb->prepare(
-                "SELECT
+            $q     = "SELECT
                     COUNT(DISTINCT c.id)                                            AS total_customers,
                     COUNT(r.id)                                                     AS total_reservations,
                     SUM(r.date >= CURDATE() AND r.status != 'cancelled')            AS upcoming,
@@ -186,9 +184,10 @@ class DD_Customers_Module extends DD_Module {
                  FROM {$table} c
                  LEFT JOIN {$res_table} r ON r.customer_id = c.id
                  WHERE c.total_orders = 0
-                   AND r.id IS NOT NULL {$date_where}",
-                ...$date_params
-            ) );
+                   AND r.id IS NOT NULL {$date_where}";
+            $stats = $date_params
+                ? $wpdb->get_row( $wpdb->prepare( $q, ...$date_params ) )
+                : $wpdb->get_row( $q );
 
             $new_this_month = null; // not used on reservations tab
 
