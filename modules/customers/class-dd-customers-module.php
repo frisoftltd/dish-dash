@@ -112,9 +112,14 @@ class DD_Customers_Module extends DD_Module {
 
             $stats = $wpdb->get_row(
                 "SELECT
-                    COUNT(*)                        AS total_customers,
-                    COALESCE(SUM(total_spent), 0)   AS total_revenue,
-                    COALESCE(AVG(total_spent), 0)   AS avg_spend
+                    COUNT(*)                                                    AS total_customers,
+                    COALESCE(SUM(total_spent), 0)                               AS total_revenue,
+                    COALESCE(AVG(total_spent), 0)                               AS avg_spend,
+                    0                                                           AS tier_new,
+                    SUM(total_orders > 0 AND total_spent < 100000)              AS tier_regular,
+                    SUM(total_spent >= 100000 AND total_spent < 250000)         AS tier_vip,
+                    SUM(total_spent >= 250000 AND total_spent < 500000)         AS tier_champion,
+                    SUM(total_spent >= 500000)                                  AS tier_diamond
                  FROM {$table}
                  WHERE total_orders > 0"
             );
