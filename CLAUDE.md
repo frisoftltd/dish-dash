@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.00 (2026-06-07)
+> Last updated: v3.5.01 (2026-06-07)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.00 |
+| **Deployed version** | v3.5.01 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.01 — Tables + Seating Sections redesign |
-| **Last working state** | Orders search fix: order number LIKE only (removed name/phone false positives), debounce 800ms, placeholder updated. |
+| **Next task** | v3.5.02 — Tables + Seating Sections redesign |
+| **Last working state** | Order reopen 24h expiry: Reopen as Ready button hidden after 24h and replaced with locked message. delivered_at null-safe, cross-browser date parse via .replace(' ', 'T'). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -571,7 +571,8 @@ Every page before shipping must pass:
 | **v3.4.98** | ✅ **Done** | **Phase D — fee reversal on cancel/revert: recalculate_fee_for_status_change() helper wired into all 6 status-change sites** |
 | **v3.4.99** | ✅ **Done** | **Orders page: recent-first sort, live search (order number/name/phone), date range filter, payment method filter** |
 | **v3.5.00** | ✅ **Done** | **Orders search fix: order number only (removes name/phone false matches), debounce 350ms → 800ms** |
-| v3.5.01 | ⏳ **NEXT** | Tables + Seating Sections redesign |
+| **v3.5.01** | ✅ **Done** | **Order reopen 24h expiry — Reopen as Ready hidden after 24h, replaced with locked message** |
+| v3.5.02 | ⏳ **NEXT** | Tables + Seating Sections redesign |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

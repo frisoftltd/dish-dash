@@ -347,6 +347,18 @@ foreach ( $orders as $o ) {
     color: #333;
     border-color: #ccc;
 }
+.dd-reopen-locked {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #888;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: not-allowed;
+}
 </style>
 
 <div class="dd-orders-wrap">
@@ -883,9 +895,24 @@ window.ddOrdersData = {
         }
 
         if ( status === 'delivered' ) {
-            actionsHtml += '<button class="dd-btn dd-btn-reopen dd-modal-status-btn" '
-                         + 'data-status="ready" data-order-id="' + id + '">'
-                         + '↩ Reopen as Ready</button>';
+            var canReopen = true;
+            if ( order.delivered_at ) {
+                var deliveredAt = new Date( order.delivered_at.replace( ' ', 'T' ) );
+                var hoursSince  = ( Date.now() - deliveredAt.getTime() ) / 1000 / 3600;
+                if ( hoursSince > 24 ) {
+                    canReopen = false;
+                }
+            }
+
+            if ( canReopen ) {
+                actionsHtml += '<button class="dd-btn dd-btn-reopen dd-modal-status-btn" '
+                             + 'data-status="ready" data-order-id="' + id + '">'
+                             + '↩ Reopen as Ready</button>';
+            } else {
+                actionsHtml += '<span class="dd-reopen-locked">'
+                             + '🔒 Cannot reopen — delivered over 24h ago'
+                             + '</span>';
+            }
         }
 
         if ( status === 'cancelled' ) {
