@@ -80,6 +80,18 @@ $kpi_fees = (int) $wpdb->get_var( $wpdb->prepare(
     "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}` WHERE status = 'delivered' AND platform_fee > 0 AND created_at >= %s AND is_test = 0",
     $month_start_for_fees
 ) );
+// Check if this month is marked as paid
+$bp_table        = $wpdb->prefix . 'dd_billing_payments';
+$current_month   = current_time( 'Y-m' );
+$this_month_paid = false;
+if ( $wpdb->get_var( "SHOW TABLES LIKE '{$bp_table}'" ) === $bp_table ) {
+    $month_paid_row  = $wpdb->get_row( $wpdb->prepare(
+        "SELECT paid, paid_at FROM `{$bp_table}` WHERE month = %s",
+        $current_month
+    ) );
+    $this_month_paid = $month_paid_row && (int) $month_paid_row->paid === 1;
+}
+
 $kpi_pending  = (int)   $wpdb->get_var(
     "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','confirmed','ready') AND is_test = 0"
 );
@@ -314,8 +326,8 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
   </div>
 
   <?php if ( $fees_enabled && $kpi_fees > 0 ) : ?>
-  <div class="dd-fees-inline">
-    <span class="dd-fees-inline-icon">💳</span>
+  <div class="dd-fees-inline <?php echo $this_month_paid ? 'dd-fees-paid' : ''; ?>">
+    <span class="dd-fees-inline-icon"><?php echo $this_month_paid ? '✅' : '💳'; ?></span>
     <span class="dd-fees-inline-text">
       Platform fees this month:
       <strong>RWF <?php echo number_format( $kpi_fees ); ?></strong>
@@ -326,6 +338,11 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
           echo number_format( $fee_count );
         ?> delivered orders
       </span>
+      <?php if ( $this_month_paid ) : ?>
+        <span class="dd-fees-inline-paid-badge">Paid ✓</span>
+      <?php else : ?>
+        <span class="dd-fees-inline-unpaid-badge">Unpaid</span>
+      <?php endif; ?>
     </span>
     <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-billing' ) ); ?>" class="dd-fees-inline-link">View Billing →</a>
   </div>
@@ -600,6 +617,30 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
     white-space: nowrap;
 }
 .dd-fees-inline-link:hover { text-decoration: underline; }
+.dd-fees-inline-paid-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #065f46;
+    background: #d1fae5;
+    border-radius: 3px;
+    padding: 1px 6px;
+    margin-left: 6px;
+}
+.dd-fees-inline-unpaid-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #92400e;
+    background: #fef3c7;
+    border-radius: 3px;
+    padding: 1px 6px;
+    margin-left: 6px;
+}
+.dd-fees-inline.dd-fees-paid {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
 </style>
 
 <!-- Chart data for JS -->

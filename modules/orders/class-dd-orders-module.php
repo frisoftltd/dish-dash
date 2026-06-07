@@ -79,7 +79,8 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
         add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
-        add_action( 'wp_ajax_dd_kitchen_queue', [ $this, 'ajax_kitchen_queue' ] );
+        add_action( 'wp_ajax_dd_kitchen_queue',           [ $this, 'ajax_kitchen_queue' ] );
+        add_action( 'wp_ajax_dd_mark_month_paid',         [ $this, 'ajax_mark_month_paid' ] );
 
         // WooCommerce bridge — sync payment status
         add_action( 'woocommerce_order_status_completed', [ $this, 'wc_payment_completed' ] );
@@ -1099,6 +1100,68 @@ class DD_Orders_Module extends DD_Module {
 
         update_option( 'dd_notifications_read', array_values( $read ), false );
         wp_send_json_success();
+    }
+
+    /**
+     * AJAX: mark a billing month as paid or unpaid.
+     * Expects POST: month (Y-m), paid (1|0), nonce (dish_dash_admin)
+     */
+    public function ajax_mark_month_paid(): void {
+        check_ajax_referer( 'dish_dash_admin', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_send_json_error( [ 'message' => 'Access denied.' ] );
+        }
+
+        global $wpdb;
+
+        $month = isset( $_POST['month'] ) ? sanitize_text_field( wp_unslash( $_POST['month'] ) ) : '';
+        $paid  = isset( $_POST['paid'] )  ? (int) $_POST['paid'] : 0;
+
+        if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
+            wp_send_json_error( [ 'message' => 'Invalid month format.' ] );
+        }
+
+        $paid    = $paid ? 1 : 0;
+        $paid_at = $paid ? current_time( 'mysql' ) : null;
+        $table   = $wpdb->prefix . 'dd_billing_payments';
+
+        // Get current amount for this month from orders table
+        $ot     = $wpdb->prefix . 'dishdash_orders';
+        $amount = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}`
+             WHERE status = 'delivered' AND platform_fee > 0
+             AND DATE_FORMAT(created_at, '%%Y-%%m') = %s AND is_test = 0",
+            $month
+        ) );
+
+        // Upsert — insert or update
+        $existing = $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM `{$table}` WHERE month = %s", $month
+        ) );
+
+        if ( $existing ) {
+            $wpdb->update(
+                $table,
+                [ 'paid' => $paid, 'paid_at' => $paid_at, 'amount' => $amount ],
+                [ 'month' => $month ],
+                [ '%d', '%s', '%d' ],
+                [ '%s' ]
+            );
+        } else {
+            $wpdb->insert(
+                $table,
+                [ 'month' => $month, 'amount' => $amount, 'paid' => $paid, 'paid_at' => $paid_at ],
+                [ '%s', '%d', '%d', '%s' ]
+            );
+        }
+
+        wp_send_json_success( [
+            'month'   => $month,
+            'paid'    => $paid,
+            'paid_at' => $paid_at,
+            'amount'  => $amount,
+        ] );
     }
 
     // ─────────────────────────────────────────

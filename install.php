@@ -2,7 +2,7 @@
 /**
  * File:    install.php
  * Purpose: Canonical installer — the single source of truth for all custom DB
- *          tables. Creates/upgrades all 13 tables via dbDelta(), writes default
+ *          tables. Creates/upgrades all 14 tables via dbDelta(), writes default
  *          wp_options, creates WP user roles, and auto-creates the six required
  *          WordPress pages (menu, cart, checkout, track, account, reserve).
  *
@@ -18,12 +18,12 @@
  * Dependents (files that need this):
  *   - dish-dash.php (register_activation_hook + auto-migration guard)
  *
- * DB tables created/upgraded (13 total):
+ * DB tables created/upgraded (14 total):
  *   dishdash_branches, dishdash_orders, dishdash_order_items,
  *   dishdash_delivery_zones, dishdash_tables, dishdash_reservations,
  *   dishdash_pos_sessions, dishdash_analytics, dishdash_user_events,
  *   dishdash_user_profiles, dishdash_customers, dishdash_birthday_tokens,
- *   dishdash_reservation_refunds
+ *   dishdash_reservation_refunds, dd_billing_payments
  *
  * WP options written (defaults only, add_option — never overwrites):
  *   dish_dash_currency, dish_dash_currency_symbol, dish_dash_tax_rate,
@@ -384,6 +384,24 @@ class DD_Install {
                 created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY  (id),
                 KEY          reservation_id (reservation_id)
+            ) $charset_collate;
+        " );
+
+        // ── 14. dd_billing_payments ──────────────────────────────────────────
+        // Tracks which billing months have been marked as paid by the restaurant.
+        // One row per month per restaurant (single-tenant for now).
+        dbDelta( "
+            CREATE TABLE {$wpdb->prefix}dd_billing_payments (
+                id         INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+                month      VARCHAR(7)      NOT NULL,
+                amount     INT UNSIGNED    NOT NULL DEFAULT 0,
+                paid       TINYINT(1)      NOT NULL DEFAULT 0,
+                paid_at    DATETIME                 DEFAULT NULL,
+                notes      VARCHAR(255)    NOT NULL DEFAULT '',
+                created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY   month (month)
             ) $charset_collate;
         " );
     }

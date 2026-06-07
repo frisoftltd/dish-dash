@@ -72,6 +72,20 @@ $monthly_history = $wpdb->get_results(
      LIMIT 6"
 );
 
+// Fetch paid status for each month
+$bp_table     = $wpdb->prefix . 'dd_billing_payments';
+$paid_months  = [];
+$payment_rows = $wpdb->get_results(
+    "SELECT month, paid, paid_at FROM `{$bp_table}`"
+);
+foreach ( $payment_rows as $pr ) {
+    $paid_months[ $pr->month ] = [
+        'paid'    => (bool) $pr->paid,
+        'paid_at' => $pr->paid_at,
+    ];
+}
+$billing_nonce = wp_create_nonce( 'dish_dash_admin' );
+
 // Only delivered (billable) and cancelled (not billable)
 $status_breakdown = $wpdb->get_results(
     "SELECT status, COUNT(*) AS cnt, COALESCE(SUM(platform_fee),0) AS fees
@@ -157,20 +171,54 @@ $status_breakdown = $wpdb->get_results(
             <th>Month</th>
             <th>Delivered Orders</th>
             <th>Total Fees</th>
+            <th>Status</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           <?php if ( $monthly_history ) : ?>
             <?php foreach ( $monthly_history as $row ) : ?>
-            <tr>
-              <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
-              <td><?php echo number_format( (int) $row->orders ); ?></td>
-              <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
-            </tr>
+              <?php
+              $month_key   = $row->month;
+              $is_paid     = isset( $paid_months[ $month_key ] ) && $paid_months[ $month_key ]['paid'];
+              $paid_at_val = $is_paid ? $paid_months[ $month_key ]['paid_at'] : null;
+              ?>
+              <tr data-month="<?php echo esc_attr( $month_key ); ?>">
+                <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
+                <td><?php echo number_format( (int) $row->orders ); ?></td>
+                <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
+                <td>
+                  <?php if ( $is_paid ) : ?>
+                    <span class="dd-paid-badge">✅ Paid</span>
+                    <?php if ( $paid_at_val ) : ?>
+                      <span class="dd-paid-date"><?php echo esc_html( date( 'd M Y', strtotime( $paid_at_val ) ) ); ?></span>
+                    <?php endif; ?>
+                  <?php else : ?>
+                    <span class="dd-unpaid-badge">⏳ Unpaid</span>
+                  <?php endif; ?>
+                </td>
+                <td>
+                  <?php if ( $is_paid ) : ?>
+                    <button class="dd-mark-paid-btn dd-mark-unpaid"
+                        data-month="<?php echo esc_attr( $month_key ); ?>"
+                        data-paid="0"
+                        data-nonce="<?php echo esc_attr( $billing_nonce ); ?>">
+                        Mark Unpaid
+                    </button>
+                  <?php else : ?>
+                    <button class="dd-mark-paid-btn dd-mark-paid"
+                        data-month="<?php echo esc_attr( $month_key ); ?>"
+                        data-paid="1"
+                        data-nonce="<?php echo esc_attr( $billing_nonce ); ?>">
+                        Mark as Paid
+                    </button>
+                  <?php endif; ?>
+                </td>
+              </tr>
             <?php endforeach; ?>
           <?php else : ?>
             <tr>
-              <td colspan="3" style="text-align:center;color:#888;padding:24px">No billing data yet</td>
+              <td colspan="5" style="text-align:center;color:#888;padding:24px">No billing data yet</td>
             </tr>
           <?php endif; ?>
         </tbody>
@@ -229,6 +277,103 @@ $status_breakdown = $wpdb->get_results(
   </div><!-- /.dd-billing-grid -->
 
 </div><!-- /.dd-page-wrap -->
+
+<style>
+.dd-paid-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #065f46;
+    background: #d1fae5;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+.dd-unpaid-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #92400e;
+    background: #fef3c7;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+.dd-paid-date {
+    font-size: 11px;
+    color: #888;
+    margin-left: 6px;
+}
+.dd-mark-paid-btn {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s;
+}
+.dd-mark-paid {
+    background: #fff;
+    color: #065f46;
+    border-color: #6ee7b7;
+}
+.dd-mark-paid:hover { background: #d1fae5; }
+.dd-mark-unpaid {
+    background: #fff;
+    color: #888;
+    border-color: #e0e0e0;
+}
+.dd-mark-unpaid:hover { background: #f5f5f5; }
+.dd-mark-paid-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+
+<script>
+( function () {
+    'use strict';
+
+    var ajaxUrl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>;
+
+    document.querySelectorAll( '.dd-mark-paid-btn' ).forEach( function ( btn ) {
+        btn.addEventListener( 'click', function () {
+            var month = btn.dataset.month;
+            var paid  = btn.dataset.paid;
+            var nonce = btn.dataset.nonce;
+
+            btn.disabled    = true;
+            btn.textContent = 'Saving…';
+
+            var body = new URLSearchParams();
+            body.append( 'action', 'dd_mark_month_paid' );
+            body.append( 'month',  month );
+            body.append( 'paid',   paid );
+            body.append( 'nonce',  nonce );
+
+            fetch( ajaxUrl, { method: 'POST', body: body } )
+                .then( function ( r ) { return r.json(); } )
+                .then( function ( data ) {
+                    if ( data.success ) {
+                        window.location.reload();
+                    } else {
+                        alert( data.data && data.data.message ? data.data.message : 'Error saving.' );
+                        btn.disabled    = false;
+                        btn.textContent = paid === '1' ? 'Mark as Paid' : 'Mark Unpaid';
+                    }
+                } )
+                .catch( function () {
+                    alert( 'Network error. Please try again.' );
+                    btn.disabled    = false;
+                    btn.textContent = paid === '1' ? 'Mark as Paid' : 'Mark Unpaid';
+                } );
+        } );
+    } );
+}() );
+</script>
 
 <style>
 .dd-page-wrap {
