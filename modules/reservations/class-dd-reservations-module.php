@@ -472,7 +472,7 @@ class DD_Reservations_Module extends DD_Module {
     // ── AJAX: Bulk action ──────────────────────────────────────────────────
 
     public function ajax_bulk_action(): void {
-        check_ajax_referer( 'dish_dash_admin' );
+        check_ajax_referer( 'dish_dash_admin', 'nonce' );
         if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
 
         global $wpdb;
