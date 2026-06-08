@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.25 (2026-06-08)
+> Last updated: v3.5.26 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.25 |
+| **Deployed version** | v3.5.26 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.26 — TBD |
-| **Last working state** | v3.5.25: removed "Notify Restaurant" WhatsApp button from customer-facing booking confirmation; removed auto-open WhatsApp from orders confirmation. Admin outbound buttons (Send Confirmation etc.) unchanged. |
+| **Next task** | v3.5.27 — TBD |
+| **Last working state** | v3.5.26: reservation confirmation screen — "Notify Restaurant" button removed, ghost "Confirming..." button hidden on success (btn.style.display=none before showWhatsAppButtons at both call sites). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -596,7 +596,8 @@ Every page before shipping must pass:
 | **v3.5.23** | ✅ **Done** | **Fix: nonce field name in ajax_bulk_action — check_ajax_referer missing 'nonce' arg caused all bulk actions to return 403** |
 | **v3.5.24** | ✅ **Done** | **Fix: exclude test reservations from all 21 analytics queries in reservations tab — AND is_test=0 added to every {$rt} query** |
 | **v3.5.25** | ✅ **Done** | **Remove "Notify Restaurant" WhatsApp button from customer booking confirmation; remove auto-open WhatsApp from order confirmation** |
-| v3.5.26 | ⏳ **NEXT** | TBD |
+| **v3.5.26** | ✅ **Done** | **Fix: hide ghost "Confirming..." button + clean reservation confirmation screen (only ✅ message + Close)** |
+| v3.5.27 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -410,9 +410,11 @@
             }
           } catch ( e ) { console.log( 'DD tracking skipped:', e ); }
 
+          if ( btn ) btn.style.display = 'none';
           showWhatsAppButtons( data.admin_url, data.customer_url );
         } catch ( e ) {
           console.log( 'DD RESERVATION — success handler error:', e );
+          if ( btn ) btn.style.display = 'none';
           showWhatsAppButtons();
         }
       } )
@@ -439,14 +441,11 @@
   }
 
   function showWhatsAppButtons( adminUrl, customerUrl ) {
-    const backBtn = $('#dd-res-back');
-    if (backBtn) backBtn.style.visibility = 'hidden';
-    const confirmArea = document.querySelector( '.dd-res-confirm-area' );
+    var confirmArea = document.querySelector( '.dd-res-confirm-area' );
     if ( ! confirmArea ) return;
-
     confirmArea.innerHTML =
-        '<p style="color:#25D366;font-weight:600;margin-bottom:16px;">✅ Booking received!</p>'
-        + '<button id="dd-res-close-confirm" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:14px;cursor:pointer;">Close</button>';
+        '<p style="color:#25D366;font-weight:600;margin:12px 0;">✅ Booking received!</p>'
+        + '<button id="dd-res-close-confirm" class="dd-res-btn dd-res-btn--outline" style="width:100%;">Close</button>';
 
     var closeBtn = document.getElementById( 'dd-res-close-confirm' );
     if ( closeBtn ) {
