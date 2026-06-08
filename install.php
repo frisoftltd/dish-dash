@@ -236,6 +236,7 @@ class DD_Install {
                 deposit_status    VARCHAR(20)         NOT NULL DEFAULT 'none',
                 deposit_paid_at   DATETIME                     DEFAULT NULL,
                 payment_ref       VARCHAR(100)                 DEFAULT NULL,
+                is_test           TINYINT(1)          NOT NULL DEFAULT 0,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   booking_ref (booking_ref),
                 KEY          table_id (table_id),
@@ -243,7 +244,8 @@ class DD_Install {
                 KEY          reservation_date (reservation_date),
                 KEY          status (status),
                 KEY          customer_id (customer_id),
-                KEY          date (date)
+                KEY          date (date),
+                KEY          is_test (is_test)
             ) $charset_collate;
         " );
 
@@ -404,6 +406,12 @@ class DD_Install {
                 UNIQUE KEY   month (month)
             ) $charset_collate;
         " );
+
+        // ── Migration: add is_test to reservations if missing ─────────────────
+        $cols = $wpdb->get_col( "DESCRIBE {$wpdb->prefix}dishdash_reservations" );
+        if ( ! in_array( 'is_test', $cols ) ) {
+            $wpdb->query( "ALTER TABLE {$wpdb->prefix}dishdash_reservations ADD COLUMN is_test TINYINT(1) NOT NULL DEFAULT 0, ADD KEY is_test (is_test)" );
+        }
     }
 
     // ─────────────────────────────────────────

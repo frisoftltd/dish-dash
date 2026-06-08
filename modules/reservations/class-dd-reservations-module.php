@@ -26,6 +26,7 @@ class DD_Reservations_Module extends DD_Module {
         DD_Ajax::register( 'dd_submit_reservation',        [ $this, 'ajax_submit_reservation' ] );
         DD_Ajax::register( 'dd_reservation_availability',  [ $this, 'ajax_check_availability' ] );
         DD_Ajax::register( 'dd_reservation_update_status', [ $this, 'ajax_update_status' ], false );
+        DD_Ajax::register( 'dd_res_bulk_action',           [ $this, 'ajax_bulk_action'    ], false );
 
         add_action( 'woocommerce_payment_complete', [ $this, 'on_deposit_payment_complete' ] );
         add_action( 'dd_reservation_autocancel',    [ $this, 'run_autocancel' ], 10, 1 );
@@ -466,6 +467,41 @@ class DD_Reservations_Module extends DD_Module {
             'whatsapp'         => $reservation['whatsapp'],
             'special_requests' => $reservation['special_requests'] ?? '',
         ] );
+    }
+
+    // ── AJAX: Bulk action ──────────────────────────────────────────────────
+
+    public function ajax_bulk_action(): void {
+        check_ajax_referer( 'dish_dash_admin' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized' );
+
+        global $wpdb;
+        $table  = $wpdb->prefix . 'dishdash_reservations';
+        $action = sanitize_key( $_POST['bulk_action'] ?? '' );
+        $ids    = array_map( 'absint', explode( ',', $_POST['ids'] ?? '' ) );
+        $ids    = array_filter( $ids );
+
+        if ( empty( $ids ) || ! $action ) {
+            wp_send_json_error( 'Invalid request' );
+        }
+
+        $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+
+        if ( $action === 'mark_test' ) {
+            $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET is_test = 1 WHERE id IN ({$placeholders})", ...$ids ) );
+            wp_send_json_success( count( $ids ) . ' reservation(s) marked as test' );
+        } elseif ( $action === 'unmark_test' ) {
+            $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET is_test = 0 WHERE id IN ({$placeholders})", ...$ids ) );
+            wp_send_json_success( count( $ids ) . ' test flag(s) removed' );
+        } elseif ( in_array( $action, [ 'confirmed', 'cancelled', 'no_show' ], true ) ) {
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE {$table} SET status = %s WHERE id IN ({$placeholders})",
+                ...array_merge( [ $action ], $ids )
+            ) );
+            wp_send_json_success( count( $ids ) . ' reservation(s) updated' );
+        } else {
+            wp_send_json_error( 'Unknown action' );
+        }
     }
 
     // ── Auto-cancel cron callback ──────────────────────────────────────────

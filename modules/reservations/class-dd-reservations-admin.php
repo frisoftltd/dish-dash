@@ -75,9 +75,14 @@ class DD_Reservations_Admin {
         $where  = '1=1';
         $params = [];
 
-        if ( $filter_status ) {
-            $where   .= ' AND status = %s';
-            $params[] = $filter_status;
+        if ( $filter_status === 'test' ) {
+            $where .= ' AND is_test = 1';
+        } else {
+            $where .= ' AND is_test = 0';
+            if ( $filter_status ) {
+                $where   .= ' AND status = %s';
+                $params[] = $filter_status;
+            }
         }
 
         // Date range filter
@@ -138,7 +143,7 @@ class DD_Reservations_Admin {
 
         // ── Counts per status (unfiltered) for KPIs + tabs ───────────────
         $counts_raw = $wpdb->get_results(
-            "SELECT status, COUNT(*) AS n FROM {$table} GROUP BY status",
+            "SELECT status, COUNT(*) AS n FROM {$table} WHERE is_test = 0 GROUP BY status",
             OBJECT_K
         );
         $counts = [];
@@ -151,7 +156,7 @@ class DD_Reservations_Admin {
         // ── Today's confirmed bookings + covers ───────────────────────────
         $today_row = $wpdb->get_row( $wpdb->prepare(
             "SELECT COUNT(*) AS confirmed_today, COALESCE(SUM(guests), 0) AS guests_today
-             FROM {$table} WHERE date = %s AND status = 'confirmed'",
+             FROM {$table} WHERE date = %s AND status = 'confirmed' AND is_test = 0",
             date( 'Y-m-d' )
         ) );
         $today_confirmed = (int) ( $today_row->confirmed_today ?? 0 );
@@ -236,6 +241,7 @@ class DD_Reservations_Admin {
 
             <?php if ( ! $open_reservation_id ) : ?>
             <!-- Status Tabs -->
+            <?php $test_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE is_test = 1" ); ?>
             <div class="dd-res-tabs">
                 <a href="<?php echo esc_url( $base_url ); ?>"
                    class="dd-res-tab <?php echo $filter_status === '' ? 'active' : ''; ?>">
@@ -250,6 +256,10 @@ class DD_Reservations_Admin {
                     <span class="count">(<?php echo esc_html( $cnt ); ?>)</span>
                 </a>
                 <?php endforeach; ?>
+                <a href="<?php echo esc_url( $base_url . '&status=test' ); ?>"
+                   class="dd-res-tab <?php echo $filter_status === 'test' ? 'active' : ''; ?>">
+                    🧪 Test <span class="count">(<?php echo esc_html( $test_count ); ?>)</span>
+                </a>
             </div>
 
             <!-- Filter Bar -->
@@ -289,6 +299,21 @@ class DD_Reservations_Admin {
             </div>
             <?php endif; ?>
 
+            <!-- Bulk action bar -->
+            <div class="dd-res-bulk-bar" id="dd-res-bulk-bar" style="display:none;">
+                <span class="dd-res-bulk-count" id="dd-res-bulk-count">0 selected</span>
+                <select id="dd-res-bulk-select" class="dd-res-bulk-select">
+                    <option value="">— Bulk action —</option>
+                    <option value="confirmed">Confirm</option>
+                    <option value="cancelled">Cancel</option>
+                    <option value="no_show">Mark No-show</option>
+                    <option value="mark_test">Mark as Test</option>
+                    <option value="unmark_test">Remove Test flag</option>
+                </select>
+                <button id="dd-res-bulk-apply" class="dd-res-bulk-apply">Apply</button>
+                <button id="dd-res-bulk-cancel" class="dd-res-bulk-cancel">✕ Deselect all</button>
+            </div>
+
             <!-- Back banner (focused view) -->
             <?php if ( $open_reservation_id ) : ?>
             <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
@@ -303,7 +328,9 @@ class DD_Reservations_Admin {
                 <table class="wp-list-table widefat fixed striped" style="table-layout:fixed;width:100%;">
                     <thead>
                         <tr>
-                            <th style="width:40px">#</th>
+                            <th style="width:40px;text-align:center;">
+                                <input type="checkbox" id="dd-res-select-all" style="cursor:pointer;">
+                            </th>
                             <th style="width:160px">Ref</th>
                             <th style="width:100px">Date</th>
                             <th style="width:60px">Guests</th>
@@ -319,12 +346,13 @@ class DD_Reservations_Admin {
                         <?php if ( empty( $rows ) ) : ?>
                             <tr><td colspan="10" style="text-align:center;color:#6b7280;padding:24px;">No reservations found.</td></tr>
                         <?php else :
-                            $row_num = $row_number_start;
                             foreach ( $rows as $r ) :
                                 $wa_num = preg_replace( '/\D/', '', $r->whatsapp );
                         ?>
                             <tr data-reservation-id="<?= esc_attr( $r->id ) ?>" <?php if ( $open_reservation_id ) echo 'style="background:#fef9c3;"'; ?>>
-                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $row_num ); $row_num++; ?></td>
+                                <td style="text-align:center;">
+                                    <input type="checkbox" class="dd-res-row-check" value="<?= esc_attr( $r->id ) ?>" style="cursor:pointer;">
+                                </td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><code><?php echo esc_html( $r->booking_ref ); ?></code></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->date ); ?></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->guests ); ?></td>
@@ -343,6 +371,9 @@ class DD_Reservations_Admin {
                                     <span class="dd-res-badge dd-res-badge--<?php echo esc_attr( $r->status ); ?>">
                                         <?php echo esc_html( $statuses[ $r->status ] ?? ucfirst( str_replace( '_', ' ', $r->status ) ) ); ?>
                                     </span>
+                                    <?php if ( ! empty( $r->is_test ) ) : ?>
+                                    <span class="dd-res-badge dd-res-badge--test">Test</span>
+                                    <?php endif; ?>
                                 </td>
                                 <td style="overflow:hidden;">
                                     <?php if ( ! empty( $r->deposit_required ) ) :
@@ -581,6 +612,86 @@ class DD_Reservations_Admin {
                     });
                 });
             });
+            // ── Bulk actions ───────────────────────────────────────────────────
+            var bulkBar    = document.getElementById('dd-res-bulk-bar');
+            var bulkCount  = document.getElementById('dd-res-bulk-count');
+            var bulkSelect = document.getElementById('dd-res-bulk-select');
+            var bulkApply  = document.getElementById('dd-res-bulk-apply');
+            var bulkCancel = document.getElementById('dd-res-bulk-cancel');
+            var selectAll  = document.getElementById('dd-res-select-all');
+
+            function syncBulkBar() {
+                var checked = document.querySelectorAll('.dd-res-row-check:checked');
+                if (checked.length > 0) {
+                    bulkBar.style.display = 'flex';
+                    bulkCount.textContent = checked.length + ' selected';
+                } else {
+                    bulkBar.style.display = 'none';
+                }
+            }
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function () {
+                    document.querySelectorAll('.dd-res-row-check').forEach(function (cb) {
+                        cb.checked = selectAll.checked;
+                    });
+                    syncBulkBar();
+                });
+            }
+
+            document.querySelectorAll('.dd-res-row-check').forEach(function (cb) {
+                cb.addEventListener('change', function () {
+                    var all     = document.querySelectorAll('.dd-res-row-check');
+                    var checked = document.querySelectorAll('.dd-res-row-check:checked');
+                    if (selectAll) selectAll.checked = all.length === checked.length;
+                    syncBulkBar();
+                });
+            });
+
+            if (bulkCancel) {
+                bulkCancel.addEventListener('click', function () {
+                    document.querySelectorAll('.dd-res-row-check').forEach(function (cb) { cb.checked = false; });
+                    if (selectAll) selectAll.checked = false;
+                    syncBulkBar();
+                });
+            }
+
+            if (bulkApply) {
+                bulkApply.addEventListener('click', function () {
+                    var action = bulkSelect ? bulkSelect.value : '';
+                    if (!action) { showToast('Select an action', 'error'); return; }
+                    var ids = [];
+                    document.querySelectorAll('.dd-res-row-check:checked').forEach(function (cb) {
+                        ids.push(cb.value);
+                    });
+                    if (ids.length === 0) return;
+                    bulkApply.disabled = true;
+                    fetch(ajaxurl, {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body:    new URLSearchParams({
+                            action:      'dd_res_bulk_action',
+                            bulk_action: action,
+                            ids:         ids.join(','),
+                            nonce:       nonce
+                        })
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.success) {
+                            showToast(data.data, 'success');
+                            setTimeout(function () { location.reload(); }, 800);
+                        } else {
+                            showToast(data.data || 'Error', 'error');
+                            bulkApply.disabled = false;
+                        }
+                    })
+                    .catch(function () {
+                        showToast('Network error', 'error');
+                        bulkApply.disabled = false;
+                    });
+                });
+            }
         })();
         </script>
 

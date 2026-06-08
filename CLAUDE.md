@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.21 (2026-06-08)
+> Last updated: v3.5.22 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.21 |
+| **Deployed version** | v3.5.22 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.22 — TBD |
-| **Last working state** | Focused single-reservation view: open_reservation param overrides query to show only that row, yellow highlight, back banner, tabs/filters hidden. |
+| **Next task** | v3.5.23 — TBD |
+| **Last working state** | v3.5.22: bulk actions + is_test flag for reservations. Checkboxes replace # column, bulk bar (confirm/cancel/no-show/mark-test/unmark-test), Test tab in status tabs, test badge on rows, KPI queries exclude is_test=1, ALTER TABLE migration guard in install.php. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -592,7 +592,8 @@ Every page before shipping must pass:
 | **v3.5.19** | ✅ **Done** | **Fix: persist notification panel items across page reloads (localStorage + panel rebuild)** |
 | **v3.5.20** | ✅ **Done** | **Feat: reservation notification deep link + mark as read on click** |
 | **v3.5.21** | ✅ **Done** | **Feat: focused single-reservation view when opening from notification** |
-| v3.5.22 | ⏳ **NEXT** | TBD |
+| **v3.5.22** | ✅ **Done** | **Bulk actions + test flag for reservations: is_test column + migration guard, checkbox column, bulk bar, Test tab, test badge, KPI queries exclude test rows** |
+| v3.5.23 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -473,3 +473,67 @@
 .dd-res-header .dashicons {
     color: #fff;
 }
+
+/* ── Test badge ──────────────────────────────────────────────────────────── */
+.dd-res-badge--test {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+    display: inline-block;
+    margin-left: 3px;
+    vertical-align: middle;
+}
+
+/* ── Bulk action bar ─────────────────────────────────────────────────────── */
+.dd-res-bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.dd-res-bulk-count {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d4ed8;
+    min-width: 80px;
+}
+.dd-res-bulk-select {
+    font-size: 13px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+}
+.dd-res-bulk-apply {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: none;
+    background: var(--dd-brand, #65040d);
+    color: #fff;
+    cursor: pointer;
+    transition: opacity .15s;
+}
+.dd-res-bulk-apply:hover { opacity: .85; }
+.dd-res-bulk-apply:disabled { opacity: .5; cursor: not-allowed; }
+.dd-res-bulk-cancel {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #6b7280;
+    cursor: pointer;
+    transition: background .15s;
+}
+.dd-res-bulk-cancel:hover { background: #f3f4f6; }
