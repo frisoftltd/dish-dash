@@ -25,16 +25,38 @@
     var notifications = [];
     var unreadCount   = 0;
 
+    function saveNotifications() {
+        try {
+            // Keep only the 20 most recent items to avoid localStorage bloat
+            var toSave = notifications.slice( 0, 20 );
+            localStorage.setItem( 'dd_notifications', JSON.stringify( toSave ) );
+        } catch ( e ) {}
+    }
+
     // Start polling immediately
     initPolling();
 
-    // Restore badge on reload from localStorage
+    // Restore notifications panel from localStorage on page load
     ( function() {
-        var savedCount = parseInt( localStorage.getItem( 'dd_unread_count' ), 10 ) || 0;
-        if ( savedCount > 0 ) {
-            unreadCount = savedCount;
-            updateBadge();
-        }
+        try {
+            var saved = localStorage.getItem( 'dd_notifications' );
+            if ( saved ) {
+                var items = JSON.parse( saved );
+                if ( Array.isArray( items ) && items.length > 0 ) {
+                    // Rebuild panel in reverse so newest ends up on top
+                    items.slice().reverse().forEach( function( item ) {
+                        notifications.push( item );
+                        addBellItem( item );
+                    } );
+                    // Restore unread count
+                    var savedCount = parseInt( localStorage.getItem( 'dd_unread_count' ), 10 ) || 0;
+                    if ( savedCount > 0 ) {
+                        unreadCount = savedCount;
+                        updateBadge();
+                    }
+                }
+            }
+        } catch ( e ) {}
     } )();
 
     function initPolling() {
@@ -89,6 +111,7 @@
             unreadCount = 0;
             updateBadge();
             notifications = [];
+            saveNotifications();
             if ( bellItems ) bellItems.innerHTML = '<p class="dd-bell-empty">No new notifications</p>';
         } );
     }
@@ -231,7 +254,7 @@
         var iconEmoji = item.type === 'order' ? '🛍' : '📅';
 
         // Build URL — orders get open_order param to trigger modal
-        var url = item.url;
+        var url = '';
         if ( item.type === 'order' && item.id ) {
             url = '/wp-admin/admin.php?page=dish-dash-orders&open_order=' + item.id;
         }
@@ -271,6 +294,7 @@
         } );
 
         bellItems.insertBefore( el, bellItems.firstChild );
+        saveNotifications();
     }
 
     function playBeep() {
