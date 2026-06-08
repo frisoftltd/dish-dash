@@ -28,6 +28,15 @@
     // Start polling immediately
     initPolling();
 
+    // Restore badge on reload from localStorage
+    ( function() {
+        var savedCount = parseInt( localStorage.getItem( 'dd_unread_count' ), 10 ) || 0;
+        if ( savedCount > 0 ) {
+            unreadCount = savedCount;
+            updateBadge();
+        }
+    } )();
+
     function initPolling() {
         if ( ! localStorage.getItem( LS_NOTIF_INIT ) ) {
             poll( true );
@@ -45,6 +54,7 @@
         } else {
             badge.style.display = 'none';
         }
+        localStorage.setItem( 'dd_unread_count', unreadCount );
     }
 
     // Bell icon click — toggle panel
@@ -172,6 +182,7 @@
                     };
                     notifications.unshift( item );
                     addBellItem( item );
+                    shouldBeep = true;
                 } );
 
                 // Update badge from DOM state
@@ -225,7 +236,7 @@
             url = '/wp-admin/admin.php?page=dish-dash-orders&open_order=' + item.id;
         }
         if ( item.type === 'reservation' ) {
-            url = '/wp-admin/admin.php?page=dish-dash-reservations';
+            url = '/wp-admin/admin.php?page=dd-reservations';
         }
 
         var el = document.createElement( 'a' );
@@ -280,7 +291,7 @@
 
     // Clear badge when visiting Orders or Reservations page
     if ( window.location.href.indexOf( 'dish-dash-orders' ) > -1 ||
-         window.location.href.indexOf( 'dish-dash-reservations' ) > -1 ) {
+         window.location.href.indexOf( 'dd-reservations' ) > -1 ) {
         unreadCount = 0;
         updateBadge();
     }

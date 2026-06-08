@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.17 (2026-06-08)
+> Last updated: v3.5.18 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.17 |
+| **Deployed version** | v3.5.18 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.18 — TBD |
-| **Last working state** | Reservations table: removed Time/Session columns, fixed overflow, added responsive KPI font size (clamp). |
+| **Next task** | v3.5.19 — TBD |
+| **Last working state** | Notification bugs fixed: correct reservation slug (dd-reservations), beep on reservations, badge persists on reload. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -588,7 +588,8 @@ Every page before shipping must pass:
 | **v3.5.15** | ✅ **Done** | **Fix: dashicons color #fff on dark reservation header** |
 | **v3.5.16** | ✅ **Done** | **Fix: add 📅 emoji icon to Reservations sidebar menu item** |
 | **v3.5.17** | ✅ **Done** | **Reservations table: remove Time/Session columns, explicit widths, overflow fix, responsive KPI font size** |
-| v3.5.18 | ⏳ **NEXT** | TBD |
+| **v3.5.18** | ✅ **Done** | **Fix: reservation notification slug, beep on new reservations, badge persistence on reload** |
+| v3.5.19 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
