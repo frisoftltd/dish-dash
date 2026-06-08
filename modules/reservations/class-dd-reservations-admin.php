@@ -55,6 +55,9 @@ class DD_Reservations_Admin {
             }
         }
 
+        // ── Focused single-reservation view ───────────────────────────────
+        $open_reservation_id = isset( $_GET['open_reservation'] ) ? absint( $_GET['open_reservation'] ) : 0;
+
         // ── Filter variables ──────────────────────────────────────────────
         $filter_status = isset( $_GET['status'] )     ? sanitize_text_field( wp_unslash( $_GET['status'] ) )     : '';
         $status_filter = $filter_status; // alias used in filter bar HTML
@@ -121,6 +124,14 @@ class DD_Reservations_Admin {
         $rows = ! empty( $query_params )
             ? $wpdb->get_results( $wpdb->prepare( $sql, $query_params ) )
             : $wpdb->get_results( $sql );
+
+        // Focused view — override all filters, show only the targeted reservation
+        if ( $open_reservation_id ) {
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE id = %d LIMIT 1",
+                $open_reservation_id
+            ) );
+        }
 
         $row_number_start = ( $per_page === 'all' ) ? 1 : ( ( $current_page - 1 ) * (int) $per_page ) + 1;
         $total_pages      = ( $per_page === 'all' || $total_rows === 0 ) ? 1 : (int) ceil( $total_rows / (int) $per_page );
@@ -223,6 +234,7 @@ class DD_Reservations_Admin {
                 </div>
             </div>
 
+            <?php if ( ! $open_reservation_id ) : ?>
             <!-- Status Tabs -->
             <div class="dd-res-tabs">
                 <a href="<?php echo esc_url( $base_url ); ?>"
@@ -275,6 +287,16 @@ class DD_Reservations_Admin {
                     <?php endif; ?>
                 </form>
             </div>
+            <?php endif; ?>
+
+            <!-- Back banner (focused view) -->
+            <?php if ( $open_reservation_id ) : ?>
+            <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;font-size:13px;">
+                <span>📌 Showing reservation from notification</span>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=dd-reservations' ) ); ?>"
+                   style="font-weight:600;color:#374151;text-decoration:none;">← View all reservations</a>
+            </div>
+            <?php endif; ?>
 
             <!-- Table -->
             <div class="dd-res-table-wrap">
@@ -301,7 +323,7 @@ class DD_Reservations_Admin {
                             foreach ( $rows as $r ) :
                                 $wa_num = preg_replace( '/\D/', '', $r->whatsapp );
                         ?>
-                            <tr data-reservation-id="<?= esc_attr( $r->id ) ?>">
+                            <tr data-reservation-id="<?= esc_attr( $r->id ) ?>" <?php if ( $open_reservation_id ) echo 'style="background:#fef9c3;"'; ?>>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $row_num ); $row_num++; ?></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><code><?php echo esc_html( $r->booking_ref ); ?></code></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->date ); ?></td>
@@ -562,22 +584,6 @@ class DD_Reservations_Admin {
         })();
         </script>
 
-        <?php if ( ! empty( $_GET['open_reservation'] ) ) :
-            $open_id = absint( $_GET['open_reservation'] );
-        ?>
-        <script>
-        (function() {
-            var targetId = <?= $open_id ?>;
-            var row = document.querySelector('tr[data-reservation-id="' + targetId + '"]');
-            if ( row ) {
-                row.style.transition = 'background .3s';
-                row.style.background = '#fef9c3';
-                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setTimeout(function() { row.style.background = ''; }, 3000);
-            }
-        })();
-        </script>
-        <?php endif; ?>
         <?php
     }
 }
