@@ -261,70 +261,70 @@ if ( $active_tab === 'orders' ) {
 if ( $active_tab === 'reservations' ) {
 
     $kpi_total = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$rt}` WHERE created_at>=%s AND is_test=0", $since
     ) );
     $kpi_confirmed = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE status='confirmed' AND created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$rt}` WHERE status='confirmed' AND created_at>=%s AND is_test=0", $since
     ) );
     $kpi_noshow = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE status='no_show' AND created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$rt}` WHERE status='no_show' AND created_at>=%s AND is_test=0", $since
     ) );
     $kpi_avg_guests = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(guests) FROM `{$rt}` WHERE created_at>=%s", $since
+        "SELECT AVG(guests) FROM `{$rt}` WHERE created_at>=%s AND is_test=0", $since
     ) );
     $confirm_rate = $kpi_total    > 0 ? round(($kpi_confirmed/$kpi_total)*100)    : 0;
     $noshow_rate  = $kpi_confirmed > 0 ? round(($kpi_noshow/$kpi_confirmed)*100)  : 0;
 
     $bookings_over_time = $wpdb->get_results( $wpdb->prepare(
-        "SELECT DATE(created_at) as day, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s
+        "SELECT DATE(created_at) as day, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0
          GROUP BY DATE(created_at) ORDER BY day ASC", $since
     ), ARRAY_A );
     $bot_labels = array_map( fn($r) => date('D d', strtotime($r['day'])), $bookings_over_time );
     $bot_data   = array_map( fn($r) => (int)$r['cnt'], $bookings_over_time );
 
     $res_status_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT status, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s GROUP BY status", $since
+        "SELECT status, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0 GROUP BY status", $since
     ), ARRAY_A );
     $res_status_map = [];
     foreach ($res_status_rows as $r) $res_status_map[$r['status']] = (int)$r['cnt'];
 
     $session_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT session, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s GROUP BY session ORDER BY cnt DESC", $since
+        "SELECT session, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0 GROUP BY session ORDER BY cnt DESC", $since
     ), ARRAY_A );
 
     $dow_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT DAYOFWEEK(date) as dow, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s GROUP BY dow ORDER BY dow ASC", $since
+        "SELECT DAYOFWEEK(date) as dow, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0 GROUP BY dow ORDER BY dow ASC", $since
     ), ARRAY_A );
     $dow_names = [1=>'Sun',2=>'Mon',3=>'Tue',4=>'Wed',5=>'Thu',6=>'Fri',7=>'Sat'];
     $dow_data  = array_fill(1, 7, 0);
     foreach ($dow_rows as $r) $dow_data[(int)$r['dow']] = (int)$r['cnt'];
 
     $party_buckets = [
-        '1–2' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 1 AND 2 AND created_at>=%s",$since)),
-        '3–4' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 3 AND 4 AND created_at>=%s",$since)),
-        '5–6' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 5 AND 6 AND created_at>=%s",$since)),
-        '7+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests >= 7 AND created_at>=%s",$since)),
+        '1–2' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 1 AND 2 AND created_at>=%s AND is_test=0",$since)),
+        '3–4' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 3 AND 4 AND created_at>=%s AND is_test=0",$since)),
+        '5–6' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 5 AND 6 AND created_at>=%s AND is_test=0",$since)),
+        '7+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests >= 7 AND created_at>=%s AND is_test=0",$since)),
     ];
 
     $advance_buckets = [
-        'Same day' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))=0 AND created_at>=%s",$since)),
-        '1 day'    => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))=1 AND created_at>=%s",$since)),
-        '2–3 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at)) BETWEEN 2 AND 3 AND created_at>=%s",$since)),
-        '4–7 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at)) BETWEEN 4 AND 7 AND created_at>=%s",$since)),
-        '1 week+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))>7 AND created_at>=%s",$since)),
+        'Same day' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))=0 AND created_at>=%s AND is_test=0",$since)),
+        '1 day'    => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))=1 AND created_at>=%s AND is_test=0",$since)),
+        '2–3 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at)) BETWEEN 2 AND 3 AND created_at>=%s AND is_test=0",$since)),
+        '4–7 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at)) BETWEEN 4 AND 7 AND created_at>=%s AND is_test=0",$since)),
+        '1 week+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))>7 AND created_at>=%s AND is_test=0",$since)),
     ];
     $avg_advance = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(DATEDIFF(date,DATE(created_at))) FROM `{$rt}` WHERE created_at>=%s", $since
+        "SELECT AVG(DATEDIFF(date,DATE(created_at))) FROM `{$rt}` WHERE created_at>=%s AND is_test=0", $since
     ) );
 
     $deposit_total = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE deposit_required=1 AND created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$rt}` WHERE deposit_required=1 AND created_at>=%s AND is_test=0", $since
     ) );
     $deposit_paid = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE deposit_required=1 AND deposit_status='paid' AND created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$rt}` WHERE deposit_required=1 AND deposit_status='paid' AND created_at>=%s AND is_test=0", $since
     ) );
     $deposit_autocancelled = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE status='auto_cancelled' AND created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$rt}` WHERE status='auto_cancelled' AND created_at>=%s AND is_test=0", $since
     ) );
     $show_deposit = $deposit_total > 0;
 
