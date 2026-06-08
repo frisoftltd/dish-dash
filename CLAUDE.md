@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.26 (2026-06-08)
+> Last updated: v3.5.28 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.26 |
+| **Deployed version** | v3.5.28 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.27 — TBD |
-| **Last working state** | v3.5.26: reservation confirmation screen — "Notify Restaurant" button removed, ghost "Confirming..." button hidden on success (btn.style.display=none before showWhatsAppButtons at both call sites). |
+| **Next task** | v3.5.29 — TBD |
+| **Last working state** | v3.5.28: removed cart.min.js and reservations.min.js from git — stale minified files were being auto-served by asset_url() file_exists() check, overriding source .js edits. Fallback now serves source .js files directly. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -597,7 +597,9 @@ Every page before shipping must pass:
 | **v3.5.24** | ✅ **Done** | **Fix: exclude test reservations from all 21 analytics queries in reservations tab — AND is_test=0 added to every {$rt} query** |
 | **v3.5.25** | ✅ **Done** | **Remove "Notify Restaurant" WhatsApp button from customer booking confirmation; remove auto-open WhatsApp from order confirmation** |
 | **v3.5.26** | ✅ **Done** | **Fix: hide ghost "Confirming..." button + clean reservation confirmation screen (only ✅ message + Close)** |
-| v3.5.27 | ⏳ **NEXT** | TBD |
+| v3.5.27 | — | Skipped |
+| **v3.5.28** | ✅ **Done** | **Fix: git rm cart.min.js + reservations.min.js — stale minified files were overriding source .js edits via asset_url() file_exists() check** |
+| v3.5.29 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
