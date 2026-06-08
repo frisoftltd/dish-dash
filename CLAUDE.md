@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.29 (2026-06-08)
+> Last updated: v3.5.30 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.29 |
+| **Deployed version** | v3.5.30 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.30 — TBD |
-| **Last working state** | v3.5.29: fix quantity always 1 when adding from product modal — PHP ajax_add read $_POST['quantity'] but JS sent 'qty'; now accepts both field names. |
+| **Next task** | v3.5.31 — TBD |
+| **Last working state** | v3.5.30: fix order notifications not removed from panel and localStorage on click — orders branch now removes from notifications[] array, persists to localStorage, and calls self.remove() to clear DOM element, matching reservation branch behaviour. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -600,7 +600,8 @@ Every page before shipping must pass:
 | v3.5.27 | — | Skipped |
 | **v3.5.28** | ✅ **Done** | **Fix: git rm cart.min.js + reservations.min.js — stale minified files were overriding source .js edits via asset_url() file_exists() check** |
 | **v3.5.29** | ✅ **Done** | **Fix: quantity always 1 from product modal — PHP read 'quantity' but JS sent 'qty'; now accepts both** |
-| v3.5.30 | ⏳ **NEXT** | TBD |
+| **v3.5.30** | ✅ **Done** | **Fix: order notifications not removed from panel and localStorage on click — remove from array, persist, remove DOM element** |
+| v3.5.31 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

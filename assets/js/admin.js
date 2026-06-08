@@ -278,25 +278,38 @@
 
         // Mark as read on click (client + server)
         el.addEventListener( 'click', function () {
-            const notifId = parseInt( this.dataset.id, 10 );
-            if ( this.classList.contains( 'dd-unread' ) ) {
-                this.classList.remove( 'dd-unread' );
+            var self = this;
+            const notifId = parseInt( self.dataset.id, 10 );
+
+            if ( self.classList.contains( 'dd-unread' ) ) {
+                self.classList.remove( 'dd-unread' );
                 unreadCount = Math.max( 0, unreadCount - 1 );
                 updateBadge();
             }
-            if ( notifId && this.dataset.itemType === 'order' ) {
+
+            if ( notifId && self.dataset.itemType === 'order' ) {
+                // Remove from array and persist
+                notifications = notifications.filter( function( n ) {
+                    return !( n.type === 'order' && parseInt( n.id, 10 ) === notifId );
+                } );
+                saveNotifications();
+                // Server-side mark read
                 var fd = new FormData();
                 fd.append( 'action',      'dd_mark_notifications_read' );
                 fd.append( 'nonce',       config.pollNonce );
                 fd.append( 'order_ids[]', notifId );
                 fetch( config.ajaxUrl, { method: 'POST', body: fd } );
+                // Remove from DOM
+                self.remove();
             }
-            if ( notifId && this.dataset.itemType === 'reservation' ) {
-                // Remove from stored notifications array
+
+            if ( notifId && self.dataset.itemType === 'reservation' ) {
                 notifications = notifications.filter( function( n ) {
                     return !( n.type === 'reservation' && parseInt( n.id, 10 ) === notifId );
                 } );
                 saveNotifications();
+                // Remove from DOM
+                self.remove();
             }
         } );
 
