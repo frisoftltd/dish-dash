@@ -444,19 +444,11 @@
     const confirmArea = document.querySelector( '.dd-res-confirm-area' );
     if ( ! confirmArea ) return;
 
-    confirmArea.innerHTML = `
-        <p style="margin:0 0 12px;font-weight:600;color:#15803d">✅ Booking received!</p>
-        <div style="display:flex;flex-direction:column;gap:10px">
-            ${ adminUrl ? `<a href="${ adminUrl }" target="_blank" rel="noopener noreferrer" style="display:block;padding:12px;background:#65040d;color:#fff;border-radius:8px;text-align:center;text-decoration:none;font-weight:600">
-                📲 Notify Restaurant
-            </a>` : '' }
-            <button id="dd-res-close-confirm" type="button" style="padding:12px;background:transparent;border:1px solid #EADFCE;border-radius:8px;cursor:pointer;font-weight:600">
-                Close
-            </button>
-        </div>
-    `;
+    confirmArea.innerHTML =
+        '<p style="color:#25D366;font-weight:600;margin-bottom:16px;">✅ Booking received!</p>'
+        + '<button id="dd-res-close-confirm" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:14px;cursor:pointer;">Close</button>';
 
-    const closeBtn = document.getElementById( 'dd-res-close-confirm' );
+    var closeBtn = document.getElementById( 'dd-res-close-confirm' );
     if ( closeBtn ) {
         closeBtn.addEventListener( 'click', function () {
             closeModal();

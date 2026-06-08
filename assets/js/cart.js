@@ -554,23 +554,7 @@
                         + '; path=/; max-age=7200; SameSite=Lax';
                 }
 
-                // Open WhatsApp in new tab via anchor click (avoids mobile popup block)
-                if ( data.whatsapp_url ) {
-                    setTimeout( function () {
-                        const a = document.createElement('a');
-                        a.href = data.whatsapp_url;
-                        a.target = '_blank';
-                        a.rel = 'noopener noreferrer';
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                    }, 800 );
-                }
-
                 window.ddCartSummary = null;
-
-                var waBtn = document.getElementById( 'ddConfirmWhatsappBtn' );
-                if ( waBtn ) waBtn.style.display = 'none';
 
                 // Track order event
                 if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {
