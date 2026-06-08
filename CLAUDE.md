@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.19 (2026-06-08)
+> Last updated: v3.5.20 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.19 |
+| **Deployed version** | v3.5.20 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.20 — TBD |
-| **Last working state** | Notification panel persistence: notifications[] saved to localStorage, panel rebuilt on reload, max 20 items stored. |
+| **Next task** | v3.5.21 — TBD |
+| **Last working state** | Reservation notification deep link: clicking notification navigates to ?open_reservation=N, highlights row in yellow, auto-scrolls. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -590,7 +590,8 @@ Every page before shipping must pass:
 | **v3.5.17** | ✅ **Done** | **Reservations table: remove Time/Session columns, explicit widths, overflow fix, responsive KPI font size** |
 | **v3.5.18** | ✅ **Done** | **Fix: reservation notification slug, beep on new reservations, badge persistence on reload** |
 | **v3.5.19** | ✅ **Done** | **Fix: persist notification panel items across page reloads (localStorage + panel rebuild)** |
-| v3.5.20 | ⏳ **NEXT** | TBD |
+| **v3.5.20** | ✅ **Done** | **Feat: reservation notification deep link + mark as read on click** |
+| v3.5.21 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

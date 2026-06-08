@@ -301,7 +301,7 @@ class DD_Reservations_Admin {
                             foreach ( $rows as $r ) :
                                 $wa_num = preg_replace( '/\D/', '', $r->whatsapp );
                         ?>
-                            <tr>
+                            <tr data-reservation-id="<?= esc_attr( $r->id ) ?>">
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $row_num ); $row_num++; ?></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><code><?php echo esc_html( $r->booking_ref ); ?></code></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->date ); ?></td>
@@ -561,6 +561,23 @@ class DD_Reservations_Admin {
             });
         })();
         </script>
+
+        <?php if ( ! empty( $_GET['open_reservation'] ) ) :
+            $open_id = absint( $_GET['open_reservation'] );
+        ?>
+        <script>
+        (function() {
+            var targetId = <?= $open_id ?>;
+            var row = document.querySelector('tr[data-reservation-id="' + targetId + '"]');
+            if ( row ) {
+                row.style.transition = 'background .3s';
+                row.style.background = '#fef9c3';
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(function() { row.style.background = ''; }, 3000);
+            }
+        })();
+        </script>
+        <?php endif; ?>
         <?php
     }
 }

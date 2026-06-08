@@ -259,7 +259,7 @@
             url = '/wp-admin/admin.php?page=dish-dash-orders&open_order=' + item.id;
         }
         if ( item.type === 'reservation' ) {
-            url = '/wp-admin/admin.php?page=dd-reservations';
+            url = '/wp-admin/admin.php?page=dd-reservations&open_reservation=' + item.id;
         }
 
         var el = document.createElement( 'a' );
@@ -290,6 +290,13 @@
                 fd.append( 'nonce',       config.pollNonce );
                 fd.append( 'order_ids[]', notifId );
                 fetch( config.ajaxUrl, { method: 'POST', body: fd } );
+            }
+            if ( notifId && this.dataset.itemType === 'reservation' ) {
+                // Remove from stored notifications array
+                notifications = notifications.filter( function( n ) {
+                    return !( n.type === 'reservation' && parseInt( n.id, 10 ) === notifId );
+                } );
+                saveNotifications();
             }
         } );
 
