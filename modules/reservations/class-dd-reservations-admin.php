@@ -20,7 +20,7 @@ class DD_Reservations_Admin {
         add_submenu_page(
             'dish-dash',
             __( 'Reservations', 'dish-dash' ),
-            __( 'Reservations', 'dish-dash' ),
+            '📅 Reservations',
             'manage_options',
             'dd-reservations',
             [ $this, 'render_page' ]
