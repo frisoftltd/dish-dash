@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.28 (2026-06-08)
+> Last updated: v3.5.29 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.28 |
+| **Deployed version** | v3.5.29 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.29 — TBD |
-| **Last working state** | v3.5.28: removed cart.min.js and reservations.min.js from git — stale minified files were being auto-served by asset_url() file_exists() check, overriding source .js edits. Fallback now serves source .js files directly. |
+| **Next task** | v3.5.30 — TBD |
+| **Last working state** | v3.5.29: fix quantity always 1 when adding from product modal — PHP ajax_add read $_POST['quantity'] but JS sent 'qty'; now accepts both field names. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -599,7 +599,8 @@ Every page before shipping must pass:
 | **v3.5.26** | ✅ **Done** | **Fix: hide ghost "Confirming..." button + clean reservation confirmation screen (only ✅ message + Close)** |
 | v3.5.27 | — | Skipped |
 | **v3.5.28** | ✅ **Done** | **Fix: git rm cart.min.js + reservations.min.js — stale minified files were overriding source .js edits via asset_url() file_exists() check** |
-| v3.5.29 | ⏳ **NEXT** | TBD |
+| **v3.5.29** | ✅ **Done** | **Fix: quantity always 1 from product modal — PHP read 'quantity' but JS sent 'qty'; now accepts both** |
+| v3.5.30 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

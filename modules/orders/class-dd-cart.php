@@ -215,7 +215,7 @@ class DD_Cart {
         }
 
         $product_id = (int) ( $_POST['product_id'] ?? $_POST['id'] ?? 0 );
-        $quantity   = max( 1, (int) ( $_POST['quantity'] ?? 1 ) );
+        $quantity   = max( 1, (int) ( $_POST['quantity'] ?? $_POST['qty'] ?? 1 ) );
 
         if ( ! $product_id ) {
             wp_send_json_error( 'Missing product_id' ); return;
