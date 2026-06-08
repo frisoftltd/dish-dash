@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.16 (2026-06-08)
+> Last updated: v3.5.17 (2026-06-08)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.16 |
+| **Deployed version** | v3.5.17 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.17 — TBD |
-| **Last working state** | Reservations sidebar item: added 📅 emoji prefix to match all other Dish Dash menu items. |
+| **Next task** | v3.5.18 — TBD |
+| **Last working state** | Reservations table: removed Time/Session columns, fixed overflow, added responsive KPI font size (clamp). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -587,7 +587,8 @@ Every page before shipping must pass:
 | **v3.5.14** | ✅ **Done** | **Fix: add dashicons enqueue to reservations admin page** |
 | **v3.5.15** | ✅ **Done** | **Fix: dashicons color #fff on dark reservation header** |
 | **v3.5.16** | ✅ **Done** | **Fix: add 📅 emoji icon to Reservations sidebar menu item** |
-| v3.5.17 | ⏳ **NEXT** | TBD |
+| **v3.5.17** | ✅ **Done** | **Reservations table: remove Time/Session columns, explicit widths, overflow fix, responsive KPI font size** |
+| v3.5.18 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

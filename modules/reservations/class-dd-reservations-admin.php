@@ -278,40 +278,36 @@ class DD_Reservations_Admin {
 
             <!-- Table -->
             <div class="dd-res-table-wrap">
-                <table class="wp-list-table widefat fixed striped">
+                <table class="wp-list-table widefat fixed striped" style="table-layout:fixed;width:100%;">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Ref</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                            <th>Session</th>
-                            <th>Guests</th>
-                            <th>Name</th>
-                            <th>WhatsApp</th>
-                            <th>Special Requests</th>
-                            <th>Status</th>
-                            <th>Deposit</th>
-                            <th>Actions</th>
+                            <th style="width:40px">#</th>
+                            <th style="width:160px">Ref</th>
+                            <th style="width:100px">Date</th>
+                            <th style="width:60px">Guests</th>
+                            <th style="width:140px">Name</th>
+                            <th style="width:120px">WhatsApp</th>
+                            <th style="width:140px">Special Requests</th>
+                            <th style="width:100px">Status</th>
+                            <th style="width:80px">Deposit</th>
+                            <th style="width:160px">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ( empty( $rows ) ) : ?>
-                            <tr><td colspan="12" style="text-align:center;color:#6b7280;padding:24px;">No reservations found.</td></tr>
+                            <tr><td colspan="10" style="text-align:center;color:#6b7280;padding:24px;">No reservations found.</td></tr>
                         <?php else :
                             $row_num = $row_number_start;
                             foreach ( $rows as $r ) :
                                 $wa_num = preg_replace( '/\D/', '', $r->whatsapp );
                         ?>
                             <tr>
-                                <td><?php echo esc_html( $row_num ); $row_num++; ?></td>
-                                <td><code><?php echo esc_html( $r->booking_ref ); ?></code></td>
-                                <td><?php echo esc_html( $r->date ); ?></td>
-                                <td><?php echo esc_html( $r->time ); ?></td>
-                                <td><?php echo esc_html( ucfirst( $r->session ) ); ?></td>
-                                <td><?php echo esc_html( $r->guests ); ?></td>
-                                <td><?php echo esc_html( $r->name ); ?></td>
-                                <td>
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $row_num ); $row_num++; ?></td>
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><code><?php echo esc_html( $r->booking_ref ); ?></code></td>
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->date ); ?></td>
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->guests ); ?></td>
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->name ); ?></td>
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                                     <?php if ( $wa_num ) : ?>
                                         <a href="https://wa.me/<?php echo esc_attr( $wa_num ); ?>" target="_blank">
                                             <?php echo esc_html( $r->whatsapp ); ?>
@@ -320,13 +316,13 @@ class DD_Reservations_Admin {
                                         <?php echo esc_html( $r->whatsapp ); ?>
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo esc_html( $r->special_requests ?? '' ); ?></td>
-                                <td>
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->special_requests ?? '' ); ?></td>
+                                <td style="overflow:hidden;">
                                     <span class="dd-res-badge dd-res-badge--<?php echo esc_attr( $r->status ); ?>">
                                         <?php echo esc_html( $statuses[ $r->status ] ?? ucfirst( str_replace( '_', ' ', $r->status ) ) ); ?>
                                     </span>
                                 </td>
-                                <td>
+                                <td style="overflow:hidden;">
                                     <?php if ( ! empty( $r->deposit_required ) ) :
                                         $deposit_labels = [
                                             'none'     => '—',
@@ -342,7 +338,7 @@ class DD_Reservations_Admin {
                                         <span style="color:#9ca3af">—</span>
                                     <?php endif; ?>
                                 </td>
-                                <td>
+                                <td style="overflow:hidden;">
                                     <div class="dd-res-actions">
                                         <?php
                                         $restaurant  = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );

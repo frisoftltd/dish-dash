@@ -54,11 +54,12 @@
     letter-spacing: .05em;
 }
 .dd-res-kpi__value {
-    font-size: 32px;
+    font-size: clamp(18px, 2.5vw, 28px);
     font-weight: 700;
-    color: #111;
-    margin: 6px 0 0;
-    line-height: 1;
+    color: #111827;
+    line-height: 1.2;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 .dd-res-kpi__sub {
     font-size: 12px;
@@ -152,12 +153,20 @@
     color: #374151;
 }
 
+/* ── Page wrap — prevent horizontal blowout ──────────────────────────────── */
+.dd-page-wrap {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
 /* ── Table Wrapper ───────────────────────────────────────────────────────── */
 .dd-res-table-wrap {
     background: #fff;
     border-radius: 12px;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    width: 100%;
 }
 .dd-res-table-wrap .wp-list-table {
     margin: 0;
@@ -215,9 +224,9 @@
 /* ── Action Buttons ──────────────────────────────────────────────────────── */
 .dd-res-actions {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    align-items: center;
+    flex-direction: column;
+    gap: 3px;
+    padding: 4px 0;
 }
 .dd-res-action-btn {
     padding: 4px 10px;
