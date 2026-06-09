@@ -3,8 +3,8 @@
 > **This document is a living standard.**
 > Run it before every major phase. Refine it after every audit. Never delete findings — mark them resolved.
 >
-> Last audited: v3.4.8 (2026-05-18)
-> Next audit: before Phase 6 begins
+> Last audited: v3.5.42 (2026-06-09)
+> Next audit: before Phase 8 begins
 
 ---
 
@@ -390,6 +390,7 @@ Score: 🟢 / 🟡 / 🔴
 |---|---|---|---|---|---|---|---|
 | v3.4.8 | 2026-05-18 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 |
 | v3.4.9 | 2026-05-18 | 🟡 | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 |
+| v3.5.42 | 2026-06-09 | 🟡 | 🟡 | 🟢 | 🟡 | 🟢 | 🟡 |
 
 **Score key:** 🟢 Good — 🟡 Needs attention — 🔴 Critical issues
 
@@ -403,12 +404,15 @@ Issues found during audits but intentionally deferred. Review before each new ph
 |---|---|---|---|---|
 | D1 | Auth events (login, register) not in tracking schema | v3.4.8 | Medium | Phase 5 |
 | D2 | Closed-state banner buttons ("Browse Menu", "Message Us") not tracked | v3.4.8 | Low | Phase 3D polish |
-| D3 | `class-dd-api.php:358` calls `DD_Tracking_Module::get_session_id()` — inverted dependency | v3.4.8 | Low | Phase 5 refactor |
-| D4 | 6 direct `wc_get_product()` calls in legacy module files | v3.4.8 | Low | Migrate when files touched |
+| D3 | ~~`class-dd-api.php:358` calls `DD_Tracking_Module::get_session_id()` — inverted dependency~~ | v3.4.8 | — | ✅ Resolved v3.5.42 — now a comment only, not live code |
+| D4 | 4 direct `wc_get_product()` calls in legacy module files (menu, orders, cart, tracking) | v3.4.8 | Low | Migrate when files touched |
 | D5 | `dd_get_reviews` AJAX missing nonce | v3.4.8 | Low | Next security sprint |
-| D6 | Tracking profile queries uncached (fires per event) | v3.4.8 | Medium | Phase 6 (scale concern) |
-| D7 | `theme.css` at 83KB unminified | v3.4.8 | Low | Phase 8 optimization |
-| D8 | `frontend.js` at 66KB — consider splitting | v3.4.8 | Low | Phase 6+ |
+| D6 | Tracking profile queries uncached (fires per event) | v3.4.8 | Medium | Phase 8 (scale concern) |
+| D7 | `theme.css` at 83KB unminified | v3.4.8 | Low | Phase 10 optimization |
+| D8 | `frontend.js` at 65KB — consider splitting | v3.4.8 | Low | Phase 8+ |
+| D9 | `add_to_cart` not tracked from homepage product cards / modal — only fires from menu page | v3.5.42 | Medium | Phase 8 pre-work |
+| D10 | `dd_billing_payments` table uses `dd_` prefix instead of `dishdash_` — naming inconsistency | v3.5.42 | Low | Cosmetic — fix when convenient |
+| D11 | `dd_track_event` uses `check_ajax_referer(..., false)` — soft nonce, does not die on failure | v3.5.42 | Low | Document or harden before Phase 8 |
 
 ---
 
@@ -420,6 +424,7 @@ Issues found during audits but intentionally deferred. Review before each new ph
 | N+1 query in `grid.php` menu render | v3.4.8 | v3.4.9 | Pre-fetch with `wc_get_products(['include' => $ids])` |
 | Reservations writing to customers table directly | v3.4.8 | v3.4.9 | Replaced with `apply_filters('dd_resolve_customer_id')` |
 | Dead tracking schemas: `reorder`, `deposit_failed` | v3.4.8 | v3.4.9 | Removed from `event-schemas.php`, version bumped to v1.1 |
+| D3: `class-dd-api.php:358` inverted dependency on DD_Tracking_Module | v3.4.8 | v3.5.42 | Confirmed comment-only in audit scan — not live code, no code change needed |
 
 ---
 
