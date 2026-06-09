@@ -91,8 +91,8 @@ For drops/renames, use a manual migration step and document it in the release no
 | Field | Value |
 |---|---|
 | **Deployed version** | v3.5.42 |
-| **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
-| **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
+| **Current phase** | Phase 6 — MoMo Payment Integration |
+| **Current sub-phase** | Phase 5D complete |
 | **Next task** | v3.5.43 — TBD |
 | **Last working state** | v3.5.42: add Privacy Policy + Refund & Returns links to footer Explore column. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
@@ -385,11 +385,13 @@ dish-dash/
 | **Phase 5A** | ✅ | Clean & Secure — WP noise removed, custom admin URL `/khazana`, `/wp-admin` → 404 |
 | **Phase 5B** | ✅ | Admin layout shell — dark sidebar, top bar, brand injection |
 | **Phase 5C** | ✅ | Brand Identity page, Template card picker |
-| **Phase 5D** | 🔄 | Full admin redesign + frontend template system ← CURRENT |
-| **Phase 6** | ⏳ | Analytics + AI — Python microservice, behavior engine, recommendations |
-| **Phase 7** | ⏳ | Loyalty & QR — points system, QR scan ordering |
-| **Phase 8** | ⏳ | Testing + Optimization |
-| **Phase 9** | ⏳ | SaaS Platform — multi-tenant, subscription billing, white-label |
+| **Phase 5D** | ✅ | Full admin redesign + frontend template system |
+| **Phase 6** | ⏳ | MoMo Payment Integration — MTN Mobile Money payment gateway, in-drawer payment flow |
+| **Phase 7** | ⏳ | User Access Control — customer profiles, roles, permissions, order history |
+| **Phase 8** | ⏳ | Analytics + AI — Python microservice, behavior engine, recommendations ← CURRENT |
+| **Phase 9** | ⏳ | Loyalty & QR — points system, QR scan ordering |
+| **Phase 10** | ⏳ | Testing + Optimization |
+| **Phase 11** | ⏳ | SaaS Platform — multi-tenant, subscription billing, white-label |
 
 ---
 
@@ -499,7 +501,7 @@ Everything else hidden.
 
 ---
 
-### Phase 5D — Full Admin Redesign + Frontend Template System 🔄 Current
+### Phase 5D — Full Admin Redesign + Frontend Template System ✅ Complete
 
 #### Part 1 — Admin Pages Redesign
 
