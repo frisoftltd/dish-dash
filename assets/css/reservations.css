@@ -390,6 +390,7 @@
   border: 1.5px solid var(--dd-line, #EADfCE);
   border-radius: 12px;
   overflow: hidden;
+  touch-action: manipulation;
 }
 
 .dd-res-stepper__btn {
@@ -405,6 +406,7 @@
   justify-content: center;
   transition: background 0.15s;
   font-family: inherit;
+  touch-action: manipulation;
 }
 
 .dd-res-stepper__btn:hover { background: rgba(101,4,13,0.06); }
