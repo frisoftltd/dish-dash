@@ -141,7 +141,8 @@ class DD_Template_Module extends DD_Module {
     //  PAGE TEMPLATE
     // ─────────────────────────────────────────
     public function register_page_template( array $templates ): array {
-        $templates['page-dishdash.php'] = __( 'Dish Dash Full Page', 'dish-dash' );
+        $templates['page-dishdash.php'] = __( 'Dish Dash Full Page',   'dish-dash' );
+        $templates['page-simple.php']   = __( 'Dish Dash Simple Page', 'dish-dash' );
         return $templates;
     }
 
@@ -150,6 +151,12 @@ class DD_Template_Module extends DD_Module {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
             if ( 'page-dishdash.php' === $meta ) {
                 $plugin_template = DD_TEMPLATES_DIR . 'page-dishdash.php';
+                if ( file_exists( $plugin_template ) ) {
+                    return $plugin_template;
+                }
+            }
+            if ( 'page-simple.php' === $meta ) {
+                $plugin_template = DD_TEMPLATES_DIR . 'page-simple.php';
                 if ( file_exists( $plugin_template ) ) {
                     return $plugin_template;
                 }
@@ -192,7 +199,8 @@ class DD_Template_Module extends DD_Module {
         if ( is_page( 'my-account' ) )            return true;
         if ( is_page() ) {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
-            if ( 'page-dishdash.php' === $meta )  return true;
+            if ( 'page-dishdash.php' === $meta ) return true;
+            if ( 'page-simple.php'   === $meta ) return true;
         }
         return false;
     }
@@ -214,6 +222,19 @@ class DD_Template_Module extends DD_Module {
             [ 'dish-dash-frontend' ],
             DD_VERSION
         );
+
+        if ( is_page() ) {
+            $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
+            if ( 'page-simple.php' === $meta ) {
+                wp_enqueue_style(
+                    'dd-simple-page',
+                    $this->asset_url( 'css', 'simple-page.css' ),
+                    [],
+                    DD_VERSION
+                );
+            }
+        }
+
         wp_enqueue_script( 'dish-dash-menu',     $this->asset_url( 'js', 'menu.js' ),     [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-search',   $this->asset_url( 'js', 'search.js' ),   [], DD_VERSION, true );

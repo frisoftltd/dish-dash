@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.40 (2026-06-09)
+> Last updated: v3.5.41 (2026-06-09)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.40 |
+| **Deployed version** | v3.5.41 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.41 — TBD |
-| **Last working state** | v3.5.40: stepper double-tap zoom fix — touch-action: manipulation added to .dd-res-stepper and .dd-res-stepper__btn. |
+| **Next task** | v3.5.42 — TBD |
+| **Last working state** | v3.5.41: simple page template — templates/page-simple.php + assets/css/simple-page.css + registered in template module (register, load, is_dishdash_page, enqueue). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -611,7 +611,8 @@ Every page before shipping must pass:
 | **v3.5.38** | ✅ **Done** | **Fix: search results click handler (delegated listener on searchResultsList) + iOS zoom (16px font-size on input + quick-add, touch-action: manipulation)** |
 | **v3.5.39** | ✅ **Done** | **Fix: reservation page iOS zoom — 16px font-size + touch-action: manipulation on toggle btn, slot, back btn, select, input** |
 | **v3.5.40** | ✅ **Done** | **Fix: stepper double-tap zoom — touch-action: manipulation on .dd-res-stepper container and .dd-res-stepper__btn** |
-| v3.5.41 | ⏳ **NEXT** | TBD |
+| **v3.5.41** | ✅ **Done** | **Feat: Dish Dash Simple Page template — page-simple.php + simple-page.css, registered + loaded + enqueued in template module** |
+| v3.5.42 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
