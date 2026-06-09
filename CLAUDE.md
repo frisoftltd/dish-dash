@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.30 (2026-06-08)
+> Last updated: v3.5.31 (2026-06-09)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.30 |
+| **Deployed version** | v3.5.31 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.31 — TBD |
-| **Last working state** | v3.5.30: fix order notifications not removed from panel and localStorage on click — orders branch now removes from notifications[] array, persists to localStorage, and calls self.remove() to clear DOM element, matching reservation branch behaviour. |
+| **Next task** | v3.5.32 — TBD |
+| **Last working state** | v3.5.31: tablet dead-zone fix — all mobile breakpoints raised to 1024px (from 860px/680px/769px/768px) so iPad Air 5 (820×1180) and any viewport ≤1024px gets the full mobile layout including bottom nav, floating cart, hamburger nav, and mobile search UI. Also tightened single-column menu grid to 480px (phones only). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -601,7 +601,8 @@ Every page before shipping must pass:
 | **v3.5.28** | ✅ **Done** | **Fix: git rm cart.min.js + reservations.min.js — stale minified files were overriding source .js edits via asset_url() file_exists() check** |
 | **v3.5.29** | ✅ **Done** | **Fix: quantity always 1 from product modal — PHP read 'quantity' but JS sent 'qty'; now accepts both** |
 | **v3.5.30** | ✅ **Done** | **Fix: order notifications not removed from panel and localStorage on click — remove from array, persist, remove DOM element** |
-| v3.5.31 | ⏳ **NEXT** | TBD |
+| **v3.5.31** | ✅ **Done** | **Fix: tablet dead-zone — raise all mobile breakpoints to 1024px (theme.css + frontend.css + frontend.js) so iPad Air 5 gets full mobile layout** |
+| v3.5.32 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

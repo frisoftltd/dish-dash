@@ -1146,7 +1146,7 @@ body.dd-page .ast-header-woo-cart {
 }
 
 /* Mobile: horizontal scroll */
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
     .dd-selcat__tabs {
         flex-wrap: nowrap;
         overflow-x: auto;
@@ -1194,7 +1194,7 @@ body.dd-page .ast-header-woo-cart {
     justify-content: flex-end;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
     .dd-selcat__scroll-hint {
         display: flex;
     }
@@ -1443,7 +1443,7 @@ body.dd-page .ast-header-woo-cart {
 .dd-field--full { grid-column: 1 / -1; resize: vertical; }
 
 /* Mobile — single column for ALL screen sizes below 860px */
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
     .dd-reserve__grid {
         grid-template-columns: 1fr;
         gap: 28px;
@@ -1792,7 +1792,7 @@ body.dd-page .ast-header-woo-cart {
    DESKTOP GRID — Featured & Category (> 860px)
    Mobile keeps horizontal scroll row (unchanged)
 ───────────────────────────────────────────────────────────── */
-@media (min-width: 861px) {
+@media (min-width: 1025px) {
     /* Featured dishes — desktop grid */
     #ddFeatRow {
         display: grid !important;
@@ -1903,7 +1903,7 @@ body.dd-page .ast-header-woo-cart {
 /* ─────────────────────────────────────────────────────────────
    RESPONSIVE — MOBILE (≤ 860px)
 ───────────────────────────────────────────────────────────── */
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
     /* Mobile header adjustments */
     .dd-header__inner {
         grid-template-columns: auto 1fr auto !important;
@@ -2008,7 +2008,7 @@ body.dd-page .ast-header-woo-cart {
 /* ─────────────────────────────────────────────────────────────
    RESPONSIVE — SMALL MOBILE (≤ 680px)
 ───────────────────────────────────────────────────────────── */
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
     /* Selected category — single horizontal scroll row on mobile */
     #category-dishes .dd-cat-row:not([hidden]) {
         display: flex !important;
@@ -2030,7 +2030,7 @@ body.dd-page .ast-header-woo-cart {
     }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 1024px) {
     body.dd-page { padding-bottom: 88px; }
 
     .dd-container { width: min(var(--dd-container), calc(100% - 20px)); }
@@ -2169,7 +2169,7 @@ body.dd-page .ast-header-woo-cart {
     padding-right: calc((100vw - 100%) / 2);
     width: 100vw;
 }
-@media (max-width: 680px) {
+@media (max-width: 1024px) {
     .dd-smart-search.sticky { top: 58px; }
 }
 
@@ -2385,7 +2385,7 @@ body.dd-page .ast-header-woo-cart {
 }
 
 /* Mobile */
-@media (max-width: 680px) {
+@media (max-width: 1024px) {
     .dd-ss-section { margin-top: 16px; }
     .dd-ss__bar { height: 50px; padding: 0 14px; gap: 8px; }
     .dd-ss__input { font-size: 14px; }
@@ -2920,22 +2920,22 @@ body.dd-page .ast-header-woo-cart {
 .dd-mobile-search-trigger:hover { background: rgba(107,29,29,0.08); }
 
 /* Desktop: hide mobile elements, show desktop elements */
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
     .dd-mobile-search-trigger { display: none !important; }
     .dd-mobile-search-panel   { display: none !important; }
 }
 
 /* Desktop-only / Mobile-only utility classes (860px breakpoint) */
-@media (max-width: 860px) {
+@media (max-width: 1024px) {
     .dd-desktop-only { display: none !important; }
 }
 
-@media (min-width: 861px) {
+@media (min-width: 1025px) {
     .dd-mobile-only { display: none !important; }
 }
 
 /* Mobile: hide desktop search */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .dd-desktop-search { display: none !important; }
 }
 

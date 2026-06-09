@@ -258,7 +258,7 @@
 
 /* ── Responsive ── */
 @media (max-width: 1024px) { .dd-menu-grid { --dd-cols: 2 !important; } }
-@media (max-width: 600px)  {
+@media (max-width: 480px)  {
     .dd-menu-grid { --dd-cols: 1 !important; }
     .dd-filter-bar { gap: .4rem; }
     .dd-filter-btn { font-size: .76rem; padding: .35rem .9rem; }

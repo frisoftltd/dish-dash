@@ -360,7 +360,7 @@
                 });
 
                 if (!filter) {
-                    if (window.innerWidth > 860) applyGridLoadMore(featRow, 'ddFeatLoadMoreFiltered', 8);
+                    if (window.innerWidth > 1024) applyGridLoadMore(featRow, 'ddFeatLoadMoreFiltered', 8);
                     return;
                 }
 
@@ -375,7 +375,7 @@
                     }
                 });
 
-                if (window.innerWidth > 860 && matching.length > 8) {
+                if (window.innerWidth > 1024 && matching.length > 8) {
                     matching.forEach(function(card, i) {
                         if (i >= 8) card.classList.add('dd-card-hidden');
                     });
@@ -414,7 +414,7 @@
        DESKTOP GRID + LOAD MORE
     ══════════════════════════════════════════════════════════ */
     function setupDesktopGrid() {
-        if (window.innerWidth <= 860) return;
+        if (window.innerWidth <= 1024) return;
 
         var PER_PAGE = 8;
         var featRow = $('ddFeatRow');
