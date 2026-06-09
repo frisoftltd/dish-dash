@@ -331,6 +331,22 @@ class DDMobileMenu {
             });
         }
 
+        // Search results list click — mirrors productList listener but no desktop modal branch
+        if (this.elements.searchResultsList) {
+            this.elements.searchResultsList.addEventListener('click', (e) => {
+                const quickAdd = e.target.closest('.dd-mobile-product-card__quick-add');
+                if (quickAdd) {
+                    e.stopPropagation();
+                    const card = quickAdd.closest('.dd-mobile-product-card');
+                    this.showProductDetails(card.dataset.id);
+                    return;
+                }
+                const card = e.target.closest('.dd-mobile-product-card');
+                if (!card) return;
+                this.showProductDetails(card.dataset.id);
+            });
+        }
+
         // Single product interactions
         if (this.elements.singleProduct.heart) {
             this.elements.singleProduct.heart.addEventListener('click', () => {

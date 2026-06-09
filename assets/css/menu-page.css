@@ -196,7 +196,7 @@
     flex: 1;
     border: none;
     outline: none;
-    font-size: 14px;
+    font-size: 16px;
     color: #333;
     background: transparent;
   }
@@ -296,7 +296,7 @@
     flex-shrink: 0;
     padding: 7px 16px;
     border-radius: 20px;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 500;
     cursor: pointer;
     border: 1.5px solid #e0d5c8;
@@ -307,6 +307,7 @@
     min-height: 44px;
     display: flex;
     align-items: center;
+    touch-action: manipulation;
   }
   .dd-mobile-cat-pill.is-active {
     background: #E8832A;
@@ -418,11 +419,12 @@
     border: none;
     border-radius: 20px;
     padding: 7px 14px;
-    font-size: 12px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     min-height: 36px;
     transition: background 0.2s ease;
+    touch-action: manipulation;
   }
   .dd-mobile-product-card__quick-add:active { background: #4a0209; }
 
@@ -556,11 +558,12 @@
     padding: 5px 12px;
     border-radius: 20px;
     border: 1.5px solid #e0d5c8;
-    font-size: 12px;
+    font-size: 16px;
     color: #555;
     background: #F5EFE6;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
+    touch-action: manipulation;
   }
   .dd-mobile-attr-pill.is-active {
     background: #65040d;
@@ -583,10 +586,11 @@
     background: none;
     border: none;
     color: #E8832A;
-    font-size: 13px;
+    font-size: 16px;
     font-weight: 500;
     cursor: pointer;
     padding: 4px 0;
+    touch-action: manipulation;
   }
   /* Add to Cart — sticky at bottom of content panel */
   .dd-mobile-single__add-to-cart {

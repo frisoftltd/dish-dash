@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.37 (2026-06-09)
+> Last updated: v3.5.38 (2026-06-09)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.37 |
+| **Deployed version** | v3.5.38 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.38 — TBD |
-| **Last working state** | v3.5.37: add .dd-mobile-cats-empty CSS rule (14px/#888/padding 0 20px) to match .dd-mobile-search-results__empty styling. |
+| **Next task** | v3.5.39 — TBD |
+| **Last working state** | v3.5.38: fix search results clicks (delegated listener on searchResultsList) + iOS zoom fix (search input and quick-add button raised to 16px, touch-action: manipulation on button). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -608,7 +608,8 @@ Every page before shipping must pass:
 | **v3.5.35** | ✅ **Done** | **Feat: style search results section — .dd-mobile-search-results CSS inside mobile media block in menu-page.css** |
 | **v3.5.36** | ✅ **Done** | **Fix: Dishes heading updated to match FOOD CATEGORY label (13px/600/0.5px letter-spacing)** |
 | **v3.5.37** | ✅ **Done** | **Fix: add .dd-mobile-cats-empty CSS rule — was unstyled since v3.5.33** |
-| v3.5.38 | ⏳ **NEXT** | TBD |
+| **v3.5.38** | ✅ **Done** | **Fix: search results click handler (delegated listener on searchResultsList) + iOS zoom (16px font-size on input + quick-add, touch-action: manipulation)** |
+| v3.5.39 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
