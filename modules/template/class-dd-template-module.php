@@ -828,6 +828,8 @@ class DD_Template_Module extends DD_Module {
                         <li><a href="<?php echo esc_url( home_url('/restaurant-menu/') ); ?>">Our Menu</a></li>
                         <li><a href="<?php echo esc_url( home_url('/#reserve') ); ?>" class="js-open-reservation">Reserve Table</a></li>
                         <li><a href="<?php echo esc_url( $orders_url ); ?>">Track Order</a></li>
+                        <li><a href="<?php echo esc_url( home_url('/privacy-policy/') ); ?>">Privacy Policy</a></li>
+                        <li><a href="<?php echo esc_url( home_url('/refund_returns/') ); ?>">Refund &amp; Returns</a></li>
                     </ul>
                 </div>
 
