@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.35 (2026-06-09)
+> Last updated: v3.5.36 (2026-06-09)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.35 |
+| **Deployed version** | v3.5.36 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.36 — TBD |
-| **Last working state** | v3.5.35: style search results section — .dd-mobile-search-results rules added inside max-width: 1024px block in menu-page.css (heading uppercase label, list padding, empty state). |
+| **Next task** | v3.5.37 — TBD |
+| **Last working state** | v3.5.36: fix Dishes heading to match FOOD CATEGORY label — .dd-mobile-search-results__heading updated to 13px/600/0.5px letter-spacing, matching .dd-mobile-section-label exactly. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -606,7 +606,8 @@ Every page before shipping must pass:
 | **v3.5.33** | ✅ **Done** | **Feat: mobile menu category search — filterCategories(), screen-aware input routing, back button clears search, no-results element** |
 | **v3.5.34** | ✅ **Done** | **Feat: product search results on Screen 1 — searchProducts(), debounce helper, search results section in grid.php, back button clears results** |
 | **v3.5.35** | ✅ **Done** | **Feat: style search results section — .dd-mobile-search-results CSS inside mobile media block in menu-page.css** |
-| v3.5.36 | ⏳ **NEXT** | TBD |
+| **v3.5.36** | ✅ **Done** | **Fix: Dishes heading updated to match FOOD CATEGORY label (13px/600/0.5px letter-spacing)** |
+| v3.5.37 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

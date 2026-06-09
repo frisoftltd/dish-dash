@@ -679,17 +679,17 @@
 
   /* Search results section */
   .dd-mobile-search-results {
-    margin-top: 4px;
+    margin-top: 8px;
     padding: 0;
   }
   .dd-mobile-search-results__heading {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    padding: 8px 20px 4px;
+    font-size: 13px;
+    font-weight: 600;
     color: #888;
-    padding: 0 20px;
-    margin: 0 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: block;
   }
   .dd-mobile-search-results__list {
     padding: 0 20px;
