@@ -694,6 +694,12 @@
   .dd-mobile-search-results__list {
     padding: 0 20px;
   }
+  .dd-mobile-cats-empty {
+    font-size: 14px;
+    color: #888;
+    padding: 0 20px;
+    margin: 0;
+  }
   .dd-mobile-search-results__empty {
     font-size: 14px;
     color: #888;
