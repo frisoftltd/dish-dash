@@ -193,8 +193,9 @@ class DDMobileMenu {
         };
 
         this.elements = {
-            catList: document.getElementById('dd-mobile-cat-list'),
-            catPills: document.getElementById('dd-mobile-cat-pills'),
+            catList:   document.getElementById('dd-mobile-cat-list'),
+            catsEmpty: document.querySelector('.dd-mobile-cats-empty'),
+            catPills:  document.getElementById('dd-mobile-cat-pills'),
             productList: document.getElementById('dd-mobile-product-list'),
             backToCats: document.getElementById('dd-mobile-back-to-cats'),
             backToProducts: document.getElementById('dd-mobile-back-to-products'),
@@ -254,7 +255,11 @@ class DDMobileMenu {
 
         // Back buttons
         if (this.elements.backToCats) {
-            this.elements.backToCats.addEventListener('click', () => this.showScreen('categories'));
+            this.elements.backToCats.addEventListener('click', () => {
+                this.showScreen('categories');
+                if (this.elements.searchInput) this.elements.searchInput.value = '';
+                this.filterCategories();
+            });
         }
         if (this.elements.backToProducts) {
             this.elements.backToProducts.addEventListener('click', () => this.showScreen('products'));
@@ -382,7 +387,12 @@ class DDMobileMenu {
         // Search
         if (this.elements.searchInput) {
             this.elements.searchInput.addEventListener('input', () => {
-                this.filterProducts();
+                const onCategoryScreen = document.querySelector('.dd-mobile-screen--categories.is-active');
+                if (onCategoryScreen) {
+                    this.filterCategories();
+                } else {
+                    this.filterProducts();
+                }
             });
         }
 
@@ -736,6 +746,28 @@ class DDMobileMenu {
         );
 
         this.renderProductList(filtered);
+    }
+
+    filterCategories() {
+        const term = this.elements.searchInput
+            ? this.elements.searchInput.value.toLowerCase().trim()
+            : '';
+
+        if (!this.elements.catList) return;
+
+        const items = this.elements.catList.querySelectorAll('.dd-mobile-category-item');
+        let visibleCount = 0;
+
+        items.forEach(item => {
+            const name = item.querySelector('.dd-mobile-category-item__name');
+            const match = !term || (name && name.textContent.toLowerCase().includes(term));
+            item.style.display = match ? '' : 'none';
+            if (match) visibleCount++;
+        });
+
+        if (this.elements.catsEmpty) {
+            this.elements.catsEmpty.style.display = visibleCount === 0 ? 'block' : 'none';
+        }
     }
 
     updateCartCount(count) {

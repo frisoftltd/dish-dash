@@ -225,6 +225,7 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
       </li>
       <?php endforeach; ?>
     </ul>
+    <p class="dd-mobile-cats-empty" style="display:none;">No categories found</p>
   </div><!-- /screen--categories -->
 
   <!-- SCREEN 2: Product List -->
