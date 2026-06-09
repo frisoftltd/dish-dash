@@ -386,9 +386,9 @@ dish-dash/
 | **Phase 5B** | ✅ | Admin layout shell — dark sidebar, top bar, brand injection |
 | **Phase 5C** | ✅ | Brand Identity page, Template card picker |
 | **Phase 5D** | ✅ | Full admin redesign + frontend template system |
-| **Phase 6** | ⏳ | MoMo Payment Integration — MTN Mobile Money payment gateway, in-drawer payment flow |
+| **Phase 6** | ⏳ | MoMo Payment Integration — MTN Mobile Money payment gateway, in-drawer payment flow ← CURRENT |
 | **Phase 7** | ⏳ | User Access Control — customer profiles, roles, permissions, order history |
-| **Phase 8** | ⏳ | Analytics + AI — Python microservice, behavior engine, recommendations ← CURRENT |
+| **Phase 8** | ⏳ | Analytics + AI — Python microservice, behavior engine, recommendations |
 | **Phase 9** | ⏳ | Loyalty & QR — points system, QR scan ordering |
 | **Phase 10** | ⏳ | Testing + Optimization |
 | **Phase 11** | ⏳ | SaaS Platform — multi-tenant, subscription billing, white-label |
