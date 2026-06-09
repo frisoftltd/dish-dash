@@ -300,7 +300,7 @@ class DDMobileMenu {
                 if (!card) return;
 
                 // Desktop: use the shared product modal instead of mobile screen nav
-                if (window.innerWidth >= 768) {
+                if (window.innerWidth >= 1025) {
                     document.dispatchEvent(new CustomEvent('dd:open-modal', { detail: { productId: card.dataset.id } }));
                     return;
                 }
