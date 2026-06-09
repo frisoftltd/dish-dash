@@ -226,6 +226,11 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
       <?php endforeach; ?>
     </ul>
     <p class="dd-mobile-cats-empty" style="display:none;">No categories found</p>
+    <div class="dd-mobile-search-results" id="dd-mobile-search-results" style="display:none;">
+        <p class="dd-mobile-search-results__heading">Dishes</p>
+        <ul class="dd-mobile-product-list dd-mobile-search-results__list" id="dd-mobile-search-results-list"></ul>
+        <p class="dd-mobile-search-results__empty" style="display:none;">No dishes found</p>
+    </div>
   </div><!-- /screen--categories -->
 
   <!-- SCREEN 2: Product List -->

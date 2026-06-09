@@ -185,6 +185,14 @@ class DDMobileMenu {
         this.loadInitialData();
     }
 
+    debounce(fn, delay) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), delay);
+        };
+    }
+
     initElements() {
         this.screens = {
             categories: document.querySelector('.dd-mobile-screen--categories'),
@@ -193,9 +201,12 @@ class DDMobileMenu {
         };
 
         this.elements = {
-            catList:   document.getElementById('dd-mobile-cat-list'),
-            catsEmpty: document.querySelector('.dd-mobile-cats-empty'),
-            catPills:  document.getElementById('dd-mobile-cat-pills'),
+            catList:            document.getElementById('dd-mobile-cat-list'),
+            catsEmpty:          document.querySelector('.dd-mobile-cats-empty'),
+            searchResultsWrap:  document.getElementById('dd-mobile-search-results'),
+            searchResultsList:  document.getElementById('dd-mobile-search-results-list'),
+            searchResultsEmpty: document.querySelector('.dd-mobile-search-results__empty'),
+            catPills:           document.getElementById('dd-mobile-cat-pills'),
             productList: document.getElementById('dd-mobile-product-list'),
             backToCats: document.getElementById('dd-mobile-back-to-cats'),
             backToProducts: document.getElementById('dd-mobile-back-to-products'),
@@ -259,6 +270,7 @@ class DDMobileMenu {
                 this.showScreen('categories');
                 if (this.elements.searchInput) this.elements.searchInput.value = '';
                 this.filterCategories();
+                this.searchProducts();
             });
         }
         if (this.elements.backToProducts) {
@@ -386,14 +398,17 @@ class DDMobileMenu {
 
         // Search
         if (this.elements.searchInput) {
-            this.elements.searchInput.addEventListener('input', () => {
+            const debouncedSearch = this.debounce(() => {
                 const onCategoryScreen = document.querySelector('.dd-mobile-screen--categories.is-active');
                 if (onCategoryScreen) {
                     this.filterCategories();
+                    this.searchProducts();
                 } else {
                     this.filterProducts();
                 }
-            });
+            }, 300);
+
+            this.elements.searchInput.addEventListener('input', debouncedSearch);
         }
 
         if (this.elements.searchClear) {
@@ -768,6 +783,47 @@ class DDMobileMenu {
         if (this.elements.catsEmpty) {
             this.elements.catsEmpty.style.display = visibleCount === 0 ? 'block' : 'none';
         }
+    }
+
+    searchProducts() {
+        const term = this.elements.searchInput
+            ? this.elements.searchInput.value.toLowerCase().trim()
+            : '';
+
+        const wrap  = this.elements.searchResultsWrap;
+        const list  = this.elements.searchResultsList;
+        const empty = this.elements.searchResultsEmpty;
+
+        if (!wrap || !list) return;
+
+        // Hide results section when search is empty
+        if (!term) {
+            wrap.style.display = 'none';
+            list.innerHTML = '';
+            return;
+        }
+
+        // Filter products by name
+        const matches = (this.products || []).filter(p =>
+            p.name && p.name.toLowerCase().includes(term)
+        );
+
+        wrap.style.display = 'block';
+
+        if (matches.length === 0) {
+            list.innerHTML = '';
+            if (empty) empty.style.display = 'block';
+            return;
+        }
+
+        if (empty) empty.style.display = 'none';
+
+        // Reuse existing renderProductList() to build the HTML
+        // Temporarily swap the list element, render, then restore
+        const originalList = this.elements.productList;
+        this.elements.productList = list;
+        this.renderProductList(matches);
+        this.elements.productList = originalList;
     }
 
     updateCartCount(count) {

@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.5.33 (2026-06-09)
+> Last updated: v3.5.34 (2026-06-09)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.5.33 |
+| **Deployed version** | v3.5.34 |
 | **Current phase** | Phase 5D — Full Admin Redesign + Frontend Template System |
 | **Current sub-phase** | Part 1 — Admin Pages Redesign (in progress) |
-| **Next task** | v3.5.34 — TBD |
-| **Last working state** | v3.5.33: wire up mobile menu category search — filterCategories() method filters .dd-mobile-category-item rows in real time; input listener routes to filterCategories() on Screen 1 or filterProducts() on Screen 2; back button clears search; no-results element added to grid.php. |
+| **Next task** | v3.5.35 — TBD |
+| **Last working state** | v3.5.34: product search results on Screen 1 — searchProducts() filters this.products client-side, renders via renderProductList() swap trick, debounce(300ms) on input, back button clears results; search results section added to grid.php. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -604,7 +604,8 @@ Every page before shipping must pass:
 | **v3.5.31** | ✅ **Done** | **Fix: tablet dead-zone — raise all mobile breakpoints to 1024px (theme.css + frontend.css + frontend.js) so iPad Air 5 gets full mobile layout** |
 | **v3.5.32** | ✅ **Done** | **Fix: menu page tablet — raise menu-page.css breakpoints (767→1024, 768→1025 ×3, 901→1025) and menu-page.js >= 768 → >= 1025** |
 | **v3.5.33** | ✅ **Done** | **Feat: mobile menu category search — filterCategories(), screen-aware input routing, back button clears search, no-results element** |
-| v3.5.34 | ⏳ **NEXT** | TBD |
+| **v3.5.34** | ✅ **Done** | **Feat: product search results on Screen 1 — searchProducts(), debounce helper, search results section in grid.php, back button clears results** |
+| v3.5.35 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
