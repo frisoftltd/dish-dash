@@ -676,6 +676,30 @@
 
   /* Hide .dd-mobile-app on desktop (redundant safety) */
   /* This rule lives INSIDE the @media block — already scoped */
+
+  /* Search results section */
+  .dd-mobile-search-results {
+    margin-top: 4px;
+    padding: 0;
+  }
+  .dd-mobile-search-results__heading {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #888;
+    padding: 0 20px;
+    margin: 0 0 12px 0;
+  }
+  .dd-mobile-search-results__list {
+    padding: 0 20px;
+  }
+  .dd-mobile-search-results__empty {
+    font-size: 14px;
+    color: #888;
+    padding: 0 20px;
+    margin: 0;
+  }
 }
 
 /* Outside media query: hide mobile app on desktop by default */
