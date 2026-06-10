@@ -837,6 +837,14 @@ body.dd-cart-open .dd-bottom-nav {
     color: #333;
 }
 
+.dd-payment-option__logo {
+    width: auto;
+    height: 32px;
+    max-width: 80px;
+    object-fit: contain;
+    display: block;
+}
+
 /* ── Footer totals + place order ── */
 .dd-checkout-total-line,
 .dd-checkout-delivery-line {

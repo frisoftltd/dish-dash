@@ -261,19 +261,28 @@ class DD_Template_Module extends DD_Module {
             'paymentGateways'       => (function() {
                 if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];
                 $gateways = WC()->payment_gateways->get_available_payment_gateways();
-                $icons = [
+                $icon_urls = [
+                    'mtn_momo'  => 'MOMO_LOGO_URL',
+                    'irembopay' => 'IREMBOPAY_LOGO_URL',
+                    'cod'       => '',
+                    'bacs'      => '',
+                    'cheque'    => '',
+                ];
+                $icon_emojis = [
                     'cod'    => '🛵',
                     'bacs'   => '🏦',
                     'cheque' => '📝',
-                    'stripe' => '💳',
-                    'paypal' => '🅿️',
                 ];
                 $out = [];
                 foreach ( $gateways as $id => $gw ) {
+                    if ( $id === 'irembopay' ) {
+                        wp_enqueue_script( 'irembopay-inline', 'https://dashboard.irembopay.com/assets/payment/inline.js', [], null, true );
+                    }
                     $out[] = [
-                        'id'    => $id,
-                        'title' => $gw->get_title(),
-                        'icon'  => $icons[ $id ] ?? '💳',
+                        'id'      => $id,
+                        'title'   => $gw->get_title(),
+                        'icon'    => $icon_emojis[ $id ] ?? '',
+                        'iconUrl' => $icon_urls[ $id ] ?? '',
                     ];
                 }
                 return $out;

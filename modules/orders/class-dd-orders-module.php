@@ -76,7 +76,8 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_get_order',         [ $this, 'ajax_get_order' ] );
         DD_Ajax::register( 'dd_cancel_order',      [ $this, 'ajax_cancel_order' ] );
         DD_Ajax::register( 'dd_update_status',     [ $this, 'ajax_update_status' ], false );
-        DD_Ajax::register( 'dd_momo_check_status', [ $this, 'ajax_momo_check_status' ], true );
+        DD_Ajax::register( 'dd_momo_check_status',   [ $this, 'ajax_momo_check_status' ],   true );
+        DD_Ajax::register( 'dd_irembopay_confirm',   [ $this, 'ajax_irembopay_confirm' ],   true );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
         add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
@@ -858,6 +859,112 @@ class DD_Orders_Module extends DD_Module {
             return;
         }
 
+        // ─── 4b. IremboPay — in-drawer, no WC redirect ───────────────
+        if ( 'irembopay' === $payment_method ) {
+            if ( ! class_exists( 'IremboPay_API' ) ) {
+                wp_send_json_error( [ 'message' => 'IremboPay plugin is not active.' ] );
+                return;
+            }
+
+            $irembopay_settings = get_option( 'woocommerce_irembopay_settings', [] );
+            $secret_key         = $irembopay_settings['secret_key']           ?? '';
+            $public_key         = $irembopay_settings['public_key']           ?? '';
+            $payment_identifier = $irembopay_settings['payment_identifier']   ?? '';
+            $product_code       = $irembopay_settings['product_code']         ?? '';
+            $expiry_hours       = (int) ( $irembopay_settings['invoice_expiry_hours'] ?? 24 );
+
+            if ( empty( $secret_key ) || empty( $public_key ) ) {
+                wp_send_json_error( [ 'message' => 'IremboPay is not configured. Please contact the restaurant.' ] );
+                return;
+            }
+
+            // Create DD order first
+            $result = $this->place_order( [
+                'customer_name'    => $customer_name,
+                'customer_phone'   => $whatsapp,
+                'customer_email'   => '',
+                'order_type'       => 'delivery',
+                'items'            => $summary['items'],
+                'delivery_fee'     => $delivery_fee,
+                'payment_method'   => 'irembopay',
+                'delivery_address' => $delivery_address,
+            ] );
+
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+                return;
+            }
+
+            $order_id     = $result['order_id'];
+            $order_number = $result['order_number'];
+            $total        = $result['total'];
+
+            // Build invoice line items from cart
+            $invoice_items = [];
+            foreach ( $summary['items'] as $item ) {
+                $addon_total = array_sum( array_column( $item['addons'] ?? [], 'price' ) );
+                $unit_amount = (int) round( (float) $item['price'] + $addon_total );
+                $line        = [
+                    'unitAmount' => $unit_amount,
+                    'quantity'   => (int) ( $item['qty'] ?? 1 ),
+                ];
+                if ( ! empty( $product_code ) ) {
+                    $line['code'] = $product_code;
+                }
+                $invoice_items[] = $line;
+            }
+
+            // Add delivery fee as a line item if applicable
+            if ( $delivery_fee > 0 ) {
+                $fee_line = [ 'unitAmount' => (int) round( $delivery_fee ), 'quantity' => 1 ];
+                if ( ! empty( $product_code ) ) {
+                    $fee_line['code'] = $product_code;
+                }
+                $invoice_items[] = $fee_line;
+            }
+
+            $expiry_at = ( new DateTime( 'now', new DateTimeZone( wp_timezone_string() ) ) )
+                ->modify( "+{$expiry_hours} hours" )
+                ->format( DateTime::ATOM );
+
+            $invoice_data = [
+                'transactionId'            => sprintf( 'DD-%d-%s', $order_id, wp_generate_password( 8, false ) ),
+                'paymentAccountIdentifier' => $payment_identifier,
+                'customer'                 => [
+                    'phoneNumber' => $whatsapp,
+                    'name'        => $customer_name,
+                ],
+                'paymentItems' => $invoice_items,
+                'description'  => 'Dish Dash order #' . $order_number,
+                'language'     => 'EN',
+                'expiryAt'     => $expiry_at,
+            ];
+
+            $api      = new IremboPay_API( $secret_key );
+            $response = $api->create_invoice( $invoice_data );
+
+            if ( empty( $response['success'] ) || empty( $response['data']['invoiceNumber'] ) ) {
+                wp_send_json_error( [ 'message' => 'IremboPay invoice creation failed: ' . ( $response['message'] ?? 'Unknown error' ) ] );
+                return;
+            }
+
+            $invoice_number = $response['data']['invoiceNumber'];
+            set_transient( 'dd_irembopay_invoice_' . $order_id, $invoice_number, 2 * HOUR_IN_SECONDS );
+
+            $cart->clear();
+            DD_Customer_Manager::upsert( $whatsapp, $customer_name, $delivery_address, (float) $total );
+
+            wp_send_json_success( [
+                'irembopay'      => true,
+                'order_id'       => $order_id,
+                'order_number'   => $order_number,
+                'total'          => $total,
+                'invoice_number' => $invoice_number,
+                'public_key'     => $public_key,
+            ] );
+            return;
+        }
+
         if ( $is_online ) {
             // --- ONLINE GATEWAY FLOW ---
             // Create DD order first (status: pending_payment)
@@ -1062,6 +1169,37 @@ class DD_Orders_Module extends DD_Module {
 
         // Still PENDING
         wp_send_json_success( [ 'paid' => false, 'status' => 'PENDING' ] );
+    }
+
+    public function ajax_irembopay_confirm(): void {
+        DD_Ajax::verify_nonce();
+
+        $order_id       = absint( $_POST['order_id']       ?? 0 );
+        $invoice_number = sanitize_text_field( $_POST['invoice_number'] ?? '' );
+
+        if ( ! $order_id || ! $invoice_number ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        $stored = get_transient( 'dd_irembopay_invoice_' . $order_id );
+        if ( $stored !== $invoice_number ) {
+            wp_send_json_error( [ 'message' => 'Invoice mismatch.' ] );
+            return;
+        }
+
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'dishdash_orders',
+            [ 'status' => 'confirmed', 'payment_status' => 'paid' ],
+            [ 'id'     => $order_id ],
+            [ '%s', '%s' ],
+            [ '%d' ]
+        );
+        delete_transient( 'dd_irembopay_invoice_' . $order_id );
+        do_action( 'dish_dash_order_confirmed', $order_id );
+
+        wp_send_json_success( [ 'confirmed' => true ] );
     }
 
     public function ajax_cancel_order(): void {

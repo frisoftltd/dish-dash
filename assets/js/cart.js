@@ -70,6 +70,30 @@
                 '</div>';
             drawer.appendChild( mp );
             panelMomo = mp;
+
+            // Inject IremboPay waiting panel as 5th drawer panel
+            var ip        = document.createElement( 'div' );
+            ip.id         = 'ddPanelIremboPay';
+            ip.className  = 'dd-cart-panel dd-cart-panel--hidden';
+            ip.setAttribute( 'data-panel', 'irembopay' );
+            ip.innerHTML =
+                '<div class="dd-checkout-panel__header">' +
+                    '<button class="dd-checkout-panel__back" id="ddIremboBack" type="button">&#8592; Back</button>' +
+                    '<span class="dd-checkout-panel__title">IremboPay</span>' +
+                '</div>' +
+                '<div class="dd-momo-waiting">' +
+                    '<div class="dd-momo-spinner"></div>' +
+                    '<p class="dd-momo-title">Complete your payment</p>' +
+                    '<p class="dd-momo-subtitle">The IremboPay payment window will open shortly.<br>Complete your payment to confirm your order.</p>' +
+                    '<div class="dd-momo-order-info">' +
+                        '<span id="ddIremboOrderNum"></span>' +
+                        '<span id="ddIremboTotal"></span>' +
+                    '</div>' +
+                    '<p class="dd-momo-status" id="ddIremboStatus">Opening payment window…</p>' +
+                    '<button class="dd-momo-cancel" id="ddIremboCancel" type="button">Cancel</button>' +
+                '</div>';
+            drawer.appendChild( ip );
+            panelIremboPay = ip;
         }
 
         fetchCart( false ); // silent fetch on load to update badges only
@@ -200,6 +224,14 @@
                 if ( statusEl ) {
                     statusEl.textContent = 'Waiting for approval…';
                     statusEl.style.color = '';
+                }
+                showPanel( panelCheckout );
+            }
+            if ( e.target && ( e.target.id === 'ddIremboCancel' || e.target.id === 'ddIremboBack' ) ) {
+                var iremboStatusEl = document.getElementById( 'ddIremboStatus' );
+                if ( iremboStatusEl ) {
+                    iremboStatusEl.textContent = 'Opening payment window…';
+                    iremboStatusEl.style.color = '';
                 }
                 showPanel( panelCheckout );
             }
@@ -457,13 +489,14 @@
     var panelCheckout     = document.getElementById( 'ddPanelCheckout' );
     var panelConfirmation = document.getElementById( 'ddPanelConfirmation' );
     var panelMomo         = null; // injected into DOM at DOMContentLoaded
+    var panelIremboPay    = null; // injected into DOM at DOMContentLoaded
 
     var currentOrderId     = null;
     var currentOrderNumber = null;
     var currentReferenceId = null;
 
     function showPanel( panelEl ) {
-        [ panelCart, panelCheckout, panelConfirmation, panelMomo ].forEach( function ( p ) {
+        [ panelCart, panelCheckout, panelConfirmation, panelMomo, panelIremboPay ].forEach( function ( p ) {
             if ( p ) p.classList.add( 'dd-cart-panel--hidden' );
         } );
         if ( panelEl ) panelEl.classList.remove( 'dd-cart-panel--hidden' );
@@ -497,7 +530,11 @@
                     return '<label class="dd-payment-option">' +
                         '<input type="radio" name="payment_method" value="' + escHtml( gw.id ) + '"' + ( i === 0 ? ' checked' : '' ) + '>' +
                         '<span class="dd-payment-option__card">' +
-                        '<span class="dd-payment-option__icon">' + gw.icon + '</span>' +
+                        '<span class="dd-payment-option__icon">' +
+                            ( gw.iconUrl
+                                ? '<img src="' + gw.iconUrl + '" alt="' + escHtml( gw.title ) + '" class="dd-payment-option__logo">'
+                                : gw.icon ) +
+                        '</span>' +
                         '<span class="dd-payment-option__text">' + escHtml( gw.title ) + '</span>' +
                         '</span></label>';
                 } ).join( '' );
@@ -641,6 +678,43 @@
                     placeOrderBtn.textContent = 'Place Order →';
                     showPanel( panelMomo );
                     startMomoPolling( data.order_id, data.reference_id );
+                    return;
+                }
+
+                if ( data.irembopay ) {
+                    currentOrderId     = data.order_id;
+                    currentOrderNumber = data.order_number;
+                    var iremboNumEl = document.getElementById( 'ddIremboOrderNum' );
+                    var iremboTotEl = document.getElementById( 'ddIremboTotal' );
+                    if ( iremboNumEl ) iremboNumEl.textContent = 'Order ' + data.order_number;
+                    if ( iremboTotEl ) iremboTotEl.textContent = formatPrice( data.total );
+                    placeOrderBtn.disabled    = false;
+                    placeOrderBtn.textContent = 'Place Order →';
+                    showPanel( panelIremboPay );
+                    if ( window.IremboPay && data.invoice_number && data.public_key ) {
+                        window.IremboPay.initiate( {
+                            paymentAccountPublicKey: data.public_key,
+                            invoiceNumber:           data.invoice_number,
+                            locale:                  'en',
+                            callback: function ( response ) {
+                                if ( response && response.status === 'PAID' ) {
+                                    var numEl3 = document.getElementById( 'ddConfirmOrderNum' );
+                                    var etaEl3 = document.getElementById( 'ddConfirmEta' );
+                                    if ( numEl3 ) numEl3.textContent = 'Order #' + currentOrderNumber;
+                                    if ( etaEl3 ) etaEl3.textContent = '🛵 Estimated delivery: ' + ( ( window.ddCartData && window.ddCartData.deliveryEta ) || '30–45 minutes' );
+                                    updateBadges( 0 );
+                                    window.ddCartSummary = null;
+                                    showPanel( panelConfirmation );
+                                } else {
+                                    var iremboStatusEl2 = document.getElementById( 'ddIremboStatus' );
+                                    if ( iremboStatusEl2 ) {
+                                        iremboStatusEl2.textContent = 'Payment was not completed. Please try again.';
+                                        iremboStatusEl2.style.color = '#e53935';
+                                    }
+                                }
+                            }
+                        } );
+                    }
                     return;
                 }
 
