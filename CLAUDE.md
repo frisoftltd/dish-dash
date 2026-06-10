@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.6.1 (2026-06-10)
+> Last updated: v3.6.2 (2026-06-10)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.6.1 |
+| **Deployed version** | v3.6.2 |
 | **Current phase** | Phase 6 — MoMo Payment Integration |
 | **Current sub-phase** | Phase 6A complete |
-| **Next task** | v3.6.2 — TBD |
-| **Last working state** | v3.6.1: Fix MoMo request_to_pay — accept HTTP 200 as well as 202 (some MTN sandbox environments return 200). |
+| **Next task** | v3.6.3 — TBD |
+| **Last working state** | v3.6.2: Fix MoMo phone field visibility (initial-visibility check after panel open), add momo_phone validation, remove WhatsApp fallback in PHP. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -617,7 +617,8 @@ Every page before shipping must pass:
 | **v3.5.42** | ✅ **Done** | **Feat: add Privacy Policy + Refund & Returns links to footer Explore column** |
 | **v3.6.0** | ✅ **Done** | **Phase 6A: MoMo in-drawer payment — DD_MoMo API client, mtn_momo branch, dd_momo_check_status polling, #ddPanelMomo waiting UI, CSS styles** |
 | **v3.6.1** | ✅ **Done** | **Fix MoMo request_to_pay accept HTTP 200 response in sandbox** |
-| v3.6.2 | ⏳ **NEXT** | TBD |
+| **v3.6.2** | ✅ **Done** | **Fix MoMo phone field visibility, add momo_phone validation, remove WhatsApp fallback in PHP** |
+| v3.6.3 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

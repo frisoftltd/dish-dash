@@ -515,10 +515,20 @@
                     '<input type="tel" id="ddMomoPhone" placeholder="e.g. 0788 123 456" ' +
                         'style="width:100%;padding:12px;border:1.5px solid #ddd;border-radius:8px;' +
                                'font-size:16px;box-sizing:border-box;touch-action:manipulation;" />' +
+                    '<span id="ddErrorMomoPhone" class="dd-cform-error"></span>' +
                     '<p style="font-size:12px;color:#888;margin-top:4px;">You will receive a USSD prompt on this number.</p>';
                 gatewayContainer.parentNode.insertBefore( momoWrap, gatewayContainer.nextSibling );
             } else if ( existingMomoWrap ) {
-                existingMomoWrap.style.display = 'none'; // reset on panel revisit
+                existingMomoWrap.style.display = 'none'; // reset; corrected by initial-visibility check below
+            }
+
+            // Set initial visibility — change event does not fire for the pre-checked option
+            var initialChecked = gatewayContainer
+                ? gatewayContainer.querySelector( 'input[name="payment_method"]:checked' )
+                : null;
+            var momoPhoneWrap = document.getElementById( 'ddMomoPhoneWrap' );
+            if ( momoPhoneWrap ) {
+                momoPhoneWrap.style.display = ( initialChecked && initialChecked.value === 'mtn_momo' ) ? 'block' : 'none';
             }
 
             // Delivery fee display — explicit parseFloat prevents string concatenation
@@ -564,7 +574,7 @@
             var pmEl   = document.querySelector( 'input[name="payment_method"]:checked' );
 
             // Clear previous errors
-            [ 'ddErrorName', 'ddErrorWhatsapp', 'ddErrorAddress' ].forEach( function ( id ) {
+            [ 'ddErrorName', 'ddErrorWhatsapp', 'ddErrorAddress', 'ddErrorMomoPhone' ].forEach( function ( id ) {
                 var el = document.getElementById( id );
                 if ( el ) el.textContent = '';
             } );
@@ -592,11 +602,16 @@
                 if ( e3 ) e3.textContent = 'Please enter your delivery address.';
                 valid = false;
             }
-            // Read MoMo phone number if MoMo selected
+            // Read and validate MoMo phone when MoMo is selected
             var momoPhone = '';
             if ( payment === 'mtn_momo' ) {
                 var momoPhoneEl = document.getElementById( 'ddMomoPhone' );
                 momoPhone = momoPhoneEl ? momoPhoneEl.value.trim() : '';
+                if ( ! momoPhone ) {
+                    var e4 = document.getElementById( 'ddErrorMomoPhone' );
+                    if ( e4 ) e4.textContent = 'Please enter your MTN MoMo number.';
+                    valid = false;
+                }
             }
 
             if ( ! valid ) return;

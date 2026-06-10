@@ -830,8 +830,11 @@ class DD_Orders_Module extends DD_Module {
             $order_number = $result['order_number'];
             $total        = $result['total'];
 
-            // Use dedicated MoMo number if supplied, otherwise fall back to WhatsApp number
-            $phone       = sanitize_text_field( $_POST['momo_phone'] ?? $whatsapp );
+            $phone = sanitize_text_field( $_POST['momo_phone'] ?? '' );
+            if ( ! $phone ) {
+                wp_send_json_error( [ 'message' => 'Please enter your MTN MoMo number.' ] );
+                return;
+            }
             $momo_result = $momo->request_to_pay( $phone, (float) $total, (string) $order_id );
 
             if ( ! $momo_result['success'] ) {
