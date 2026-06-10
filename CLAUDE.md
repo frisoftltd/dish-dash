@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.6.3 (2026-06-10)
+> Last updated: v3.6.4 (2026-06-10)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.6.3 |
+| **Deployed version** | v3.6.4 |
 | **Current phase** | Phase 6 — MoMo Payment Integration |
 | **Current sub-phase** | Phase 6A complete |
-| **Next task** | v3.6.4 — replace MOMO_LOGO_URL and IREMBOPAY_LOGO_URL with actual media URLs |
-| **Last working state** | v3.6.3: Phase 6B — IremboPay in-drawer modal, payment button logos (MOMO_LOGO_URL + IREMBOPAY_LOGO_URL placeholders awaiting developer upload). |
+| **Next task** | v3.6.5 — TBD |
+| **Last working state** | v3.6.4: Fix payment button logo URLs — bundled plugin assets for MTN MoMo and IremboPay. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -619,7 +619,8 @@ Every page before shipping must pass:
 | **v3.6.1** | ✅ **Done** | **Fix MoMo request_to_pay accept HTTP 200 response in sandbox** |
 | **v3.6.2** | ✅ **Done** | **Fix MoMo phone field visibility, add momo_phone validation, remove WhatsApp fallback in PHP** |
 | **v3.6.3** | ✅ **Done** | **Phase 6B: IremboPay in-drawer modal + payment button logos (placeholders — replace with media URLs)** |
-| v3.6.4 | ⏳ **NEXT** | Replace MOMO_LOGO_URL + IREMBOPAY_LOGO_URL with actual media URLs |
+| **v3.6.4** | ✅ **Done** | **Fix payment button logo URLs — use bundled plugin assets** |
+| v3.6.5 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
