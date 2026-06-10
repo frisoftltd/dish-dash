@@ -72,10 +72,11 @@ class DD_Orders_Module extends DD_Module {
         add_action( 'rest_api_init', [ $this, 'register_routes' ] );
 
         // AJAX handlers
-        DD_Ajax::register( 'dd_place_order',    [ $this, 'ajax_place_order' ] );
-        DD_Ajax::register( 'dd_get_order',      [ $this, 'ajax_get_order' ] );
-        DD_Ajax::register( 'dd_cancel_order',   [ $this, 'ajax_cancel_order' ] );
-        DD_Ajax::register( 'dd_update_status',  [ $this, 'ajax_update_status' ], false );
+        DD_Ajax::register( 'dd_place_order',       [ $this, 'ajax_place_order' ] );
+        DD_Ajax::register( 'dd_get_order',         [ $this, 'ajax_get_order' ] );
+        DD_Ajax::register( 'dd_cancel_order',      [ $this, 'ajax_cancel_order' ] );
+        DD_Ajax::register( 'dd_update_status',     [ $this, 'ajax_update_status' ], false );
+        DD_Ajax::register( 'dd_momo_check_status', [ $this, 'ajax_momo_check_status' ], true );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
         add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
@@ -797,8 +798,62 @@ class DD_Orders_Module extends DD_Module {
             ? 0.0
             : (float) get_option( 'dd_delivery_fee', 1500 );
 
-        // ─── 4. Branch: online vs offline gateway ─────────────────────
+        // ─── 4. Branch: MoMo / online / offline gateway ───────────────
         $is_online = ! in_array( $payment_method, self::OFFLINE_GATEWAYS, true );
+
+        // ─── 4a. MTN MoMo — in-drawer, no WC redirect ─────────────────
+        if ( 'mtn_momo' === $payment_method ) {
+            $momo = new DD_MoMo();
+            if ( ! $momo->is_configured() ) {
+                wp_send_json_error( [ 'message' => 'MTN MoMo is not configured. Please contact the restaurant.' ] );
+                return;
+            }
+
+            // Create DD order first (same flow as offline)
+            $result = $this->place_order( [
+                'customer_name'    => $customer_name,
+                'customer_phone'   => $whatsapp,
+                'customer_email'   => '',
+                'order_type'       => 'delivery',
+                'items'            => $summary['items'],
+                'delivery_fee'     => $delivery_fee,
+                'payment_method'   => 'mtn_momo',
+                'delivery_address' => $delivery_address,
+            ] );
+
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+                return;
+            }
+
+            $order_id     = $result['order_id'];
+            $order_number = $result['order_number'];
+            $total        = $result['total'];
+
+            // Use dedicated MoMo number if supplied, otherwise fall back to WhatsApp number
+            $phone       = sanitize_text_field( $_POST['momo_phone'] ?? $whatsapp );
+            $momo_result = $momo->request_to_pay( $phone, (float) $total, (string) $order_id );
+
+            if ( ! $momo_result['success'] ) {
+                wp_send_json_error( [ 'message' => $momo_result['error'] ?? 'MoMo payment initiation failed.' ] );
+                return;
+            }
+
+            // Store reference so dd_momo_check_status can verify it
+            set_transient( 'dd_momo_ref_' . $order_id, $momo_result['reference_id'], 30 * MINUTE_IN_SECONDS );
+
+            $cart->clear();
+            DD_Customer_Manager::upsert( $whatsapp, $customer_name, $delivery_address, (float) $total );
+
+            wp_send_json_success( [
+                'momo'         => true,
+                'order_id'     => $order_id,
+                'order_number' => $order_number,
+                'reference_id' => $momo_result['reference_id'],
+                'total'        => $total,
+            ] );
+            return;
+        }
 
         if ( $is_online ) {
             // --- ONLINE GATEWAY FLOW ---
@@ -950,6 +1005,60 @@ class DD_Orders_Module extends DD_Module {
             'order' => $order,
             'items' => $this->get_order_items( $order_id ),
         ] );
+    }
+
+    public function ajax_momo_check_status(): void {
+        DD_Ajax::verify_nonce();
+
+        global $wpdb;
+
+        $order_id     = absint( $_POST['order_id']     ?? 0 );
+        $reference_id = sanitize_text_field( $_POST['reference_id'] ?? '' );
+
+        if ( ! $order_id || ! $reference_id ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        // Verify the reference_id matches what was stored at order time
+        $stored = get_transient( 'dd_momo_ref_' . $order_id );
+        if ( $stored !== $reference_id ) {
+            wp_send_json_error( [ 'message' => 'Reference mismatch.' ] );
+            return;
+        }
+
+        $momo   = new DD_MoMo();
+        $status = $momo->get_status( $reference_id );
+
+        if ( $status === 'SUCCESSFUL' ) {
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_orders',
+                [ 'status' => 'confirmed', 'payment_status' => 'paid' ],
+                [ 'id'     => $order_id ],
+                [ '%s', '%s' ],
+                [ '%d' ]
+            );
+            delete_transient( 'dd_momo_ref_' . $order_id );
+            do_action( 'dish_dash_order_confirmed', $order_id );
+            wp_send_json_success( [ 'paid' => true, 'status' => 'SUCCESSFUL' ] );
+            return;
+        }
+
+        if ( in_array( $status, [ 'FAILED', 'REJECTED', 'TIMEOUT' ], true ) ) {
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_orders',
+                [ 'status' => 'cancelled' ],
+                [ 'id'     => $order_id ],
+                [ '%s' ],
+                [ '%d' ]
+            );
+            delete_transient( 'dd_momo_ref_' . $order_id );
+            wp_send_json_success( [ 'paid' => false, 'status' => $status ] );
+            return;
+        }
+
+        // Still PENDING
+        wp_send_json_success( [ 'paid' => false, 'status' => 'PENDING' ] );
     }
 
     public function ajax_cancel_order(): void {

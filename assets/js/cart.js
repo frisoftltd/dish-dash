@@ -45,6 +45,33 @@
 
     /* ── INIT ───────────────────────────────────────────────── */
     document.addEventListener( 'DOMContentLoaded', function () {
+        // Inject MoMo waiting panel as 4th drawer panel
+        var drawer = document.getElementById( 'ddCartDrawer' );
+        if ( drawer ) {
+            var mp    = document.createElement( 'div' );
+            mp.id        = 'ddPanelMomo';
+            mp.className = 'dd-cart-panel dd-cart-panel--hidden';
+            mp.setAttribute( 'data-panel', 'momo' );
+            mp.innerHTML =
+                '<div class="dd-checkout-panel__header">' +
+                    '<button class="dd-checkout-panel__back" id="ddMomoBack" type="button">&#8592; Back</button>' +
+                    '<span class="dd-checkout-panel__title">MTN Mobile Money</span>' +
+                '</div>' +
+                '<div class="dd-momo-waiting">' +
+                    '<div class="dd-momo-spinner"></div>' +
+                    '<p class="dd-momo-title">Check your phone</p>' +
+                    '<p class="dd-momo-subtitle">A USSD prompt has been sent to your MTN number.<br>Approve the payment to complete your order.</p>' +
+                    '<div class="dd-momo-order-info">' +
+                        '<span id="ddMomoOrderNum"></span>' +
+                        '<span id="ddMomoTotal"></span>' +
+                    '</div>' +
+                    '<p class="dd-momo-status" id="ddMomoStatus">Waiting for approval…</p>' +
+                    '<button class="dd-momo-cancel" id="ddMomoCancel" type="button">Cancel</button>' +
+                '</div>';
+            drawer.appendChild( mp );
+            panelMomo = mp;
+        }
+
         fetchCart( false ); // silent fetch on load to update badges only
         bindEvents();
 
@@ -163,6 +190,27 @@
                 var productId = item ? ( item.dataset.id || null ) : null;
                 if ( window.DDTrack ) window.DDTrack.removeFromCart( productId, 1 );
             } );
+        } );
+
+        // MoMo cancel / back — stop polling and return to checkout panel
+        document.addEventListener( 'click', function ( e ) {
+            if ( e.target && ( e.target.id === 'ddMomoCancel' || e.target.id === 'ddMomoBack' ) ) {
+                if ( momoPollingTimer ) clearInterval( momoPollingTimer );
+                var statusEl = document.getElementById( 'ddMomoStatus' );
+                if ( statusEl ) {
+                    statusEl.textContent = 'Waiting for approval…';
+                    statusEl.style.color = '';
+                }
+                showPanel( panelCheckout );
+            }
+        } );
+
+        // Show/hide MoMo phone field when payment method changes
+        document.addEventListener( 'change', function ( e ) {
+            if ( e.target && e.target.name === 'payment_method' ) {
+                var wrap = document.getElementById( 'ddMomoPhoneWrap' );
+                if ( wrap ) wrap.style.display = e.target.value === 'mtn_momo' ? 'block' : 'none';
+            }
         } );
 
         // Fire cart_abandon on page leave if cart is open and has items
@@ -408,9 +456,14 @@
     var panelCart         = document.getElementById( 'ddPanelCart' );
     var panelCheckout     = document.getElementById( 'ddPanelCheckout' );
     var panelConfirmation = document.getElementById( 'ddPanelConfirmation' );
+    var panelMomo         = null; // injected into DOM at DOMContentLoaded
+
+    var currentOrderId     = null;
+    var currentOrderNumber = null;
+    var currentReferenceId = null;
 
     function showPanel( panelEl ) {
-        [ panelCart, panelCheckout, panelConfirmation ].forEach( function ( p ) {
+        [ panelCart, panelCheckout, panelConfirmation, panelMomo ].forEach( function ( p ) {
             if ( p ) p.classList.add( 'dd-cart-panel--hidden' );
         } );
         if ( panelEl ) panelEl.classList.remove( 'dd-cart-panel--hidden' );
@@ -448,6 +501,24 @@
                         '<span class="dd-payment-option__text">' + escHtml( gw.title ) + '</span>' +
                         '</span></label>';
                 } ).join( '' );
+            }
+
+            // MoMo phone field — inject once, reset visibility on each panel open
+            var existingMomoWrap = document.getElementById( 'ddMomoPhoneWrap' );
+            if ( ! existingMomoWrap && gatewayContainer ) {
+                var momoWrap       = document.createElement( 'div' );
+                momoWrap.id        = 'ddMomoPhoneWrap';
+                momoWrap.style.display    = 'none';
+                momoWrap.style.marginTop  = '12px';
+                momoWrap.innerHTML =
+                    '<label class="dd-cform-label">MTN MoMo Number <span style="color:#e53935">*</span></label>' +
+                    '<input type="tel" id="ddMomoPhone" placeholder="e.g. 0788 123 456" ' +
+                        'style="width:100%;padding:12px;border:1.5px solid #ddd;border-radius:8px;' +
+                               'font-size:16px;box-sizing:border-box;touch-action:manipulation;" />' +
+                    '<p style="font-size:12px;color:#888;margin-top:4px;">You will receive a USSD prompt on this number.</p>';
+                gatewayContainer.parentNode.insertBefore( momoWrap, gatewayContainer.nextSibling );
+            } else if ( existingMomoWrap ) {
+                existingMomoWrap.style.display = 'none'; // reset on panel revisit
             }
 
             // Delivery fee display — explicit parseFloat prevents string concatenation
@@ -521,6 +592,13 @@
                 if ( e3 ) e3.textContent = 'Please enter your delivery address.';
                 valid = false;
             }
+            // Read MoMo phone number if MoMo selected
+            var momoPhone = '';
+            if ( payment === 'mtn_momo' ) {
+                var momoPhoneEl = document.getElementById( 'ddMomoPhone' );
+                momoPhone = momoPhoneEl ? momoPhoneEl.value.trim() : '';
+            }
+
             if ( ! valid ) return;
 
             // Loading state
@@ -532,8 +610,25 @@
                 whatsapp:         wa,
                 delivery_address: addr,
                 payment_method:   payment,
+                momo_phone:       momoPhone,
             }, function ( data ) {
                 // Online gateway — redirect to payment page
+                // MoMo — show waiting panel, begin polling
+                if ( data.momo ) {
+                    currentOrderId     = data.order_id;
+                    currentOrderNumber = data.order_number;
+                    currentReferenceId = data.reference_id;
+                    var momoNumEl = document.getElementById( 'ddMomoOrderNum' );
+                    var momoTotEl = document.getElementById( 'ddMomoTotal' );
+                    if ( momoNumEl ) momoNumEl.textContent = 'Order ' + data.order_number;
+                    if ( momoTotEl ) momoTotEl.textContent = formatPrice( data.total );
+                    placeOrderBtn.disabled    = false;
+                    placeOrderBtn.textContent = 'Place Order →';
+                    showPanel( panelMomo );
+                    startMomoPolling( data.order_id, data.reference_id );
+                    return;
+                }
+
                 if ( data.redirect && data.payment_url ) {
                     window.location.href = data.payment_url;
                     return; // stop — no confirmation panel for online payments
@@ -588,6 +683,65 @@
             closeCart();
             showPanel( panelCart );
         } );
+    }
+
+    /* ── MOMO POLLING ───────────────────────────────────────── */
+    var momoPollingTimer = null;
+    var momoAttempts     = 0;
+    var momoMaxAttempts  = 24; // 24 × 5s = 2 min timeout
+
+    function startMomoPolling( orderId, referenceId ) {
+        momoAttempts = 0;
+        if ( momoPollingTimer ) clearInterval( momoPollingTimer );
+        momoPollingTimer = setInterval( function () {
+            momoAttempts++;
+            if ( momoAttempts > momoMaxAttempts ) {
+                clearInterval( momoPollingTimer );
+                var statusEl = document.getElementById( 'ddMomoStatus' );
+                if ( statusEl ) {
+                    statusEl.textContent = 'Payment timed out. Please try again.';
+                    statusEl.style.color = '#e53935';
+                }
+                return;
+            }
+            fetch( AJAX_URL, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body:    new URLSearchParams( {
+                    action:       'dd_momo_check_status',
+                    order_id:     orderId,
+                    reference_id: referenceId,
+                    nonce:        NONCE,
+                } ).toString(),
+            } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                if ( ! res.success ) return;
+                if ( res.data.paid ) {
+                    clearInterval( momoPollingTimer );
+                    showMomoConfirmation();
+                } else if ( res.data.status === 'FAILED' || res.data.status === 'REJECTED' ) {
+                    clearInterval( momoPollingTimer );
+                    var statusEl = document.getElementById( 'ddMomoStatus' );
+                    if ( statusEl ) {
+                        statusEl.textContent = 'Payment failed or rejected. Please try again.';
+                        statusEl.style.color = '#e53935';
+                    }
+                }
+            } )
+            .catch( function () {} ); // silent retry on next interval
+        }, 5000 );
+    }
+
+    function showMomoConfirmation() {
+        var numEl = document.getElementById( 'ddConfirmOrderNum' );
+        var etaEl = document.getElementById( 'ddConfirmEta' );
+        var eta   = ( window.ddCartData && window.ddCartData.deliveryEta ) || '30–45 minutes';
+        if ( numEl ) numEl.textContent = 'Order #' + currentOrderNumber;
+        if ( etaEl ) etaEl.textContent = '🛵 Estimated delivery: ' + eta;
+        updateBadges( 0 );
+        window.ddCartSummary = null;
+        showPanel( panelConfirmation );
     }
 
     /* ── PUBLIC API ─────────────────────────────────────────── */
