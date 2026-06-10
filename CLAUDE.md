@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.6.0 (2026-06-10)
+> Last updated: v3.6.1 (2026-06-10)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.6.0 |
+| **Deployed version** | v3.6.1 |
 | **Current phase** | Phase 6 — MoMo Payment Integration |
 | **Current sub-phase** | Phase 6A complete |
-| **Next task** | v3.6.1 — TBD |
-| **Last working state** | v3.6.0: Phase 6A MoMo in-drawer payment — DD_MoMo API client, mtn_momo branch in ajax_place_order, dd_momo_check_status polling handler, #ddPanelMomo waiting UI in cart.js, MoMo CSS styles. |
+| **Next task** | v3.6.2 — TBD |
+| **Last working state** | v3.6.1: Fix MoMo request_to_pay — accept HTTP 200 as well as 202 (some MTN sandbox environments return 200). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -616,7 +616,8 @@ Every page before shipping must pass:
 | **v3.5.41** | ✅ **Done** | **Feat: Dish Dash Simple Page template — page-simple.php + simple-page.css, registered + loaded + enqueued in template module** |
 | **v3.5.42** | ✅ **Done** | **Feat: add Privacy Policy + Refund & Returns links to footer Explore column** |
 | **v3.6.0** | ✅ **Done** | **Phase 6A: MoMo in-drawer payment — DD_MoMo API client, mtn_momo branch, dd_momo_check_status polling, #ddPanelMomo waiting UI, CSS styles** |
-| v3.6.1 | ⏳ **NEXT** | TBD |
+| **v3.6.1** | ✅ **Done** | **Fix MoMo request_to_pay accept HTTP 200 response in sandbox** |
+| v3.6.2 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

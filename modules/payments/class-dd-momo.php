@@ -128,7 +128,7 @@ class DD_MoMo {
         );
 
         $code = wp_remote_retrieve_response_code( $response );
-        if ( $code === 202 ) {
+        if ( $code === 202 || $code === 200 ) {
             return [ 'success' => true, 'reference_id' => $reference_id ];
         }
 
