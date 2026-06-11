@@ -262,8 +262,8 @@ class DD_Template_Module extends DD_Module {
                 if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];
                 $gateways = WC()->payment_gateways->get_available_payment_gateways();
                 $icon_urls = [
-                    'mtn_momo'  => 'https://dishdash.khanakhazana.rw/wp-content/plugins/mtn-momo-woocommerce/assets/images/mtn-momo-logo.png',
-                    'irembopay' => 'https://dishdash.khanakhazana.rw/wp-content/plugins/woocommerce-irembopay/assets/images/irembopay-logo.png',
+                    'mtn_momo'  => plugins_url( 'assets/images/mtn-momo-logo.jpg', DD_PLUGIN_FILE ),
+                    'irembopay' => plugins_url( 'assets/images/irembopay-logo.jpg', DD_PLUGIN_FILE ),
                     'cod'       => '',
                     'bacs'      => '',
                     'cheque'    => '',
