@@ -2,6 +2,29 @@
 ( function ( $, config ) {
     'use strict';
 
+    function ddFormatPaymentMethod( method ) {
+        var map = {
+            'cod':                  'Cash on Delivery',
+            'pay_on_delivery':      'Cash on Delivery',
+            'mtn_momo':             'MTN Mobile Money',
+            'momo':                 'MTN Mobile Money',
+            'irembopay':            'IremboPay',
+            'pay_now':              'Card Payment',
+            'bacs':                 'Bank Transfer',
+            'cheque':               'Cheque',
+            'alg_custom_gateway_1': 'Cash on Delivery',
+        };
+        return map[ method ] || ( method ? method.replace( /_/g, ' ' ).replace( /\b\w/g, function(c){ return c.toUpperCase(); } ) : 'Unknown' );
+    }
+
+    function ddTimeAgo( timestamp ) {
+        var diff = Math.floor( ( Date.now() - timestamp ) / 1000 );
+        if ( diff < 60 )    return 'Just now';
+        if ( diff < 3600 )  return Math.floor( diff / 60 ) + ' min ago';
+        if ( diff < 86400 ) return Math.floor( diff / 3600 ) + ' hr ago';
+        return Math.floor( diff / 86400 ) + ' days ago';
+    }
+
     // ── Existing: confirm delete ──────────────────────────────────────────────
     $( document ).on( 'click', '.dd-confirm-delete', function ( e ) {
         if ( ! confirm( config.i18n.confirmDelete ) ) {
@@ -79,6 +102,21 @@
         localStorage.setItem( 'dd_unread_count', unreadCount );
     }
 
+    setInterval( function() {
+        if ( ! bellItems ) return;
+        bellItems.querySelectorAll( '[data-item-type]' ).forEach( function( el ) {
+            var id       = parseInt( el.dataset.id, 10 );
+            var itemType = el.dataset.itemType;
+            var found    = notifications.find( function(n) {
+                return parseInt( n.id, 10 ) === id && n.type === itemType;
+            } );
+            if ( found && found.timestamp ) {
+                var timeEl = el.querySelector( '.dd-bell-item-time' );
+                if ( timeEl ) timeEl.textContent = ddTimeAgo( found.timestamp );
+            }
+        } );
+    }, 60000 );
+
     // Bell icon click — toggle panel
     var bellWrap = document.querySelector( '#wp-admin-bar-dd-notifications > a' );
     if ( bellWrap ) {
@@ -109,8 +147,10 @@
     if ( markReadBtn ) {
         markReadBtn.addEventListener( 'click', function () {
             unreadCount = 0;
-            updateBadge();
             notifications = [];
+            localStorage.removeItem( 'dd_notifications' );
+            localStorage.removeItem( 'dd_unread_count' );
+            updateBadge();
             saveNotifications();
             if ( bellItems ) bellItems.innerHTML = '<p class="dd-bell-empty">No new notifications</p>';
         } );
@@ -182,11 +222,12 @@
                     var orderNum = order.order_number || ( 'DD-' + String( order.id ).padStart( 5, '0' ) );
                     var total    = Number( order.total ).toLocaleString( 'en-US', { maximumFractionDigits: 0 } );
                     var item     = {
-                        type:  'order',
-                        id:    order.id,
-                        title: orderNum + ' · ' + order.customer_name,
-                        meta:  total + ' RWF · Cash on Delivery',
-                        time:  'Just now',
+                        type:      'order',
+                        id:        order.id,
+                        title:     orderNum + ' · ' + order.customer_name,
+                        meta:      total + ' RWF · ' + ddFormatPaymentMethod( order.payment_method ),
+                        time:      'Just now',
+                        timestamp: Date.now(),
                     };
                     notifications.unshift( item );
                     addBellItem( item );
@@ -274,7 +315,7 @@
             +   '<span class="dd-bell-item-title">' + item.title + '</span>'
             +   '<span class="dd-bell-item-meta">' + item.meta + '</span>'
             + '</div>'
-            + '<span class="dd-bell-item-time">' + item.time + '</span>';
+            + '<span class="dd-bell-item-time">' + ( item.timestamp ? ddTimeAgo( item.timestamp ) : item.time ) + '</span>';
 
         // Mark as read on click (client + server)
         el.addEventListener( 'click', function () {
