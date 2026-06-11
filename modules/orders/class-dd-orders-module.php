@@ -810,49 +810,39 @@ class DD_Orders_Module extends DD_Module {
                 return;
             }
 
-            // Create DD order first (same flow as offline)
-            $result = $this->place_order( [
-                'customer_name'    => $customer_name,
-                'customer_phone'   => $whatsapp,
-                'customer_email'   => '',
-                'order_type'       => 'delivery',
-                'items'            => $summary['items'],
-                'delivery_fee'     => $delivery_fee,
-                'payment_method'   => 'mtn_momo',
-                'delivery_address' => $delivery_address,
-            ] );
-
-            if ( is_wp_error( $result ) ) {
-                wp_send_json_error( [ 'message' => $result->get_error_message() ] );
-                return;
-            }
-
-            $order_id     = $result['order_id'];
-            $order_number = $result['order_number'];
-            $total        = $result['total'];
-
             $phone = sanitize_text_field( $_POST['momo_phone'] ?? '' );
             if ( ! $phone ) {
                 wp_send_json_error( [ 'message' => 'Please enter your MTN MoMo number.' ] );
                 return;
             }
-            $momo_result = $momo->request_to_pay( $phone, (float) $total, (string) $order_id );
+
+            // Calculate total without creating order yet
+            $totals = $this->calculate_totals( $summary['items'], $delivery_fee );
+            $total  = $totals['total'];
+
+            // Send USSD prompt — use a temp reference key based on phone + time
+            $temp_key    = md5( $phone . $whatsapp . microtime() );
+            $momo_result = $momo->request_to_pay( $phone, (float) $total, $temp_key );
 
             if ( ! $momo_result['success'] ) {
                 wp_send_json_error( [ 'message' => $momo_result['error'] ?? 'MoMo payment initiation failed.' ] );
                 return;
             }
 
-            // Store reference so dd_momo_check_status can verify it
-            set_transient( 'dd_momo_ref_' . $order_id, $momo_result['reference_id'], 30 * MINUTE_IN_SECONDS );
-
-            $cart->clear();
-            DD_Customer_Manager::upsert( $whatsapp, $customer_name, $delivery_address, (float) $total );
+            // Store full order data in transient — order is NOT created in DB yet
+            set_transient( 'dd_momo_pending_' . $momo_result['reference_id'], [
+                'customer_name'    => $customer_name,
+                'customer_phone'   => $whatsapp,
+                'delivery_address' => $delivery_address,
+                'items'            => $summary['items'],
+                'delivery_fee'     => $delivery_fee,
+                'total'            => $total,
+            ], 30 * MINUTE_IN_SECONDS );
 
             wp_send_json_success( [
                 'momo'         => true,
-                'order_id'     => $order_id,
-                'order_number' => $order_number,
+                'order_id'     => 0,
+                'order_number' => '—',
                 'reference_id' => $momo_result['reference_id'],
                 'total'        => $total,
             ] );
@@ -1122,18 +1112,16 @@ class DD_Orders_Module extends DD_Module {
 
         global $wpdb;
 
-        $order_id     = absint( $_POST['order_id']     ?? 0 );
         $reference_id = sanitize_text_field( $_POST['reference_id'] ?? '' );
 
-        if ( ! $order_id || ! $reference_id ) {
+        if ( ! $reference_id ) {
             wp_send_json_error( [ 'message' => 'Invalid request.' ] );
             return;
         }
 
-        // Verify the reference_id matches what was stored at order time
-        $stored = get_transient( 'dd_momo_ref_' . $order_id );
-        if ( $stored !== $reference_id ) {
-            wp_send_json_error( [ 'message' => 'Reference mismatch.' ] );
+        // Verify pending transient exists for this reference
+        if ( ! get_transient( 'dd_momo_pending_' . $reference_id ) ) {
+            wp_send_json_error( [ 'message' => 'Payment session expired.' ] );
             return;
         }
 
@@ -1141,28 +1129,57 @@ class DD_Orders_Module extends DD_Module {
         $status = $momo->get_status( $reference_id );
 
         if ( $status === 'SUCCESSFUL' ) {
+            // Retrieve stored order data
+            $pending = get_transient( 'dd_momo_pending_' . $reference_id );
+            if ( ! $pending ) {
+                wp_send_json_error( [ 'message' => 'Order data expired. Please contact the restaurant.' ] );
+                return;
+            }
+
+            // Now create the order in DB
+            $result = $this->place_order( [
+                'customer_name'    => $pending['customer_name'],
+                'customer_phone'   => $pending['customer_phone'],
+                'customer_email'   => '',
+                'order_type'       => 'delivery',
+                'items'            => $pending['items'],
+                'delivery_fee'     => $pending['delivery_fee'],
+                'payment_method'   => 'mtn_momo',
+                'delivery_address' => $pending['delivery_address'],
+            ] );
+
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+                return;
+            }
+
+            $order_id     = $result['order_id'];
+            $order_number = $result['order_number'];
+
+            // Mark as paid immediately
             $wpdb->update(
                 $wpdb->prefix . 'dishdash_orders',
-                [ 'status' => 'confirmed', 'payment_status' => 'paid' ],
+                [ 'status' => 'pending', 'payment_status' => 'paid' ],
                 [ 'id'     => $order_id ],
                 [ '%s', '%s' ],
                 [ '%d' ]
             );
-            delete_transient( 'dd_momo_ref_' . $order_id );
-            do_action( 'dish_dash_order_confirmed', $order_id );
-            wp_send_json_success( [ 'paid' => true, 'status' => 'SUCCESSFUL' ] );
+
+            delete_transient( 'dd_momo_pending_' . $reference_id );
+            DD_Customer_Manager::upsert( $pending['customer_phone'], $pending['customer_name'], $pending['delivery_address'], (float) $pending['total'] );
+
+            wp_send_json_success( [
+                'paid'         => true,
+                'status'       => 'SUCCESSFUL',
+                'order_number' => $order_number,
+                'order_id'     => $order_id,
+            ] );
             return;
         }
 
         if ( in_array( $status, [ 'FAILED', 'REJECTED', 'TIMEOUT' ], true ) ) {
-            $wpdb->update(
-                $wpdb->prefix . 'dishdash_orders',
-                [ 'status' => 'cancelled' ],
-                [ 'id'     => $order_id ],
-                [ '%s' ],
-                [ '%d' ]
-            );
-            delete_transient( 'dd_momo_ref_' . $order_id );
+            // No order was created — just clean up the transient
+            delete_transient( 'dd_momo_pending_' . $reference_id );
             wp_send_json_success( [ 'paid' => false, 'status' => $status ] );
             return;
         }

@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.6.7 (2026-06-11)
+> Last updated: v3.6.8 (2026-06-11)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.6.7 |
+| **Deployed version** | v3.6.8 |
 | **Current phase** | Phase 6 — MoMo Payment Integration |
-| **Current sub-phase** | Phase 6A complete |
-| **Next task** | v3.6.8 — TBD |
-| **Last working state** | v3.6.7: Fix notification panel — real payment labels, relative timestamps, badge reset on mark all read. |
+| **Current sub-phase** | Phase 6B complete (Option B flow) |
+| **Next task** | v3.6.9 — TBD |
+| **Last working state** | v3.6.8: MoMo Option B — order created in DB only after payment confirmed. Cart data held in transient during USSD approval; ghost orders eliminated. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -623,7 +623,8 @@ Every page before shipping must pass:
 | **v3.6.5** | ✅ **Done** | **Fix payment method logo URLs — point to bundled plugin assets (assets/images/)** |
 | **v3.6.6** | ✅ **Done** | **Replace Type column with Payment column in orders list; dd_format_payment_method() global helper; fix payment labels in notification panel** |
 | **v3.6.7** | ✅ **Done** | **Fix notification panel — real payment labels, relative timestamps, badge reset on mark all read** |
-| v3.6.8 | ⏳ **NEXT** | TBD |
+| **v3.6.8** | ✅ **Done** | **MoMo Option B — create order in DB only after payment confirmed; ghost orders eliminated** |
+| v3.6.9 | ⏳ **NEXT** | TBD |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

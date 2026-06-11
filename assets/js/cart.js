@@ -798,7 +798,6 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body:    new URLSearchParams( {
                     action:       'dd_momo_check_status',
-                    order_id:     orderId,
                     reference_id: referenceId,
                     nonce:        NONCE,
                 } ).toString(),
@@ -808,6 +807,7 @@
                 if ( ! res.success ) return;
                 if ( res.data.paid ) {
                     clearInterval( momoPollingTimer );
+                    if ( res.data.order_number ) currentOrderNumber = res.data.order_number;
                     showMomoConfirmation();
                 } else if ( res.data.status === 'FAILED' || res.data.status === 'REJECTED' ) {
                     clearInterval( momoPollingTimer );
