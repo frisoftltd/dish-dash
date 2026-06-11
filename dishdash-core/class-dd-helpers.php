@@ -182,6 +182,23 @@ function dd_track_url( string $order_number = '' ): string {
         : $base;
 }
 
+if ( ! function_exists( 'dd_format_payment_method' ) ) {
+    function dd_format_payment_method( string $method ): string {
+        $map = [
+            'cod'                  => 'Cash on Delivery',
+            'pay_on_delivery'      => 'Cash on Delivery',
+            'mtn_momo'             => 'MTN Mobile Money',
+            'momo'                 => 'MTN Mobile Money',
+            'irembopay'            => 'IremboPay',
+            'pay_now'              => 'Card Payment',
+            'bacs'                 => 'Bank Transfer',
+            'cheque'               => 'Cheque',
+            'alg_custom_gateway_1' => 'Cash on Delivery',
+        ];
+        return $map[ $method ] ?? ucwords( str_replace( '_', ' ', $method ) );
+    }
+}
+
 /**
  * DD_Hours — Opening hours state engine.
  * Used by page-dishdash.php (banner) and dd_remind_me_open AJAX handler.

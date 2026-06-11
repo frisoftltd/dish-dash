@@ -241,18 +241,7 @@ class DD_Notifications {
      * Falls back to ucwords(str_replace) for unknown gateways.
      */
     private static function format_payment_method( string $method ): string {
-        $labels = [
-            'cod'          => 'Cash on Delivery',
-            'bacs'         => 'Direct Bank Transfer',
-            'cheque'       => 'Cheque Payment',
-            'pesapal'      => 'Pesapal',
-            'dpo'          => 'DPO Pay',
-            'stripe'       => 'Card (Stripe)',
-            'paypal'       => 'PayPal',
-            'mtn_momo'     => 'MTN Mobile Money',
-            'airtel_money' => 'Airtel Money',
-        ];
-        return $labels[ strtolower( $method ) ] ?? ucwords( str_replace( '_', ' ', $method ) );
+        return dd_format_payment_method( $method );
     }
 
     /**

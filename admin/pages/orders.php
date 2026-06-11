@@ -520,7 +520,7 @@ foreach ( $orders as $o ) {
             </th>
             <th>Order</th>
             <th>Customer</th>
-            <th>Type</th>
+            <th>Payment</th>
             <th>Total</th>
             <th>Status</th>
             <th>Date</th>
@@ -546,9 +546,7 @@ foreach ( $orders as $o ) {
                 <span class="dd-customer-phone"><?php echo esc_html( $o['customer_phone'] ); ?></span>
               <?php endif; ?>
             </td>
-            <td class="dd-orders-col-type">
-              <span class="dd-type-pill"><?php echo esc_html( ucfirst( $o['order_type'] ?? 'delivery' ) ); ?></span>
-            </td>
+            <td><?php echo esc_html( dd_format_payment_method( $o['payment_method'] ) ); ?></td>
             <td class="dd-orders-col-total">
               <span class="dd-order-total"><?php echo dd_orders_format_rwf( $o['total'] ); ?></span>
               <span class="dd-order-currency">RWF</span>
