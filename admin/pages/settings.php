@@ -109,9 +109,6 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     // Pricing & Fees
     update_option( 'dd_per_order_fee',        absint( $_POST['dd_per_order_fee']        ?? 750   ) );
     update_option( 'dd_minimum_order_amount', absint( $_POST['dd_minimum_order_amount'] ?? 10000 ) );
-    update_option( 'dd_payment_card_enabled', isset( $_POST['dd_payment_card_enabled'] ) ? '1' : '0' );
-    update_option( 'dd_payment_momo_enabled', isset( $_POST['dd_payment_momo_enabled'] ) ? '1' : '0' );
-    update_option( 'dd_payment_cod_enabled',  isset( $_POST['dd_payment_cod_enabled']  ) ? '1' : '0' );
     update_option( 'dd_fees_enabled',         isset( $_POST['dd_fees_enabled']          ) ? '1' : '0' );
 
     // Security — custom admin path (superadmin only)
@@ -705,36 +702,6 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                         <div class="dd-advisory__title">💡 Effective Fee Advisory</div>
                         <div id="dd-advisory-body">—</div>
                     </div>
-                </div>
-            </div>
-
-            <div class="dd-field-grid">
-                <div class="dd-field-label">Accepted Payment Methods</div>
-                <div class="dd-field-control">
-                    <label class="dd-check-label">
-                        <input type="checkbox" name="dd_payment_card_enabled" value="1"
-                               <?php checked( get_option( 'dd_payment_card_enabled', '1' ), '1' ); ?>>
-                        <span>
-                            Card (Pesapal)
-                            <span class="dd-check-desc">Online card payments via Pesapal.</span>
-                        </span>
-                    </label>
-                    <label class="dd-check-label">
-                        <input type="checkbox" name="dd_payment_momo_enabled" value="1"
-                               <?php checked( get_option( 'dd_payment_momo_enabled', '1' ), '1' ); ?>>
-                        <span>
-                            Mobile Money (MoMo Pay)
-                            <span class="dd-check-desc">Customer sends MoMo to your number. Dish Dash tracks and invoices monthly.</span>
-                        </span>
-                    </label>
-                    <label class="dd-check-label">
-                        <input type="checkbox" name="dd_payment_cod_enabled" value="1"
-                               <?php checked( get_option( 'dd_payment_cod_enabled', '1' ), '1' ); ?>>
-                        <span>
-                            Cash on Delivery (COD)
-                            <span class="dd-check-desc">Restaurant collects cash on delivery. Dish Dash tracks and invoices monthly. Failed deliveries do not count as fees.</span>
-                        </span>
-                    </label>
                 </div>
             </div>
 

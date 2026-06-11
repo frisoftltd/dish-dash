@@ -119,15 +119,17 @@ class DD_Admin extends DD_Module {
             [ $this, 'render_analytics' ]
         );
 
-        // Billing
-        add_submenu_page(
-            'dish-dash',
-            __( 'Billing', 'dish-dash' ),
-            __( '💳 Billing', 'dish-dash' ),
-            'manage_options',
-            'dish-dash-billing',
-            [ $this, 'render_billing' ]
-        );
+        // Billing — only show when fee tracking is enabled
+        if ( get_option( 'dd_fees_enabled', '0' ) === '1' ) {
+            add_submenu_page(
+                'dish-dash',
+                __( 'Billing', 'dish-dash' ),
+                __( '💳 Billing', 'dish-dash' ),
+                'manage_options',
+                'dish-dash-billing',
+                [ $this, 'render_billing' ]
+            );
+        }
 
         // Settings
         add_submenu_page( 'dish-dash',
