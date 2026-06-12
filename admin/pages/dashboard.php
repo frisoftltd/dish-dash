@@ -7,7 +7,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
-if ( ! current_user_can( 'manage_options' ) ) return;
+if ( ! current_user_can( 'read' ) ) return;
 
 global $wpdb;
 
@@ -271,6 +271,7 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <div class="dd-kpi-value"><?php echo number_format( $kpi_orders ); ?></div>
     </div>
 
+    <?php if ( current_user_can( 'dd_view_billing' ) ) : ?>
     <div class="dd-kpi-card" style="--kpi-accent:#059669">
       <div class="dd-kpi-top">
         <span class="dashicons dashicons-money-alt" style="color:#059669" aria-hidden="true"></span>
@@ -278,6 +279,7 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
       <div class="dd-kpi-label">Revenue</div>
       <div class="dd-kpi-value"><?php echo dd_dash_format_rwf( $kpi_revenue ); ?> <small>RWF</small></div>
     </div>
+    <?php endif; ?>
 
     <div class="dd-kpi-card" style="--kpi-accent:#D97706">
       <div class="dd-kpi-top">
@@ -325,7 +327,7 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
     </div>
   </div>
 
-  <?php if ( $fees_enabled && $kpi_fees > 0 ) : ?>
+  <?php if ( current_user_can( 'dd_view_billing' ) && $fees_enabled && $kpi_fees > 0 ) : ?>
   <div class="dd-fees-inline <?php echo $this_month_paid ? 'dd-fees-paid' : ''; ?>">
     <span class="dd-fees-inline-icon"><?php echo $this_month_paid ? '✅' : '💳'; ?></span>
     <span class="dd-fees-inline-text">

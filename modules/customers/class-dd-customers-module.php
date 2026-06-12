@@ -56,7 +56,7 @@ class DD_Customers_Module extends DD_Module {
             'dish-dash',
             __( 'Customers', 'dish-dash' ),
             __( '👥 Customers', 'dish-dash' ),
-            'manage_options',
+            'dd_view_customers',
             'dish-dash-customers',
             [ $this, 'render_admin_page' ]
         );
@@ -599,7 +599,7 @@ class DD_Customers_Module extends DD_Module {
     // ─────────────────────────────────────────
     public function ajax_save_customer(): void {
         check_ajax_referer( 'dd_save_customer', 'nonce' );
-        if ( ! current_user_can( 'manage_options' ) ) wp_send_json_error( 'Unauthorized.' );
+        if ( ! current_user_can( 'dd_view_customers' ) ) wp_send_json_error( 'Unauthorized.' );
 
         $user_id  = (int) ( $_POST['user_id'] ?? 0 );
         $phone    = sanitize_text_field( $_POST['phone']    ?? '' );

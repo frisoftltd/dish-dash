@@ -6,7 +6,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
-if ( ! current_user_can( 'manage_options' ) ) return;
+if ( ! current_user_can( 'dd_view_analytics' ) ) return;
 
 global $wpdb;
 $rt = $wpdb->prefix . 'dishdash_reservations';

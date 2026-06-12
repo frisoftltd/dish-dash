@@ -14,7 +14,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
-if ( ! current_user_can( 'manage_options' ) ) wp_die( __( 'Access denied.', 'dish-dash' ) );
+if ( ! current_user_can( 'dd_view_billing' ) ) wp_die( __( 'Access denied.', 'dish-dash' ) );
 
 global $wpdb;
 $ot  = $wpdb->prefix . 'dishdash_orders';

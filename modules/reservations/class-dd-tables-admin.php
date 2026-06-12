@@ -21,7 +21,7 @@ class DD_Tables_Admin {
             'dish-dash',
             __( 'Tables', 'dish-dash' ),
             __( 'Tables', 'dish-dash' ),
-            'manage_options',
+            'dd_manage_reservations',
             'dd-tables',
             [ $this, 'render_page' ]
         );

@@ -75,7 +75,7 @@ class DD_Admin extends DD_Module {
         add_submenu_page( 'dish-dash',
             __( 'Orders', 'dish-dash' ),
             __( '🛒 Orders', 'dish-dash' ),
-            'manage_options', 'dish-dash-orders',
+            'dd_manage_orders', 'dish-dash-orders',
             [ $this, 'render_orders' ]
         );
 
@@ -83,7 +83,7 @@ class DD_Admin extends DD_Module {
         add_submenu_page( 'dish-dash',
             __( 'Menu', 'dish-dash' ),
             __( '🍽️ Menu Items', 'dish-dash' ),
-            'manage_options', 'dish-dash-menu',
+            'dd_manage_menu', 'dish-dash-menu',
             [ $this, 'render_menu' ]
         );
 
@@ -115,7 +115,7 @@ class DD_Admin extends DD_Module {
         add_submenu_page( 'dish-dash',
             __( 'Analytics', 'dish-dash' ),
             __( '📈 Analytics', 'dish-dash' ),
-            'manage_options', 'dish-dash-analytics',
+            'dd_view_analytics', 'dish-dash-analytics',
             [ $this, 'render_analytics' ]
         );
 
@@ -125,7 +125,7 @@ class DD_Admin extends DD_Module {
                 'dish-dash',
                 __( 'Billing', 'dish-dash' ),
                 __( '💳 Billing', 'dish-dash' ),
-                'manage_options',
+                'dd_view_billing',
                 'dish-dash-billing',
                 [ $this, 'render_billing' ]
             );
@@ -135,7 +135,7 @@ class DD_Admin extends DD_Module {
         add_submenu_page( 'dish-dash',
             __( 'Settings', 'dish-dash' ),
             __( '⚙️ Settings', 'dish-dash' ),
-            'manage_options', 'dish-dash-settings',
+            'dd_manage_settings', 'dish-dash-settings',
             [ $this, 'render_settings' ]
         );
 
@@ -143,7 +143,7 @@ class DD_Admin extends DD_Module {
         add_submenu_page( 'dish-dash',
             __( 'Brand Identity', 'dish-dash' ),
             __( '🎨 Brand Identity', 'dish-dash' ),
-            'manage_options', 'dish-dash-brand-identity',
+            'dd_manage_brand_identity', 'dish-dash-brand-identity',
             [ $this, 'render_brand_identity' ]
         );
 

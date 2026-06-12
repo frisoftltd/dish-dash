@@ -6,7 +6,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
-if ( ! current_user_can( 'manage_options' ) ) return;
+if ( ! current_user_can( 'dd_view_analytics' ) ) return;
 
 require_once DD_PLUGIN_DIR . 'dishdash-core/class-dd-insights.php';
 

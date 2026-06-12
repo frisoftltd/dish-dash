@@ -22,7 +22,7 @@ class DD_Sections_Admin {
             'dish-dash',
             __( 'Seating Sections', 'dish-dash' ),
             __( 'Seating Sections', 'dish-dash' ),
-            'manage_options',
+            'dd_manage_reservations',
             'dd-sections',
             [ $this, 'render_page' ]
         );

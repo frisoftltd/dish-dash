@@ -7,7 +7,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
-if ( ! current_user_can( 'manage_options' ) ) return;
+if ( ! current_user_can( 'dd_manage_orders' ) ) return;
 
 global $wpdb;
 $ot = $wpdb->prefix . 'dishdash_orders';

@@ -292,6 +292,28 @@ class DD_Hooks {
             remove_submenu_page( 'dish-dash', 'dish-dash-delivery' ); // Delivery
             remove_submenu_page( 'dish-dash', 'dish-dash-branches' ); // Branches
             remove_submenu_page( 'dish-dash', 'dish-dash-pos' );      // POS Terminal
+
+            // Phase 7: Lock Restaurant Owner / Manager into Dish Dash only.
+            $user = wp_get_current_user();
+            if ( array_intersect( [ 'dd_restaurant_owner', 'dd_restaurant_manager' ], $user->roles ) ) {
+                $hide = [
+                    'upload.php',              // Media
+                    'edit.php?post_type=page', // Pages
+                    'themes.php',              // Appearance
+                    'plugins.php',             // Plugins
+                    'users.php',               // Users
+                    'tools.php',               // Tools
+                    'options-general.php',     // Settings
+                ];
+                foreach ( $hide as $page ) {
+                    remove_menu_page( $page );
+                }
+
+                // Hide WooCommerce top-level menus if present.
+                remove_menu_page( 'woocommerce' );
+                remove_menu_page( 'edit.php?post_type=product' );
+                remove_menu_page( 'wc-admin&path=/analytics/overview' );
+            }
         }, 999 );
     }
 

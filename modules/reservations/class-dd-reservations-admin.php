@@ -21,7 +21,7 @@ class DD_Reservations_Admin {
             'dish-dash',
             __( 'Reservations', 'dish-dash' ),
             '📅 Reservations',
-            'manage_options',
+            'dd_manage_reservations',
             'dd-reservations',
             [ $this, 'render_page' ]
         );

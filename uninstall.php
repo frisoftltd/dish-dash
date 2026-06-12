@@ -62,7 +62,9 @@ foreach ( $post_types as $pt ) {
 
 // ── Remove custom roles ──────────────────────
 $roles = [
+    'dd_restaurant_owner',
     'dd_restaurant_manager',
+    // Legacy roles from earlier versions — removed defensively.
     'dd_branch_manager',
     'dd_cashier',
     'dd_delivery_driver',
@@ -77,9 +79,9 @@ $admin = get_role( 'administrator' );
 if ( $admin ) {
     $caps = [
         'dd_manage_orders', 'dd_manage_menu', 'dd_manage_reservations',
-        'dd_manage_delivery', 'dd_view_analytics', 'dd_manage_branches',
-        'dd_access_pos', 'dd_view_deliveries', 'dd_update_delivery',
-        'dd_view_orders', 'dd_update_order_status', 'dd_manage_settings',
+        'dd_view_analytics', 'dd_view_billing', 'dd_view_customers',
+        'dd_manage_brand_identity', 'dd_manage_homepage', 'dd_manage_template',
+        'dd_manage_settings', 'dd_view_activity_log', 'dd_manage_auth',
     ];
     foreach ( $caps as $cap ) {
         $admin->remove_cap( $cap );

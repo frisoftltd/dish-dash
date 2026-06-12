@@ -447,45 +447,39 @@ class DD_Install {
     //  USER ROLES
     // ─────────────────────────────────────────
     private static function create_roles(): void {
-        // Restaurant Manager — manages everything except plugin settings.
-        add_role( 'dd_restaurant_manager', __( 'Restaurant Manager', 'dish-dash' ), [
+        self::register_roles();
+    }
+
+    /**
+     * Defines the 2 Dish Dash roles and grants admin caps.
+     * Safe to call on every load — only ADDS roles/caps that don't exist.
+     * Used by both activation and migrate_roles_v2().
+     */
+    public static function register_roles(): void {
+
+        // Restaurant Owner — full Dish Dash access, no WP system/admin access.
+        add_role( 'dd_restaurant_owner', __( 'Restaurant Owner', 'dish-dash' ), [
             'read'                     => true,
             'dd_manage_orders'         => true,
             'dd_manage_menu'           => true,
             'dd_manage_reservations'   => true,
-            'dd_manage_delivery'       => true,
             'dd_view_analytics'        => true,
-            'dd_manage_branches'       => true,
+            'dd_view_billing'          => true,
+            'dd_view_customers'        => true,
+            'dd_manage_brand_identity' => true,
+            'dd_manage_homepage'       => true,
+            'dd_manage_template'       => true,
+            'dd_manage_settings'       => true,
+            'dd_view_activity_log'     => true,
         ] );
 
-        // Branch Manager — scoped to their own branch.
-        add_role( 'dd_branch_manager', __( 'Branch Manager', 'dish-dash' ), [
+        // Restaurant Manager — day-to-day operations only.
+        add_role( 'dd_restaurant_manager', __( 'Restaurant Manager', 'dish-dash' ), [
             'read'                   => true,
             'dd_manage_orders'       => true,
             'dd_manage_menu'         => true,
             'dd_manage_reservations' => true,
-            'dd_view_analytics'      => true,
-        ] );
-
-        // Cashier — POS terminal access only.
-        add_role( 'dd_cashier', __( 'Cashier', 'dish-dash' ), [
-            'read'            => true,
-            'dd_access_pos'   => true,
-            'dd_manage_orders' => true,
-        ] );
-
-        // Delivery Driver — view & update assigned deliveries.
-        add_role( 'dd_delivery_driver', __( 'Delivery Driver', 'dish-dash' ), [
-            'read'               => true,
-            'dd_view_deliveries' => true,
-            'dd_update_delivery' => true,
-        ] );
-
-        // Kitchen Staff — view order queue only.
-        add_role( 'dd_kitchen_staff', __( 'Kitchen Staff', 'dish-dash' ), [
-            'read'            => true,
-            'dd_view_orders'  => true,
-            'dd_update_order_status' => true,
+            'dd_view_customers'      => true,
         ] );
 
         // Grant all Dish Dash capabilities to site administrators.
@@ -493,14 +487,38 @@ class DD_Install {
         if ( $admin ) {
             $caps = [
                 'dd_manage_orders', 'dd_manage_menu', 'dd_manage_reservations',
-                'dd_manage_delivery', 'dd_view_analytics', 'dd_manage_branches',
-                'dd_access_pos', 'dd_view_deliveries', 'dd_update_delivery',
-                'dd_view_orders', 'dd_update_order_status', 'dd_manage_settings',
+                'dd_view_analytics', 'dd_view_billing', 'dd_view_customers',
+                'dd_manage_brand_identity', 'dd_manage_homepage', 'dd_manage_template',
+                'dd_manage_settings', 'dd_view_activity_log', 'dd_manage_auth',
             ];
             foreach ( $caps as $cap ) {
                 $admin->add_cap( $cap );
             }
         }
+    }
+
+    /**
+     * Migration: removes the obsolete dd_* roles and re-creates
+     * dd_restaurant_manager with the new (reduced) capability set.
+     * Runs once per site, tracked via dish_dash_roles_version option.
+     */
+    public static function migrate_roles_v2(): void {
+        if ( get_option( 'dish_dash_roles_version' ) === '2' ) {
+            return;
+        }
+
+        // Remove obsolete roles entirely.
+        foreach ( [ 'dd_branch_manager', 'dd_cashier', 'dd_delivery_driver', 'dd_kitchen_staff' ] as $role ) {
+            remove_role( $role );
+        }
+
+        // Re-create dd_restaurant_manager with the new, reduced cap set
+        // (remove_role first since add_role is a no-op on existing roles).
+        remove_role( 'dd_restaurant_manager' );
+
+        self::register_roles();
+
+        update_option( 'dish_dash_roles_version', '2' );
     }
 
     // ─────────────────────────────────────────

@@ -60,7 +60,7 @@ class DD_Homepage_Module extends DD_Module {
             'dish-dash',
             __( 'Homepage Settings', 'dish-dash' ),
             __( '🏠 Homepage', 'dish-dash' ),
-            'manage_options',
+            'dd_manage_homepage',
             'dish-dash-homepage',
             [ $this, 'render_admin_page' ]
         );
@@ -81,7 +81,7 @@ class DD_Homepage_Module extends DD_Module {
         if (
             ! isset( $_POST['dd_homepage_save'] ) ||
             ! check_admin_referer( 'dd_homepage_settings', 'dd_homepage_nonce' ) ||
-            ! current_user_can( 'manage_options' )
+            ! current_user_can( 'dd_manage_homepage' )
         ) return;
 
         $fields = [

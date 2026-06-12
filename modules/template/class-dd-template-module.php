@@ -325,7 +325,7 @@ class DD_Template_Module extends DD_Module {
             'dish-dash',
             __( 'Template Settings', 'dish-dash' ),
             __( '🎨 Template', 'dish-dash' ),
-            'manage_options',
+            'dd_manage_template',
             'dish-dash-template',
             [ $this, 'render_admin_page' ]
         );
@@ -366,7 +366,7 @@ class DD_Template_Module extends DD_Module {
         if (
             ! isset( $_POST['dd_template_save'] ) ||
             ! check_admin_referer( 'dd_template_settings', 'dd_template_nonce' ) ||
-            ! current_user_can( 'manage_options' )
+            ! current_user_can( 'dd_manage_template' )
         ) {
             return;
         }
