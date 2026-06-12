@@ -598,8 +598,12 @@ class DD_Hooks {
             return;
         }
 
-        // Allow if already logged in as admin
-        if ( is_user_logged_in() && current_user_can( 'manage_options' ) ) {
+        // Allow if already logged in as admin, or as an internal Dish Dash
+        // staff role (Restaurant Owner / Restaurant Manager — Phase 7).
+        if ( is_user_logged_in() && (
+            current_user_can( 'manage_options' )
+            || current_user_can( 'dd_manage_orders' )
+        ) ) {
             return;
         }
 
