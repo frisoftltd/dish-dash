@@ -618,7 +618,7 @@ class DD_Hooks {
         }
 
         // Allow if already logged in as admin or internal staff role.
-        if ( is_user_logged_in() && current_user_can( 'manage_options' ) ) {
+        if ( is_user_logged_in() && ( current_user_can( 'manage_options' ) || current_user_can( 'dd_manage_orders' ) ) ) {
             return;
         }
 
