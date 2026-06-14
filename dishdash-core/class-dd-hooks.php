@@ -51,7 +51,8 @@ class DD_Hooks {
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
 
         // Phase 7B: Redirect internal staff roles to Dish Dash dashboard after login.
-        add_filter( 'login_redirect', [ __CLASS__, 'staff_login_redirect' ], 1, 3 );
+        add_filter( 'login_redirect',             [ __CLASS__, 'staff_login_redirect' ],    1, 3 );
+        add_filter( 'woocommerce_login_redirect', [ __CLASS__, 'wc_staff_login_redirect' ], 1, 2 );
 
         // Clean up WP admin noise for restaurant owner.
         self::suppress_update_badges();
@@ -60,6 +61,26 @@ class DD_Hooks {
         self::replace_login_page_logo();
         self::style_admin_area();
         self::hide_irrelevant_menu_items();
+    }
+
+    /**
+     * Override WooCommerce's login redirect for internal staff roles.
+     * WooCommerce applies this filter inside process_login() before calling
+     * wp_redirect() — WordPress's login_redirect filter never fires in that path.
+     *
+     * @param string  $redirect  The URL WooCommerce is about to redirect to.
+     * @param WP_User $user      The authenticated user.
+     */
+    public static function wc_staff_login_redirect( string $redirect, WP_User $user ): string {
+        if ( user_can( $user, 'manage_options' ) ) {
+            return admin_url( 'admin.php?page=dish-dash' );
+        }
+
+        if ( user_can( $user, 'dd_manage_orders' ) ) {
+            return admin_url( 'admin.php?page=dish-dash' );
+        }
+
+        return $redirect;
     }
 
     /**
