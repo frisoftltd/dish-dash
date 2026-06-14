@@ -47,6 +47,9 @@ class DD_Hooks {
         // Handle the redirect when the custom path is hit.
         add_action( 'template_redirect', [ __CLASS__, 'handle_admin_redirect' ] );
 
+        // Redirect staff roles to the DD dashboard immediately after login.
+        add_action( 'wp_login', [ __CLASS__, 'staff_wp_login_redirect' ], 1, 2 );
+
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
 
@@ -543,6 +546,22 @@ class DD_Hooks {
             wp_redirect( $login_url );
             exit;
         }
+    }
+
+    /**
+     * Immediately after WordPress authenticates a staff role,
+     * redirect them to the Dish Dash dashboard and exit.
+     * Fires on wp_login priority 1 — before WP core or WooCommerce
+     * redirect logic runs.
+     *
+     * @param string  $user_login  The username.
+     * @param WP_User $user        The authenticated user object.
+     */
+    public static function staff_wp_login_redirect( string $user_login, WP_User $user ): void {
+        if ( ! user_can( $user, 'dd_manage_orders' ) ) return;
+
+        wp_redirect( admin_url( 'admin.php?page=dish-dash' ) );
+        exit;
     }
 
     /**
