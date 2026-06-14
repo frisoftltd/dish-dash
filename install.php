@@ -457,9 +457,11 @@ class DD_Install {
      */
     public static function register_roles(): void {
 
-        // Restaurant Owner — full Dish Dash access, no WP system/admin access.
+        // Restaurant Owner — full Dish Dash access. manage_options grants wp-admin
+        // entry; irrelevant WP menus are hidden by hide_irrelevant_menu_items().
         add_role( 'dd_restaurant_owner', __( 'Restaurant Owner', 'dish-dash' ), [
             'read'                     => true,
+            'manage_options'           => true,
             'dd_manage_orders'         => true,
             'dd_manage_menu'           => true,
             'dd_manage_reservations'   => true,
@@ -476,6 +478,7 @@ class DD_Install {
         // Restaurant Manager — day-to-day operations only.
         add_role( 'dd_restaurant_manager', __( 'Restaurant Manager', 'dish-dash' ), [
             'read'                   => true,
+            'manage_options'         => true,
             'dd_manage_orders'       => true,
             'dd_manage_menu'         => true,
             'dd_manage_reservations' => true,
@@ -503,7 +506,7 @@ class DD_Install {
      * Runs once per site, tracked via dish_dash_roles_version option.
      */
     public static function migrate_roles_v2(): void {
-        if ( get_option( 'dish_dash_roles_version' ) === '2' ) {
+        if ( get_option( 'dish_dash_roles_version' ) === '3' ) {
             return;
         }
 
@@ -512,13 +515,14 @@ class DD_Install {
             remove_role( $role );
         }
 
-        // Re-create dd_restaurant_manager with the new, reduced cap set
-        // (remove_role first since add_role is a no-op on existing roles).
+        // Re-create both DD roles so existing installs pick up manage_options.
+        // add_role() is a no-op on existing roles, so we must remove first.
+        remove_role( 'dd_restaurant_owner' );
         remove_role( 'dd_restaurant_manager' );
 
         self::register_roles();
 
-        update_option( 'dish_dash_roles_version', '2' );
+        update_option( 'dish_dash_roles_version', '3' );
     }
 
     // ─────────────────────────────────────────

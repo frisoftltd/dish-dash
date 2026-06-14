@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.7.3 (2026-06-14)
+> Last updated: v3.7.4 (2026-06-14)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.7.3 |
+| **Deployed version** | v3.7.4 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B |
-| **Next task** | v3.7.4 — Phase 7B (activity log + Add User flow) |
-| **Last working state** | v3.7.3: Fixed login redirect by hooking woocommerce_login_redirect (WC bypasses WP's login_redirect filter). Owner/Manager/Admin all land on Dish Dash dashboard; customers/subscribers land on /my-account/. |
+| **Next task** | v3.7.5 — Phase 7B (activity log + Add User flow) |
+| **Last working state** | v3.7.4: Grant manage_options to Owner/Manager roles — WP/WC natively redirect manage_options users to wp-admin; login_redirect/woocommerce_login_redirect filter workarounds removed; maybe_block_wp_admin() simplified to single manage_options check. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -629,7 +629,8 @@ Every page before shipping must pass:
 | **v3.7.1** | ✅ **Done** | **Fix custom-admin-path 404 gate blocking Restaurant Owner/Manager from wp-admin; gate now allows dd_manage_orders capability alongside manage_options** |
 | **v3.7.2** | ✅ **Done** | **Redirect Owner/Manager to Dish Dash dashboard after login — login_redirect filter (priority 1) for wp-login.php path; redirect URL in ajax_login() response for modal path; JS uses href instead of reload** |
 | **v3.7.3** | ✅ **Done** | **Fix login redirect — hook woocommerce_login_redirect (WC bypasses WP's login_redirect); Owner/Manager/Admin sent to Dish Dash dashboard; customers/subscribers unaffected** |
-| v3.7.4 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
+| **v3.7.4** | ✅ **Done** | **Grant manage_options to Owner/Manager roles; remove login_redirect filter workarounds; simplify maybe_block_wp_admin(); migrate_roles_v2() bumped to v3 to re-create roles on existing installs** |
+| v3.7.5 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

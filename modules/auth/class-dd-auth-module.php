@@ -698,7 +698,7 @@ class DD_Auth_Module extends DD_Module {
         }
 
         $redirect = home_url( '/' );
-        if ( user_can( $user, 'manage_options' ) || user_can( $user, 'dd_manage_orders' ) ) {
+        if ( user_can( $user, 'manage_options' ) ) {
             $redirect = admin_url( 'admin.php?page=dish-dash' );
         }
 
