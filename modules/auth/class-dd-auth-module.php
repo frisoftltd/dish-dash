@@ -530,8 +530,11 @@ class DD_Auth_Module extends DD_Module {
                         loginBtn.textContent = 'Sign in';
                         loginBtn.disabled = false;
                         if (res.success) {
-                            ddAuthMsg(loginMsg, '✓ Welcome back! Refreshing…', 'success');
-                            setTimeout(function() { window.location.reload(); }, 800);
+                            ddAuthMsg(loginMsg, '✓ Welcome back! Redirecting…', 'success');
+                            setTimeout(function() {
+                                var dest = (res.data && res.data.redirect) ? res.data.redirect : window.location.href;
+                                window.location.href = dest;
+                            }, 800);
                         } else {
                             ddAuthMsg(loginMsg, res.data || 'Login failed. Please try again.', 'error');
                         }
@@ -694,7 +697,16 @@ class DD_Auth_Module extends DD_Module {
             wp_send_json_error( 'Login failed. Please try again.' );
         }
 
-        wp_send_json_success( [ 'user_id' => $user->ID, 'name' => $user->display_name ] );
+        $redirect = home_url( '/' );
+        if ( user_can( $user, 'manage_options' ) || user_can( $user, 'dd_manage_orders' ) ) {
+            $redirect = admin_url( 'admin.php?page=dish-dash' );
+        }
+
+        wp_send_json_success( [
+            'user_id'  => $user->ID,
+            'name'     => $user->display_name,
+            'redirect' => $redirect,
+        ] );
     }
 
     // ─────────────────────────────────────────

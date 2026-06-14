@@ -50,6 +50,9 @@ class DD_Hooks {
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
 
+        // Phase 7B: Redirect internal staff roles to Dish Dash dashboard after login.
+        add_filter( 'login_redirect', [ __CLASS__, 'staff_login_redirect' ], 1, 3 );
+
         // Clean up WP admin noise for restaurant owner.
         self::suppress_update_badges();
         self::suppress_admin_notices();
@@ -68,6 +71,31 @@ class DD_Hooks {
             flush_rewrite_rules();
             delete_transient( 'dish_dash_flush_rewrite' );
         }
+    }
+
+    /**
+     * After wp-login.php authentication, send Restaurant Owner/Manager
+     * straight to the Dish Dash dashboard instead of /my-account/.
+     * Runs at priority 1 — before WooCommerce's login_redirect hook.
+     *
+     * @param string           $redirect_to  Requested redirect URL.
+     * @param string           $requested    Originally requested URL.
+     * @param WP_User|WP_Error $user         The authenticated user.
+     */
+    public static function staff_login_redirect( string $redirect_to, string $requested, $user ): string {
+        if ( ! ( $user instanceof WP_User ) ) {
+            return $redirect_to;
+        }
+
+        if ( user_can( $user, 'manage_options' ) ) {
+            return $redirect_to;
+        }
+
+        if ( user_can( $user, 'dd_manage_orders' ) ) {
+            return admin_url( 'admin.php?page=dish-dash' );
+        }
+
+        return $redirect_to;
     }
 
     /**
