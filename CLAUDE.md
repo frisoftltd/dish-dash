@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.7.5 (2026-06-14)
+> Last updated: v3.7.6 (2026-06-14)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.7.5 |
+| **Deployed version** | v3.7.6 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B |
-| **Next task** | v3.7.6 — Phase 7B (activity log + Add User flow) |
-| **Last working state** | v3.7.5: Staff roles (Owner/Manager) are redirected from /my-account/ to the Dish Dash dashboard via template_redirect at priority 5 (staff_frontend_redirect()). |
+| **Next task** | v3.7.7 — login redirect via wp_login action hook |
+| **Last working state** | v3.7.6: Reverted staff_frontend_redirect() — template_redirect caused a redirect loop. Next attempt will use wp_login action hook (fires immediately post-auth, before any redirect). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -631,7 +631,8 @@ Every page before shipping must pass:
 | **v3.7.3** | ✅ **Done** | **Fix login redirect — hook woocommerce_login_redirect (WC bypasses WP's login_redirect); Owner/Manager/Admin sent to Dish Dash dashboard; customers/subscribers unaffected** |
 | **v3.7.4** | ✅ **Done** | **Grant manage_options to Owner/Manager roles; remove login_redirect filter workarounds; simplify maybe_block_wp_admin(); migrate_roles_v2() bumped to v3 to re-create roles on existing installs** |
 | **v3.7.5** | ✅ **Done** | **Redirect staff roles (Owner/Manager) from /my-account/ to DD dashboard via template_redirect priority 5 (staff_frontend_redirect())** |
-| v3.7.6 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
+| **v3.7.6** | ✅ **Done** | **Emergency revert: remove staff_frontend_redirect() — template_redirect caused redirect loop** |
+| v3.7.7 | ⏳ **NEXT** | Login redirect via wp_login action hook (correct hook — fires post-auth before any redirect) |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
