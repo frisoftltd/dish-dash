@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.8.0 (2026-06-15)
+> Last updated: v3.8.1 (2026-06-15)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.8.0 |
+| **Deployed version** | v3.8.1 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B |
-| **Next task** | v3.8.1 — Phase 7B (activity log + Add User flow) |
-| **Last working state** | v3.8.0: admin_init (priority 1) redirects dd_restaurant_owner/dd_restaurant_manager to DD dashboard on wp-admin load; Fri Soft admins (not owner/manager) pass through; all previous login_redirect/wp_login/template_redirect attempts removed. |
+| **Next task** | v3.8.2 — Phase 7B (activity log + Add User flow) |
+| **Last working state** | v3.8.1: maybe_block_wp_admin allows dd_manage_orders through; staff_frontend_redirect (template_redirect priority 1) bounces Owner/Manager from frontend through custom admin path into DD dashboard; handle_admin_redirect redirect_to changed to home_url('/') so login_redirect filter fires. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -636,7 +636,8 @@ Every page before shipping must pass:
 | **v3.7.8** | ✅ **Done** | **Wire wp_login redirect action registration; fix maybe_block_wp_admin() to allow dd_manage_orders through custom admin path gate** |
 | **v3.7.9** | ✅ **Done** | **Fix login redirect — login_redirect sends staff to ?dd_staff_login=1 (safe frontend URL); template_redirect/staff_dashboard_bounce() forwards to DD dashboard** |
 | **v3.8.0** | ✅ **Done** | **Fix login redirect via admin_init (standard WP pattern); redirects Restaurant Owner/Manager to DD dashboard on wp-admin load; Fri Soft admins pass through; removes all previous wp_login/login_redirect/template_redirect attempts** |
-| v3.8.1 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
+| **v3.8.1** | ✅ **Done** | **Fix wp-admin gate (allow dd_manage_orders); add staff_frontend_redirect to bounce Owner/Manager from frontend through custom admin path into DD dashboard** |
+| v3.8.2 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

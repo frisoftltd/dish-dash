@@ -47,6 +47,9 @@ class DD_Hooks {
         // Handle the redirect when the custom path is hit.
         add_action( 'template_redirect', [ __CLASS__, 'handle_admin_redirect' ] );
 
+        // Bounce staff roles on the frontend through the custom admin path.
+        add_action( 'template_redirect', [ __CLASS__, 'staff_frontend_redirect' ], 1 );
+
         // Redirect Dish Dash staff roles to the DD dashboard on wp-admin load.
         add_action( 'admin_init', [ __CLASS__, 'staff_dashboard_redirect' ], 1 );
 
@@ -542,10 +545,27 @@ class DD_Hooks {
             || isset( $_GET['dd_admin_redirect'] );
 
         if ( $is_redirect ) {
-            $login_url = add_query_arg( 'dd_entry', '1', wp_login_url( admin_url() ) );
+            $login_url = add_query_arg( 'dd_entry', '1', wp_login_url( home_url( '/' ) ) );
             wp_redirect( $login_url );
             exit;
         }
+    }
+
+    public static function staff_frontend_redirect(): void {
+        if ( ! is_user_logged_in() ) return;
+        if ( is_admin() ) return;
+
+        $user = wp_get_current_user();
+        if ( ! in_array( 'dd_restaurant_owner', (array) $user->roles )
+            && ! in_array( 'dd_restaurant_manager', (array) $user->roles ) ) return;
+
+        $custom_path = get_option( 'dd_admin_custom_path', '' );
+        if ( ! empty( $custom_path ) ) {
+            wp_redirect( home_url( '/' . $custom_path ) );
+        } else {
+            wp_redirect( admin_url( 'admin.php?page=dish-dash' ) );
+        }
+        exit;
     }
 
     /**
