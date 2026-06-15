@@ -38,6 +38,9 @@ class DD_Hooks {
         // Flush rewrite rules when CPTs are registered.
         add_action( 'init', [ __CLASS__, 'maybe_flush_rewrite_rules' ] );
 
+        // Redirect staff roles and administrators to DD dashboard after WooCommerce login.
+        add_filter( 'woocommerce_login_redirect', [ __CLASS__, 'staff_wc_login_redirect' ], 9999, 2 );
+
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
 
@@ -70,6 +73,22 @@ class DD_Hooks {
         $links[] = '<a href="' . admin_url( 'admin.php?page=dish-dash-settings' ) . '">'
             . esc_html__( 'Settings', 'dish-dash' ) . '</a>';
         return $links;
+    }
+
+    /**
+     * Override WooCommerce login redirect for Dish Dash staff roles.
+     * Hooks at priority 9999 — after WooCommerce sets its redirect value.
+     * Pattern: businessbloomer.com WooCommerce role redirect standard.
+     *
+     * @param string  $redirect The URL WooCommerce is about to redirect to.
+     * @param WP_User $user     The authenticated user.
+     */
+    public static function staff_wc_login_redirect( string $redirect, WP_User $user ): string {
+        $staff_roles = [ 'dd_restaurant_owner', 'dd_restaurant_manager', 'administrator' ];
+        if ( ! empty( array_intersect( $staff_roles, (array) $user->roles ) ) ) {
+            return admin_url( 'admin.php?page=dish-dash' );
+        }
+        return $redirect;
     }
 
     /**
