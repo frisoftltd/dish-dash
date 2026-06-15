@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.8.2 (2026-06-15)
+> Last updated: v3.8.3 (2026-06-15)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.8.2 |
+| **Deployed version** | v3.8.3 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B |
-| **Next task** | v3.8.3 — Phase 7B (activity log + Add User flow) |
-| **Last working state** | v3.8.2: staff_frontend_redirect excludes administrator role and wp-login.php from redirect to prevent loops; redirects Owner/Manager directly to admin_url('admin.php?page=dish-dash'); handle_admin_redirect redirect_to uses admin_url() so login_redirect filter fires correctly. |
+| **Next task** | v3.8.4 — Phase 7B (activity log + Add User flow) |
+| **Last working state** | v3.8.3: custom admin path feature (/khazana) completely removed. maybe_block_wp_admin, register_admin_rewrite, handle_admin_redirect, staff_frontend_redirect, staff_dashboard_redirect methods deleted. Recovery email handler and Security settings card removed from settings.php. dd_admin_custom_path option to be deleted via WP-CLI after deploy. IP restriction via .htaccess planned for next phase. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -638,7 +638,8 @@ Every page before shipping must pass:
 | **v3.8.0** | ✅ **Done** | **Fix login redirect via admin_init (standard WP pattern); redirects Restaurant Owner/Manager to DD dashboard on wp-admin load; Fri Soft admins pass through; removes all previous wp_login/login_redirect/template_redirect attempts** |
 | **v3.8.1** | ✅ **Done** | **Fix wp-admin gate (allow dd_manage_orders); add staff_frontend_redirect to bounce Owner/Manager from frontend through custom admin path into DD dashboard** |
 | **v3.8.2** | ✅ **Done** | **Fix staff_frontend_redirect — exclude administrator role and wp-login.php from redirect, preventing loops; redirect to admin_url() directly** |
-| v3.8.3 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
+| **v3.8.3** | ✅ **Done** | **Remove custom admin path feature entirely — delete maybe_block_wp_admin, register_admin_rewrite, handle_admin_redirect, staff_frontend_redirect, staff_dashboard_redirect; remove Security card from settings.php** |
+| v3.8.4 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
