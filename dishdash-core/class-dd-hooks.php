@@ -545,26 +545,26 @@ class DD_Hooks {
             || isset( $_GET['dd_admin_redirect'] );
 
         if ( $is_redirect ) {
-            $login_url = add_query_arg( 'dd_entry', '1', wp_login_url( home_url( '/' ) ) );
+            $login_url = add_query_arg( 'dd_entry', '1', wp_login_url( admin_url() ) );
             wp_redirect( $login_url );
             exit;
         }
     }
 
     public static function staff_frontend_redirect(): void {
+        if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) return;
         if ( ! is_user_logged_in() ) return;
         if ( is_admin() ) return;
 
-        $user = wp_get_current_user();
-        if ( ! in_array( 'dd_restaurant_owner', (array) $user->roles )
-            && ! in_array( 'dd_restaurant_manager', (array) $user->roles ) ) return;
+        $user        = wp_get_current_user();
+        $staff_roles = [ 'dd_restaurant_owner', 'dd_restaurant_manager' ];
+        if ( empty( array_intersect( $staff_roles, (array) $user->roles ) ) ) return;
 
-        $custom_path = get_option( 'dd_admin_custom_path', '' );
-        if ( ! empty( $custom_path ) ) {
-            wp_redirect( home_url( '/' . $custom_path ) );
-        } else {
-            wp_redirect( admin_url( 'admin.php?page=dish-dash' ) );
-        }
+        $request_uri = $_SERVER['REQUEST_URI'] ?? '';
+        if ( strpos( $request_uri, 'wp-login.php' ) !== false ) return;
+        if ( strpos( $request_uri, 'wp-admin' ) !== false ) return;
+
+        wp_redirect( admin_url( 'admin.php?page=dish-dash' ) );
         exit;
     }
 
