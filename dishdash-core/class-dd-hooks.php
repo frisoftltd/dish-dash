@@ -47,8 +47,8 @@ class DD_Hooks {
         // Handle the redirect when the custom path is hit.
         add_action( 'template_redirect', [ __CLASS__, 'handle_admin_redirect' ] );
 
-        // Redirect staff roles to the DD dashboard immediately after login.
-        add_action( 'wp_login', [ __CLASS__, 'staff_wp_login_redirect' ], 1, 2 );
+        // Redirect Dish Dash staff roles to the DD dashboard on wp-admin load.
+        add_action( 'admin_init', [ __CLASS__, 'staff_dashboard_redirect' ], 1 );
 
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
@@ -549,16 +549,29 @@ class DD_Hooks {
     }
 
     /**
-     * Immediately after WordPress authenticates a staff role,
-     * redirect them to the Dish Dash dashboard and exit.
-     * Fires on wp_login priority 1 — before WP core or WooCommerce
-     * redirect logic runs.
-     *
-     * @param string  $user_login  The username.
-     * @param WP_User $user        The authenticated user object.
+     * On every wp-admin page load, redirect Dish Dash staff roles
+     * to the Dish Dash dashboard if not already on a Dish Dash page.
+     * Standard WordPress pattern used by WooCommerce, Elementor, etc.
+     * Fires on admin_init priority 1.
      */
-    public static function staff_wp_login_redirect( string $user_login, WP_User $user ): void {
+    public static function staff_dashboard_redirect(): void {
+        if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) return;
+
+        $user = wp_get_current_user();
+        if ( ! $user->exists() ) return;
         if ( ! user_can( $user, 'dd_manage_orders' ) ) return;
+
+        // Full Fri Soft administrator — never redirect.
+        if ( ! in_array( 'dd_restaurant_owner', (array) $user->roles )
+            && ! in_array( 'dd_restaurant_manager', (array) $user->roles ) ) return;
+
+        // Already on a Dish Dash page — don't redirect.
+        $current_page = isset( $_GET['page'] ) ? $_GET['page'] : '';
+        if ( strpos( $current_page, 'dish-dash' ) === 0 ) return;
+
+        // Allow post type pages (menu items).
+        $pagenow = $GLOBALS['pagenow'] ?? '';
+        if ( in_array( $pagenow, [ 'edit.php', 'post.php', 'post-new.php' ], true ) ) return;
 
         wp_redirect( admin_url( 'admin.php?page=dish-dash' ) );
         exit;
