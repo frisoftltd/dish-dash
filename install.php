@@ -477,16 +477,25 @@ class DD_Install {
             'dd_view_activity_log'     => true,
         ] );
 
-        // Restaurant Manager — day-to-day operations only.
+        // Restaurant Manager — identical capabilities to Owner.
+        // Manager runs day-to-day operations; Owner uses same access for oversight.
+        // Settings/Tools/Template are hidden from the menu for both (v3.8.7).
         add_role( 'dd_restaurant_manager', __( 'Restaurant Manager', 'dish-dash' ), [
-            'read'                   => true,
-            'manage_options'         => true,
-            'manage_woocommerce'     => true,
-            'view_admin_dashboard'   => true,
-            'dd_manage_orders'       => true,
-            'dd_manage_menu'         => true,
-            'dd_manage_reservations' => true,
-            'dd_view_customers'      => true,
+            'read'                     => true,
+            'manage_options'           => true,
+            'manage_woocommerce'       => true,
+            'view_admin_dashboard'     => true,
+            'dd_manage_orders'         => true,
+            'dd_manage_menu'           => true,
+            'dd_manage_reservations'   => true,
+            'dd_view_analytics'        => true,
+            'dd_view_billing'          => true,
+            'dd_view_customers'        => true,
+            'dd_manage_brand_identity' => true,
+            'dd_manage_homepage'       => true,
+            'dd_manage_template'       => true,
+            'dd_manage_settings'       => true,
+            'dd_view_activity_log'     => true,
         ] );
 
         // Grant all Dish Dash capabilities to site administrators.
@@ -510,7 +519,7 @@ class DD_Install {
      * Runs once per site, tracked via dish_dash_roles_version option.
      */
     public static function migrate_roles_v2(): void {
-        if ( get_option( 'dish_dash_roles_version' ) === '4' ) {
+        if ( get_option( 'dish_dash_roles_version' ) === '5' ) {
             return;
         }
 
@@ -526,7 +535,7 @@ class DD_Install {
 
         self::register_roles();
 
-        update_option( 'dish_dash_roles_version', '4' );
+        update_option( 'dish_dash_roles_version', '5' );
     }
 
     // ─────────────────────────────────────────
