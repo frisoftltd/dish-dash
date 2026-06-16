@@ -38,12 +38,16 @@ class DD_Hooks {
         // Flush rewrite rules when CPTs are registered.
         add_action( 'init', [ __CLASS__, 'maybe_flush_rewrite_rules' ] );
 
-        // Redirect staff roles and administrators to DD dashboard after WooCommerce login.
+        // Redirect staff roles and administrators to DD dashboard after login.
+        add_filter( 'login_redirect',                   [ __CLASS__, 'staff_login_redirect' ], 9999, 3 );
         add_filter( 'woocommerce_login_redirect',       [ __CLASS__, 'staff_wc_login_redirect' ], 9999, 2 );
         add_filter( 'woocommerce_prevent_admin_access', [ __CLASS__, 'staff_allow_admin_access' ], 9999 );
 
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
+
+        // Auto-expand the Dish Dash submenu for staff roles.
+        add_action( 'admin_head', [ __CLASS__, 'staff_expand_dishdash_menu' ] );
 
         // Clean up WP admin noise for restaurant owner.
         self::suppress_update_badges();
@@ -74,6 +78,24 @@ class DD_Hooks {
         $links[] = '<a href="' . admin_url( 'admin.php?page=dish-dash-settings' ) . '">'
             . esc_html__( 'Settings', 'dish-dash' ) . '</a>';
         return $links;
+    }
+
+    /**
+     * Native wp-login.php redirect for Dish Dash staff roles.
+     * Sends Owner/Manager to the Dish Dash dashboard instead of profile.php.
+     *
+     * @param string           $redirect_to           Default redirect.
+     * @param string           $requested_redirect_to Requested redirect.
+     * @param WP_User|WP_Error $user                  Logged-in user or error.
+     */
+    public static function staff_login_redirect( $redirect_to, $requested_redirect_to, $user ) {
+        if ( $user instanceof WP_User ) {
+            $staff = [ 'dd_restaurant_owner', 'dd_restaurant_manager' ];
+            if ( array_intersect( $staff, (array) $user->roles ) ) {
+                return admin_url( 'admin.php?page=dish-dash' );
+            }
+        }
+        return $redirect_to;
     }
 
     /**
@@ -305,6 +327,37 @@ class DD_Hooks {
     }
 
     /**
+     * For Restaurant Owner/Manager, force the Dish Dash submenu to stay
+     * expanded in the admin sidebar so they see all options immediately
+     * without clicking the top-level "Dish Dash" item first.
+     */
+    public static function staff_expand_dishdash_menu(): void {
+        $user = wp_get_current_user();
+        if ( ! array_intersect( [ 'dd_restaurant_owner', 'dd_restaurant_manager' ], $user->roles ) ) {
+            return;
+        }
+        ?>
+        <style>
+            /* Keep the Dish Dash submenu open and visible at all times */
+            #adminmenu li.toplevel_page_dish-dash ul.wp-submenu {
+                display: block !important;
+            }
+        </style>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var dd = document.querySelector('#adminmenu li.toplevel_page_dish-dash');
+            if (dd) {
+                dd.classList.add('wp-has-current-submenu', 'wp-menu-open');
+                dd.classList.remove('wp-not-current-submenu');
+                var sub = dd.querySelector('ul.wp-submenu');
+                if (sub) { sub.style.display = 'block'; }
+            }
+        });
+        </script>
+        <?php
+    }
+
+    /**
      * Remove Posts and Comments from the admin sidebar — irrelevant
      * to a restaurant ordering system and confusing for owners.
      */
@@ -328,15 +381,19 @@ class DD_Hooks {
                     'users.php',               // Users
                     'tools.php',               // Tools
                     'options-general.php',     // Settings
+                    'profile.php',             // Profile (still URL-accessible)
                 ];
                 foreach ( $hide as $page ) {
                     remove_menu_page( $page );
                 }
 
-                // Hide WooCommerce top-level menus if present.
+                // Hide WooCommerce top-level menus surfaced by manage_woocommerce.
                 remove_menu_page( 'woocommerce' );
                 remove_menu_page( 'edit.php?post_type=product' );
                 remove_menu_page( 'wc-admin&path=/analytics/overview' );
+                remove_menu_page( 'woocommerce-marketing' );
+                remove_menu_page( 'wc-reports' );
+                remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
             }
         }, 999 );
     }
