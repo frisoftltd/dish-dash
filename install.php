@@ -462,6 +462,8 @@ class DD_Install {
         add_role( 'dd_restaurant_owner', __( 'Restaurant Owner', 'dish-dash' ), [
             'read'                     => true,
             'manage_options'           => true,
+            'manage_woocommerce'       => true,
+            'view_admin_dashboard'     => true,
             'dd_manage_orders'         => true,
             'dd_manage_menu'           => true,
             'dd_manage_reservations'   => true,
@@ -479,6 +481,8 @@ class DD_Install {
         add_role( 'dd_restaurant_manager', __( 'Restaurant Manager', 'dish-dash' ), [
             'read'                   => true,
             'manage_options'         => true,
+            'manage_woocommerce'     => true,
+            'view_admin_dashboard'   => true,
             'dd_manage_orders'       => true,
             'dd_manage_menu'         => true,
             'dd_manage_reservations' => true,
@@ -506,7 +510,7 @@ class DD_Install {
      * Runs once per site, tracked via dish_dash_roles_version option.
      */
     public static function migrate_roles_v2(): void {
-        if ( get_option( 'dish_dash_roles_version' ) === '3' ) {
+        if ( get_option( 'dish_dash_roles_version' ) === '4' ) {
             return;
         }
 
@@ -522,7 +526,7 @@ class DD_Install {
 
         self::register_roles();
 
-        update_option( 'dish_dash_roles_version', '3' );
+        update_option( 'dish_dash_roles_version', '4' );
     }
 
     // ─────────────────────────────────────────

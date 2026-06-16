@@ -39,7 +39,8 @@ class DD_Hooks {
         add_action( 'init', [ __CLASS__, 'maybe_flush_rewrite_rules' ] );
 
         // Redirect staff roles and administrators to DD dashboard after WooCommerce login.
-        add_filter( 'woocommerce_login_redirect', [ __CLASS__, 'staff_wc_login_redirect' ], 9999, 2 );
+        add_filter( 'woocommerce_login_redirect',       [ __CLASS__, 'staff_wc_login_redirect' ], 9999, 2 );
+        add_filter( 'woocommerce_prevent_admin_access', [ __CLASS__, 'staff_allow_admin_access' ], 9999 );
 
         // Add a "Visit Menu" link on the plugins page.
         add_filter( 'plugin_action_links_' . DD_PLUGIN_BASENAME, [ __CLASS__, 'plugin_action_links' ] );
@@ -89,6 +90,19 @@ class DD_Hooks {
             return admin_url( 'admin.php?page=dish-dash' );
         }
         return $redirect;
+    }
+
+    /**
+     * Allow Dish Dash staff roles into wp-admin.
+     * WooCommerce's prevent_admin_access() only checks edit_posts,
+     * manage_woocommerce, and view_admin_dashboard — NOT manage_options.
+     * This filter lets our staff roles through.
+     */
+    public static function staff_allow_admin_access( bool $prevent ): bool {
+        if ( current_user_can( 'dd_manage_orders' ) || current_user_can( 'manage_options' ) ) {
+            return false;
+        }
+        return $prevent;
     }
 
     /**
