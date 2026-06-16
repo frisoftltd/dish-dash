@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.8.8 (2026-06-16)
+> Last updated: v3.8.9 (2026-06-16)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.8.8 |
+| **Deployed version** | v3.8.9 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B |
-| **Next task** | v3.8.9 — Phase 7B (activity log + Add User flow) |
-| **Last working state** | v3.8.8: Restaurant Manager now has IDENTICAL capability set to Restaurant Owner (dd_manage_settings included to match Owner; both still have Settings/Tools/Template hidden from menu). Roles version bumped to '5' to force re-migration on existing installs. |
+| **Next task** | v3.9.0 — Phase 7B Brief 2 (capture hooks) + Brief 3 (viewer page) |
+| **Last working state** | v3.8.9: Phase 7B Brief 1 — Activity Log core. New module modules/activity/class-dd-activity-module.php creates wp_dd_activity_log table (via DD_Activity_Module::install()) and registers dd_log_activity hook. Logs ONLY staff actions (administrator, owner, manager). Viewer page is admin-only (Fri Soft). Table MUST be created manually after deploy: wp eval 'DD_Activity_Module::install();' |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -644,7 +644,8 @@ Every page before shipping must pass:
 | **v3.8.6** | ✅ **Done** | **Phase 7A polish — hide Payments/Marketing/Tools/Profile menus for staff; login_redirect sends Owner/Manager to DD dashboard; Dish Dash submenu auto-expands** |
 | **v3.8.7** | ✅ **Done** | **Remove Settings, Tools, Template from Dish Dash submenu for Owner/Manager; pages remain URL-accessible** |
 | **v3.8.8** | ✅ **Done** | **Restaurant Manager granted full Owner capability set (identical roles); roles version '5' forces re-migration** |
-| v3.8.9 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
+| **v3.8.9** | ✅ **Done** | **Phase 7B Brief 1 — Activity Log core: DD_Activity_Module, wp_dd_activity_log table, dd_log_activity hook, staff-only filter** |
+| v3.9.0 | ⏳ **NEXT** | Phase 7B Brief 2 — capture hooks + Brief 3 — viewer page (admin-only) |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

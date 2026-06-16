@@ -74,6 +74,8 @@ class DD_Loader {
             'DD_Homepage_Module'  => 'modules/homepage/class-dd-homepage-module.php',
             // Auth module — custom login/register/Google OAuth
             'DD_Auth_Module'      => 'modules/auth/class-dd-auth-module.php',
+            // Activity Log module — staff action logging (admin-only viewer; Brief 3)
+            'DD_Activity_Module'  => 'modules/activity/class-dd-activity-module.php',
             // Customers module — customer management dashboard
             'DD_Customers_Module' => 'modules/customers/class-dd-customers-module.php',
             // Tracking module — behavior events, AI foundation
