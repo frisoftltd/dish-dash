@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.8.6 (2026-06-16)
+> Last updated: v3.8.7 (2026-06-16)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.8.6 |
+| **Deployed version** | v3.8.7 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B |
-| **Next task** | v3.8.7 — Phase 7B (activity log + Add User flow) |
-| **Last working state** | v3.8.6: Phase 7A polish — Payments/Marketing/Tools/Profile/Sales reports menus hidden for staff roles; native login_redirect sends Owner/Manager to DD dashboard instead of profile.php; Dish Dash submenu auto-expands in sidebar for staff. Profile remains URL-accessible for password changes. |
+| **Next task** | v3.8.8 — Phase 7B (activity log + Add User flow) |
+| **Last working state** | v3.8.7: Removed Settings, Tools, and Template submenu items from the Dish Dash menu for Restaurant Owner/Manager. Both roles keep all other DD pages. Pages remain URL-accessible if capability allows; hidden from menu only. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -642,7 +642,8 @@ Every page before shipping must pass:
 | **v3.8.4** | ✅ **Done** | **Fix login redirect via woocommerce_login_redirect filter at priority 9999 — staff roles and administrator sent to DD dashboard after login** |
 | **v3.8.5** | ✅ **Done** | **Fix WooCommerce prevent_admin_access blocking staff roles — grant manage_woocommerce + view_admin_dashboard to Owner/Manager; add woocommerce_prevent_admin_access filter; roles version bumped to '4'** |
 | **v3.8.6** | ✅ **Done** | **Phase 7A polish — hide Payments/Marketing/Tools/Profile menus for staff; login_redirect sends Owner/Manager to DD dashboard; Dish Dash submenu auto-expands** |
-| v3.8.7 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
+| **v3.8.7** | ✅ **Done** | **Remove Settings, Tools, Template from Dish Dash submenu for Owner/Manager; pages remain URL-accessible** |
+| v3.8.8 | ⏳ **NEXT** | Phase 7B — activity log + Add User flow |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
