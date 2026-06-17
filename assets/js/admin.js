@@ -25,6 +25,15 @@
         return Math.floor( diff / 86400 ) + ' days ago';
     }
 
+    // Parse a MySQL "Y-m-d H:i:s" datetime (site-local) into a JS epoch ms value.
+    function ddParseServerTime( mysqlTime ) {
+        if ( ! mysqlTime ) return Date.now();
+        // Convert "2026-06-17 06:10:00" → "2026-06-17T06:10:00" so Date can parse it.
+        var iso = String( mysqlTime ).replace( ' ', 'T' );
+        var t   = Date.parse( iso );
+        return isNaN( t ) ? Date.now() : t;
+    }
+
     // ── Existing: confirm delete ──────────────────────────────────────────────
     $( document ).on( 'click', '.dd-confirm-delete', function ( e ) {
         if ( ! confirm( config.i18n.confirmDelete ) ) {
@@ -227,7 +236,7 @@
                         title:     orderNum + ' · ' + order.customer_name,
                         meta:      total + ' RWF · ' + ddFormatPaymentMethod( order.payment_method ),
                         time:      'Just now',
-                        timestamp: Date.now(),
+                        timestamp: order.created_at ? ddParseServerTime( order.created_at ) : Date.now(),
                     };
                     notifications.unshift( item );
                     addBellItem( item );
@@ -238,11 +247,12 @@
                 newRes.forEach( function ( r ) {
                     var guests = r.guests + ' guest' + ( parseInt( r.guests ) !== 1 ? 's' : '' );
                     var item   = {
-                        type:  'reservation',
-                        id:    r.id,
-                        title: r.name + ' · ' + r.date + ' at ' + r.time.substring( 0, 5 ),
-                        meta:  guests,
-                        time:  'Just now',
+                        type:      'reservation',
+                        id:        r.id,
+                        title:     r.name + ' · ' + r.date + ' at ' + r.time.substring( 0, 5 ),
+                        meta:      guests,
+                        time:      'Just now',
+                        timestamp: r.created_at ? ddParseServerTime( r.created_at ) : Date.now(),
                     };
                     notifications.unshift( item );
                     addBellItem( item );

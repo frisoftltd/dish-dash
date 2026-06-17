@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.9.2 (2026-06-17)
+> Last updated: v3.9.3 (2026-06-17)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.9.2 |
+| **Deployed version** | v3.9.3 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B — COMPLETE |
 | **Next task** | v3.9.2 — Phase 7C (TBD) |
-| **Last working state** | v3.9.2: Activity Log layout polish — emoji removed from page H1 title (kept in sidebar menu label), 24px top margin added above header, header paragraph margin reset to 0. Pagination remains at 50/page. |
+| **Last working state** | v3.9.3: Notification real timestamps — ajax_poll_notifications() now returns created_at for both orders and reservations. admin.js uses ddParseServerTime() helper to convert MySQL datetime (site-local) to JS epoch. Orders use real arrival time instead of Date.now(); reservations now have a timestamp field (previously missing, causing "Just now" to never update). Time update loop already type-agnostic — no change needed. Both tables confirmed to have created_at column. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -648,7 +648,8 @@ Every page before shipping must pass:
 | **v3.9.0** | ✅ **Done** | **Phase 7B Brief 2 — Activity Log capture hooks: login/logout, order_status_changed, order_confirmed, reservation_status_changed (both POST + AJAX paths), settings/template/homepage saves** |
 | **v3.9.1** | ✅ **Done** | **Phase 7B Brief 3 (FINAL) — Activity Log viewer page: admin-only, filters by user/action/date, 50/page pagination, human-readable descriptions, hidden from Owner/Manager** |
 | **v3.9.2** | ✅ **Done** | **Activity Log layout polish — emoji removed from H1, 24px top margin, tightened header spacing** |
-| v3.9.3 | ⏳ **NEXT** | Phase 7C (TBD) |
+| **v3.9.3** | ✅ **Done** | **Notification real timestamps — created_at in both poll queries, ddParseServerTime helper, orders + reservations both get accurate "X min ago"** |
+| v3.9.4 | ⏳ **NEXT** | Phase 7C (TBD) |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

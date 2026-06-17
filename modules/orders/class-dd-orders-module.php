@@ -1288,7 +1288,7 @@ class DD_Orders_Module extends DD_Module {
 
         // Pending orders — new orders awaiting acceptance
         $new_orders = $wpdb->get_results(
-            "SELECT id, order_number, customer_name, total, payment_method
+            "SELECT id, order_number, customer_name, total, payment_method, created_at
              FROM {$wpdb->prefix}dishdash_orders
              WHERE status = 'pending'
              AND is_test = 0
@@ -1299,7 +1299,7 @@ class DD_Orders_Module extends DD_Module {
 
         // New reservations since last known ID
         $new_reservations = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, name, date, time, guests
+            "SELECT id, name, date, time, guests, created_at
              FROM {$wpdb->prefix}dishdash_reservations
              WHERE id > %d
              ORDER BY id ASC LIMIT 10",
