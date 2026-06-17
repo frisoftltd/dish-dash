@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.9.0 (2026-06-17)
+> Last updated: v3.9.1 (2026-06-17)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.9.0 |
+| **Deployed version** | v3.9.1 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
-| **Current sub-phase** | Phase 7B |
-| **Next task** | v3.9.1 — Phase 7B Brief 3 (activity log viewer page, admin-only) |
-| **Last working state** | v3.9.0: Phase 7B Brief 2 — Activity Log capture hooks. Activity module now listens to: wp_login/wp_logout (login/logout events), dish_dash_order_status_changed, dish_dash_order_confirmed (existing order hooks). New decoupled hook dish_dash_reservation_status_changed fired in both class-dd-reservations-admin.php (POST fallback) and class-dd-reservations-module.php (AJAX path). Settings/homepage saves fire dd_log_activity. Template module save fires dd_log_activity. Staff-only logging preserved throughout. |
+| **Current sub-phase** | Phase 7B — COMPLETE |
+| **Next task** | v3.9.2 — Phase 7C (TBD) |
+| **Last working state** | v3.9.1: Phase 7B Brief 3 (FINAL) — Activity Log viewer page. Admin-only submenu dish-dash-activity-log gated on manage_options, registered at priority 100 (bottom of DD menu). Hidden from Owner/Manager via remove_submenu_page in class-dd-hooks.php hide_irrelevant_menu_items(). Features: human-readable activity descriptions, filters by user/action/date range, 50-per-page pagination with page number nav. Phase 7B activity log COMPLETE. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -646,7 +646,8 @@ Every page before shipping must pass:
 | **v3.8.8** | ✅ **Done** | **Restaurant Manager granted full Owner capability set (identical roles); roles version '5' forces re-migration** |
 | **v3.8.9** | ✅ **Done** | **Phase 7B Brief 1 — Activity Log core: DD_Activity_Module, wp_dd_activity_log table, dd_log_activity hook, staff-only filter** |
 | **v3.9.0** | ✅ **Done** | **Phase 7B Brief 2 — Activity Log capture hooks: login/logout, order_status_changed, order_confirmed, reservation_status_changed (both POST + AJAX paths), settings/template/homepage saves** |
-| v3.9.1 | ⏳ **NEXT** | Phase 7B Brief 3 — Activity Log viewer page (admin-only, Fri Soft) |
+| **v3.9.1** | ✅ **Done** | **Phase 7B Brief 3 (FINAL) — Activity Log viewer page: admin-only, filters by user/action/date, 50/page pagination, human-readable descriptions, hidden from Owner/Manager** |
+| v3.9.2 | ⏳ **NEXT** | Phase 7C (TBD) |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -50,6 +50,208 @@ class DD_Activity_Module extends DD_Module {
 
         // ── Reservations (new hook fired in reservations admin/module) ──
         add_action( 'dish_dash_reservation_status_changed', [ __CLASS__, 'on_reservation_status_changed' ], 10, 3 );
+
+        // ── Admin viewer (registered last — appears at bottom of Dish Dash menu) ──
+        add_action( 'admin_menu', [ __CLASS__, 'register_admin_page' ], 100 );
+    }
+
+    // ─────────────────────────────────────────
+    //  ADMIN VIEWER
+    // ─────────────────────────────────────────
+
+    public static function register_admin_page(): void {
+        add_submenu_page(
+            'dish-dash',
+            __( 'Activity Log', 'dish-dash' ),
+            __( '📋 Activity Log', 'dish-dash' ),
+            'manage_options',
+            'dish-dash-activity-log',
+            [ __CLASS__, 'render_admin_page' ]
+        );
+    }
+
+    /**
+     * Render the admin-only Activity Log viewer.
+     * Gated on manage_options. Hidden from Owner/Manager via menu lockdown.
+     */
+    public static function render_admin_page(): void {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to view this page.', 'dish-dash' ) );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'dd_activity_log';
+
+        // ── Filters ─────────────────────────────────────────────
+        $f_user   = isset( $_GET['f_user'] )   ? absint( $_GET['f_user'] ) : 0;
+        $f_action = isset( $_GET['f_action'] ) ? sanitize_key( $_GET['f_action'] ) : '';
+        $f_from   = isset( $_GET['f_from'] )   ? sanitize_text_field( wp_unslash( $_GET['f_from'] ) ) : '';
+        $f_to     = isset( $_GET['f_to'] )     ? sanitize_text_field( wp_unslash( $_GET['f_to'] ) )   : '';
+
+        $paged    = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
+        $per_page = 50;
+        $offset   = ( $paged - 1 ) * $per_page;
+
+        // ── Build WHERE ─────────────────────────────────────────
+        $where  = 'WHERE 1=1';
+        $params = [];
+        if ( $f_user )   { $where .= ' AND user_id = %d'; $params[] = $f_user; }
+        if ( $f_action ) { $where .= ' AND action = %s';  $params[] = $f_action; }
+        if ( $f_from )   { $where .= ' AND created_at >= %s'; $params[] = $f_from . ' 00:00:00'; }
+        if ( $f_to )     { $where .= ' AND created_at <= %s'; $params[] = $f_to . ' 23:59:59'; }
+
+        // Total for pagination
+        $count_sql = "SELECT COUNT(*) FROM {$table} {$where}";
+        $total = $params
+            ? (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) )
+            : (int) $wpdb->get_var( $count_sql );
+
+        // Page rows
+        $rows_sql    = "SELECT * FROM {$table} {$where} ORDER BY id DESC LIMIT %d OFFSET %d";
+        $rows_params = array_merge( $params, [ $per_page, $offset ] );
+        $rows        = $wpdb->get_results( $wpdb->prepare( $rows_sql, $rows_params ) );
+
+        $total_pages = max( 1, (int) ceil( $total / $per_page ) );
+
+        // Distinct actions for the filter dropdown
+        $actions = $wpdb->get_col( "SELECT DISTINCT action FROM {$table} ORDER BY action ASC" );
+
+        // Staff users for the filter dropdown
+        $staff = get_users( [
+            'role__in' => [ 'administrator', 'dd_restaurant_owner', 'dd_restaurant_manager' ],
+            'orderby'  => 'display_name',
+        ] );
+
+        $base_url = admin_url( 'admin.php?page=dish-dash-activity-log' );
+        ?>
+        <div class="dd-page-wrap">
+          <div class="dd-page-header">
+            <h1 class="dd-page-title">📋 Activity Log</h1>
+            <p style="color:#6b7280;margin-top:4px;">Staff actions across the system — admin oversight only.</p>
+          </div>
+
+          <form method="get" class="dd-activity-filters" style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.08);margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+            <input type="hidden" name="page" value="dish-dash-activity-log" />
+            <label style="display:flex;flex-direction:column;font-size:12px;color:#374151;gap:4px;">User
+              <select name="f_user" style="min-width:160px;padding:6px;">
+                <option value="0">All users</option>
+                <?php foreach ( $staff as $u ) : ?>
+                  <option value="<?php echo (int) $u->ID; ?>" <?php selected( $f_user, $u->ID ); ?>>
+                    <?php echo esc_html( $u->display_name ); ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;font-size:12px;color:#374151;gap:4px;">Action
+              <select name="f_action" style="min-width:160px;padding:6px;">
+                <option value="">All actions</option>
+                <?php foreach ( $actions as $a ) : ?>
+                  <option value="<?php echo esc_attr( $a ); ?>" <?php selected( $f_action, $a ); ?>>
+                    <?php echo esc_html( self::action_label( $a ) ); ?>
+                  </option>
+                <?php endforeach; ?>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;font-size:12px;color:#374151;gap:4px;">From
+              <input type="date" name="f_from" value="<?php echo esc_attr( $f_from ); ?>" style="padding:6px;" />
+            </label>
+            <label style="display:flex;flex-direction:column;font-size:12px;color:#374151;gap:4px;">To
+              <input type="date" name="f_to" value="<?php echo esc_attr( $f_to ); ?>" style="padding:6px;" />
+            </label>
+            <button type="submit" class="button button-primary">Filter</button>
+            <a href="<?php echo esc_url( $base_url ); ?>" class="button">Reset</a>
+          </form>
+
+          <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);overflow:hidden;">
+            <table class="widefat striped" style="border:none;">
+              <thead>
+                <tr>
+                  <th style="width:170px;">When</th>
+                  <th>Activity</th>
+                  <th style="width:140px;">User</th>
+                  <th style="width:120px;">IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php if ( ! $rows ) : ?>
+                  <tr><td colspan="4" style="padding:24px;text-align:center;color:#9ca3af;">No activity found.</td></tr>
+                <?php else : foreach ( $rows as $r ) : ?>
+                  <tr>
+                    <td><?php echo esc_html( mysql2date( 'M j, Y g:i a', $r->created_at ) ); ?></td>
+                    <td><?php echo esc_html( self::describe( $r ) ); ?></td>
+                    <td>
+                      <?php echo esc_html( $r->user_name ); ?><br>
+                      <span style="font-size:11px;color:#9ca3af;"><?php echo esc_html( self::role_label( $r->user_role ) ); ?></span>
+                    </td>
+                    <td style="font-size:12px;color:#6b7280;"><?php echo esc_html( $r->ip_address ); ?></td>
+                  </tr>
+                <?php endforeach; endif; ?>
+              </tbody>
+            </table>
+          </div>
+
+          <?php if ( $total_pages > 1 ) : ?>
+            <div style="margin-top:16px;display:flex;gap:6px;justify-content:center;align-items:center;">
+              <?php
+              $qs = array_filter( [ 'f_user' => $f_user ?: null, 'f_action' => $f_action ?: null, 'f_from' => $f_from ?: null, 'f_to' => $f_to ?: null ] );
+              for ( $p = 1; $p <= $total_pages; $p++ ) :
+                  $link = add_query_arg( array_merge( $qs, [ 'paged' => $p ] ), $base_url );
+                  if ( $p === $paged ) : ?>
+                    <span style="padding:6px 12px;background:var(--dd-brand,#65040d);color:#fff;border-radius:6px;"><?php echo (int) $p; ?></span>
+                  <?php else : ?>
+                    <a href="<?php echo esc_url( $link ); ?>" style="padding:6px 12px;background:#fff;border-radius:6px;border:1px solid #e5e7eb;text-decoration:none;color:#374151;"><?php echo (int) $p; ?></a>
+                  <?php endif;
+              endfor; ?>
+            </div>
+            <p style="text-align:center;color:#9ca3af;font-size:12px;margin-top:8px;"><?php echo (int) $total; ?> total entries</p>
+          <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    /**
+     * Human-readable sentence for a log row.
+     */
+    private static function describe( object $r ): string {
+        $details = $r->details ? json_decode( $r->details, true ) : [];
+        switch ( $r->action ) {
+            case 'login':
+                return 'Logged in';
+            case 'logout':
+                return 'Logged out';
+            case 'order_confirmed':
+                return sprintf( 'Confirmed order #%s', $r->object_id );
+            case 'order_status_changed':
+                return sprintf( 'Changed order #%s status (%s → %s)', $r->object_id, $details['from'] ?? '?', $details['to'] ?? '?' );
+            case 'reservation_status_changed':
+                return sprintf( 'Changed reservation #%s (%s → %s)', $r->object_id, $details['from'] ?? '?', $details['to'] ?? '?' );
+            case 'settings_updated':
+                $what = $r->object_type === 'template' ? 'Template settings'
+                      : ( $r->object_type === 'homepage' ? 'Homepage settings'
+                      : 'General settings' );
+                return sprintf( 'Updated %s', $what );
+            default:
+                return ucwords( str_replace( '_', ' ', $r->action ) );
+        }
+    }
+
+    /**
+     * Friendly label for an action (filter dropdown).
+     */
+    private static function action_label( string $action ): string {
+        return ucwords( str_replace( '_', ' ', $action ) );
+    }
+
+    /**
+     * Friendly label for a role.
+     */
+    private static function role_label( string $role ): string {
+        $map = [
+            'administrator'         => 'Administrator',
+            'dd_restaurant_owner'   => 'Owner',
+            'dd_restaurant_manager' => 'Manager',
+        ];
+        return $map[ $role ] ?? $role;
     }
 
     // ─────────────────────────────────────────

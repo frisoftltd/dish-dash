@@ -396,9 +396,10 @@ class DD_Hooks {
                 remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
 
                 // Remove specific Dish Dash submenu items staff should not access.
-                remove_submenu_page( 'dish-dash', 'dish-dash-settings' );  // Settings
-                remove_submenu_page( 'dish-dash', 'dish-dash-tools' );     // Tools
-                remove_submenu_page( 'dish-dash', 'dish-dash-template' );  // Template
+                remove_submenu_page( 'dish-dash', 'dish-dash-settings' );      // Settings
+                remove_submenu_page( 'dish-dash', 'dish-dash-tools' );         // Tools
+                remove_submenu_page( 'dish-dash', 'dish-dash-template' );      // Template
+                remove_submenu_page( 'dish-dash', 'dish-dash-activity-log' );  // Activity Log (admin-only)
             }
         }, 999 );
     }
