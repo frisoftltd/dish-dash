@@ -372,6 +372,10 @@ class DD_Reservations_Module extends DD_Module {
             wp_send_json_error( [ 'message' => 'Invalid request.' ] );
         }
 
+        $old_status_row = $wpdb->get_var( $wpdb->prepare(
+            "SELECT status FROM {$wpdb->prefix}dishdash_reservations WHERE id = %d",
+            $id
+        ) );
         $wpdb->update(
             $wpdb->prefix . 'dishdash_reservations',
             [ 'status' => $status ],
@@ -379,6 +383,7 @@ class DD_Reservations_Module extends DD_Module {
             [ '%s' ],
             [ '%d' ]
         );
+        do_action( 'dish_dash_reservation_status_changed', $id, $old_status_row, $status );
 
         wp_send_json_success( [ 'status' => $status ] );
     }

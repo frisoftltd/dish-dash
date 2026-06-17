@@ -39,6 +39,17 @@ class DD_Activity_Module extends DD_Module {
 
     public function init(): void {
         add_action( 'dd_log_activity', [ __CLASS__, 'log' ], 10, 1 );
+
+        // ── Login / Logout ──────────────────────────────────────────
+        add_action( 'wp_login',  [ __CLASS__, 'on_login' ],  10, 2 );
+        add_action( 'wp_logout', [ __CLASS__, 'on_logout' ], 10, 1 );
+
+        // ── Orders (listen to existing Dish Dash order hooks) ───────
+        add_action( 'dish_dash_order_status_changed', [ __CLASS__, 'on_order_status_changed' ], 10, 3 );
+        add_action( 'dish_dash_order_confirmed',      [ __CLASS__, 'on_order_confirmed' ],      10, 1 );
+
+        // ── Reservations (new hook fired in reservations admin/module) ──
+        add_action( 'dish_dash_reservation_status_changed', [ __CLASS__, 'on_reservation_status_changed' ], 10, 3 );
     }
 
     // ─────────────────────────────────────────
@@ -136,6 +147,75 @@ class DD_Activity_Module extends DD_Module {
             ],
             [ '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
         );
+    }
+
+    // ─────────────────────────────────────────
+    //  CAPTURE HANDLERS
+    // ─────────────────────────────────────────
+
+    /**
+     * Log a successful login. Fired by WordPress core wp_login.
+     */
+    public static function on_login( $user_login, $user = null ): void {
+        if ( ! $user instanceof WP_User ) {
+            $user = get_user_by( 'login', $user_login );
+        }
+        if ( ! $user ) return;
+        do_action( 'dd_log_activity', [
+            'user_id'     => $user->ID,
+            'action'      => 'login',
+            'object_type' => 'session',
+            'object_id'   => $user->ID,
+        ] );
+    }
+
+    /**
+     * Log a logout. wp_logout passes the user ID (WP 5.5+).
+     */
+    public static function on_logout( $user_id = 0 ): void {
+        if ( ! $user_id ) $user_id = get_current_user_id();
+        if ( ! $user_id ) return;
+        do_action( 'dd_log_activity', [
+            'user_id'     => $user_id,
+            'action'      => 'logout',
+            'object_type' => 'session',
+            'object_id'   => $user_id,
+        ] );
+    }
+
+    /**
+     * Log an order status change.
+     */
+    public static function on_order_status_changed( $order_id, $old_status, $new_status ): void {
+        do_action( 'dd_log_activity', [
+            'action'      => 'order_status_changed',
+            'object_type' => 'order',
+            'object_id'   => $order_id,
+            'details'     => [ 'from' => $old_status, 'to' => $new_status ],
+        ] );
+    }
+
+    /**
+     * Log an explicit order confirmation.
+     */
+    public static function on_order_confirmed( $order_id ): void {
+        do_action( 'dd_log_activity', [
+            'action'      => 'order_confirmed',
+            'object_type' => 'order',
+            'object_id'   => $order_id,
+        ] );
+    }
+
+    /**
+     * Log a reservation status change.
+     */
+    public static function on_reservation_status_changed( $res_id, $old_status, $new_status ): void {
+        do_action( 'dd_log_activity', [
+            'action'      => 'reservation_status_changed',
+            'object_type' => 'reservation',
+            'object_id'   => $res_id,
+            'details'     => [ 'from' => $old_status, 'to' => $new_status ],
+        ] );
     }
 
     /**

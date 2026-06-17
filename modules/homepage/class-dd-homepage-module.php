@@ -199,6 +199,12 @@ class DD_Homepage_Module extends DD_Module {
         delete_transient( 'dd_cats_0' );
         for ( $i = 1; $i <= 20; $i++ ) delete_transient( 'dd_cats_' . $i );
 
+        do_action( 'dd_log_activity', [
+            'action'      => 'settings_updated',
+            'object_type' => 'homepage',
+            'object_id'   => 'homepage',
+        ] );
+
         wp_redirect( add_query_arg( [
             'page'  => 'dish-dash-homepage',
             'saved' => '1',

@@ -371,6 +371,12 @@ class DD_Template_Module extends DD_Module {
             return;
         }
 
+        do_action( 'dd_log_activity', [
+            'action'      => 'settings_updated',
+            'object_type' => 'template',
+            'object_id'   => 'template',
+        ] );
+
         wp_redirect( add_query_arg( [
             'page'  => 'dish-dash-template',
             'saved' => '1',

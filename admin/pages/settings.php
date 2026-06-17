@@ -97,6 +97,12 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_fees_enabled',         isset( $_POST['dd_fees_enabled']          ) ? '1' : '0' );
 
     echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
+
+    do_action( 'dd_log_activity', [
+        'action'      => 'settings_updated',
+        'object_type' => 'setting',
+        'object_id'   => 'general',
+    ] );
 }
 
 // Opening hours read

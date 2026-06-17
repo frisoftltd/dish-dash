@@ -51,7 +51,9 @@ class DD_Reservations_Admin {
             $new_status = sanitize_text_field( wp_unslash( $_POST['dd_res_action'] ) );
             $res_id     = intval( $_POST['dd_res_id'] );
             if ( in_array( $new_status, $allowed, true ) && $res_id > 0 ) {
+                $old_status_row = $wpdb->get_var( $wpdb->prepare( "SELECT status FROM {$table} WHERE id = %d", $res_id ) );
                 $wpdb->update( $table, [ 'status' => $new_status ], [ 'id' => $res_id ], [ '%s' ], [ '%d' ] );
+                do_action( 'dish_dash_reservation_status_changed', $res_id, $old_status_row, $new_status );
             }
         }
 
