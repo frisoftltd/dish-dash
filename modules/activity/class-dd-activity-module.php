@@ -125,9 +125,9 @@ class DD_Activity_Module extends DD_Module {
         $base_url = admin_url( 'admin.php?page=dish-dash-activity-log' );
         ?>
         <div class="dd-page-wrap">
-          <div class="dd-page-header">
-            <h1 class="dd-page-title">📋 Activity Log</h1>
-            <p style="color:#6b7280;margin-top:4px;">Staff actions across the system — admin oversight only.</p>
+          <div class="dd-page-header" style="margin-top:24px;margin-bottom:24px;">
+            <h1 class="dd-page-title" style="margin-bottom:6px;">Activity Log</h1>
+            <p style="color:#6b7280;margin:0;">Staff actions across the system — admin oversight only.</p>
           </div>
 
           <form method="get" class="dd-activity-filters" style="background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.08);margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
