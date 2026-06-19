@@ -72,12 +72,7 @@
                         notifications.push( item );
                         addBellItem( item );
                     } );
-                    // Restore unread count
-                    var savedCount = parseInt( localStorage.getItem( 'dd_unread_count' ), 10 ) || 0;
-                    if ( savedCount > 0 ) {
-                        unreadCount = savedCount;
-                        updateBadge();
-                    }
+                    // Count is set authoritatively from the server poll, not localStorage.
                 }
             }
         } catch ( e ) {}
@@ -147,13 +142,11 @@
     var markReadBtn = document.getElementById( 'dd-bell-mark-read' );
     if ( markReadBtn ) {
         markReadBtn.addEventListener( 'click', function () {
-            unreadCount = 0;
             notifications = [];
             localStorage.removeItem( 'dd_notifications' );
-            localStorage.removeItem( 'dd_unread_count' );
-            updateBadge();
             saveNotifications();
             if ( bellItems ) bellItems.innerHTML = '<p class="dd-bell-empty">No new notifications</p>';
+            // Badge reflects live pending count from the server; it will refresh on the next poll.
         } );
     }
 
@@ -178,6 +171,12 @@
                 if ( payload.max_order_id ) localStorage.setItem( LS_ORDER_ID, payload.max_order_id );
                 if ( payload.max_res_id )   localStorage.setItem( LS_RES_ID, payload.max_res_id );
 
+                // Authoritative live count from server — same for every staff member.
+                if ( payload.pending_count != null ) {
+                    unreadCount = parseInt( payload.pending_count, 10 ) || 0;
+                    updateBadge();
+                }
+
                 // Mark as initialised after first silent poll
                 if ( silent ) {
                     localStorage.setItem( LS_NOTIF_INIT, '1' );
@@ -198,10 +197,6 @@
                 }
 
                 if ( newOrders.length === 0 && newRes.length === 0 ) {
-                    var orderCountR = bellItems ? bellItems.querySelectorAll( '[data-item-type="order"]' ).length : 0;
-                    var resCountR   = bellItems ? bellItems.querySelectorAll( '[data-item-type="reservation"].dd-unread' ).length : 0;
-                    unreadCount = orderCountR + resCountR;
-                    updateBadge();
                     return;
                 }
 
@@ -251,10 +246,7 @@
                     shouldBeep = true;
                 } );
 
-                // Update badge from DOM state
-                var resItems = bellItems ? bellItems.querySelectorAll( '[data-item-type="reservation"].dd-unread' ).length : 0;
-                unreadCount = orderNotifCount + resItems;
-                updateBadge();
+                // Badge count is set authoritatively from payload.pending_count above.
 
                 if ( shouldBeep ) playBeep();
 

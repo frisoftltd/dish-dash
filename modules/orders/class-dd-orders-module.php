@@ -1312,11 +1312,23 @@ class DD_Orders_Module extends DD_Module {
         $max_order_id = (int) $wpdb->get_var( "SELECT COALESCE(MAX(id),0) FROM {$wpdb->prefix}dishdash_orders WHERE is_test = 0" );
         $max_res_id   = (int) $wpdb->get_var( "SELECT COALESCE(MAX(id),0) FROM {$wpdb->prefix}dishdash_reservations" );
 
+        // Authoritative live counts — same for every staff member (not per-browser).
+        $pending_orders_count = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}dishdash_orders
+             WHERE status = 'pending' AND is_test = 0"
+        );
+        $pending_res_count = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}dishdash_reservations
+             WHERE status = 'pending'"
+        );
+        $pending_count = $pending_orders_count + $pending_res_count;
+
         $this->json_success( [
             'new_orders'       => $new_orders,
             'new_reservations' => $new_reservations,
             'max_order_id'     => $max_order_id,
             'max_res_id'       => $max_res_id,
+            'pending_count'    => $pending_count,
         ] );
     }
 
