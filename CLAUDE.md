@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.9.4 (2026-06-19)
+> Last updated: v3.9.5 (2026-06-19)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.9.4 |
+| **Deployed version** | v3.9.5 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7B — COMPLETE |
-| **Next task** | v3.9.5 — Phase 7C (TBD) |
-| **Last working state** | v3.9.4: Notification elapsed-time fixed properly. Root cause was three mismatched clocks (MySQL server, WordPress Kigali UTC+2, browser local). Fix: ajax_poll_notifications computes seconds_ago via SQL TIMESTAMPDIFF(SECOND, created_at, NOW()) — both values in MySQL server time so the offset cancels. JS anchors each notification's timestamp from that server-computed elapsed value (Date.now() - seconds_ago*1000). Removed the v3.9.3 ddParseServerTime helper (timezone-guessing, no longer needed). ddTimeAgo clamps negative diff to 0 to handle sub-second clock drift. WordPress timezone should be set to UTC+2 (Kigali) in Settings → General — Rwanda has no DST so UTC+2 is permanently correct. |
+| **Next task** | v3.9.6 — Phase 7C (TBD) |
+| **Last working state** | v3.9.5: Phase 7B Add User flow — uses native WordPress Users → Add New (admin creates Owner/Manager). New user_register hook (priority 20) in DD_Auth_Module sends a branded "Welcome — Set Your Password" HTML email via SMTP (noreply@khanakhazana.rw) with a secure WordPress password-reset link (get_password_reset_key). wp_send_new_user_notification_to_user filter suppresses WordPress's plain default new-user email for staff roles to avoid duplicate emails. Role dropdown offers Owner + Manager (admins created manually). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -650,7 +650,8 @@ Every page before shipping must pass:
 | **v3.9.2** | ✅ **Done** | **Activity Log layout polish — emoji removed from H1, 24px top margin, tightened header spacing** |
 | **v3.9.3** | ✅ **Done** | **Notification real timestamps — created_at in both poll queries, ddParseServerTime helper, orders + reservations both get accurate "X min ago"** |
 | **v3.9.4** | ✅ **Done** | **Fix notification elapsed time via SQL TIMESTAMPDIFF — server-computed seconds_ago eliminates three-clock mismatch; remove ddParseServerTime helper; ddTimeAgo clamps negative diff to 0** |
-| v3.9.5 | ⏳ **NEXT** | Phase 7C (TBD) |
+| **v3.9.5** | ✅ **Done** | **Branded welcome/set-password email for new staff users — user_register hook + wp_send_new_user_notification_to_user filter in DD_Auth_Module; suppresses WP default plain email for Owner/Manager** |
+| v3.9.6 | ⏳ **NEXT** | Phase 7C (TBD) |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

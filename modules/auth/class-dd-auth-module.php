@@ -86,6 +86,11 @@ class DD_Auth_Module extends DD_Module {
 
         // Email verification callback
         add_action( 'init', [ $this, 'handle_email_verification' ] );
+
+        // Branded welcome email when admin creates a staff user (Owner/Manager)
+        add_action( 'user_register', [ $this, 'send_staff_welcome_email' ], 20, 1 );
+        // Suppress WordPress's plain default new-user email for staff roles
+        add_filter( 'wp_send_new_user_notification_to_user', [ $this, 'maybe_suppress_default_new_user_email' ], 10, 2 );
     }
 
     // ─────────────────────────────────────────
@@ -1025,6 +1030,100 @@ class DD_Auth_Module extends DD_Module {
         ];
 
         return wp_mail( $to, $subject, $body, $headers );
+    }
+
+    // ─────────────────────────────────────────
+    //  STAFF WELCOME EMAIL
+    // ─────────────────────────────────────────
+
+    /**
+     * When an admin creates a new Restaurant Owner/Manager via Users → Add New,
+     * send a branded "set your password" email instead of WordPress's plain one.
+     *
+     * @param int $user_id The newly created user ID.
+     */
+    public function send_staff_welcome_email( int $user_id ): void {
+        $user = get_user_by( 'id', $user_id );
+        if ( ! $user ) return;
+
+        // Only for our staff roles.
+        $staff_roles = [ 'dd_restaurant_owner', 'dd_restaurant_manager' ];
+        if ( ! array_intersect( $staff_roles, (array) $user->roles ) ) {
+            return;
+        }
+
+        // Generate a secure password-reset key (the WordPress-native mechanism).
+        $key = get_password_reset_key( $user );
+        if ( is_wp_error( $key ) ) {
+            return;
+        }
+
+        $set_password_url = network_site_url(
+            'wp-login.php?action=rp&key=' . rawurlencode( $key ) . '&login=' . rawurlencode( $user->user_login ),
+            'login'
+        );
+
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $primary    = sanitize_hex_color( get_option( 'dish_dash_primary_color', '#65040d' ) ) ?: '#65040d';
+        $role_label = in_array( 'dd_restaurant_owner', (array) $user->roles, true ) ? 'Restaurant Owner' : 'Restaurant Manager';
+        $login_url  = wp_login_url();
+
+        $subject = sprintf( 'Welcome to %s — Set Your Password', $restaurant );
+
+        $body = '
+        <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #eee;">
+            <div style="background:' . esc_attr( $primary ) . ';padding:24px;">
+                <h2 style="color:#fff;margin:0;font-size:20px;">Welcome to ' . esc_html( $restaurant ) . '</h2>
+            </div>
+            <div style="padding:24px;color:#333;font-size:15px;line-height:1.6;">
+                <p>Hi ' . esc_html( $user->display_name ) . ',</p>
+                <p>An account has been created for you as <strong>' . esc_html( $role_label ) . '</strong>.</p>
+                <p>To get started, set your password using the button below:</p>
+                <p style="text-align:center;margin:28px 0;">
+                    <a href="' . esc_url( $set_password_url ) . '"
+                       style="background:' . esc_attr( $primary ) . ';color:#fff;text-decoration:none;padding:12px 28px;border-radius:8px;font-weight:bold;display:inline-block;">
+                        Set My Password
+                    </a>
+                </p>
+                <p style="font-size:13px;color:#777;">Or copy this link into your browser:<br>
+                   <a href="' . esc_url( $set_password_url ) . '" style="color:' . esc_attr( $primary ) . ';word-break:break-all;">' . esc_html( $set_password_url ) . '</a></p>
+                <p style="font-size:13px;color:#777;">Your username is: <strong>' . esc_html( $user->user_login ) . '</strong></p>
+                <hr style="border:none;border-top:1px solid #f0e8e0;margin:20px 0;">
+                <p style="font-size:13px;color:#777;">After setting your password, log in here:<br>
+                   <a href="' . esc_url( $login_url ) . '" style="color:' . esc_attr( $primary ) . ';">' . esc_html( $login_url ) . '</a></p>
+            </div>
+            <div style="background:#f9f5f0;padding:14px 24px;text-align:center;font-size:12px;color:#aaa;">
+                ' . esc_html( $restaurant ) . ' — Powered by Dish Dash
+            </div>
+        </div>';
+
+        $from_name  = get_option( 'dd_smtp_from_name', $restaurant );
+        $from_email = get_option( 'dd_smtp_from_email', 'noreply@khanakhazana.rw' );
+        $headers    = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $from_name . ' <' . $from_email . '>',
+        ];
+
+        wp_mail( $user->user_email, $subject, $body, $headers );
+    }
+
+    /**
+     * Suppress WordPress's plain default "new user" email for our staff roles,
+     * since send_staff_welcome_email() sends a branded one instead.
+     * Prevents the user receiving two emails.
+     *
+     * @param bool    $send Whether to send the default email.
+     * @param WP_User $user The new user.
+     * @return bool
+     */
+    public function maybe_suppress_default_new_user_email( $send, $user ) {
+        if ( $user instanceof WP_User ) {
+            $staff_roles = [ 'dd_restaurant_owner', 'dd_restaurant_manager' ];
+            if ( array_intersect( $staff_roles, (array) $user->roles ) ) {
+                return false; // We send our own branded email.
+            }
+        }
+        return $send;
     }
 
     // ─────────────────────────────────────────
