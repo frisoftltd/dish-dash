@@ -795,6 +795,7 @@ Every page before shipping must pass:
 | WhatsApp notifications use `window.location.href` not `window.open` | Avoids mobile browser popup blocking |
 | `woocommerce_payment_complete` hook wired to `DD_Notifications` | Any future gateway fires notifications automatically |
 | OPcache/auto-update race condition causes fatal errors | Mitigated with `class_exists` guard + `opcache_reset()` on `upgrader_process_complete` |
+| Stale `.min.js` silently overrides source edits | `asset_url()` (template module, line ~172) auto-serves `.min.js` when it exists on disk. All JS files **except** `admin.js` ship a hand-maintained `.min.js` twin committed in the repo. `admin.js` is served raw (no min twin). **Rule:** never leave a stale `admin.min.js` — if one appears, either regenerate it from the current `admin.js` or delete it. Same applies to any `.min.js`: keep it in sync with its source or remove it. |
 
 ---
 
