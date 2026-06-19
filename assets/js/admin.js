@@ -19,19 +19,11 @@
 
     function ddTimeAgo( timestamp ) {
         var diff = Math.floor( ( Date.now() - timestamp ) / 1000 );
+        if ( diff < 0 )     diff = 0;
         if ( diff < 60 )    return 'Just now';
         if ( diff < 3600 )  return Math.floor( diff / 60 ) + ' min ago';
         if ( diff < 86400 ) return Math.floor( diff / 3600 ) + ' hr ago';
         return Math.floor( diff / 86400 ) + ' days ago';
-    }
-
-    // Parse a MySQL "Y-m-d H:i:s" datetime (site-local) into a JS epoch ms value.
-    function ddParseServerTime( mysqlTime ) {
-        if ( ! mysqlTime ) return Date.now();
-        // Convert "2026-06-17 06:10:00" → "2026-06-17T06:10:00" so Date can parse it.
-        var iso = String( mysqlTime ).replace( ' ', 'T' );
-        var t   = Date.parse( iso );
-        return isNaN( t ) ? Date.now() : t;
     }
 
     // ── Existing: confirm delete ──────────────────────────────────────────────
@@ -236,7 +228,7 @@
                         title:     orderNum + ' · ' + order.customer_name,
                         meta:      total + ' RWF · ' + ddFormatPaymentMethod( order.payment_method ),
                         time:      'Just now',
-                        timestamp: order.created_at ? ddParseServerTime( order.created_at ) : Date.now(),
+                        timestamp: order.seconds_ago != null ? ( Date.now() - ( order.seconds_ago * 1000 ) ) : Date.now(),
                     };
                     notifications.unshift( item );
                     addBellItem( item );
@@ -252,7 +244,7 @@
                         title:     r.name + ' · ' + r.date + ' at ' + r.time.substring( 0, 5 ),
                         meta:      guests,
                         time:      'Just now',
-                        timestamp: r.created_at ? ddParseServerTime( r.created_at ) : Date.now(),
+                        timestamp: r.seconds_ago != null ? ( Date.now() - ( r.seconds_ago * 1000 ) ) : Date.now(),
                     };
                     notifications.unshift( item );
                     addBellItem( item );
