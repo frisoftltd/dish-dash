@@ -344,6 +344,7 @@ class DD_Install {
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_customers (
                 id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id           BIGINT(20) UNSIGNED NULL DEFAULT NULL,
                 whatsapp          VARCHAR(20)     NOT NULL DEFAULT '',
                 name              VARCHAR(255)    NOT NULL DEFAULT '',
                 delivery_address  TEXT                     DEFAULT NULL,
@@ -356,7 +357,8 @@ class DD_Install {
                 created_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY  (id),
-                UNIQUE KEY   whatsapp (whatsapp)
+                UNIQUE KEY   whatsapp (whatsapp),
+                UNIQUE KEY   uniq_user_id (user_id)
             ) $charset_collate;
         " );
 

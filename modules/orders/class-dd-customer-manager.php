@@ -189,15 +189,133 @@ class DD_Customer_Manager {
         ) );
 
         if ( $existing ) {
-            return (int) $existing->id;
+            $resolved_id = (int) $existing->id;
+        } else {
+            $wpdb->insert(
+                $table,
+                [ 'whatsapp' => $whatsapp, 'name' => $name, 'created_at' => current_time( 'mysql' ) ],
+                [ '%s', '%s', '%s' ]
+            );
+            $resolved_id = (int) $wpdb->insert_id;
         }
 
-        $wpdb->insert(
-            $table,
-            [ 'whatsapp' => $whatsapp, 'name' => $name, 'created_at' => current_time( 'mysql' ) ],
-            [ '%s', '%s', '%s' ]
-        );
-        return (int) $wpdb->insert_id;
+        // Back-fill user_id link when a logged-in customer places an order.
+        $uid = get_current_user_id();
+        if ( $uid && $resolved_id ) {
+            $current = $wpdb->get_var( $wpdb->prepare(
+                "SELECT user_id FROM {$table} WHERE id = %d", $resolved_id
+            ) );
+            if ( empty( $current ) ) {
+                $already = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT id FROM {$table} WHERE user_id = %d LIMIT 1", $uid
+                ) );
+                if ( ! $already ) {
+                    $wpdb->update( $table, [ 'user_id' => $uid ], [ 'id' => $resolved_id ], [ '%d' ], [ '%d' ] );
+                }
+            }
+        }
+
+        return $resolved_id;
+    }
+
+    /**
+     * Link a logged-in WordPress user to their phone-based commercial record.
+     *
+     * Identity model:
+     *  - If a customers row exists for this phone and is unlinked → link it to this user.
+     *  - If it's already linked to THIS user → no-op.
+     *  - If it's linked to a DIFFERENT user → conflict; refuse.
+     *  - If no row exists → create one linked to this user.
+     *
+     * Also stores the phone on the WP user (dd_phone + billing_phone) for future lookups.
+     *
+     * @param int    $user_id WordPress user ID.
+     * @param string $phone   Raw phone input.
+     * @param string $name    Display name (for new rows).
+     * @return array { success: bool, customer_id: int, message: string }
+     */
+    public static function link_user_to_phone( int $user_id, string $phone, string $name = '' ): array {
+        global $wpdb;
+
+        if ( ! $user_id ) {
+            return [ 'success' => false, 'customer_id' => 0, 'message' => 'Not logged in.' ];
+        }
+
+        $whatsapp = self::normalize_phone( $phone );
+        if ( ! $whatsapp ) {
+            return [ 'success' => false, 'customer_id' => 0, 'message' => 'Please enter a valid phone number.' ];
+        }
+
+        $table = $wpdb->prefix . 'dishdash_customers';
+
+        $existing_for_user = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, whatsapp FROM {$table} WHERE user_id = %d LIMIT 1", $user_id
+        ) );
+
+        $row_for_phone = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, user_id FROM {$table} WHERE whatsapp = %s LIMIT 1", $whatsapp
+        ) );
+
+        // Phone belongs to a different user → conflict, do not steal.
+        if ( $row_for_phone && (int) $row_for_phone->user_id && (int) $row_for_phone->user_id !== $user_id ) {
+            return [
+                'success'     => false,
+                'customer_id' => 0,
+                'message'     => 'This phone number is already linked to another account. Please contact the restaurant if this is your number.',
+            ];
+        }
+
+        if ( $existing_for_user && $existing_for_user->whatsapp !== $whatsapp ) {
+            // User is linked to a different phone row — move the link to the new phone.
+            if ( $row_for_phone ) {
+                // New phone row exists and is unlinked → link it, unlink old.
+                $wpdb->update( $table, [ 'user_id' => null ], [ 'id' => $existing_for_user->id ], [ '%d' ], [ '%d' ] );
+                $wpdb->update( $table, [ 'user_id' => $user_id ], [ 'id' => $row_for_phone->id ], [ '%d' ], [ '%d' ] );
+                $customer_id = (int) $row_for_phone->id;
+            } else {
+                // Update the linked row's phone to the new number.
+                $wpdb->update( $table, [ 'whatsapp' => $whatsapp ], [ 'id' => $existing_for_user->id ], [ '%s' ], [ '%d' ] );
+                $customer_id = (int) $existing_for_user->id;
+            }
+        } elseif ( $row_for_phone ) {
+            // Phone row exists and is unlinked (or already this user) → link.
+            $wpdb->update( $table, [ 'user_id' => $user_id ], [ 'id' => $row_for_phone->id ], [ '%d' ], [ '%d' ] );
+            $customer_id = (int) $row_for_phone->id;
+        } else {
+            // No row at all → create one linked to this user.
+            $wpdb->insert(
+                $table,
+                [
+                    'whatsapp'   => $whatsapp,
+                    'name'       => $name ?: 'Customer',
+                    'user_id'    => $user_id,
+                    'created_at' => current_time( 'mysql' ),
+                ],
+                [ '%s', '%s', '%d', '%s' ]
+            );
+            $customer_id = (int) $wpdb->insert_id;
+        }
+
+        update_user_meta( $user_id, 'dd_phone', $whatsapp );
+        update_user_meta( $user_id, 'billing_phone', $whatsapp );
+
+        return [ 'success' => true, 'customer_id' => $customer_id, 'message' => 'Phone linked successfully.' ];
+    }
+
+    /**
+     * Get the customers-table row for a logged-in user, if linked.
+     * Returns null if the user hasn't linked a phone yet.
+     *
+     * @param int $user_id
+     * @return object|null
+     */
+    public static function get_customer_for_user( int $user_id ) {
+        global $wpdb;
+        if ( ! $user_id ) return null;
+        $table = $wpdb->prefix . 'dishdash_customers';
+        return $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$table} WHERE user_id = %d LIMIT 1", $user_id
+        ) );
     }
 
     /**
