@@ -57,6 +57,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once plugin_dir_path( __FILE__ ) . 'class-dd-notifications.php';
 require_once plugin_dir_path( __FILE__ ) . 'class-dd-customer-manager.php';
+require_once plugin_dir_path( __FILE__ ) . 'class-dd-customer-profile.php';
 
 class DD_Orders_Module extends DD_Module {
 

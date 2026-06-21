@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.9.8 (2026-06-21)
+> Last updated: v3.9.9 (2026-06-21)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.9.8 |
+| **Deployed version** | v3.9.9 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.9.9 — Phase 7C Brief 2 (profile UI) |
-| **Last working state** | v3.9.8: Customer Profile link foundation — user_id column (nullable, UNIQUE) added to wp_dishdash_customers. New DD_Customer_Manager::link_user_to_phone() implements the identity model: one profile per phone, links existing guest record to a registering user or creates one, refuses to steal a phone linked to another account. New get_customer_for_user(). on_resolve_customer_id back-fills user_id when a logged-in customer places an order. NOTE: dbDelta does not add columns on zip update — manual ALTER TABLE required after deploy. |
+| **Next task** | v3.9.10 — Phase 7C Brief 3 (My Profile UI tab) |
+| **Last working state** | v3.9.9: New DD_Customer_Profile::get($user_id) in modules/orders/class-dd-customer-profile.php. Returns one unified profile array: commercial record (name/phone/total_orders/total_spent/member_since from linked customers row), tier (computed from spend/orders), birthday (MM-DD + display string), favorites (authoritative from order_items, non-cancelled, non-test orders — NOT from user_profiles which is empty for guest-era orders), recent_orders with items array (for reorder), and restaurant whatsapp_contact (dish_dash_whatsapp). Read-only; no writes; loaded via class-dd-orders-module.php alongside customer-manager. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -654,7 +654,8 @@ Every page before shipping must pass:
 | **v3.9.6** | ✅ **Done** | **Live notification count (same for all staff) — pending_count from server replaces per-browser localStorage accumulation; badge set authoritatively on every poll** |
 | **v3.9.7** | ✅ **Done** | **Authoritative live notification worklist — ajax_poll_notifications returns all pending orders + reservations as pending_items; panel rebuilds from server on every poll; badge = exact count (99+ cap); "Mark all read" removed; items clear only when confirmed/cancelled** |
 | **v3.9.8** | ✅ **Done** | **Customer Profile link foundation — user_id (nullable, UNIQUE) on wp_dishdash_customers; link_user_to_phone() identity model (one profile per phone, no stealing); get_customer_for_user(); on_resolve_customer_id back-fills user_id for logged-in customers placing orders** |
-| v3.9.9 | ⏳ **NEXT** | Phase 7C Brief 2 — Customer Profile UI |
+| **v3.9.9** | ✅ **Done** | **DD_Customer_Profile::get() unified read interface — commercial record + tier + birthday + favorites (from order history) + recent orders + restaurant WhatsApp; read-only; loaded from class-dd-orders-module.php** |
+| v3.9.10 | ⏳ **NEXT** | Phase 7C Brief 3 — My Profile UI tab |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
