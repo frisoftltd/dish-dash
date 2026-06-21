@@ -1272,8 +1272,8 @@ class DD_Orders_Module extends DD_Module {
     }
 
     /**
-     * Poll for new orders and reservations since last known IDs.
-     * Called every 30s by admin JS. Lightweight — no full page load.
+     * Authoritative live worklist — ALL pending orders + ALL pending reservations.
+     * Called every 30s by admin JS. Returns identical data for every staff member.
      */
     public function ajax_poll_notifications(): void {
         DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
@@ -1284,51 +1284,62 @@ class DD_Orders_Module extends DD_Module {
 
         global $wpdb;
 
-        $last_res_id = absint( $_POST['last_res_id'] ?? 0 );
-
-        // Pending orders — new orders awaiting acceptance
-        $new_orders = $wpdb->get_results(
-            "SELECT id, order_number, customer_name, total, payment_method, created_at,
+        // ALL pending orders — actionable, restaurant-wide.
+        $pending_orders = $wpdb->get_results(
+            "SELECT id, order_number, customer_name, total, payment_method,
                     TIMESTAMPDIFF(SECOND, created_at, NOW()) AS seconds_ago
              FROM {$wpdb->prefix}dishdash_orders
-             WHERE status = 'pending'
-             AND is_test = 0
-             ORDER BY id DESC
-             LIMIT 20",
+             WHERE status = 'pending' AND is_test = 0
+             ORDER BY id DESC",
             ARRAY_A
         );
 
-        // New reservations since last known ID
-        $new_reservations = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, name, date, time, guests, created_at,
+        // ALL pending reservations — actionable, restaurant-wide.
+        $pending_reservations = $wpdb->get_results(
+            "SELECT id, name, date, time, guests,
                     TIMESTAMPDIFF(SECOND, created_at, NOW()) AS seconds_ago
              FROM {$wpdb->prefix}dishdash_reservations
-             WHERE id > %d
-             ORDER BY id ASC LIMIT 10",
-            $last_res_id
-        ), ARRAY_A );
-
-        // Current max IDs for client to store
-        $max_order_id = (int) $wpdb->get_var( "SELECT COALESCE(MAX(id),0) FROM {$wpdb->prefix}dishdash_orders WHERE is_test = 0" );
-        $max_res_id   = (int) $wpdb->get_var( "SELECT COALESCE(MAX(id),0) FROM {$wpdb->prefix}dishdash_reservations" );
-
-        // Authoritative live counts — same for every staff member (not per-browser).
-        $pending_orders_count = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}dishdash_orders
-             WHERE status = 'pending' AND is_test = 0"
+             WHERE status = 'pending'
+             ORDER BY id DESC",
+            ARRAY_A
         );
-        $pending_res_count = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM {$wpdb->prefix}dishdash_reservations
-             WHERE status = 'pending'"
-        );
-        $pending_count = $pending_orders_count + $pending_res_count;
+
+        // Build one unified, ordered list (newest first across both types).
+        $items = [];
+
+        foreach ( $pending_orders as $o ) {
+            $order_num = ! empty( $o['order_number'] )
+                ? $o['order_number']
+                : 'DD-' . str_pad( $o['id'], 5, '0', STR_PAD_LEFT );
+            $items[] = [
+                'type'        => 'order',
+                'id'          => (int) $o['id'],
+                'title'       => $order_num . ' · ' . $o['customer_name'],
+                'meta'        => number_format( (float) $o['total'] ) . ' RWF · ' . dd_format_payment_method( $o['payment_method'] ),
+                'seconds_ago' => (int) $o['seconds_ago'],
+            ];
+        }
+
+        foreach ( $pending_reservations as $r ) {
+            $guests = (int) $r['guests'] . ' guest' . ( (int) $r['guests'] !== 1 ? 's' : '' );
+            $time   = is_string( $r['time'] ) ? substr( $r['time'], 0, 5 ) : '';
+            $items[] = [
+                'type'        => 'reservation',
+                'id'          => (int) $r['id'],
+                'title'       => $r['name'] . ' · ' . $r['date'] . ( $time ? ' at ' . $time : '' ),
+                'meta'        => $guests,
+                'seconds_ago' => (int) $r['seconds_ago'],
+            ];
+        }
+
+        // Sort the unified list by most-recent arrival first.
+        usort( $items, function ( $a, $b ) {
+            return $a['seconds_ago'] <=> $b['seconds_ago'];
+        } );
 
         $this->json_success( [
-            'new_orders'       => $new_orders,
-            'new_reservations' => $new_reservations,
-            'max_order_id'     => $max_order_id,
-            'max_res_id'       => $max_res_id,
-            'pending_count'    => $pending_count,
+            'pending_items' => $items,
+            'pending_count' => count( $items ),
         ] );
     }
 

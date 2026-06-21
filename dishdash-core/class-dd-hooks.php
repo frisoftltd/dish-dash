@@ -206,11 +206,10 @@ class DD_Hooks {
         ?>
         <div class="dd-bell-panel" id="dd-bell-panel" style="display:none">
             <div class="dd-bell-header">
-                <span>Notifications</span>
-                <button type="button" id="dd-bell-mark-read">Mark all read</button>
+                <span>Pending Items</span>
             </div>
             <div class="dd-bell-items" id="dd-bell-items">
-                <p class="dd-bell-empty">No new notifications</p>
+                <p class="dd-bell-empty">No pending items</p>
             </div>
         </div>
         <?php
