@@ -84,6 +84,8 @@ class DD_Loader {
             'DD_Menu_Module'      => 'modules/menu/class-dd-menu-module.php',
             // Orders module
             'DD_Orders_Module'    => 'modules/orders/class-dd-orders-module.php',
+            // Profile module — customer-facing My Profile tab on WooCommerce my-account
+            'DD_Profile_Module'   => 'modules/profile/class-dd-profile-module.php',
             // Coming soon:
             // 'DD_Delivery_Module'     => 'modules/delivery/class-dd-delivery-module.php',
             'DD_Reservations_Module' => 'modules/reservations/class-dd-reservations-module.php',

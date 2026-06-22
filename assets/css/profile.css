@@ -1,0 +1,173 @@
+/* My Profile — customer-facing. White-label via var(--brand)/var(--dd-*). */
+
+.dd-profile { max-width: 720px; }
+
+.dd-profile__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--dd-line, #EADfCE);
+}
+
+.dd-profile__name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.9rem;
+    color: var(--dd-text, #221B19);
+    margin: 0 0 4px;
+}
+
+.dd-profile__since {
+    color: var(--dd-muted, #6E5B4C);
+    font-size: .9rem;
+    margin: 0;
+}
+
+.dd-profile__tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--brand);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.dd-profile__tier-icon { font-size: 1.1rem; }
+
+.dd-profile__stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.dd-profile__stat {
+    flex: 1;
+    background: var(--dd-surface, #FBF7F1);
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 14px;
+    padding: 18px;
+    text-align: center;
+}
+
+.dd-profile__stat-num {
+    display: block;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--brand);
+}
+
+.dd-profile__stat-num small { font-size: .9rem; }
+
+.dd-profile__stat-label {
+    color: var(--dd-muted, #6E5B4C);
+    font-size: .85rem;
+}
+
+.dd-profile__section { margin-bottom: 28px; }
+
+.dd-profile__section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.25rem;
+    color: var(--dd-text, #221B19);
+    margin: 0 0 12px;
+}
+
+.dd-profile__favs { list-style: none; margin: 0; padding: 0; }
+
+.dd-profile__fav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--dd-surface, #FBF7F1);
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+
+.dd-profile__fav-name {
+    font-weight: 600;
+    color: var(--dd-text, #221B19);
+}
+
+.dd-profile__fav-count {
+    color: var(--dd-muted, #6E5B4C);
+    font-size: .82rem;
+}
+
+.dd-profile__birthday-set {
+    font-size: 1.1rem;
+    color: var(--dd-text, #221B19);
+}
+
+.dd-profile__birthday-hint {
+    color: var(--dd-muted, #6E5B4C);
+    margin-bottom: 12px;
+}
+
+.dd-profile__birthday-row,
+.dd-profile__link-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.dd-profile__select,
+.dd-profile__input {
+    padding: 10px 12px;
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 8px;
+    font-size: .95rem;
+    background: #fff;
+    color: var(--dd-text, #221B19);
+}
+
+.dd-profile__input { flex: 1; min-width: 180px; }
+
+.dd-profile__birthday-msg,
+.dd-profile__link-msg {
+    margin-top: 10px;
+    font-size: .9rem;
+    color: var(--dd-muted, #6E5B4C);
+}
+
+.dd-profile__link-card {
+    background: var(--dd-surface, #FBF7F1);
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 16px;
+    padding: 28px;
+}
+
+.dd-profile__link-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    color: var(--dd-text, #221B19);
+    margin: 0 0 8px;
+}
+
+.dd-profile__link-text {
+    color: var(--dd-muted, #6E5B4C);
+    margin: 0 0 16px;
+}
+
+.dd-profile__whatsapp {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dd-btn--whatsapp {
+    background: #25D366;
+    color: #fff;
+}
+
+@media (max-width: 600px) {
+    .dd-profile__header { flex-direction: column; }
+    .dd-profile__stats  { flex-direction: column; }
+}
