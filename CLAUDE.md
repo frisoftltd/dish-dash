@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.0 (2026-06-22)
+> Last updated: v3.10.1 (2026-06-22)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.0 |
+| **Deployed version** | v3.10.1 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.1 — Phase 7C Brief 4 (Reorder buttons on favorites) |
-| **Last working state** | v3.10.0: New modules/profile/ module adds "My Profile" tab to WooCommerce my-account (woocommerce_account_menu_items + add_rewrite_endpoint, one-time flush keyed on DD_VERSION via dd_profile_endpoint_flushed option). Renders DD_Customer_Profile::get(): tier badge, order/spend stats, favorites (display only), month/day birthday editor (AJAX dd_profile_save_birthday → customers.birthday + dd_birthday meta), WhatsApp contact button (esc_url on wa.me URL, phone digits-only strip), and phone-link prompt for unlinked customers (AJAX dd_profile_link_phone → DD_Customer_Manager::link_user_to_phone). White-label: profile.css uses only var(--brand)/var(--dd-*) tokens; dish-dash-theme dependency ensures --brand is injected from restaurant settings. Module registered in DD_Loader $modules array as DD_Profile_Module, extends DD_Module. |
+| **Next task** | v3.10.2 — Phase 7C Brief 4 (Reorder buttons on favorites) |
+| **Last working state** | v3.10.1: My Account layout polish + menu cleanup. add_menu_item() now trims WooCommerce account menu to My Profile (landing) · Order History (renamed from Orders) · Addresses · Account details · Log out — removes Dashboard and Downloads. profile.css extended to style native WooCommerce account markup (.woocommerce-MyAccount-navigation / -content) into a branded two-column sidebar+panel layout: sticky 240px sidebar, active item in var(--brand), all inputs/buttons themed, responsive stack under 768px. NOTE: WooCommerce "Order History" tab reads WC's own orders table (empty — real orders in dishdash_orders); flagged for a future custom orders tab; for now order history surfaces via My Profile recent orders + the header My Orders button. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -656,7 +656,8 @@ Every page before shipping must pass:
 | **v3.9.8** | ✅ **Done** | **Customer Profile link foundation — user_id (nullable, UNIQUE) on wp_dishdash_customers; link_user_to_phone() identity model (one profile per phone, no stealing); get_customer_for_user(); on_resolve_customer_id back-fills user_id for logged-in customers placing orders** |
 | **v3.9.9** | ✅ **Done** | **DD_Customer_Profile::get() unified read interface — commercial record + tier + birthday + favorites (from order history) + recent orders + restaurant WhatsApp; read-only; loaded from class-dd-orders-module.php** |
 | **v3.10.0** | ✅ **Done** | **Phase 7C Brief 3 — My Profile UI tab: DD_Profile_Module, WC account endpoint, tier badge, stats, favorites, birthday editor, WhatsApp contact, phone-link prompt** |
-| v3.10.1 | ⏳ **NEXT** | Phase 7C Brief 4 — Reorder buttons on favorites |
+| **v3.10.1** | ✅ **Done** | **My Account layout + menu cleanup: two-column branded sidebar/panel, trimmed menu (My Profile · Order History · Addresses · Account details · Log out)** |
+| v3.10.2 | ⏳ **NEXT** | Phase 7C Brief 4 — Reorder buttons on favorites |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

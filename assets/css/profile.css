@@ -171,3 +171,117 @@
     .dd-profile__header { flex-direction: column; }
     .dd-profile__stats  { flex-direction: column; }
 }
+
+/* ── Account page: two-column branded layout ─────────────────────── */
+.woocommerce-account .woocommerce {
+    display: flex;
+    gap: 32px;
+    max-width: var(--dd-container, 1240px);
+    margin: 0 auto;
+    padding: 20px 20px 60px;
+    align-items: flex-start;
+}
+
+/* Sidebar navigation */
+.woocommerce-account .woocommerce-MyAccount-navigation {
+    flex: 0 0 240px;
+    background: var(--dd-surface, #FBF7F1);
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 16px;
+    padding: 12px;
+    position: sticky;
+    top: 90px;
+}
+.woocommerce-account .woocommerce-MyAccount-navigation ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.woocommerce-account .woocommerce-MyAccount-navigation-link a {
+    display: block;
+    padding: 12px 16px;
+    border-radius: 10px;
+    color: var(--dd-text, #221B19);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: .95rem;
+    transition: background .15s ease, color .15s ease;
+}
+.woocommerce-account .woocommerce-MyAccount-navigation-link a:hover {
+    background: var(--dd-surface-2, #FFF7EA);
+}
+.woocommerce-account .woocommerce-MyAccount-navigation-link.is-active a {
+    background: var(--brand);
+    color: #fff;
+}
+.woocommerce-account .woocommerce-MyAccount-navigation-link--customer-logout a {
+    color: var(--dd-muted, #6E5B4C);
+    margin-top: 6px;
+    border-top: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 0;
+}
+
+/* Content panel */
+.woocommerce-account .woocommerce-MyAccount-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: #fff;
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: var(--dd-shadow-sm, 0 10px 30px rgba(107,29,29,0.06));
+}
+
+/* Tidy native WooCommerce content (orders table, address, account form) */
+.woocommerce-account .woocommerce-MyAccount-content h2,
+.woocommerce-account .woocommerce-MyAccount-content h3 {
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--dd-text, #221B19);
+    margin-top: 0;
+}
+.woocommerce-account .woocommerce-MyAccount-content a:not(.button):not(.dd-btn) {
+    color: var(--brand);
+}
+.woocommerce-account .woocommerce-MyAccount-content .button,
+.woocommerce-account .woocommerce-MyAccount-content button[type="submit"] {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 22px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.woocommerce-account .woocommerce-MyAccount-content .button:hover,
+.woocommerce-account .woocommerce-MyAccount-content button[type="submit"]:hover {
+    background: var(--brand-dark, #160F0D);
+}
+.woocommerce-account .woocommerce-MyAccount-content input[type="text"],
+.woocommerce-account .woocommerce-MyAccount-content input[type="email"],
+.woocommerce-account .woocommerce-MyAccount-content input[type="password"],
+.woocommerce-account .woocommerce-MyAccount-content input[type="tel"],
+.woocommerce-account .woocommerce-MyAccount-content select {
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+/* dd-btn--brand in profile context */
+.dd-profile .dd-btn--brand { background: var(--brand); color: #fff; border: none; }
+.dd-profile .dd-btn--brand:hover { background: var(--brand-dark, #160F0D); }
+
+/* Mobile: stack sidebar above content */
+@media (max-width: 768px) {
+    .woocommerce-account .woocommerce { flex-direction: column; }
+    .woocommerce-account .woocommerce-MyAccount-navigation {
+        flex: 1 1 auto;
+        width: 100%;
+        position: static;
+    }
+    .woocommerce-account .woocommerce-MyAccount-navigation ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .woocommerce-account .woocommerce-MyAccount-content { padding: 22px; }
+}

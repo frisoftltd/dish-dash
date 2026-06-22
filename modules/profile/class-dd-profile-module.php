@@ -58,11 +58,27 @@ class DD_Profile_Module extends DD_Module {
     }
 
     /**
-     * Insert "My Profile" at the top of the account menu (above Dashboard).
+     * Build a clean account menu for a restaurant:
+     * My Profile (first) · Order History · Addresses · Account details · Log out.
+     * Removes Dashboard and Downloads (not useful for a restaurant).
      */
     public function add_menu_item( $items ) {
-        $new = [ self::ENDPOINT => __( 'My Profile', 'dish-dash' ) ];
-        return array_merge( $new, $items );
+        $clean = [];
+        $clean[ self::ENDPOINT ] = __( 'My Profile', 'dish-dash' );
+
+        if ( isset( $items['orders'] ) ) {
+            $clean['orders'] = __( 'Order History', 'dish-dash' );
+        }
+        if ( isset( $items['edit-address'] ) ) {
+            $clean['edit-address'] = __( 'Addresses', 'dish-dash' );
+        }
+        if ( isset( $items['edit-account'] ) ) {
+            $clean['edit-account'] = __( 'Account details', 'dish-dash' );
+        }
+        if ( isset( $items['customer-logout'] ) ) {
+            $clean['customer-logout'] = $items['customer-logout'];
+        }
+        return $clean;
     }
 
     public function enqueue_assets(): void {
