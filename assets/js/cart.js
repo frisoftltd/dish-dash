@@ -98,11 +98,13 @@
             // Inject PesaPal waiting panel as 6th drawer panel
             var pp         = document.createElement( 'div' );
             pp.id          = 'ddPanelPesaPal';
+            pp.className   = 'dd-cart-panel dd-cart-panel--hidden';
             pp.setAttribute( 'data-panel', 'pesapal' );
-            pp.style.display = 'none';
             pp.innerHTML =
+                '<div class="dd-checkout-panel__header">' +
+                    '<span class="dd-checkout-panel__title">PesaPal</span>' +
+                '</div>' +
                 '<div class="dd-pesapal-waiting">' +
-                    '<p class="dd-momo-title">Complete your payment</p>' +
                     '<p class="dd-momo-subtitle">Complete your payment in the secure window below.<br>Do not close this panel until payment is confirmed.</p>' +
                     '<div id="ddPesaPalIframeWrap" style="width:100%;height:420px;border:1px solid #eee;border-radius:8px;overflow:hidden;margin:12px 0;">' +
                         '<iframe id="ddPesaPalIframe" src="" width="100%" height="420" frameborder="0" style="border:none;"></iframe>' +
@@ -545,13 +547,19 @@
             // Render payment gateway options from WooCommerce
             var gatewayContainer = document.getElementById( 'ddPaymentOptions' );
             if ( gatewayContainer && window.ddCartData.paymentGateways && window.ddCartData.paymentGateways.length ) {
+                var logoMap = {
+                    'mtn_momo':  ( window.ddCartData.pluginUrl || '' ) + 'assets/images/mtn-momo-logo.jpg',
+                    'irembopay': ( window.ddCartData.pluginUrl || '' ) + 'assets/images/irembopay-logo.jpg',
+                    'pesapal':   ( window.ddCartData.pluginUrl || '' ) + 'assets/images/pesapal-logo.svg',
+                };
                 gatewayContainer.innerHTML = window.ddCartData.paymentGateways.map( function ( gw, i ) {
+                    var iconUrl = logoMap[ gw.id ] || gw.iconUrl || '';
                     return '<label class="dd-payment-option">' +
                         '<input type="radio" name="payment_method" value="' + escHtml( gw.id ) + '"' + ( i === 0 ? ' checked' : '' ) + '>' +
                         '<span class="dd-payment-option__card">' +
                         '<span class="dd-payment-option__icon">' +
-                            ( gw.iconUrl
-                                ? '<img src="' + gw.iconUrl + '" alt="' + escHtml( gw.title ) + '" class="dd-payment-option__logo">'
+                            ( iconUrl
+                                ? '<img src="' + iconUrl + '" alt="' + escHtml( gw.title ) + '" class="dd-payment-option__logo">'
                                 : gw.icon ) +
                         '</span>' +
                         '<span class="dd-payment-option__text">' + escHtml( gw.title ) + '</span>' +
@@ -751,9 +759,15 @@
                         }, function( res ) {
                             if ( res.paid ) {
                                 clearInterval( pesapalPollingTimer );
-                                currentOrderNumber = res.order_number;
-                                showMomoConfirmation();
-                            } else if ( res.status === 'FAILED' || res.status === 'INVALID' ) {
+                                currentOrderNumber = res.data.order_number;
+                                var numEl4 = document.getElementById( 'ddConfirmOrderNum' );
+                                var etaEl4 = document.getElementById( 'ddConfirmEta' );
+                                if ( numEl4 ) numEl4.textContent = 'Order #' + currentOrderNumber;
+                                if ( etaEl4 ) etaEl4.textContent = '🛵 Estimated delivery: ' + ( ( window.ddCartData && window.ddCartData.deliveryEta ) || '30–45 minutes' );
+                                updateBadges( 0 );
+                                window.ddCartSummary = null;
+                                showPanel( panelConfirmation );
+                            } else if ( res.data.status === 'FAILED' || res.data.status === 'INVALID' ) {
                                 clearInterval( pesapalPollingTimer );
                                 if ( pesapalStatusEl ) {
                                     pesapalStatusEl.textContent = 'Payment failed. Please try again.';
