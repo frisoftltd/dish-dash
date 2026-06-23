@@ -258,12 +258,14 @@ class DD_Template_Module extends DD_Module {
             'deliveryFee'           => (int) get_option( 'dd_delivery_fee',            1500  ),
             'deliveryEta'           => get_option( 'dd_delivery_eta', '30–45 minutes' ),
             'whatsappAdmin'         => get_option( 'dd_whatsapp_admin', '' ),
+            'pluginUrl'             => plugins_url( '/', DD_PLUGIN_FILE ),
             'paymentGateways'       => (function() {
                 if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];
                 $gateways = WC()->payment_gateways->get_available_payment_gateways();
                 $icon_urls = [
                     'mtn_momo'  => plugins_url( 'assets/images/mtn-momo-logo.jpg', DD_PLUGIN_FILE ),
                     'irembopay' => plugins_url( 'assets/images/irembopay-logo.jpg', DD_PLUGIN_FILE ),
+                    'pesapal'   => plugins_url( 'assets/images/pesapal-logo.svg',   DD_PLUGIN_FILE ),
                     'cod'       => '',
                     'bacs'      => '',
                     'cheque'    => '',
@@ -280,7 +282,7 @@ class DD_Template_Module extends DD_Module {
                     }
                     $out[] = [
                         'id'      => $id,
-                        'title'   => $gw->get_title(),
+                        'title'   => html_entity_decode( $gw->get_title(), ENT_QUOTES, 'UTF-8' ),
                         'icon'    => $icon_emojis[ $id ] ?? '',
                         'iconUrl' => $icon_urls[ $id ] ?? '',
                     ];

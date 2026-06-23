@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.7 (2026-06-23)
+> Last updated: v3.10.8 (2026-06-23)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.7 |
+| **Deployed version** | v3.10.8 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.8 — Phase 7C next |
-| **Last working state** | v3.10.7: Fixed PesaPal panel not showing — replaced style.display='none' with dd-cart-panel/dd-cart-panel--hidden CSS classes, added header with title. Fixed confirmation screen after PesaPal payment — inline confirmation logic (was calling missing showMomoConfirmation(), now reads res.data.order_number/status). Added PesaPal logo (assets/images/pesapal-logo.svg) and JS logoMap so PesaPal, MoMo, and IremboPay all use bundled local logo assets. |
+| **Next task** | v3.10.9 — Phase 7C next |
+| **Last working state** | v3.10.8: Fixed all payment method logos not loading — pluginUrl was missing from ddCartData (now added via plugins_url). Added pesapal to $icon_urls in PHP. Fixed &amp; HTML entity in gateway titles via html_entity_decode(). Removed JS logoMap (was overriding correct PHP absolute URLs with broken relative paths). Added overflow-y:auto to .dd-cart-panel (scroll for PesaPal panel). Added .dd-payment-methods-wrap scroll indicator. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -663,7 +663,8 @@ Every page before shipping must pass:
 | **v3.10.5** | ✅ **Done** | **One-click reorder: Reorder buttons on favorites + Order History cards; dd_profile_reorder AJAX with stale-ID name resolver; print_reorder_script() static-guarded shared JS; DD_Cart::add() integration** |
 | **v3.10.6** | ✅ **Done** | **PesaPal in-drawer iframe payment (Option B): DD_PesaPal class, dd_pesapal_check_status AJAX, #ddPanelPesaPal iframe panel, 5s polling, order created on COMPLETED; PesaPal label fix in PHP + admin JS** |
 | **v3.10.7** | ✅ **Done** | **Fix PesaPal panel display (CSS classes not style.display), confirmation handler (res.data.order_number/status), add pesapal-logo.svg + JS logoMap** |
-| v3.10.8 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.8** | ✅ **Done** | **Fix payment logos (pluginUrl added to ddCartData, pesapal in $icon_urls, remove broken JS logoMap), fix &amp; label encoding, add checkout drawer scroll** |
+| v3.10.9 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -547,13 +547,8 @@
             // Render payment gateway options from WooCommerce
             var gatewayContainer = document.getElementById( 'ddPaymentOptions' );
             if ( gatewayContainer && window.ddCartData.paymentGateways && window.ddCartData.paymentGateways.length ) {
-                var logoMap = {
-                    'mtn_momo':  ( window.ddCartData.pluginUrl || '' ) + 'assets/images/mtn-momo-logo.jpg',
-                    'irembopay': ( window.ddCartData.pluginUrl || '' ) + 'assets/images/irembopay-logo.jpg',
-                    'pesapal':   ( window.ddCartData.pluginUrl || '' ) + 'assets/images/pesapal-logo.svg',
-                };
                 gatewayContainer.innerHTML = window.ddCartData.paymentGateways.map( function ( gw, i ) {
-                    var iconUrl = logoMap[ gw.id ] || gw.iconUrl || '';
+                    var iconUrl = gw.iconUrl || '';
                     return '<label class="dd-payment-option">' +
                         '<input type="radio" name="payment_method" value="' + escHtml( gw.id ) + '"' + ( i === 0 ? ' checked' : '' ) + '>' +
                         '<span class="dd-payment-option__card">' +

@@ -649,6 +649,8 @@ body.dd-cart-open .dd-bottom-nav {
     width: 100%;
     transition: opacity 0.22s ease, transform 0.22s ease;
     flex-shrink: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .dd-cart-panel--hidden {
@@ -1058,4 +1060,18 @@ body.dd-cart-open .dd-bottom-nav {
 .dd-momo-cancel:hover {
     border-color: #999;
     color: #333;
+}
+
+/* ── Payment methods scroll indicator ── */
+.dd-payment-methods-wrap {
+    position: relative;
+}
+
+.dd-payment-methods-wrap::after {
+    content: '';
+    display: block;
+    height: 2px;
+    background: linear-gradient(to right, transparent, var(--dd-brand), transparent);
+    margin-top: 8px;
+    opacity: 0.4;
 }
