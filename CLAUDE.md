@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.3 (2026-06-23)
+> Last updated: v3.10.4 (2026-06-23)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.3 |
+| **Deployed version** | v3.10.4 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.4 — Phase 7C Brief 5 (Reorder buttons on favorites) |
-| **Last working state** | v3.10.3: FIX — custom WooCommerce account endpoints need THREE registrations: (1) add_rewrite_endpoint, (2) query_vars filter, AND (3) woocommerce_get_query_vars filter. The my-profile tab was missing #3, so WooCommerce didn't recognize the endpoint and fell back to the account dashboard. Added add_wc_query_var() via woocommerce_get_query_vars. maybe_flush_rewrite() keys off DD_VERSION so rewrite rules re-flush automatically on this deploy. KEY LESSON: for any future custom my-account endpoint, always add all three filters; verify with wp eval '$qv=WC()->query->get_query_vars(); var_dump(isset($qv["endpoint"]));'. |
+| **Next task** | v3.10.5 — Phase 7C Brief 5 (Reorder buttons on favorites) |
+| **Last working state** | v3.10.4: Header account button now labeled "My Profile" and links via wc_get_account_endpoint_url('my-profile') (WooCommerce's own URL generator) instead of a hardcoded path — guarantees the link matches WC's registered endpoint exactly. Both mobile drawer (~629) and desktop (~696) buttons updated. Removed reliance on the /my-account/ base for the account button. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -659,7 +659,8 @@ Every page before shipping must pass:
 | **v3.10.1** | ✅ **Done** | **My Account layout + menu cleanup: two-column branded sidebar/panel, trimmed menu (My Profile · Order History · Addresses · Account details · Log out)** |
 | **v3.10.2** | ✅ **Done** | **Header "My Account" button + real order history: $account_url links header buttons to /my-account/my-profile/; render_order_history() hooks woocommerce_account_orders_endpoint (priority 5) to show real orders from dishdash_orders with number, date, total, status badge, and items** |
 | **v3.10.3** | ✅ **Done** | **Fix My Profile endpoint: add woocommerce_get_query_vars filter (add_wc_query_var) — missing third registration caused WC to fall back to account dashboard instead of rendering My Profile** |
-| v3.10.4 | ⏳ **NEXT** | Phase 7C Brief 5 — Reorder buttons on favorites |
+| **v3.10.4** | ✅ **Done** | **Header button → "My Profile" via wc_get_account_endpoint_url('my-profile'); both mobile drawer and desktop buttons updated** |
+| v3.10.5 | ⏳ **NEXT** | Phase 7C Brief 5 — Reorder buttons on favorites |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

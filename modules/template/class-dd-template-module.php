@@ -584,9 +584,9 @@ class DD_Template_Module extends DD_Module {
         $orders_url    = function_exists( 'wc_get_account_url' )
             ? wc_get_account_url( 'orders' )
             : home_url( '/my-account/orders/' );
-        $account_url   = function_exists( 'wc_get_account_url' )
-            ? home_url( '/my-account/my-profile/' )
-            : home_url( '/my-account/' );
+        $account_url   = function_exists( 'wc_get_account_endpoint_url' )
+            ? wc_get_account_endpoint_url( 'my-profile' )
+            : home_url( '/my-account/my-profile/' );
 
         $nav_html = wp_nav_menu( array(
             'theme_location' => 'dd-primary',
@@ -627,7 +627,7 @@ class DD_Template_Module extends DD_Module {
             <div class="dd-nav-drawer__footer">
                 <?php if ( is_user_logged_in() ) : ?>
                 <a href="<?php echo esc_url( $account_url ); ?>"
-                   class="dd-btn dd-btn--light dd-btn--block">&#128100; My Account</a>
+                   class="dd-btn dd-btn--light dd-btn--block">&#128100; My Profile</a>
                 <button id="ddLogoutBtn" class="dd-nav-drawer__logout">Log out</button>
                 <?php else : ?>
                 <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--block" style="margin-bottom:10px;">&#128100; Create Account</button>
@@ -694,7 +694,7 @@ class DD_Template_Module extends DD_Module {
                     </button>
                     <?php if ( is_user_logged_in() ) : ?>
                     <a href="<?php echo esc_url( $account_url ); ?>"
-                       class="dd-btn dd-btn--light dd-btn--sm dd-desktop-only">My Account</a>
+                       class="dd-btn dd-btn--light dd-btn--sm dd-desktop-only">My Profile</a>
                     <button id="ddLogoutBtn" class="dd-auth-logout-btn dd-btn dd-btn--light dd-btn--sm dd-desktop-only">Log out</button>
                     <?php else : ?>
                     <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--sm dd-desktop-only">Log in</button>
