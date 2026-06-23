@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.5 (2026-06-23)
+> Last updated: v3.10.6 (2026-06-23)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.5 |
+| **Deployed version** | v3.10.6 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.6 — Phase 7C next |
-| **Last working state** | v3.10.5: Customer Profile Brief 4 — one-click Reorder on favorites + Order History cards. New AJAX dd_profile_reorder (nonce dish_dash_frontend) with a server-side resolver: maps each item to a CURRENT purchasable product by stored menu_item_id, FALLING BACK to exact product-title match when the stored ID is stale. Adds resolved products via DD_Cart::add(), respects the restaurant-closed guard, returns added/unavailable counts. Buttons carry data-items JSON; JS posts to dd_profile_reorder then calls window.DDCart.refresh()+open(). Reorder script shared between profile tab and order-history tab via print_reorder_script() (static-guarded, prints once per request). Cancelled orders get no reorder button. White-label via var(--brand). |
+| **Next task** | v3.10.7 — Phase 7C next |
+| **Last working state** | v3.10.6: PesaPal in-drawer iframe payment — Option B flow. New DD_PesaPal class (modules/payments/class-dd-pesapal.php) wraps PesaPal v3 API: auth token, IPN auto-register, SubmitOrderRequest, GetTransactionStatus. AJAX handler dd_pesapal_check_status polls status and creates order in DB only on COMPLETED. Cart JS injects #ddPanelPesaPal (6th drawer panel) with iframe, polls every 5s, shows confirmation on paid. Transient stores full pending order for up to 2h. Label fix: 'pesapal' → 'PesaPal' in both dd_format_payment_method() (PHP) and ddFormatPaymentMethod() (admin JS). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -661,7 +661,8 @@ Every page before shipping must pass:
 | **v3.10.3** | ✅ **Done** | **Fix My Profile endpoint: add woocommerce_get_query_vars filter (add_wc_query_var) — missing third registration caused WC to fall back to account dashboard instead of rendering My Profile** |
 | **v3.10.4** | ✅ **Done** | **Header button → "My Profile" via wc_get_account_endpoint_url('my-profile'); both mobile drawer and desktop buttons updated** |
 | **v3.10.5** | ✅ **Done** | **One-click reorder: Reorder buttons on favorites + Order History cards; dd_profile_reorder AJAX with stale-ID name resolver; print_reorder_script() static-guarded shared JS; DD_Cart::add() integration** |
-| v3.10.6 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.6** | ✅ **Done** | **PesaPal in-drawer iframe payment (Option B): DD_PesaPal class, dd_pesapal_check_status AJAX, #ddPanelPesaPal iframe panel, 5s polling, order created on COMPLETED; PesaPal label fix in PHP + admin JS** |
+| v3.10.7 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -79,6 +79,7 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_update_status',     [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_momo_check_status',   [ $this, 'ajax_momo_check_status' ],   true );
         DD_Ajax::register( 'dd_irembopay_confirm',   [ $this, 'ajax_irembopay_confirm' ],   true );
+        DD_Ajax::register( 'dd_pesapal_check_status', [ $this, 'ajax_pesapal_check_status' ], false );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
         add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
@@ -956,6 +957,52 @@ class DD_Orders_Module extends DD_Module {
             return;
         }
 
+        // ─── 4d. PesaPal — in-drawer iframe, no WC redirect ──────────────
+        if ( 'pesapal' === $payment_method ) {
+            $pesapal = new DD_PesaPal();
+            if ( ! $pesapal->is_configured() ) {
+                wp_send_json_error( [ 'message' => 'PesaPal is not configured. Please contact the restaurant.' ] );
+                return;
+            }
+
+            // Calculate total without creating order yet (Option B)
+            $totals = $this->calculate_totals( $summary['items'], $delivery_fee );
+            $total  = $totals['total'];
+            $ref    = 'DD-' . strtoupper( substr( md5( $whatsapp . microtime() ), 0, 12 ) );
+
+            $result = $pesapal->submit_order(
+                (float) $total,
+                get_woocommerce_currency(),
+                $ref,
+                'Food order from ' . get_option( 'dish_dash_restaurant_name', 'Restaurant' ),
+                $whatsapp,
+                $customer_name
+            );
+
+            if ( ! $result['success'] ) {
+                wp_send_json_error( [ 'message' => $result['error'] ] );
+                return;
+            }
+
+            // Store full order data in transient — no DB write yet
+            set_transient( 'dd_pesapal_pending_' . $result['order_tracking_id'], [
+                'customer_name'    => $customer_name,
+                'customer_phone'   => $whatsapp,
+                'delivery_address' => $delivery_address,
+                'items'            => $summary['items'],
+                'delivery_fee'     => $delivery_fee,
+                'total'            => $total,
+            ], 2 * HOUR_IN_SECONDS );
+
+            wp_send_json_success( [
+                'pesapal'           => true,
+                'redirect_url'      => $result['redirect_url'],
+                'order_tracking_id' => $result['order_tracking_id'],
+                'total'             => $total,
+            ] );
+            return;
+        }
+
         if ( $is_online ) {
             // --- ONLINE GATEWAY FLOW ---
             // Create DD order first (status: pending_payment)
@@ -1186,6 +1233,77 @@ class DD_Orders_Module extends DD_Module {
         }
 
         // Still PENDING
+        wp_send_json_success( [ 'paid' => false, 'status' => 'PENDING' ] );
+    }
+
+    public function ajax_pesapal_check_status(): void {
+        DD_Ajax::verify_nonce();
+
+        $order_tracking_id = sanitize_text_field( $_POST['order_tracking_id'] ?? '' );
+        if ( ! $order_tracking_id ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        $pending = get_transient( 'dd_pesapal_pending_' . $order_tracking_id );
+        if ( ! $pending ) {
+            wp_send_json_error( [ 'message' => 'Payment session expired. Please try again.' ] );
+            return;
+        }
+
+        $pesapal = new DD_PesaPal();
+        $status  = $pesapal->get_transaction_status( $order_tracking_id );
+
+        if ( $status === 'COMPLETED' ) {
+            $result = $this->place_order( [
+                'customer_name'    => $pending['customer_name'],
+                'customer_phone'   => $pending['customer_phone'],
+                'customer_email'   => '',
+                'order_type'       => 'delivery',
+                'items'            => $pending['items'],
+                'delivery_fee'     => $pending['delivery_fee'],
+                'payment_method'   => 'pesapal',
+                'delivery_address' => $pending['delivery_address'],
+            ] );
+
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+                return;
+            }
+
+            global $wpdb;
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_orders',
+                [ 'status' => 'pending', 'payment_status' => 'paid' ],
+                [ 'id'     => $result['order_id'] ],
+                [ '%s', '%s' ],
+                [ '%d' ]
+            );
+
+            delete_transient( 'dd_pesapal_pending_' . $order_tracking_id );
+
+            DD_Customer_Manager::upsert(
+                $pending['customer_phone'],
+                $pending['customer_name'],
+                $pending['delivery_address'],
+                (float) $pending['total']
+            );
+
+            wp_send_json_success( [
+                'paid'         => true,
+                'status'       => 'COMPLETED',
+                'order_number' => $result['order_number'],
+                'order_id'     => $result['order_id'],
+            ] );
+            return;
+        }
+
+        if ( in_array( $status, [ 'FAILED', 'INVALID' ], true ) ) {
+            delete_transient( 'dd_pesapal_pending_' . $order_tracking_id );
+            wp_send_json_success( [ 'paid' => false, 'status' => $status ] );
+            return;
+        }
+
         wp_send_json_success( [ 'paid' => false, 'status' => 'PENDING' ] );
     }
 

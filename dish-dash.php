@@ -3,7 +3,7 @@
  * Plugin Name:       Dish Dash
  * Plugin URI:        https://frisoftltd.com/dish-dash
  * Description:       DishDash is a smart ordering system that learns customer behavior and makes ordering faster, easier, and more personalized every time.
- * Version:           3.10.5
+ * Version:           3.10.6
  * Author:            Fri Soft Ltd
  * Author URI:        https://frisoft.rw
  * License:           GPL-2.0+
@@ -44,7 +44,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────
-define( 'DD_VERSION',         '3.10.5' );
+define( 'DD_VERSION',         '3.10.6' );
 define( 'DD_PLUGIN_FILE',     __FILE__ );
 define( 'DD_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'DD_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
@@ -158,6 +158,7 @@ add_action( 'init', function () {
 // ─────────────────────────────────────────────
 require_once DD_PLUGIN_DIR . 'dishdash-core/class-dd-github-updater.php';
 require_once DD_PLUGIN_DIR . 'modules/payments/class-dd-momo.php';
+require_once DD_PLUGIN_DIR . 'modules/payments/class-dd-pesapal.php';
 
 $dd_updater = new DD_GitHub_Updater( DD_GITHUB_REPO, DD_GITHUB_TOKEN );
 $dd_updater->init();

@@ -190,6 +190,7 @@ if ( ! function_exists( 'dd_format_payment_method' ) ) {
             'mtn_momo'             => 'MTN Mobile Money',
             'momo'                 => 'MTN Mobile Money',
             'irembopay'            => 'IremboPay',
+            'pesapal'              => 'PesaPal',
             'pay_now'              => 'Card Payment',
             'bacs'                 => 'Bank Transfer',
             'cheque'               => 'Cheque',

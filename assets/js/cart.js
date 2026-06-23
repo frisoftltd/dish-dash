@@ -94,6 +94,24 @@
                 '</div>';
             drawer.appendChild( ip );
             panelIremboPay = ip;
+
+            // Inject PesaPal waiting panel as 6th drawer panel
+            var pp         = document.createElement( 'div' );
+            pp.id          = 'ddPanelPesaPal';
+            pp.setAttribute( 'data-panel', 'pesapal' );
+            pp.style.display = 'none';
+            pp.innerHTML =
+                '<div class="dd-pesapal-waiting">' +
+                    '<p class="dd-momo-title">Complete your payment</p>' +
+                    '<p class="dd-momo-subtitle">Complete your payment in the secure window below.<br>Do not close this panel until payment is confirmed.</p>' +
+                    '<div id="ddPesaPalIframeWrap" style="width:100%;height:420px;border:1px solid #eee;border-radius:8px;overflow:hidden;margin:12px 0;">' +
+                        '<iframe id="ddPesaPalIframe" src="" width="100%" height="420" frameborder="0" style="border:none;"></iframe>' +
+                    '</div>' +
+                    '<p class="dd-momo-status" id="ddPesaPalStatus">Waiting for payment confirmation…</p>' +
+                    '<button class="dd-momo-cancel" id="ddPesaPalCancel" type="button">Cancel</button>' +
+                '</div>';
+            drawer.appendChild( pp );
+            panelPesaPal = pp;
         }
 
         fetchCart( false ); // silent fetch on load to update badges only
@@ -490,13 +508,14 @@
     var panelConfirmation = document.getElementById( 'ddPanelConfirmation' );
     var panelMomo         = null; // injected into DOM at DOMContentLoaded
     var panelIremboPay    = null; // injected into DOM at DOMContentLoaded
+    var panelPesaPal      = null; // injected into DOM at DOMContentLoaded
 
     var currentOrderId     = null;
     var currentOrderNumber = null;
     var currentReferenceId = null;
 
     function showPanel( panelEl ) {
-        [ panelCart, panelCheckout, panelConfirmation, panelMomo, panelIremboPay ].forEach( function ( p ) {
+        [ panelCart, panelCheckout, panelConfirmation, panelMomo, panelIremboPay, panelPesaPal ].forEach( function ( p ) {
             if ( p ) p.classList.add( 'dd-cart-panel--hidden' );
         } );
         if ( panelEl ) panelEl.classList.remove( 'dd-cart-panel--hidden' );
@@ -713,6 +732,45 @@
                                     }
                                 }
                             }
+                        } );
+                    }
+                    return;
+                }
+
+                if ( data.pesapal ) {
+                    showPanel( panelPesaPal );
+                    var pesapalIframe = document.getElementById( 'ddPesaPalIframe' );
+                    if ( pesapalIframe ) pesapalIframe.src = data.redirect_url;
+
+                    var pesapalStatusEl  = document.getElementById( 'ddPesaPalStatus' );
+                    var pesapalCancelBtn = document.getElementById( 'ddPesaPalCancel' );
+
+                    var pesapalPollingTimer = setInterval( function() {
+                        ajax( 'dd_pesapal_check_status', {
+                            order_tracking_id: data.order_tracking_id,
+                        }, function( res ) {
+                            if ( res.paid ) {
+                                clearInterval( pesapalPollingTimer );
+                                currentOrderNumber = res.order_number;
+                                showMomoConfirmation();
+                            } else if ( res.status === 'FAILED' || res.status === 'INVALID' ) {
+                                clearInterval( pesapalPollingTimer );
+                                if ( pesapalStatusEl ) {
+                                    pesapalStatusEl.textContent = 'Payment failed. Please try again.';
+                                    pesapalStatusEl.style.color = '#e53935';
+                                }
+                            }
+                        }, function() {
+                            // network error — keep polling silently
+                        } );
+                    }, 5000 );
+
+                    if ( pesapalCancelBtn ) {
+                        pesapalCancelBtn.addEventListener( 'click', function() {
+                            clearInterval( pesapalPollingTimer );
+                            var iframe = document.getElementById( 'ddPesaPalIframe' );
+                            if ( iframe ) iframe.src = '';
+                            showPanel( panelCheckout );
                         } );
                     }
                     return;
