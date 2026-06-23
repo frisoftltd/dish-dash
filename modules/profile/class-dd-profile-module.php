@@ -28,6 +28,9 @@ class DD_Profile_Module extends DD_Module {
         add_filter( 'woocommerce_account_menu_items', [ $this, 'add_menu_item' ] );
         add_action( 'woocommerce_account_' . self::ENDPOINT . '_endpoint', [ $this, 'render_endpoint' ] );
         add_filter( 'query_vars', [ $this, 'add_query_var' ], 0 );
+        // Register the endpoint with WooCommerce's OWN query-vars list — without this,
+        // WooCommerce doesn't recognize /my-account/my-profile/ and falls back to the dashboard.
+        add_filter( 'woocommerce_get_query_vars', [ $this, 'add_wc_query_var' ] );
 
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
@@ -46,6 +49,15 @@ class DD_Profile_Module extends DD_Module {
 
     public function add_query_var( $vars ) {
         $vars[] = self::ENDPOINT;
+        return $vars;
+    }
+
+    /**
+     * Register the endpoint in WooCommerce's account query vars so WC renders
+     * its content callback instead of falling back to the dashboard.
+     */
+    public function add_wc_query_var( $vars ) {
+        $vars[ self::ENDPOINT ] = self::ENDPOINT;
         return $vars;
     }
 
