@@ -285,3 +285,72 @@
     }
     .woocommerce-account .woocommerce-MyAccount-content { padding: 22px; }
 }
+
+/* ── Order history ───────────────────────────────────────────────── */
+.dd-order-history__title {
+    font-family: 'Cormorant Garamond', serif;
+    color: var(--dd-text, #221B19);
+    margin: 0 0 20px;
+}
+.dd-order-history__empty { color: var(--dd-muted, #6E5B4C); }
+.dd-order-history__empty a { color: var(--brand); }
+
+.dd-order-card {
+    border: 1px solid var(--dd-line, #EADfCE);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 14px;
+    background: var(--dd-surface, #FBF7F1);
+}
+.dd-order-card__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.dd-order-card__num {
+    display: block;
+    font-weight: 700;
+    color: var(--dd-text, #221B19);
+}
+.dd-order-card__date {
+    display: block;
+    font-size: .82rem;
+    color: var(--dd-muted, #6E5B4C);
+}
+.dd-order-card__right { text-align: right; }
+.dd-order-card__total {
+    display: block;
+    font-weight: 700;
+    color: var(--brand);
+    margin-top: 4px;
+}
+.dd-order-card__status {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: .76rem;
+    font-weight: 600;
+    background: #eee;
+    color: #555;
+}
+.dd-status--delivered { background: #E3F4E6; color: #1B7A3D; }
+.dd-status--ready     { background: #E6F0FB; color: #14609E; }
+.dd-status--pending   { background: #FFF3DC; color: #9A6B16; }
+.dd-status--cancelled { background: #FBE6E6; color: #A22; }
+
+.dd-order-card__items {
+    list-style: none;
+    margin: 0;
+    padding: 12px 0 0;
+    border-top: 1px solid var(--dd-line, #EADfCE);
+}
+.dd-order-card__items li {
+    display: flex;
+    justify-content: space-between;
+    font-size: .9rem;
+    color: var(--dd-text, #221B19);
+    padding: 4px 0;
+}
+.dd-order-card__items li span:last-child { color: var(--dd-muted, #6E5B4C); }

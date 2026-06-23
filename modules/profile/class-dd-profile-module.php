@@ -31,6 +31,9 @@ class DD_Profile_Module extends DD_Module {
 
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 
+        // Replace WooCommerce's empty Orders tab with real Dish Dash order history.
+        add_action( 'woocommerce_account_orders_endpoint', [ $this, 'render_order_history' ], 5 );
+
         add_action( 'wp_ajax_dd_profile_save_birthday', [ $this, 'ajax_save_birthday' ] );
         add_action( 'wp_ajax_dd_profile_link_phone',    [ $this, 'ajax_link_phone' ] );
 
@@ -96,6 +99,81 @@ class DD_Profile_Module extends DD_Module {
         if ( file_exists( $tpl ) ) {
             include $tpl;
         }
+    }
+
+    /**
+     * Render real order history from dishdash_orders for the logged-in customer,
+     * replacing WooCommerce's empty Orders tab.
+     */
+    public function render_order_history(): void {
+        // Stop WooCommerce's default "no orders" output for this endpoint.
+        remove_all_actions( 'woocommerce_account_orders_endpoint' );
+
+        global $wpdb;
+        $user_id  = get_current_user_id();
+        $customer = DD_Customer_Manager::get_customer_for_user( $user_id );
+
+        echo '<div class="dd-order-history">';
+        echo '<h2 class="dd-order-history__title">Order history</h2>';
+
+        if ( ! $customer ) {
+            echo '<p class="dd-order-history__empty">Add your phone number on the <a href="' . esc_url( home_url( '/my-account/my-profile/' ) ) . '">My Profile</a> page to see your order history.</p>';
+            echo '</div>';
+            return;
+        }
+
+        $orders = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, order_number, total, status, order_type, payment_method, created_at
+             FROM {$wpdb->prefix}dishdash_orders
+             WHERE customer_id = %d AND is_test = 0
+             ORDER BY id DESC
+             LIMIT 50",
+            (int) $customer->id
+        ) );
+
+        if ( empty( $orders ) ) {
+            echo '<p class="dd-order-history__empty">You haven\'t placed any orders yet.</p>';
+            echo '</div>';
+            return;
+        }
+
+        foreach ( $orders as $o ) {
+            $items = $wpdb->get_results( $wpdb->prepare(
+                "SELECT item_name, quantity, line_total
+                 FROM {$wpdb->prefix}dishdash_order_items
+                 WHERE order_id = %d",
+                (int) $o->id
+            ) );
+
+            $status_label = function_exists( 'dd_order_status_label' )
+                ? dd_order_status_label( $o->status )
+                : ucfirst( $o->status );
+            $date = $o->created_at ? date_i18n( 'M j, Y', strtotime( $o->created_at ) ) : '';
+
+            echo '<div class="dd-order-card dd-order--' . esc_attr( $o->status ) . '">';
+            echo   '<div class="dd-order-card__head">';
+            echo     '<div>';
+            echo       '<span class="dd-order-card__num">' . esc_html( $o->order_number ) . '</span>';
+            echo       '<span class="dd-order-card__date">' . esc_html( $date ) . '</span>';
+            echo     '</div>';
+            echo     '<div class="dd-order-card__right">';
+            echo       '<span class="dd-order-card__status dd-status--' . esc_attr( $o->status ) . '">' . esc_html( $status_label ) . '</span>';
+            echo       '<span class="dd-order-card__total">' . number_format( (float) $o->total ) . ' RWF</span>';
+            echo     '</div>';
+            echo   '</div>';
+
+            if ( ! empty( $items ) ) {
+                echo '<ul class="dd-order-card__items">';
+                foreach ( $items as $it ) {
+                    echo '<li><span>' . (int) $it->quantity . '× ' . esc_html( $it->item_name ) . '</span>'
+                       . '<span>' . number_format( (float) $it->line_total ) . ' RWF</span></li>';
+                }
+                echo '</ul>';
+            }
+            echo '</div>';
+        }
+
+        echo '</div>';
     }
 
     /**

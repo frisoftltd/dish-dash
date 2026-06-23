@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.1 (2026-06-22)
+> Last updated: v3.10.2 (2026-06-23)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.1 |
+| **Deployed version** | v3.10.2 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.2 — Phase 7C Brief 4 (Reorder buttons on favorites) |
-| **Last working state** | v3.10.1: My Account layout polish + menu cleanup. add_menu_item() now trims WooCommerce account menu to My Profile (landing) · Order History (renamed from Orders) · Addresses · Account details · Log out — removes Dashboard and Downloads. profile.css extended to style native WooCommerce account markup (.woocommerce-MyAccount-navigation / -content) into a branded two-column sidebar+panel layout: sticky 240px sidebar, active item in var(--brand), all inputs/buttons themed, responsive stack under 768px. NOTE: WooCommerce "Order History" tab reads WC's own orders table (empty — real orders in dishdash_orders); flagged for a future custom orders tab; for now order history surfaces via My Profile recent orders + the header My Orders button. |
+| **Next task** | v3.10.3 — Phase 7C Brief 5 (Reorder buttons on favorites) |
+| **Last working state** | v3.10.2: Header "My Orders" button relabeled "My Account" → links to /my-account/my-profile/ (both mobile ~627 and desktop ~694 buttons in template module; $account_url added near $orders_url ~584). Custom Order History tab — render_order_history() hooks woocommerce_account_orders_endpoint (priority 5, remove_all_actions to suppress WooCommerce's empty default) and reads real orders from dishdash_orders for the linked customer: order number, date, total, status badge (dd_order_status_label + dd-status--{status} colors), and itemized lines. Replaces the misleading "no orders" with the customer's real orders. Styled in profile.css to match the account layout. Note: WooCommerce's own orders table stays empty by design — dishdash_orders is the source of truth. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -657,7 +657,8 @@ Every page before shipping must pass:
 | **v3.9.9** | ✅ **Done** | **DD_Customer_Profile::get() unified read interface — commercial record + tier + birthday + favorites (from order history) + recent orders + restaurant WhatsApp; read-only; loaded from class-dd-orders-module.php** |
 | **v3.10.0** | ✅ **Done** | **Phase 7C Brief 3 — My Profile UI tab: DD_Profile_Module, WC account endpoint, tier badge, stats, favorites, birthday editor, WhatsApp contact, phone-link prompt** |
 | **v3.10.1** | ✅ **Done** | **My Account layout + menu cleanup: two-column branded sidebar/panel, trimmed menu (My Profile · Order History · Addresses · Account details · Log out)** |
-| v3.10.2 | ⏳ **NEXT** | Phase 7C Brief 4 — Reorder buttons on favorites |
+| **v3.10.2** | ✅ **Done** | **Header "My Account" button + real order history: $account_url links header buttons to /my-account/my-profile/; render_order_history() hooks woocommerce_account_orders_endpoint (priority 5) to show real orders from dishdash_orders with number, date, total, status badge, and items** |
+| v3.10.3 | ⏳ **NEXT** | Phase 7C Brief 5 — Reorder buttons on favorites |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
