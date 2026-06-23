@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.4 (2026-06-23)
+> Last updated: v3.10.5 (2026-06-23)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.4 |
+| **Deployed version** | v3.10.5 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.5 — Phase 7C Brief 5 (Reorder buttons on favorites) |
-| **Last working state** | v3.10.4: Header account button now labeled "My Profile" and links via wc_get_account_endpoint_url('my-profile') (WooCommerce's own URL generator) instead of a hardcoded path — guarantees the link matches WC's registered endpoint exactly. Both mobile drawer (~629) and desktop (~696) buttons updated. Removed reliance on the /my-account/ base for the account button. |
+| **Next task** | v3.10.6 — Phase 7C next |
+| **Last working state** | v3.10.5: Customer Profile Brief 4 — one-click Reorder on favorites + Order History cards. New AJAX dd_profile_reorder (nonce dish_dash_frontend) with a server-side resolver: maps each item to a CURRENT purchasable product by stored menu_item_id, FALLING BACK to exact product-title match when the stored ID is stale. Adds resolved products via DD_Cart::add(), respects the restaurant-closed guard, returns added/unavailable counts. Buttons carry data-items JSON; JS posts to dd_profile_reorder then calls window.DDCart.refresh()+open(). Reorder script shared between profile tab and order-history tab via print_reorder_script() (static-guarded, prints once per request). Cancelled orders get no reorder button. White-label via var(--brand). |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -660,7 +660,8 @@ Every page before shipping must pass:
 | **v3.10.2** | ✅ **Done** | **Header "My Account" button + real order history: $account_url links header buttons to /my-account/my-profile/; render_order_history() hooks woocommerce_account_orders_endpoint (priority 5) to show real orders from dishdash_orders with number, date, total, status badge, and items** |
 | **v3.10.3** | ✅ **Done** | **Fix My Profile endpoint: add woocommerce_get_query_vars filter (add_wc_query_var) — missing third registration caused WC to fall back to account dashboard instead of rendering My Profile** |
 | **v3.10.4** | ✅ **Done** | **Header button → "My Profile" via wc_get_account_endpoint_url('my-profile'); both mobile drawer and desktop buttons updated** |
-| v3.10.5 | ⏳ **NEXT** | Phase 7C Brief 5 — Reorder buttons on favorites |
+| **v3.10.5** | ✅ **Done** | **One-click reorder: Reorder buttons on favorites + Order History cards; dd_profile_reorder AJAX with stale-ID name resolver; print_reorder_script() static-guarded shared JS; DD_Cart::add() integration** |
+| v3.10.6 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

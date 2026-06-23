@@ -39,6 +39,7 @@ class DD_Profile_Module extends DD_Module {
 
         add_action( 'wp_ajax_dd_profile_save_birthday', [ $this, 'ajax_save_birthday' ] );
         add_action( 'wp_ajax_dd_profile_link_phone',    [ $this, 'ajax_link_phone' ] );
+        add_action( 'wp_ajax_dd_profile_reorder',       [ $this, 'ajax_reorder' ] );
 
         add_action( 'init', [ $this, 'maybe_flush_rewrite' ], 99 );
     }
@@ -111,6 +112,7 @@ class DD_Profile_Module extends DD_Module {
         if ( file_exists( $tpl ) ) {
             include $tpl;
         }
+        $this->print_reorder_script();
     }
 
     /**
@@ -151,7 +153,7 @@ class DD_Profile_Module extends DD_Module {
 
         foreach ( $orders as $o ) {
             $items = $wpdb->get_results( $wpdb->prepare(
-                "SELECT item_name, quantity, line_total
+                "SELECT item_name, quantity, line_total, menu_item_id
                  FROM {$wpdb->prefix}dishdash_order_items
                  WHERE order_id = %d",
                 (int) $o->id
@@ -176,16 +178,183 @@ class DD_Profile_Module extends DD_Module {
 
             if ( ! empty( $items ) ) {
                 echo '<ul class="dd-order-card__items">';
+                $reorder_items = [];
                 foreach ( $items as $it ) {
                     echo '<li><span>' . (int) $it->quantity . '× ' . esc_html( $it->item_name ) . '</span>'
                        . '<span>' . number_format( (float) $it->line_total ) . ' RWF</span></li>';
+                    $reorder_items[] = [
+                        'id'   => (int) $it->menu_item_id,
+                        'name' => $it->item_name,
+                        'qty'  => (int) $it->quantity,
+                    ];
                 }
                 echo '</ul>';
+                if ( $o->status !== 'cancelled' && ! empty( $reorder_items ) ) {
+                    echo '<button type="button" class="dd-btn dd-btn--brand dd-btn--sm dd-reorder-btn" '
+                       . 'data-items="' . esc_attr( wp_json_encode( $reorder_items ) ) . '">Reorder this meal</button>';
+                }
             }
             echo '</div>';
         }
 
         echo '</div>';
+        $this->print_reorder_script();
+    }
+
+    /**
+     * Print the reorder JS once per request (static guard prevents duplicates when
+     * both the profile tab and the order-history tab would otherwise each emit it).
+     */
+    private function print_reorder_script(): void {
+        static $printed = false;
+        if ( $printed ) return;
+        $printed  = true;
+        $nonce    = wp_json_encode( wp_create_nonce( 'dish_dash_frontend' ) );
+        $ajax_url = wp_json_encode( admin_url( 'admin-ajax.php' ) );
+        echo '<script>
+(function(){
+    var cartNonce = ' . $nonce . ';
+    var ajaxUrl   = ' . $ajax_url . ';
+    document.querySelectorAll( ".dd-reorder-btn" ).forEach( function( btn ) {
+        if ( btn.dataset.wired ) return;
+        btn.dataset.wired = "1";
+        btn.addEventListener( "click", function() {
+            var items = btn.dataset.items;
+            if ( ! items ) return;
+            var original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = "Adding…";
+            var fd = new FormData();
+            fd.append( "action", "dd_profile_reorder" );
+            fd.append( "nonce", cartNonce );
+            fd.append( "items", items );
+            fetch( ajaxUrl, { method: "POST", body: fd } )
+                .then( function(r){ return r.json(); } )
+                .then( function(res){
+                    btn.disabled = false;
+                    btn.textContent = original;
+                    if ( res.success ) {
+                        if ( window.DDCart ) {
+                            if ( typeof window.DDCart.refresh === "function" ) window.DDCart.refresh();
+                            if ( typeof window.DDCart.open === "function" ) window.DDCart.open();
+                        }
+                    } else {
+                        alert( (res.data && res.data.message) ? res.data.message : "Could not reorder." );
+                    }
+                } )
+                .catch( function(){
+                    btn.disabled = false;
+                    btn.textContent = original;
+                    alert( "Something went wrong. Please try again." );
+                } );
+        } );
+    } );
+})();
+</script>';
+    }
+
+    /**
+     * Resolve a menu item (possibly stale ID) to a current purchasable WooCommerce product.
+     * Tries the stored ID first, then falls back to an exact title match.
+     *
+     * @param int    $menu_item_id Stored product ID (may be stale).
+     * @param string $item_name    Stored item name (used as fallback).
+     * @return int Resolved purchasable product ID, or 0 if none found.
+     */
+    private function resolve_product( int $menu_item_id, string $item_name ): int {
+        if ( $menu_item_id ) {
+            $p = wc_get_product( $menu_item_id );
+            if ( $p && $p->is_purchasable() ) {
+                return $menu_item_id;
+            }
+        }
+        if ( $item_name ) {
+            $posts = get_posts( [
+                'post_type'   => 'product',
+                'title'       => $item_name,
+                'post_status' => 'publish',
+                'numberposts' => 1,
+            ] );
+            if ( $posts ) {
+                $p = wc_get_product( $posts[0]->ID );
+                if ( $p && $p->is_purchasable() ) {
+                    return (int) $posts[0]->ID;
+                }
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * AJAX — reorder favorites or a past order.
+     * Accepts a JSON list of items [{ id, name, qty }] and adds the resolved
+     * current products to the cart. Returns counts of added vs unavailable.
+     */
+    public function ajax_reorder(): void {
+        if ( ! is_user_logged_in() ) wp_send_json_error( [ 'message' => 'Please log in.' ] );
+        check_ajax_referer( 'dish_dash_frontend', 'nonce' );
+
+        if ( class_exists( 'DD_Hours' ) ) {
+            $state = DD_Hours::get_state();
+            if ( $state === 'closed' || $state === 'break' ) {
+                wp_send_json_error( [ 'message' => 'Orders are currently unavailable. The restaurant is closed.' ] );
+            }
+        }
+
+        $raw   = isset( $_POST['items'] ) ? stripslashes( $_POST['items'] ) : '[]';
+        $items = json_decode( $raw, true );
+        if ( ! is_array( $items ) || empty( $items ) ) {
+            wp_send_json_error( [ 'message' => 'Nothing to reorder.' ] );
+        }
+
+        if ( ! class_exists( 'DD_Cart' ) ) {
+            require_once DD_PLUGIN_DIR . 'modules/orders/class-dd-cart.php';
+        }
+        $cart = new DD_Cart();
+
+        $added       = 0;
+        $unavailable = [];
+
+        foreach ( $items as $it ) {
+            $id         = (int) ( $it['id'] ?? 0 );
+            $name       = sanitize_text_field( $it['name'] ?? '' );
+            $qty        = max( 1, (int) ( $it['qty'] ?? 1 ) );
+            $product_id = $this->resolve_product( $id, $name );
+
+            if ( ! $product_id ) {
+                $unavailable[] = $name ?: ( 'item #' . $id );
+                continue;
+            }
+
+            $product = wc_get_product( $product_id );
+            $image   = wp_get_attachment_url( $product->get_image_id() ) ?: wc_placeholder_img_src();
+            $cart->add( [
+                'id'        => $product_id,
+                'name'      => $product->get_name(),
+                'price'     => (float) $product->get_price(),
+                'qty'       => $qty,
+                'image'     => $image,
+                'variation' => '',
+                'addons'    => [],
+                'note'      => '',
+            ] );
+            $added++;
+        }
+
+        if ( $added === 0 ) {
+            wp_send_json_error( [ 'message' => 'Those items are no longer available.' ] );
+        }
+
+        $msg = $added . ' item' . ( $added !== 1 ? 's' : '' ) . ' added to your cart.';
+        if ( ! empty( $unavailable ) ) {
+            $msg .= ' Some items are no longer available: ' . implode( ', ', $unavailable ) . '.';
+        }
+
+        wp_send_json_success( [
+            'message'     => $msg,
+            'added'       => $added,
+            'unavailable' => $unavailable,
+        ] );
     }
 
     /**

@@ -8,11 +8,12 @@
  */
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-$nonce  = wp_create_nonce( 'dd_profile' );
+$nonce      = wp_create_nonce( 'dd_profile' );
+$cart_nonce = wp_create_nonce( 'dish_dash_frontend' );
 $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
             7=>'July',8=>'August',9=>'September',10=>'October',11=>'November',12=>'December' ];
 ?>
-<div class="dd-profile" data-nonce="<?php echo esc_attr( $nonce ); ?>">
+<div class="dd-profile" data-nonce="<?php echo esc_attr( $nonce ); ?>" data-cart-nonce="<?php echo esc_attr( $cart_nonce ); ?>">
 
     <?php if ( ! $profile['is_linked'] ) : ?>
         <div class="dd-profile__link-card">
@@ -57,7 +58,13 @@ $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
                 <?php foreach ( $profile['favorites'] as $f ) : ?>
                     <li class="dd-profile__fav">
                         <span class="dd-profile__fav-name"><?php echo esc_html( $f['item_name'] ); ?></span>
-                        <span class="dd-profile__fav-count">ordered <?php echo (int) $f['times_ordered']; ?>×</span>
+                        <span class="dd-profile__fav-meta">
+                            <span class="dd-profile__fav-count">ordered <?php echo (int) $f['times_ordered']; ?>×</span>
+                            <button type="button" class="dd-btn dd-btn--brand dd-btn--sm dd-reorder-btn"
+                                    data-items='<?php echo esc_attr( wp_json_encode( [ [ 'id' => (int) $f['menu_item_id'], 'name' => $f['item_name'], 'qty' => 1 ] ] ) ); ?>'>
+                                Reorder
+                            </button>
+                        </span>
                     </li>
                 <?php endforeach; ?>
             </ul>
