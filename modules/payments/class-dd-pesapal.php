@@ -1,23 +1,27 @@
 <?php
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+/**
+ * DD_PesaPal — PesaPal v3 API client.
+ * IMPORTANT: This class makes NO HTTP calls on instantiation.
+ * All API calls happen only when submit_order() or get_transaction_status() are called.
+ */
 class DD_PesaPal {
 
     private string $consumer_key;
     private string $secret_key;
-    private bool   $test_mode;
     private string $base_url;
 
     public function __construct() {
         $settings           = get_option( 'woocommerce_pesapal_settings', [] );
-        $this->test_mode    = ( $settings['testmode'] ?? 'no' ) === 'yes';
-        $this->consumer_key = $this->test_mode
+        $test_mode          = ( $settings['testmode'] ?? 'no' ) === 'yes';
+        $this->consumer_key = $test_mode
             ? ( $settings['testconsumerkey'] ?? '' )
             : ( $settings['consumerkey']     ?? '' );
-        $this->secret_key   = $this->test_mode
+        $this->secret_key   = $test_mode
             ? ( $settings['testsecretkey'] ?? '' )
             : ( $settings['secretkey']     ?? '' );
-        $this->base_url     = $this->test_mode
+        $this->base_url     = $test_mode
             ? 'https://cybqa.pesapal.com/pesapalv3'
             : 'https://pay.pesapal.com/v3';
     }
@@ -52,7 +56,7 @@ class DD_PesaPal {
                 'Authorization' => 'Bearer ' . $token,
                 'Accept'        => 'application/json',
             ],
-            'timeout' => 30,
+            'timeout' => 15,
         ] );
         if ( ! is_wp_error( $response ) ) {
             $list = json_decode( wp_remote_retrieve_body( $response ) );
@@ -76,7 +80,7 @@ class DD_PesaPal {
                 'url'                   => $callback_url,
                 'ipn_notification_type' => 'GET',
             ] ),
-            'timeout' => 30,
+            'timeout' => 15,
         ] );
         if ( is_wp_error( $reg ) ) return false;
         $body = json_decode( wp_remote_retrieve_body( $reg ) );
@@ -151,7 +155,7 @@ class DD_PesaPal {
                     'Authorization' => 'Bearer ' . $token,
                     'Accept'        => 'application/json',
                 ],
-                'timeout' => 30,
+                'timeout' => 15,
             ]
         );
         if ( is_wp_error( $response ) ) return 'UNKNOWN';
