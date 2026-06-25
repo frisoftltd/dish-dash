@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.9 (2026-06-25)
+> Last updated: v3.10.10 (2026-06-25)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.9 |
+| **Deployed version** | v3.10.10 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.10 — Phase 7C next |
-| **Last working state** | v3.10.9: Fixed critical PesaPal bug — class-dd-pesapal.php rewritten so constructor makes zero HTTP calls (only submit_order() and get_transaction_status() make API calls). Previously the class was making live PesaPal API calls on every page load which caused site timeout. IPN timeout values reduced to 15s. All other PesaPal fixes from v3.10.8 already in place (logos, label encoding, panel display, confirmation handler). |
+| **Next task** | v3.10.11 — Phase 7C next |
+| **Last working state** | v3.10.10: PesaPal logo changed from SVG to official PNG (pesapal-logo.png, 789×210). Panel padding added (16px on dd-pesapal-waiting). PesaPal label confirmed present in dd_format_payment_method() and ddFormatPaymentMethod(). pesapal-logo.svg removed from repo. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -665,7 +665,8 @@ Every page before shipping must pass:
 | **v3.10.7** | ✅ **Done** | **Fix PesaPal panel display (CSS classes not style.display), confirmation handler (res.data.order_number/status), add pesapal-logo.svg + JS logoMap** |
 | **v3.10.8** | ✅ **Done** | **Fix payment logos (pluginUrl added to ddCartData, pesapal in $icon_urls, remove broken JS logoMap), fix &amp; label encoding, add checkout drawer scroll** |
 | **v3.10.9** | ✅ **Done** | **Fix PesaPal — rewrite class-dd-pesapal.php with zero HTTP calls on instantiation (constructor reads wp_options only); IPN/status call timeouts reduced to 15s; fixes site timeout caused by API calls during paymentGateways closure** |
-| v3.10.10 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.10** | ✅ **Done** | **PesaPal logo PNG (replace SVG with official 789×210 PNG), panel padding (16px on dd-pesapal-waiting), label confirmed in PHP + JS maps, pesapal-logo.svg removed** |
+| v3.10.11 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

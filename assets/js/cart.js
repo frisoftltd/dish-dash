@@ -104,8 +104,8 @@
                 '<div class="dd-checkout-panel__header">' +
                     '<span class="dd-checkout-panel__title">PesaPal</span>' +
                 '</div>' +
-                '<div class="dd-pesapal-waiting">' +
-                    '<p class="dd-momo-subtitle">Complete your payment in the secure window below.<br>Do not close this panel until payment is confirmed.</p>' +
+                '<div class="dd-pesapal-waiting" style="padding:16px;">' +
+                    '<p class="dd-momo-subtitle" style="margin-bottom:12px;">Complete your payment in the secure window below.<br>Do not close this panel until payment is confirmed.</p>' +
                     '<div id="ddPesaPalIframeWrap" style="width:100%;height:420px;border:1px solid #eee;border-radius:8px;overflow:hidden;margin:12px 0;">' +
                         '<iframe id="ddPesaPalIframe" src="" width="100%" height="420" frameborder="0" style="border:none;"></iframe>' +
                     '</div>' +

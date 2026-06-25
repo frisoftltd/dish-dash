@@ -265,7 +265,7 @@ class DD_Template_Module extends DD_Module {
                 $icon_urls = [
                     'mtn_momo'  => plugins_url( 'assets/images/mtn-momo-logo.jpg', DD_PLUGIN_FILE ),
                     'irembopay' => plugins_url( 'assets/images/irembopay-logo.jpg', DD_PLUGIN_FILE ),
-                    'pesapal'   => plugins_url( 'assets/images/pesapal-logo.svg',   DD_PLUGIN_FILE ),
+                    'pesapal'   => plugins_url( 'assets/images/pesapal-logo.png',   DD_PLUGIN_FILE ),
                     'cod'       => '',
                     'bacs'      => '',
                     'cheque'    => '',
