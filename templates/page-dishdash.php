@@ -279,13 +279,13 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 <?php
 $hero_bg_style = '';
 if ( $dd_hero_bg ) {
-    $hero_bg_style = '--dd-hero-bg: url(\'' . esc_url( $dd_hero_bg ) . '\');';
+    $hero_bg_style = '--dd-hero-bg: url(' . esc_url( $dd_hero_bg ) . ');';
 } elseif ( $dd_h_img ) {
-    $hero_bg_style = '--dd-hero-bg: url(\'' . esc_url( $dd_h_img ) . '\');';
+    $hero_bg_style = '--dd-hero-bg: url(' . esc_url( $dd_h_img ) . ');';
 }
 $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
 ?>
-<section class="dd-hero" style="<?php echo $hero_bg_style; ?>">
+<section class="dd-hero" style="<?php echo esc_attr( $hero_bg_style ); ?>">
     <div class="dd-container dd-hero__grid">
 
         <div class="dd-hero__content">
@@ -407,7 +407,7 @@ if ( $food_cat_mob ) :
 
 <!-- ══ CATEGORIES ══════════════════════════════════════════════════════════ -->
 <?php if ( $cats_vis && ! empty( $dd_cats ) ) : ?>
-<section class="dd-section <?php echo $cats_class; ?>" id="categories">
+<section class="dd-section <?php echo esc_attr( $cats_class ); ?>" id="categories">
     <div class="dd-container">
         <div class="dd-section__top">
             <div>
@@ -448,7 +448,7 @@ if ( $food_cat_mob ) :
 
 <!-- ══ MENU ════════════════════════════════════════════════════════════════ -->
 <?php if ( $feat_vis ) : ?>
-<section class="dd-section <?php echo $feat_class; ?>" id="menu">
+<section class="dd-section <?php echo esc_attr( $feat_class ); ?>" id="menu">
     <div class="dd-container">
 
         <?php
@@ -517,7 +517,7 @@ if ( $food_cat_mob ) :
 
 <!-- ══ SELECTED CATEGORY ════════════════════════════════════════════════════ -->
 <?php if ( $selcat_vis && ! empty( $dd_selcat_cats ) ) : ?>
-<section class="dd-section <?php echo $selcat_class; ?>" id="category-dishes">
+<section class="dd-section <?php echo esc_attr( $selcat_class ); ?>" id="category-dishes">
     <div class="dd-container">
 
         <div class="dd-selcat__heading">
@@ -818,7 +818,7 @@ if ( $food_cat_mob ) :
 ?>
 <!-- DD Reviews Debug: <?php echo esc_html( wp_json_encode( $dd_review_debug ) ); ?> -->
 <?php if ( $dd_render_reviews ) : ?>
-<section class="dd-section dd-greviews-section <?php echo $reviews_class; ?>" id="reviews">
+<section class="dd-section dd-greviews-section <?php echo esc_attr( $reviews_class ); ?>" id="reviews">
     <div class="dd-container">
         <div class="dd-greviews-header">
             <div class="dd-greviews-eyebrow">Loved by guests</div>

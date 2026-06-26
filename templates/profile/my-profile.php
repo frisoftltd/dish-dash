@@ -35,7 +35,7 @@ $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
                 <?php endif; ?>
             </div>
             <div class="dd-profile__tier dd-tier--<?php echo esc_attr( $profile['tier']['slug'] ); ?>">
-                <span class="dd-profile__tier-icon"><?php echo $profile['tier']['icon']; // emoji, no user-controlled input ?></span>
+                <span class="dd-profile__tier-icon"><?php echo esc_html( $profile['tier']['icon'] ); ?></span>
                 <span class="dd-profile__tier-label"><?php echo esc_html( $profile['tier']['label'] ); ?></span>
             </div>
         </div>
@@ -81,13 +81,13 @@ $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
                     <select id="ddBdayMonth" class="dd-profile__select">
                         <option value="">Month</option>
                         <?php foreach ( $months as $n => $label ) : ?>
-                            <option value="<?php echo $n; ?>"><?php echo esc_html( $label ); ?></option>
+                            <option value="<?php echo (int) $n; ?>"><?php echo esc_html( $label ); ?></option>
                         <?php endforeach; ?>
                     </select>
                     <select id="ddBdayDay" class="dd-profile__select">
                         <option value="">Day</option>
                         <?php for ( $d = 1; $d <= 31; $d++ ) : ?>
-                            <option value="<?php echo $d; ?>"><?php echo $d; ?></option>
+                            <option value="<?php echo (int) $d; ?>"><?php echo (int) $d; ?></option>
                         <?php endfor; ?>
                     </select>
                     <button type="button" id="ddBdaySave" class="dd-btn dd-btn--brand">Save</button>

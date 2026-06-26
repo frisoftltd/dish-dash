@@ -76,8 +76,8 @@ get_header();
                             ];
                             foreach ( $months as $num => $label ) :
                             ?>
-                            <option value="<?php echo $num; ?>">
-                                <?php echo $label; ?>
+                            <option value="<?php echo (int) $num; ?>">
+                                <?php echo esc_html( $label ); ?>
                             </option>
                             <?php endforeach; ?>
                         </select>
@@ -87,7 +87,7 @@ get_header();
                         <select id="dd-day" name="day" required>
                             <option value="">Day</option>
                             <?php for ( $d = 1; $d <= 31; $d++ ) : ?>
-                            <option value="<?php echo $d; ?>"><?php echo $d; ?></option>
+                            <option value="<?php echo (int) $d; ?>"><?php echo (int) $d; ?></option>
                             <?php endfor; ?>
                         </select>
                     </div>

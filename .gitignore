@@ -1,3 +1,8 @@
 # Never commit minified files — LiteSpeed handles compression in production
 assets/js/*.min.js
 assets/css/*.min.css
+*.min.js
+*.min.css
+*.min
+.DS_Store
+*.php.save

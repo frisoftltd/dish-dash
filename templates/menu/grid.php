@@ -120,7 +120,7 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
         <section class="dd-menu-grid-section">
             <div class="dd-menu-grid-header">
                 <span class="dd-menu-grid-eyebrow">Our Menu</span>
-                <h2 class="dd-menu-grid-title" id="ddMenuGridTitle"><?php echo $dd_grid_title; ?></h2>
+                <h2 class="dd-menu-grid-title" id="ddMenuGridTitle"><?php echo esc_html( $dd_grid_title ); ?></h2>
             </div>
             <div class="dd-menu-grid" id="ddMenuGrid" data-current-cat="<?php echo esc_attr( $dd_deeplink_slug ); ?>">
                 <?php
@@ -215,7 +215,7 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
       ?>
       <li class="dd-mobile-category-item" data-cat-id="<?php echo $cat->term_id; ?>" data-cat-slug="<?php echo $cat->slug; ?>">
         <div class="dd-mobile-category-item__image">
-          <img src="<?php echo $thumb_url; ?>" alt="<?php echo $cat->name; ?>" loading="lazy" />
+          <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy" />
         </div>
         <div class="dd-mobile-category-item__info">
           <span class="dd-mobile-category-item__name"><?php echo $cat->name; ?></span>
