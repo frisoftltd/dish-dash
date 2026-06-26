@@ -409,10 +409,53 @@ class DD_Install {
             ) $charset_collate;
         " );
 
+        // ── 15. dishdash_tracking_events ────────────────────────────────────────
+        // General-purpose tracking event log. Separate from dishdash_user_events
+        // (which is the AI behavior engine feed). This table feeds the audit
+        // pillar health checks and future analytics pipelines.
+        dbDelta( "
+            CREATE TABLE {$wpdb->prefix}dishdash_tracking_events (
+                id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                user_id    BIGINT UNSIGNED          DEFAULT NULL,
+                session_id VARCHAR(64)              DEFAULT NULL,
+                event_type VARCHAR(64)     NOT NULL,
+                event_data LONGTEXT                 DEFAULT NULL,
+                created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_user_id    (user_id),
+                KEY idx_event_type (event_type),
+                KEY idx_created_at (created_at)
+            ) $charset_collate;
+        " );
+
         // ── Migration: add is_test to reservations if missing ─────────────────
         $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$wpdb->prefix}dishdash_reservations` LIKE 'is_test'" );
         if ( empty( $col ) ) {
             $wpdb->query( "ALTER TABLE {$wpdb->prefix}dishdash_reservations ADD COLUMN is_test TINYINT(1) NOT NULL DEFAULT 0, ADD KEY is_test (is_test)" );
+        }
+
+        // ── Version-gated migration: create dishdash_tracking_events on existing installs ──
+        $installed_version = get_option( 'dd_version', '0' );
+        if ( version_compare( $installed_version, '3.10.13', '<' ) ) {
+            $tracking_table = $wpdb->prefix . 'dishdash_tracking_events';
+            $exists         = $wpdb->get_var( "SHOW TABLES LIKE '{$tracking_table}'" );
+            if ( $exists !== $tracking_table ) {
+                $wpdb->query( "
+                    CREATE TABLE {$tracking_table} (
+                        id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                        user_id    BIGINT UNSIGNED          DEFAULT NULL,
+                        session_id VARCHAR(64)              DEFAULT NULL,
+                        event_type VARCHAR(64)     NOT NULL,
+                        event_data LONGTEXT                 DEFAULT NULL,
+                        created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (id),
+                        KEY idx_user_id    (user_id),
+                        KEY idx_event_type (event_type),
+                        KEY idx_created_at (created_at)
+                    ) {$charset_collate}
+                " );
+            }
+            update_option( 'dd_version', DD_VERSION );
         }
     }
 

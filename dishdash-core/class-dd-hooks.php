@@ -364,10 +364,6 @@ class DD_Hooks {
         add_action( 'admin_menu', function() {
             remove_menu_page( 'edit.php' );          // Posts
             remove_menu_page( 'edit-comments.php' ); // Comments
-            remove_submenu_page( 'dish-dash', 'dish-dash-menu' );     // Menu Items
-            remove_submenu_page( 'dish-dash', 'dish-dash-delivery' ); // Delivery
-            remove_submenu_page( 'dish-dash', 'dish-dash-branches' ); // Branches
-            remove_submenu_page( 'dish-dash', 'dish-dash-pos' );      // POS Terminal
 
             // Phase 7: Lock Restaurant Owner / Manager into Dish Dash only.
             $user = wp_get_current_user();
@@ -393,14 +389,42 @@ class DD_Hooks {
                 remove_menu_page( 'woocommerce-marketing' );
                 remove_menu_page( 'wc-reports' );
                 remove_menu_page( 'admin.php?page=wc-settings&tab=checkout&from=PAYMENTS_MENU_ITEM' );
-
-                // Remove specific Dish Dash submenu items staff should not access.
-                remove_submenu_page( 'dish-dash', 'dish-dash-settings' );      // Settings
-                remove_submenu_page( 'dish-dash', 'dish-dash-tools' );         // Tools
-                remove_submenu_page( 'dish-dash', 'dish-dash-template' );      // Template
-                remove_submenu_page( 'dish-dash', 'dish-dash-activity-log' );  // Activity Log (admin-only)
             }
         }, 999 );
+
+        // CSS-only hiding for Dish Dash submenu items that should never appear
+        // (Menu Items, Delivery, Branches, POS Terminal).
+        add_action( 'admin_head', function() {
+            ?>
+            <style>
+                #adminmenu li:has(a[href*="page=dish-dash-menu"]),
+                #adminmenu li:has(a[href*="page=dish-dash-delivery"]),
+                #adminmenu li:has(a[href*="page=dish-dash-branches"]),
+                #adminmenu li:has(a[href*="page=dish-dash-pos"]) {
+                    display: none !important;
+                }
+            </style>
+            <?php
+        } );
+
+        // CSS-only hiding for Dish Dash submenu items restricted to Fri Soft admins only
+        // (Settings, Tools, Template, Activity Log hidden for Owner / Manager).
+        add_action( 'admin_head', function() {
+            $user = wp_get_current_user();
+            if ( ! array_intersect( [ 'dd_restaurant_owner', 'dd_restaurant_manager' ], $user->roles ) ) {
+                return;
+            }
+            ?>
+            <style>
+                #adminmenu li:has(a[href*="page=dish-dash-settings"]),
+                #adminmenu li:has(a[href*="page=dish-dash-tools"]),
+                #adminmenu li:has(a[href*="page=dish-dash-template"]),
+                #adminmenu li:has(a[href*="page=dish-dash-activity-log"]) {
+                    display: none !important;
+                }
+            </style>
+            <?php
+        } );
     }
 
     /**

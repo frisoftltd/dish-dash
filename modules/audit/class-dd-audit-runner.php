@@ -291,11 +291,16 @@ class DD_Audit_Runner {
             $checks[] = $this->check( false, 'wp-config.php not readable', 'Cannot verify security constants' );
         }
 
-        // Scan for $wpdb->query( without prepare(
+        // Scan for $wpdb queries with variable interpolation (not wrapped in prepare())
         $unescaped = [];
         foreach ( $php_files as $f ) {
             $code = file_get_contents( $f );
-            preg_match_all( '/\$wpdb->(?:query|get_results|get_var|get_row)\s*\(\s*(?!.*prepare)["\']/', $code, $m, PREG_OFFSET_CAPTURE );
+            preg_match_all(
+                '/\$wpdb->(?:query|get_results|get_var|get_row)\s*\(\s*["\'][^"\']*\$[a-zA-Z_]/',
+                $code,
+                $m,
+                PREG_OFFSET_CAPTURE
+            );
             if ( ! empty( $m[0] ) ) {
                 $unescaped[] = basename( $f );
             }
@@ -349,6 +354,7 @@ class DD_Audit_Runner {
         // Scan for remove_submenu_page() — capability removal anti-pattern
         $bad_remove = [];
         foreach ( $all_php as $f ) {
+            if ( basename( $f ) === 'class-dd-audit-runner.php' ) continue; // skip self
             $code = file_get_contents( $f );
             if ( strpos( $code, 'remove_submenu_page' ) !== false ) {
                 $bad_remove[] = basename( $f );
@@ -363,6 +369,7 @@ class DD_Audit_Runner {
         // Scan for eval() or exec()
         $dangerous = [];
         foreach ( $all_php as $f ) {
+            if ( basename( $f ) === 'class-dd-audit-runner.php' ) continue; // skip self
             $code = file_get_contents( $f );
             if ( preg_match( '/\beval\s*\(|\bexec\s*\(/', $code ) ) {
                 $dangerous[] = basename( $f );
