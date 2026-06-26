@@ -238,6 +238,9 @@ class DD_Profile_Module extends DD_Module {
                             if ( typeof window.DDCart.refresh === "function" ) window.DDCart.refresh();
                             if ( typeof window.DDCart.open === "function" ) window.DDCart.open();
                         }
+                        if ( window.DDTrack && typeof window.DDTrack.event === "function" ) {
+                            window.DDTrack.event( "add_to_cart", null, null, { qty: 1, source: "reorder" } );
+                        }
                     } else {
                         alert( (res.data && res.data.message) ? res.data.message : "Could not reorder." );
                     }

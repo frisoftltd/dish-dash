@@ -399,8 +399,8 @@
           if ( refEl ) refEl.textContent = data.booking_ref;
 
           try {
-            if ( window.DDTrack && typeof window.DDTrack.track === 'function' ) {
-              window.DDTrack.track( 'reservation_made', {
+            if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {
+              window.DDTrack.event( 'reservation_made', null, null, {
                 date:    dateStr,
                 time:    state.time,
                 session: state.session,

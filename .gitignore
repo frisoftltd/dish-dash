@@ -1,0 +1,3 @@
+# Never commit minified files — LiteSpeed handles compression in production
+assets/js/*.min.js
+assets/css/*.min.css

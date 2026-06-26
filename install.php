@@ -410,8 +410,8 @@ class DD_Install {
         " );
 
         // ── Migration: add is_test to reservations if missing ─────────────────
-        $cols = $wpdb->get_col( "DESCRIBE {$wpdb->prefix}dishdash_reservations" );
-        if ( ! in_array( 'is_test', $cols ) ) {
+        $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$wpdb->prefix}dishdash_reservations` LIKE 'is_test'" );
+        if ( empty( $col ) ) {
             $wpdb->query( "ALTER TABLE {$wpdb->prefix}dishdash_reservations ADD COLUMN is_test TINYINT(1) NOT NULL DEFAULT 0, ADD KEY is_test (is_test)" );
         }
     }
