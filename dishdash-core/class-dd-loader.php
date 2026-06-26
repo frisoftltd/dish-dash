@@ -86,6 +86,8 @@ class DD_Loader {
             'DD_Orders_Module'    => 'modules/orders/class-dd-orders-module.php',
             // Profile module — customer-facing My Profile tab on WooCommerce my-account
             'DD_Profile_Module'   => 'modules/profile/class-dd-profile-module.php',
+            // Audit module — automated pillar scans + WP-CLI regression suite
+            'DD_Audit_Module'     => 'modules/audit/class-dd-audit-module.php',
             // Coming soon:
             // 'DD_Delivery_Module'     => 'modules/delivery/class-dd-delivery-module.php',
             'DD_Reservations_Module' => 'modules/reservations/class-dd-reservations-module.php',

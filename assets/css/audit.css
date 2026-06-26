@@ -1,0 +1,202 @@
+/* Dish Dash — Audit Dashboard Styles */
+
+.dd-audit-wrap {
+    max-width: 900px;
+}
+
+.dd-audit-title {
+    font-size: 1.6rem;
+    margin-bottom: 4px;
+}
+
+.dd-audit-subtitle {
+    color: #666;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.dd-audit-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
+/* Summary bar */
+.dd-audit-summary {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.dd-summary-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 80px;
+}
+
+.dd-summary-badge .badge-icon {
+    font-size: 1.5rem;
+}
+
+.dd-summary-badge .badge-label {
+    font-size: 0.7rem;
+    color: #555;
+    text-align: center;
+}
+
+.dd-summary-badge .badge-score {
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+/* Pillar cards */
+.dd-audit-results {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dd-pillar-card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dd-pillar-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+}
+
+.dd-pillar-header:hover {
+    background: #f9f9f9;
+}
+
+.dd-pillar-header.is-open {
+    border-bottom-color: #eee;
+}
+
+.dd-pillar-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.dd-pillar-name {
+    font-weight: 600;
+    font-size: 1rem;
+    flex: 1;
+}
+
+.dd-pillar-score-text {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.dd-pillar-arrow {
+    font-size: 0.8rem;
+    color: #888;
+    transition: transform 0.2s;
+}
+
+.dd-pillar-header.is-open .dd-pillar-arrow {
+    transform: rotate(180deg);
+}
+
+.dd-pillar-body {
+    display: none;
+    padding: 14px 18px;
+}
+
+.dd-pillar-body.is-open {
+    display: block;
+}
+
+.dd-check-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dd-check-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dd-check-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.875rem;
+}
+
+.dd-check-mark {
+    flex-shrink: 0;
+    font-size: 1rem;
+}
+
+.dd-check-detail {
+    font-size: 0.78rem;
+    color: #666;
+    margin-left: 26px;
+    font-style: italic;
+}
+
+/* Status border colors */
+.dd-pillar-card[data-status="green"]  { border-left: 4px solid #46B450; }
+.dd-pillar-card[data-status="yellow"] { border-left: 4px solid #FFBA00; }
+.dd-pillar-card[data-status="orange"] { border-left: 4px solid #F56E28; }
+.dd-pillar-card[data-status="red"]    { border-left: 4px solid #DC3232; }
+
+/* Manual checklist */
+.dd-audit-manual {
+    margin-top: 32px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px 24px;
+}
+
+.dd-audit-manual h2 {
+    margin-top: 0;
+    font-size: 1.1rem;
+}
+
+.dd-manual-checks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dd-manual-checks label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.dd-manual-note {
+    margin-top: 14px;
+    font-size: 0.8rem;
+    color: #888;
+}

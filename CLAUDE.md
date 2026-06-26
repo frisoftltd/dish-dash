@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.11 (2026-06-26)
+> Last updated: v3.10.12 (2026-06-26)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.11 |
+| **Deployed version** | v3.10.12 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.12 — Phase 7C next |
-| **Last working state** | v3.10.11: Removed .min.js/.min.css from repo, added .gitignore. Fixed reservation_made tracking (DDTrack.track → DDTrack.event). Fixed ALTER TABLE is_test guard (DESCRIBE → SHOW COLUMNS LIKE). Added reorder tracking event (add_to_cart, source: reorder) in profile module. |
+| **Next task** | v3.10.13 — Phase 7C next |
+| **Last working state** | v3.10.12: Automated Audit Dashboard (Dish Dash → Audit). 6 PHP pillars: Mission Alignment, Architecture, Data Integrity, Performance, Security, Code Quality. Traffic-light scoring. P7 manual browser checklist. Copy/export report. WP-CLI: `wp dishdash audit all/regression/pillar2`. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -667,7 +667,8 @@ Every page before shipping must pass:
 | **v3.10.9** | ✅ **Done** | **Fix PesaPal — rewrite class-dd-pesapal.php with zero HTTP calls on instantiation (constructor reads wp_options only); IPN/status call timeouts reduced to 15s; fixes site timeout caused by API calls during paymentGateways closure** |
 | **v3.10.10** | ✅ **Done** | **PesaPal logo PNG (replace SVG with official 789×210 PNG), panel padding (16px on dd-pesapal-waiting), label confirmed in PHP + JS maps, pesapal-logo.svg removed** |
 | **v3.10.11** | ✅ **Done** | **Audit fixes — .gitignore for .min files, reservation_made tracking (DDTrack.track → DDTrack.event), ALTER TABLE is_test guard (DESCRIBE → SHOW COLUMNS LIKE), reorder tracking event** |
-| v3.10.12 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.12** | ✅ **Done** | **Automated Audit Dashboard + WP-CLI regression suite — DD_Audit_Module, DD_Audit_Runner (6 pillars), DD_Audit_CLI, admin/pages/audit.php, assets/css/audit.css, assets/js/audit.js** |
+| v3.10.13 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
