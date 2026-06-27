@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.20 (2026-06-27)
+> Last updated: v3.10.21 (2026-06-27)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.20 |
+| **Deployed version** | v3.10.21 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.21 — Audit runner: revert P2/P4 to expect NO .min files (follow-up to v3.10.20 minification removal) |
-| **Last working state** | v3.10.20: Minification removed entirely — asset_url() now returns source files directly (no .min lookup); GitHub Actions workflow no longer generates .min files; LiteSpeed Cache handles production compression. Stray VERSION and dish-dash.php.save files removed. |
+| **Next task** | v3.10.22 — Phase 7C next |
+| **Last working state** | v3.10.21: Audit runner updated to match post-minification state — P2 passes when no .min files exist; P4 measures source-file payload directly; P4 passes when no stale .min files shadow source. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -676,7 +676,8 @@ Every page before shipping must pass:
 | **v3.10.18** | ✅ **Done** | **Fix audit scanner false positives — P3 accepts SHOW INDEX as valid ALTER TABLE guard; P5 variable-interpolation regex already correct from v3.10.13** |
 | **v3.10.19** | ✅ **Done** | **Audit treats minification as intentional — P2 confirms .min presence, P4 measures production payload, P4 confirms .min files exist** |
 | **v3.10.20** | ✅ **Done** | **Remove minification system — asset_url() serves source files directly, workflow no longer generates .min files, LiteSpeed handles compression; removed stray VERSION + dish-dash.php.save** |
-| v3.10.21 | ⏳ **NEXT** | Audit runner: revert P2/P4 to expect NO .min files |
+| **v3.10.21** | ✅ **Done** | **Audit runner matches post-minification state — P2/P4 pass when no .min files exist, P4 measures source payload directly** |
+| v3.10.22 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

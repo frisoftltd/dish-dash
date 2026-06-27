@@ -83,27 +83,16 @@ class DD_Audit_Runner {
     private function pillar_2_architecture(): array {
         $checks = [];
 
-        // Minification is intentional — GitHub Actions generates .min files at release.
-        // Pass when every source file has a matching .min (minification ran correctly).
-        $src_js  = array_filter( glob( $this->assets_js . '*.js' ) ?: [], fn( $f ) => ! str_ends_with( $f, '.min.js' ) );
-        $src_css = array_filter( glob( $this->assets_css . '*.css' ) ?: [], fn( $f ) => ! str_ends_with( $f, '.min.css' ) );
+        // Minification removed — .min files should NOT exist (LiteSpeed handles compression).
+        $min_js  = glob( $this->assets_js . '*.min.js' ) ?: [];
+        $min_css = glob( $this->assets_css . '*.min.css' ) ?: [];
+        $min_all = array_merge( $min_js, $min_css );
 
-        $missing_min = [];
-        foreach ( $src_js as $f ) {
-            if ( ! file_exists( str_replace( '.js', '.min.js', $f ) ) ) {
-                $missing_min[] = basename( $f );
-            }
-        }
-        foreach ( $src_css as $f ) {
-            if ( ! file_exists( str_replace( '.css', '.min.css', $f ) ) ) {
-                $missing_min[] = basename( $f );
-            }
-        }
-
-        if ( empty( $missing_min ) ) {
-            $checks[] = $this->check( true, 'Minified assets present', 'All source files have matching .min (minification ran at build)' );
+        if ( empty( $min_all ) ) {
+            $checks[] = $this->check( true, 'No .min files (minification removed)', 'Assets served unminified; LiteSpeed Cache handles compression' );
         } else {
-            $checks[] = $this->check( false, 'Missing .min for some source files', implode( ', ', $missing_min ) . ' — minification may have failed at build' );
+            $names = array_map( 'basename', $min_all );
+            $checks[] = $this->check( false, count( $min_all ) . ' stale .min file(s) found', implode( ', ', $names ) . ' — should be removed' );
         }
 
         // Check DD_VERSION constant vs plugin header
@@ -221,15 +210,12 @@ class DD_Audit_Runner {
         $total_css   = 0;
 
         foreach ( $src_assets as $f ) {
-            $ext = pathinfo( $f, PATHINFO_EXTENSION );
-            // Use the .min version's size — that's what actually ships in production.
-            $min  = str_replace( '.' . $ext, '.min.' . $ext, $f );
-            $size = file_exists( $min ) ? filesize( $min ) : filesize( $f );
-
+            $size = filesize( $f );
+            $ext  = pathinfo( $f, PATHINFO_EXTENSION );
             if ( $ext === 'js' )  $total_js  += $size;
             if ( $ext === 'css' ) $total_css += $size;
             if ( $size > 51200 ) {
-                $large_files[] = basename( $f ) . ' (' . round( $size / 1024, 1 ) . 'KB min)';
+                $large_files[] = basename( $f ) . ' (' . round( $size / 1024, 1 ) . 'KB)';
             }
         }
 
@@ -257,14 +243,14 @@ class DD_Audit_Runner {
         }
         $checks[] = $this->check( $guard_found, 'is_dishdash_page() guard', $guard_found ? 'Found — assets load conditionally' : 'Missing — assets may load on every page' );
 
-        // .min files are the intended production assets — confirm they exist.
+        // Minification removed — passing state is no .min files shadowing source.
         $min_js  = glob( $this->assets_js . '*.min.js' ) ?: [];
         $min_css = glob( $this->assets_css . '*.min.css' ) ?: [];
-        $has_min = ! empty( $min_js ) || ! empty( $min_css );
+        $no_min  = empty( $min_js ) && empty( $min_css );
         $checks[] = $this->check(
-            $has_min,
-            'Minified production assets present',
-            $has_min ? count( $min_js ) + count( $min_css ) . ' .min files serving in production' : 'No .min files — minification did not run'
+            $no_min,
+            'No stale .min files shadowing source',
+            $no_min ? 'Clean — assets served unminified' : 'Stale .min files exist — remove them'
         );
 
         return $this->pillar_result( 'P4', 'Performance', $checks );
