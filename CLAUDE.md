@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.16 (2026-06-27)
+> Last updated: v3.10.17 (2026-06-27)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.16 |
+| **Deployed version** | v3.10.17 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.17 — Phase 7C next |
-| **Last working state** | v3.10.16: Fix admin menu disappearing — replaced :has() CSS selectors in hide_irrelevant_menu_items() with .wp-submenu a[href*=...] targeting. The :has() selector matched the parent <li> containing all submenu links, collapsing the entire Dish Dash top-level menu for all users including administrator. |
+| **Next task** | v3.10.18 — Phase 7C next |
+| **Last working state** | v3.10.17: Wrap ALTER TABLE ADD COLUMN schema_version in class-dd-tracking-module.php with a SHOW COLUMNS guard (LIKE %s / empty($col) pattern); ADD KEY was already guarded via SHOW INDEX. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -672,7 +672,8 @@ Every page before shipping must pass:
 | **v3.10.14** | ✅ **Done** | **Template output escaping — birthday.php, page-dishdash.php, grid.php, my-profile.php; .gitignore *.min + .DS_Store + *.php.save patterns** |
 | **v3.10.15** | ✅ **Done** | **Skipped (version reserved)** |
 | **v3.10.16** | ✅ **Done** | **Fix admin menu disappearing — replace :has() submenu selectors with .wp-submenu a[href*=...] targeting in hide_irrelevant_menu_items(); :has() matched parent <li> and collapsed entire Dish Dash menu for all users** |
-| v3.10.17 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.17** | ✅ **Done** | **Guard ALTER TABLE ADD COLUMN schema_version in class-dd-tracking-module.php with SHOW COLUMNS check; ADD KEY was already guarded** |
+| v3.10.18 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -698,10 +698,16 @@ class DD_Tracking_Module extends DD_Module {
         }
 
         // Add the column immediately after meta.
-        $wpdb->query(
-            "ALTER TABLE `{$table}`
-             ADD COLUMN `schema_version` SMALLINT UNSIGNED NOT NULL DEFAULT 1 AFTER `meta`"
-        );
+        $col = $wpdb->get_results( $wpdb->prepare(
+            "SHOW COLUMNS FROM `{$table}` LIKE %s",
+            'schema_version'
+        ) );
+        if ( empty( $col ) ) {
+            $wpdb->query(
+                "ALTER TABLE `{$table}`
+                 ADD COLUMN `schema_version` SMALLINT UNSIGNED NOT NULL DEFAULT 1 AFTER `meta`"
+            );
+        }
 
         // Add the composite index if it doesn't exist yet.
         if ( ! $wpdb->get_row( "SHOW INDEX FROM `{$table}` WHERE Key_name = 'idx_event_type_schema'" ) ) {
