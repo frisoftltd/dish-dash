@@ -643,6 +643,44 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
     background: #f0fdf4;
     border-color: #bbf7d0;
 }
+.dd-tier-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 4px 0 18px;
+    background: #f1f5f9;
+}
+.dd-tier-seg {
+    height: 100%;
+    transition: width 0.3s ease;
+}
+.dd-tier-legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 24px;
+}
+.dd-tier-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.dd-tier-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dd-tier-name {
+    font-size: 14px;
+    color: #64748b;
+    flex: 1;
+}
+.dd-tier-count {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a1a;
+}
 </style>
 
 <!-- Chart data for JS -->

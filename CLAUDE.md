@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.24 (2026-06-27)
+> Last updated: v3.10.25 (2026-06-27)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.24 |
+| **Deployed version** | v3.10.25 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.25 — Phase 7C next |
-| **Last working state** | v3.10.24: Add 🔍 magnifying glass emoji to Audit submenu label (third argument of add_submenu_page) to match emoji style of other Dish Dash menu items. |
+| **Next task** | v3.10.26 — Phase 7C next |
+| **Last working state** | v3.10.25: Add CSS for Customer Tiers dashboard panel — stacked bar (.dd-tier-bar/.dd-tier-seg) and two-column legend grid (.dd-tier-legend/.dd-tier-item/.dd-tier-dot/.dd-tier-name/.dd-tier-count); injected into existing <style> block in dashboard.php. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -680,7 +680,8 @@ Every page before shipping must pass:
 | **v3.10.22** | ✅ **Done** | **Fix audit score color — (int) cast on round() makes $score === 100 strict comparison work; 100% pillars now green** |
 | **v3.10.23** | ✅ **Done** | **P4 measures only frontend assets against realistic pre-compression thresholds (100KB/file, 300KB total); admin-only assets excluded** |
 | **v3.10.24** | ✅ **Done** | **Add 🔍 emoji to Audit submenu label to match other Dish Dash menu items** |
-| v3.10.25 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.25** | ✅ **Done** | **Add CSS for Customer Tiers dashboard panel — stacked bar + two-column legend grid with colored dots, tier names, right-aligned counts** |
+| v3.10.26 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
