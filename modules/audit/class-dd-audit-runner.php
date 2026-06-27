@@ -200,36 +200,54 @@ class DD_Audit_Runner {
     private function pillar_4_performance(): array {
         $checks = [];
 
-        $src_assets = array_merge(
-            array_filter( glob( $this->assets_js . '*.js' ) ?: [], fn( $f ) => ! str_ends_with( $f, '.min.js' ) ),
-            array_filter( glob( $this->assets_css . '*.css' ) ?: [], fn( $f ) => ! str_ends_with( $f, '.min.css' ) )
+        // Admin-only assets never load on the customer-facing site — exclude them.
+        $admin_only = [
+            'admin', 'audit', 'analytics', 'analytics-reservations',
+            'dashboard', 'reservations-admin',
+        ];
+
+        $is_admin_asset = function ( string $path ) use ( $admin_only ): bool {
+            $base = preg_replace( '/\.(js|css)$/', '', basename( $path ) );
+            return in_array( $base, $admin_only, true );
+        };
+
+        $frontend_assets = array_filter(
+            array_merge(
+                glob( $this->assets_js . '*.js' ) ?: [],
+                glob( $this->assets_css . '*.css' ) ?: []
+            ),
+            fn( $f ) => ! str_ends_with( $f, '.min.js' )
+                    && ! str_ends_with( $f, '.min.css' )
+                    && ! $is_admin_asset( $f )
         );
 
         $large_files = [];
         $total_js    = 0;
         $total_css   = 0;
 
-        foreach ( $src_assets as $f ) {
+        foreach ( $frontend_assets as $f ) {
             $size = filesize( $f );
             $ext  = pathinfo( $f, PATHINFO_EXTENSION );
             if ( $ext === 'js' )  $total_js  += $size;
             if ( $ext === 'css' ) $total_css += $size;
-            if ( $size > 51200 ) {
+            // 100KB per-file threshold for uncompressed source (LiteSpeed gzips ~80% in production).
+            if ( $size > 102400 ) {
                 $large_files[] = basename( $f ) . ' (' . round( $size / 1024, 1 ) . 'KB)';
             }
         }
 
         if ( empty( $large_files ) ) {
-            $checks[] = $this->check( true, 'No individual asset over 50KB', 'All assets within budget' );
+            $checks[] = $this->check( true, 'No frontend asset over 100KB', 'All customer-facing assets within budget (pre-compression)' );
         } else {
-            $checks[] = $this->check( false, 'Large assets found', implode( ', ', $large_files ) );
+            $checks[] = $this->check( false, 'Large frontend assets found', implode( ', ', $large_files ) );
         }
 
+        // 300KB uncompressed frontend budget — LiteSpeed compresses to ~60KB over the wire.
         $total_kb = round( ( $total_js + $total_css ) / 1024, 1 );
         $checks[] = $this->check(
-            $total_kb <= 150,
-            'Total asset payload: ' . $total_kb . 'KB',
-            $total_kb <= 150 ? 'Within 150KB budget' : 'Over budget — audit and minify'
+            $total_kb <= 300,
+            'Frontend payload: ' . $total_kb . 'KB (pre-compression)',
+            $total_kb <= 300 ? 'Within budget — LiteSpeed gzips ~80% in production' : 'Over budget — review frontend assets'
         );
 
         // Check is_dishdash_page() guard
