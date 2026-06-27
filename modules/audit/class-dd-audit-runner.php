@@ -166,7 +166,9 @@ class DD_Audit_Runner {
                 foreach ( $lines as $i => $line ) {
                     if ( strpos( $line, 'ALTER TABLE' ) !== false ) {
                         $context = implode( "\n", array_slice( $lines, max( 0, $i - 10 ), 20 ) );
-                        if ( strpos( $context, 'SHOW COLUMNS' ) === false && strpos( $context, 'DESCRIBE' ) === false ) {
+                        if ( strpos( $context, 'SHOW COLUMNS' ) === false
+                          && strpos( $context, 'DESCRIBE' ) === false
+                          && strpos( $context, 'SHOW INDEX' ) === false ) {
                             $unguarded[] = basename( $f ) . ':' . ( $i + 1 );
                         }
                     }
@@ -174,7 +176,7 @@ class DD_Audit_Runner {
             }
         }
         if ( empty( $unguarded ) ) {
-            $checks[] = $this->check( true, 'ALTER TABLE statements are guarded', 'All ALTER TABLE has adjacent SHOW COLUMNS / DESCRIBE guard' );
+            $checks[] = $this->check( true, 'ALTER TABLE statements are guarded', 'All ALTER TABLE has adjacent SHOW COLUMNS / DESCRIBE / SHOW INDEX guard' );
         } else {
             $checks[] = $this->check( false, 'Unguarded ALTER TABLE found', implode( ', ', $unguarded ) );
         }
