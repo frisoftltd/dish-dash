@@ -396,7 +396,7 @@ class DD_Audit_Runner {
     private function pillar_result( string $id, string $name, array $checks ): array {
         $total  = count( $checks );
         $passed = count( array_filter( $checks, fn( $c ) => $c['pass'] ) );
-        $score  = $total > 0 ? round( ( $passed / $total ) * 100 ) : 0;
+        $score  = $total > 0 ? (int) round( ( $passed / $total ) * 100 ) : 0;
 
         if ( $score === 100 ) $status = 'green';
         elseif ( $score >= 75 ) $status = 'yellow';
