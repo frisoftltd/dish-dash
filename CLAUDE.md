@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.23 (2026-06-27)
+> Last updated: v3.10.24 (2026-06-27)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.23 |
+| **Deployed version** | v3.10.24 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.24 — Phase 7C next |
-| **Last working state** | v3.10.23: P4 audit measures only frontend assets against realistic pre-compression thresholds — admin-only assets excluded, per-file limit 100KB, total budget 300KB, labels note LiteSpeed gzip applies in production. |
+| **Next task** | v3.10.25 — Phase 7C next |
+| **Last working state** | v3.10.24: Add 🔍 magnifying glass emoji to Audit submenu label (third argument of add_submenu_page) to match emoji style of other Dish Dash menu items. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -679,7 +679,8 @@ Every page before shipping must pass:
 | **v3.10.21** | ✅ **Done** | **Audit runner matches post-minification state — P2/P4 pass when no .min files exist, P4 measures source payload directly** |
 | **v3.10.22** | ✅ **Done** | **Fix audit score color — (int) cast on round() makes $score === 100 strict comparison work; 100% pillars now green** |
 | **v3.10.23** | ✅ **Done** | **P4 measures only frontend assets against realistic pre-compression thresholds (100KB/file, 300KB total); admin-only assets excluded** |
-| v3.10.24 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.24** | ✅ **Done** | **Add 🔍 emoji to Audit submenu label to match other Dish Dash menu items** |
+| v3.10.25 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

@@ -23,7 +23,7 @@ class DD_Audit_Module extends DD_Module {
         add_submenu_page(
             'dish-dash',
             'Audit',
-            'Audit',
+            '🔍 Audit',
             'manage_options',
             'dish-dash-audit',
             [ $this, 'render_page' ]
