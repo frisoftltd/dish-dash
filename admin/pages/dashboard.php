@@ -653,6 +653,7 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
     display: flex;
     flex-direction: column;
     gap: 14px;
+    padding: 4px 20px 8px;
 }
 .dd-tier-row-head {
     display: flex;
