@@ -516,21 +516,27 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
             [ $tier_diamond,  '#E11D48', 'Diamond'  ],
         ];
         ?>
-        <div class="dd-tier-bar">
+        <?php
+        // Scale bars relative to the largest tier so the biggest fills the row.
+        $tier_max = 1;
+        foreach ( $tiers as $t ) { $tier_max = max( $tier_max, $t[0] ); }
+        ?>
+        <div class="dd-tier-hist">
           <?php foreach ( $tiers as $t ) :
-            $w = round( ( $t[0] / $tier_total ) * 100 );
-            if ( $w < 1 ) continue;
+            $pct = round( ( $t[0] / $tier_max ) * 100 );
           ?>
-            <div class="dd-tier-seg" style="width:<?php echo $w; ?>%;background:<?php echo esc_attr( $t[1] ); ?>" title="<?php echo esc_attr( $t[2] . ': ' . $t[0] ); ?>"></div>
-          <?php endforeach; ?>
-        </div>
-        <div class="dd-tier-legend">
-          <?php foreach ( $tiers as $t ) : ?>
-          <div class="dd-tier-item">
-            <span class="dd-tier-dot" style="background:<?php echo esc_attr( $t[1] ); ?>"></span>
-            <span class="dd-tier-name"><?php echo esc_html( $t[2] ); ?></span>
-            <span class="dd-tier-count"><?php echo number_format( $t[0] ); ?></span>
-          </div>
+            <div class="dd-tier-row">
+              <div class="dd-tier-row-head">
+                <span class="dd-tier-label">
+                  <span class="dd-tier-dot" style="background:<?php echo esc_attr( $t[1] ); ?>"></span>
+                  <?php echo esc_html( $t[2] ); ?>
+                </span>
+                <span class="dd-tier-count"><?php echo number_format( $t[0] ); ?></span>
+              </div>
+              <div class="dd-tier-track">
+                <div class="dd-tier-fill" style="width:<?php echo $pct; ?>%;background:<?php echo esc_attr( $t[1] ); ?>"></div>
+              </div>
+            </div>
           <?php endforeach; ?>
         </div>
         <div class="dd-card-footer">
@@ -643,43 +649,45 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
     background: #f0fdf4;
     border-color: #bbf7d0;
 }
-.dd-tier-bar {
+.dd-tier-hist {
     display: flex;
-    height: 10px;
-    border-radius: 6px;
-    overflow: hidden;
-    margin: 4px 0 18px;
-    background: #f1f5f9;
+    flex-direction: column;
+    gap: 14px;
 }
-.dd-tier-seg {
-    height: 100%;
-    transition: width 0.3s ease;
+.dd-tier-row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
 }
-.dd-tier-legend {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px 24px;
-}
-.dd-tier-item {
+.dd-tier-label {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    font-size: 13px;
+    color: #64748b;
 }
 .dd-tier-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
     flex-shrink: 0;
 }
-.dd-tier-name {
-    font-size: 14px;
-    color: #64748b;
-    flex: 1;
-}
 .dd-tier-count {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: #1a1a1a;
+}
+.dd-tier-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    overflow: hidden;
+}
+.dd-tier-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
 }
 </style>
 

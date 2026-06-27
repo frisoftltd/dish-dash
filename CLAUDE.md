@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.25 (2026-06-27)
+> Last updated: v3.10.26 (2026-06-27)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.25 |
+| **Deployed version** | v3.10.26 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.26 — Phase 7C next |
-| **Last working state** | v3.10.25: Add CSS for Customer Tiers dashboard panel — stacked bar (.dd-tier-bar/.dd-tier-seg) and two-column legend grid (.dd-tier-legend/.dd-tier-item/.dd-tier-dot/.dd-tier-name/.dd-tier-count); injected into existing <style> block in dashboard.php. |
+| **Next task** | v3.10.27 — Phase 7C next |
+| **Last working state** | v3.10.26: Redesign Customer Tiers panel as horizontal histogram — one labeled bar per tier (.dd-tier-hist/.dd-tier-row/.dd-tier-track/.dd-tier-fill), bars scaled relative to largest tier ($tier_max). Replaced stacked bar + two-column legend from v3.10.25. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -681,7 +681,8 @@ Every page before shipping must pass:
 | **v3.10.23** | ✅ **Done** | **P4 measures only frontend assets against realistic pre-compression thresholds (100KB/file, 300KB total); admin-only assets excluded** |
 | **v3.10.24** | ✅ **Done** | **Add 🔍 emoji to Audit submenu label to match other Dish Dash menu items** |
 | **v3.10.25** | ✅ **Done** | **Add CSS for Customer Tiers dashboard panel — stacked bar + two-column legend grid with colored dots, tier names, right-aligned counts** |
-| v3.10.26 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.26** | ✅ **Done** | **Redesign Customer Tiers as horizontal histogram — one bar per tier scaled to largest tier, replaces stacked bar + two-column legend** |
+| v3.10.27 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
