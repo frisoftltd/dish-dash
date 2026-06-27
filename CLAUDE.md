@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.14 (2026-06-26)
+> Last updated: v3.10.16 (2026-06-27)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.14 |
+| **Deployed version** | v3.10.16 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.15 — Phase 7C next |
-| **Last working state** | v3.10.14: Audit remediation — .gitignore updated with *.min.js/css/min + .DS_Store + *.php.save; template output escaping fixed in birthday.php (integer months/days), page-dishdash.php (hero_bg_style url() quotes removed + esc_attr on class/style echoes), grid.php (esc_html on grid title, esc_url on category image src), my-profile.php (tier icon esc_html, integer month/day options). |
+| **Next task** | v3.10.17 — Phase 7C next |
+| **Last working state** | v3.10.16: Fix admin menu disappearing — replaced :has() CSS selectors in hide_irrelevant_menu_items() with .wp-submenu a[href*=...] targeting. The :has() selector matched the parent <li> containing all submenu links, collapsing the entire Dish Dash top-level menu for all users including administrator. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -670,7 +670,9 @@ Every page before shipping must pass:
 | **v3.10.12** | ✅ **Done** | **Automated Audit Dashboard + WP-CLI regression suite — DD_Audit_Module, DD_Audit_Runner (6 pillars), DD_Audit_CLI, admin/pages/audit.php, assets/css/audit.css, assets/js/audit.js** |
 | **v3.10.13** | ✅ **Done** | **Complete audit remediation — tracking table migration in install.php, version-gated migration for existing installs, ALTER TABLE guards verified, audit runner self-scan false positives fixed, P5 unescaped query heuristic improved, remove_submenu_page() replaced with admin_head CSS-only hiding** |
 | **v3.10.14** | ✅ **Done** | **Template output escaping — birthday.php, page-dishdash.php, grid.php, my-profile.php; .gitignore *.min + .DS_Store + *.php.save patterns** |
-| v3.10.15 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.15** | ✅ **Done** | **Skipped (version reserved)** |
+| **v3.10.16** | ✅ **Done** | **Fix admin menu disappearing — replace :has() submenu selectors with .wp-submenu a[href*=...] targeting in hide_irrelevant_menu_items(); :has() matched parent <li> and collapsed entire Dish Dash menu for all users** |
+| v3.10.17 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

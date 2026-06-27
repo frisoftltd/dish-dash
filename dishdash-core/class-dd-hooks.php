@@ -397,10 +397,10 @@ class DD_Hooks {
         add_action( 'admin_head', function() {
             ?>
             <style>
-                #adminmenu li:has(a[href*="page=dish-dash-menu"]),
-                #adminmenu li:has(a[href*="page=dish-dash-delivery"]),
-                #adminmenu li:has(a[href*="page=dish-dash-branches"]),
-                #adminmenu li:has(a[href*="page=dish-dash-pos"]) {
+                #adminmenu .wp-submenu a[href*="page=dish-dash-menu"],
+                #adminmenu .wp-submenu a[href*="page=dish-dash-delivery"],
+                #adminmenu .wp-submenu a[href*="page=dish-dash-branches"],
+                #adminmenu .wp-submenu a[href*="page=dish-dash-pos"] {
                     display: none !important;
                 }
             </style>
@@ -416,10 +416,10 @@ class DD_Hooks {
             }
             ?>
             <style>
-                #adminmenu li:has(a[href*="page=dish-dash-settings"]),
-                #adminmenu li:has(a[href*="page=dish-dash-tools"]),
-                #adminmenu li:has(a[href*="page=dish-dash-template"]),
-                #adminmenu li:has(a[href*="page=dish-dash-activity-log"]) {
+                #adminmenu .wp-submenu a[href*="page=dish-dash-settings"],
+                #adminmenu .wp-submenu a[href*="page=dish-dash-tools"],
+                #adminmenu .wp-submenu a[href*="page=dish-dash-template"],
+                #adminmenu .wp-submenu a[href*="page=dish-dash-activity-log"] {
                     display: none !important;
                 }
             </style>
