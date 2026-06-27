@@ -22,40 +22,6 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install minification tools
-        run: |
-          npm install -g clean-css-cli@5 uglify-js@3
-
-      - name: Minify CSS
-        run: |
-          for f in assets/css/*.css; do
-            case "$f" in *.min.css) continue ;; esac
-            out="${f%.css}.min.css"
-            if cleancss --level 2 --output "$out" "$f" 2>/dev/null; then
-              original=$(wc -c < "$f")
-              minified=$(wc -c < "$out")
-              echo "✅ CSS: $(basename $f) → $(basename $out) ($original → $minified bytes)"
-            else
-              echo "⚠️  CSS: $(basename $f) — minification failed, copying original"
-              cp "$f" "$out"
-            fi
-          done
-
-      - name: Minify JS
-        run: |
-          for f in assets/js/*.js; do
-            case "$f" in *.min.js) continue ;; esac
-            out="${f%.js}.min.js"
-            if uglifyjs "$f" --compress --mangle --output "$out" 2>/dev/null; then
-              original=$(wc -c < "$f")
-              minified=$(wc -c < "$out")
-              echo "✅ JS: $(basename $f) → $(basename $out) ($original → $minified bytes)"
-            else
-              echo "⚠️  JS: $(basename $f) — minification failed, copying original"
-              cp "$f" "$out"
-            fi
-          done
-
       - name: Create plugin zip
         run: |
           mkdir -p /tmp/build/dish-dash

@@ -170,24 +170,7 @@ class DD_Template_Module extends DD_Module {
     // ─────────────────────────────────────────
 
     private function asset_url( string $type, string $filename ): string {
-        $base = DD_PLUGIN_URL . 'assets/' . $type . '/';
-
-        // Use minified in production (when SCRIPT_DEBUG is not true)
-        if ( ! ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) ) {
-            $min_filename = str_replace(
-                [ '.css', '.js' ],
-                [ '.min.css', '.min.js' ],
-                $filename
-            );
-            $min_path = DD_PLUGIN_DIR . 'assets/' . $type . '/' . $min_filename;
-
-            if ( file_exists( $min_path ) ) {
-                return $base . $min_filename;
-            }
-        }
-
-        // Fallback to original (development or if .min file doesn't exist)
-        return $base . $filename;
+        return DD_ASSETS_URL . $type . '/' . $filename;
     }
 
     private function is_dishdash_page(): bool {

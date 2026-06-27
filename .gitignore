@@ -6,3 +6,4 @@ assets/css/*.min.css
 *.min
 .DS_Store
 *.php.save
+VERSION
