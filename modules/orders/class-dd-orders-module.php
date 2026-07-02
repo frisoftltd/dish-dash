@@ -1149,6 +1149,15 @@ class DD_Orders_Module extends DD_Module {
             $this->json_error( __( 'Order not found.', 'dish-dash' ) );
         }
 
+        // Ownership gate — staff may read any order; a customer may read only their own.
+        // Mirrors order_permission() below: dishdash_orders.customer_id stores the WP user ID.
+        if ( ! current_user_can( 'dd_manage_orders' ) ) {
+            $uid = get_current_user_id();
+            if ( ! $uid || (int) $order->customer_id !== $uid ) {
+                $this->json_error( __( 'You are not authorized to view this order.', 'dish-dash' ) );
+            }
+        }
+
         $this->json_success( [
             'order' => $order,
             'items' => $this->get_order_items( $order_id ),
