@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.28 (2026-07-02)
+> Last updated: v3.10.29 (2026-07-04)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.28 |
+| **Deployed version** | v3.10.29 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.29 — Phase 7C next |
-| **Last working state** | v3.10.28: Closed IDOR on dd_get_order AJAX endpoint — ownership gate added to ajax_get_order() in class-dd-orders-module.php. Staff (dd_manage_orders) pass through unchanged; customers may only read orders whose customer_id (which stores the WP user ID) matches get_current_user_id(); guests refused. |
+| **Next task** | v3.10.30 — Phase 7C next |
+| **Last working state** | v3.10.29: Removed orphaned unauthenticated dd_cancel_order AJAX endpoint — write-path IDOR (guest-reachable, no capability/ownership check, cancelled any order by ID). Investigation confirmed zero callers; deregistered the action in class-dd-orders-module.php (method kept as dead code). Admin cancellation unaffected — uses the separately-gated dd_update_status. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -684,7 +684,8 @@ Every page before shipping must pass:
 | **v3.10.26** | ✅ **Done** | **Redesign Customer Tiers as horizontal histogram — one bar per tier scaled to largest tier, replaces stacked bar + two-column legend** |
 | **v3.10.27** | ✅ **Done** | **Add padding: 4px 20px 8px to .dd-tier-hist so histogram bars/labels have horizontal breathing room** |
 | **v3.10.28** | ✅ **Done** | **Security fix — close IDOR on dd_get_order AJAX endpoint: ownership gate in ajax_get_order() (class-dd-orders-module.php), staff bypass via dd_manage_orders, customers restricted to own orders via customer_id === get_current_user_id(), guests refused** |
-| v3.10.29 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.29** | ✅ **Done** | **Remove orphaned unauthenticated dd_cancel_order AJAX endpoint (write-path IDOR — zero callers, deregistered)** |
+| v3.10.30 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

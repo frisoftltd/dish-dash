@@ -16,7 +16,7 @@
  *
  * Dependents (files that need this):
  *   - dishdash-core/class-dd-loader.php (instantiates this module)
- *   - assets/js/cart.js (calls dd_place_order, dd_get_order, dd_cancel_order)
+ *   - assets/js/cart.js (calls dd_place_order, dd_get_order)
  *   - admin/pages/orders.php (loaded via render_orders())
  *
  * Hooks registered:
@@ -26,7 +26,8 @@
  *
  * AJAX actions registered:
  *   dd_place_order (public), dd_get_order (public),
- *   dd_cancel_order (public), dd_update_status (admin only)
+ *   dd_update_status (admin only)
+ *   (dd_cancel_order removed in v3.10.29 — write-path IDOR, zero callers)
  *
  * REST routes: GET/PUT /dish-dash/v1/orders[/{id}[/status]] (admin only)
  *
@@ -75,7 +76,9 @@ class DD_Orders_Module extends DD_Module {
         // AJAX handlers
         DD_Ajax::register( 'dd_place_order',       [ $this, 'ajax_place_order' ] );
         DD_Ajax::register( 'dd_get_order',         [ $this, 'ajax_get_order' ] );
-        DD_Ajax::register( 'dd_cancel_order',      [ $this, 'ajax_cancel_order' ] );
+        // dd_cancel_order deregistered in v3.10.29 — orphaned, guest-reachable,
+        // no capability/ownership check (write-path IDOR). Admin cancellation
+        // uses the separately-gated dd_update_status. Method kept as dead code.
         DD_Ajax::register( 'dd_update_status',     [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_momo_check_status',   [ $this, 'ajax_momo_check_status' ],   true );
         DD_Ajax::register( 'dd_irembopay_confirm',   [ $this, 'ajax_irembopay_confirm' ],   true );
