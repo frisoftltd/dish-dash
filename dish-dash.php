@@ -3,7 +3,7 @@
  * Plugin Name:       Dish Dash
  * Plugin URI:        https://frisoftltd.com/dish-dash
  * Description:       DishDash is a smart ordering system that learns customer behavior and makes ordering faster, easier, and more personalized every time.
- * Version:           3.10.34
+ * Version:           3.10.35
  * Author:            Fri Soft Ltd
  * Author URI:        https://frisoft.rw
  * License:           GPL-2.0+
@@ -44,7 +44,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // ─────────────────────────────────────────────
 //  CONSTANTS
 // ─────────────────────────────────────────────
-define( 'DD_VERSION',         '3.10.34' );
+define( 'DD_VERSION',         '3.10.35' );
 define( 'DD_PLUGIN_FILE',     __FILE__ );
 define( 'DD_PLUGIN_DIR',      plugin_dir_path( __FILE__ ) );
 define( 'DD_PLUGIN_URL',      plugin_dir_url( __FILE__ ) );
@@ -88,6 +88,18 @@ define( 'DD_EVENT_VALIDATION_MODE', 'warn' );
 // ─────────────────────────────────────────────
 define( 'DD_GITHUB_REPO',  'frisoftltd/dish-dash' );
 define( 'DD_GITHUB_TOKEN', '' );
+
+// ─────────────────────────────────────────────
+//  COMPOSER AUTOLOADER (vendored third-party libs)
+//  Defensive require: if vendor/ is missing from a
+//  release, the plugin must degrade gracefully — a
+//  missing autoloader must never fatal / white-screen.
+//  Present-but-idle in v3.10.35 (no library called yet).
+// ─────────────────────────────────────────────
+$dd_vendor_autoload = DD_PLUGIN_DIR . 'vendor/autoload.php';
+if ( file_exists( $dd_vendor_autoload ) ) {
+    require_once $dd_vendor_autoload;
+}
 
 // ─────────────────────────────────────────────
 //  AUTOLOADER

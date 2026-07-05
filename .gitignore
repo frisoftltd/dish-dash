@@ -12,3 +12,8 @@ VERSION
 # these override the *.min.js / *.min.css ignore rules above.
 !assets/vendor/
 !assets/vendor/**
+
+# Whitelist the Composer vendor tree (libphonenumber et al.) — parity/insurance
+# so a future ignore rule can never accidentally exclude it from the release.
+!vendor/
+!vendor/**

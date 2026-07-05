@@ -37,6 +37,13 @@ jobs:
           zip -r dish-dash.zip dish-dash
           mv dish-dash.zip $GITHUB_WORKSPACE/dish-dash.zip
 
+      - name: Verify vendored dependencies are in the zip
+        run: |
+          if ! unzip -l dish-dash.zip | grep -q 'dish-dash/vendor/autoload.php'; then
+            echo "::error::vendor/autoload.php missing from release zip — libphonenumber dependency not shipped"
+            exit 1
+          fi
+
       - name: Upload zip to release
         uses: softprops/action-gh-release@v2
         with:

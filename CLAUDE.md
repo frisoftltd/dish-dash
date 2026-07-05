@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.34 (2026-07-05)
+> Last updated: v3.10.35 (2026-07-05)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.34 |
+| **Deployed version** | v3.10.35 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.35 — Phase 7C next (R2/R3: full-international format flip via libphonenumber + one-time normalization/dedupe backfill) |
-| **Last working state** | v3.10.34 (R1.5): phone UX polish on all three picker surfaces (cart #ddFieldWhatsapp, profile #ddProfilePhone, reservations #dd-res-whatsapp). (1) Removed duplicate +250 from placeholders — now a clean static "78 000 0000" (separateDialCode already renders the dial code). (2) Soft inline validity hint on input/blur when iti.isValidNumber() === false. (3) Hard-block on submit (Place Order / Connect / advance past reservation screen 3) when the number is invalid. FAIL-OPEN GUARD: every block is inside `if ( iti && iti.isValidNumber() === false )` — isValidNumber() returns null while utils.js is still loading and iti is undefined when the picker never inited, so neither case blocks; a picker glitch never stops ordering. Per-country validation (libphonenumber via intl-tel-input), not a digit count. No new CSS files (cart reuses .dd-cform-error, profile reuses .dd-profile__link-msg, reservations adds inline-styled #dd-res-phone-warn in modal.php). BEHAVIOR-NEUTRAL SERVER-SIDE: no normalize_phone()/storage change; getNumber() still emits the E.164 that collapses to 250…. Format flip + backfill still deferred to R2/R3. |
+| **Next task** | v3.10.36 — Phase 7C next (R3: full-international format flip via libphonenumber + one-time normalization/dedupe backfill) |
+| **Last working state** | v3.10.35 (R2): Composer + vendored libphonenumber introduced. Defensive autoloader in dish-dash.php (`vendor/autoload.php` require guarded by `file_exists()` — a missing vendor/ degrades gracefully, never fatals; placed after the CONSTANTS block, before the DD_ SPL autoloader which is untouched). `.gitignore` gains a `!vendor/` + `!vendor/**` whitelist (parity/insurance). Release workflow gains a CI presence-guard step (after zip, before upload) that hard-fails the build if `dish-dash/vendor/autoload.php` is missing from the zip. BEHAVIOR-NEUTRAL: nothing calls libphonenumber this release — the autoloader is present-but-idle; `normalize_phone()` untouched (still bare-250… normalization); no format flip, no query/capture/validation change. Only observable effects: larger plugin (~23 MB vendor tree, giggsey/libphonenumber-for-php committed) and an idle autoloader. Format flip + dedupe backfill deferred to R3. PREVIOUS (v3.10.34, R1.5): phone UX polish on all three picker surfaces (cart #ddFieldWhatsapp, profile #ddProfilePhone, reservations #dd-res-whatsapp). (1) Removed duplicate +250 from placeholders — now a clean static "78 000 0000" (separateDialCode already renders the dial code). (2) Soft inline validity hint on input/blur when iti.isValidNumber() === false. (3) Hard-block on submit (Place Order / Connect / advance past reservation screen 3) when the number is invalid. FAIL-OPEN GUARD: every block is inside `if ( iti && iti.isValidNumber() === false )` — isValidNumber() returns null while utils.js is still loading and iti is undefined when the picker never inited, so neither case blocks; a picker glitch never stops ordering. Per-country validation (libphonenumber via intl-tel-input), not a digit count. No new CSS files (cart reuses .dd-cform-error, profile reuses .dd-profile__link-msg, reservations adds inline-styled #dd-res-phone-warn in modal.php). BEHAVIOR-NEUTRAL SERVER-SIDE: no normalize_phone()/storage change; getNumber() still emits the E.164 that collapses to 250…. Format flip + backfill still deferred to R2/R3. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -690,7 +690,8 @@ Every page before shipping must pass:
 | **v3.10.32** | ✅ **Done** | **normalize_phone() strips national trunk 0 (10-digit leading-0 → +250 keyspace); format-preserving bare 250…; 0788… and +250788… now one identity key — stops new duplicate customers + failed linking. Backfill of legacy 0788… rows deferred to full-international phase** |
 | **v3.10.33** | ✅ **Done** | **R1 — self-hosted intl-tel-input v25.3.1 country-code picker on cart drawer, My Profile connect, and reservations; getNumber() E.164 with raw fallback; initialCountry rw, EAC neighbors prioritized, separateDialCode; vendored under assets/vendor/ (.gitignore whitelisted); behavior-neutral server-side (normalize_phone + stored format unchanged)** |
 | **v3.10.34** | ✅ **Done** | **R1.5 — phone placeholder fix (removed duplicate +250 → clean "78 000 0000") + per-country validation on cart/profile/reservations: soft inline hint on input/blur + hard-block on submit, guarded `iti.isValidNumber() === false` so it fails open when the picker/utils.js isn't loaded; no new CSS files; server-side unchanged** |
-| v3.10.35 | ⏳ **NEXT** | Phase 7C next (R2/R3 — format flip + backfill) |
+| **v3.10.35** | ✅ **Done** | **R2 — Composer + vendored libphonenumber: defensive `vendor/autoload.php` require (file_exists-guarded, fails open) in dish-dash.php after constants/before DD_ SPL autoloader; `.gitignore` `!vendor/` whitelist; CI presence-guard in release.yml (fails build if vendor/autoload.php missing from zip). Behavior-neutral — library present-but-idle, nothing calls it, normalize_phone() untouched** |
+| v3.10.36 | ⏳ **NEXT** | Phase 7C next (R3 — format flip + backfill) |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
