@@ -71,6 +71,27 @@
       separateDialCode: true,
       loadUtils:        vendor ? () => import(vendor) : undefined,
     });
+    input.addEventListener('input', updateResPhoneHint);
+    input.addEventListener('blur',  updateResPhoneHint);
+  }
+
+  function showResPhoneWarn(text) {
+    const el = document.getElementById('dd-res-phone-warn');
+    if (!el) return;
+    el.textContent = text;
+    el.style.display = text ? 'block' : 'none';
+  }
+
+  // Soft hint: warn only when the picker judged the number invalid
+  // (isValidNumber() === false). null (utils loading) shows nothing.
+  function updateResPhoneHint() {
+    const input = document.getElementById('dd-res-whatsapp');
+    const val = input ? input.value.trim() : '';
+    if (val && itiWhatsapp && itiWhatsapp.isValidNumber() === false) {
+      showResPhoneWarn('Please enter a valid phone number.');
+    } else {
+      showResPhoneWarn('');
+    }
   }
 
   function readPhone(inputEl, iti) {
@@ -338,6 +359,14 @@
     if (n === 3) {
       if (!$('#dd-res-name')?.value.trim()) { alert('Please enter your name.'); return false; }
       if (!$('#dd-res-whatsapp')?.value.trim()) { alert('Please enter your WhatsApp number.'); return false; }
+      // Hard-block ONLY when the picker loaded and judged it invalid.
+      // isValidNumber() === null (utils not loaded) or itiWhatsapp undefined
+      // (picker never inited) both skip this → fail-open.
+      if (itiWhatsapp && itiWhatsapp.isValidNumber() === false) {
+        showResPhoneWarn('Please enter a valid phone number.');
+        return false;
+      }
+      showResPhoneWarn('');
       state.name     = $('#dd-res-name').value.trim();
       state.whatsapp = readPhone($('#dd-res-whatsapp'), itiWhatsapp);
       state.requests = $('#dd-res-requests')?.value.trim() || '';

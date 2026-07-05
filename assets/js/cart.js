@@ -543,6 +543,25 @@
             separateDialCode: true,
             loadUtils:        vendor ? function () { return import( vendor ); } : undefined,
         } );
+
+        // Soft validation hint — updates as the user types / on blur.
+        input.addEventListener( 'input', updateWhatsappHint );
+        input.addEventListener( 'blur',  updateWhatsappHint );
+    }
+
+    // Soft hint: show a warning only when the picker has definitively judged the
+    // number invalid (isValidNumber() === false). Returns null while utils.js is
+    // still loading — treated as "not yet invalid", so no warning and no block.
+    function updateWhatsappHint() {
+        var el = document.getElementById( 'ddErrorWhatsapp' );
+        if ( ! el ) return;
+        var input = document.getElementById( 'ddFieldWhatsapp' );
+        var val   = input ? input.value.trim() : '';
+        if ( val && itiWhatsapp && itiWhatsapp.isValidNumber() === false ) {
+            el.textContent = 'Please enter a valid phone number.';
+        } else {
+            el.textContent = '';
+        }
     }
 
     // Read E.164 from the picker, or the raw trimmed value as fallback.
@@ -689,6 +708,13 @@
             if ( ! wa ) {
                 var e2 = document.getElementById( 'ddErrorWhatsapp' );
                 if ( e2 ) e2.textContent = 'Please enter your WhatsApp number.';
+                valid = false;
+            } else if ( itiWhatsapp && itiWhatsapp.isValidNumber() === false ) {
+                // Hard-block ONLY when the picker loaded and judged it invalid.
+                // isValidNumber() === null (utils not loaded) or itiWhatsapp
+                // undefined (picker never inited) both skip this → fail-open.
+                var e2b = document.getElementById( 'ddErrorWhatsapp' );
+                if ( e2b ) e2b.textContent = 'Please enter a valid phone number.';
                 valid = false;
             }
             if ( ! addr ) {

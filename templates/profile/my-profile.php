@@ -20,7 +20,7 @@ $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
             <h3 class="dd-profile__link-title">See your order history</h3>
             <p class="dd-profile__link-text">Add your phone number to connect your past orders, favorites, and rewards to your account.</p>
             <div class="dd-profile__link-row">
-                <input type="tel" id="ddProfilePhone" class="dd-profile__input" placeholder="07XX XXX XXX" inputmode="numeric">
+                <input type="tel" id="ddProfilePhone" class="dd-profile__input" placeholder="78 000 0000" inputmode="numeric">
                 <button type="button" id="ddProfileLinkBtn" class="dd-btn dd-btn--brand">Connect</button>
             </div>
             <p class="dd-profile__link-msg" id="ddProfileLinkMsg"></p>
@@ -134,6 +134,23 @@ $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
             separateDialCode: true,
             loadUtils:        vendor ? function () { return import( vendor ); } : undefined
         } );
+        input.addEventListener( 'input', updateProfileHint );
+        input.addEventListener( 'blur',  updateProfileHint );
+    }
+
+    // Soft hint: warn only when the picker judged the number invalid
+    // (isValidNumber() === false). null (utils loading) shows nothing.
+    function updateProfileHint() {
+        var msg = document.getElementById( 'ddProfileLinkMsg' );
+        var linkBtn = document.getElementById( 'ddProfileLinkBtn' );
+        if ( ! msg || ( linkBtn && linkBtn.disabled ) ) return; // don't clobber "Connecting…"
+        var input = document.getElementById( 'ddProfilePhone' );
+        var val   = input ? input.value.trim() : '';
+        if ( val && itiProfile && itiProfile.isValidNumber() === false ) {
+            msg.textContent = 'Please enter a valid phone number.';
+        } else {
+            msg.textContent = '';
+        }
     }
     if ( document.readyState === 'loading' ) {
         document.addEventListener( 'DOMContentLoaded', ddInitProfilePicker );
@@ -147,12 +164,16 @@ $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
         linkBtn.addEventListener( 'click', function() {
             var input = document.getElementById( 'ddProfilePhone' );
             var raw   = ( input && input.value || '' ).trim();
+            var msg   = document.getElementById( 'ddProfileLinkMsg' );
+            if ( ! raw ) { msg.textContent = 'Please enter your phone number.'; return; }
+            // Hard-block ONLY when the picker loaded and judged it invalid.
+            if ( itiProfile && itiProfile.isValidNumber() === false ) {
+                msg.textContent = 'Please enter a valid phone number.'; return;
+            }
             var phone = raw;
             if ( itiProfile && typeof itiProfile.getNumber === 'function' ) {
                 phone = itiProfile.getNumber() || raw;
             }
-            var msg   = document.getElementById( 'ddProfileLinkMsg' );
-            if ( ! phone ) { msg.textContent = 'Please enter your phone number.'; return; }
             linkBtn.disabled = true;
             msg.textContent  = 'Connecting…';
             var fd = new FormData();

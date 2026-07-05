@@ -97,7 +97,9 @@
         <div class="dd-res-field-block">
           <label class="dd-res-label" for="dd-res-whatsapp">📱 WhatsApp number</label>
           <input class="dd-res-input" type="tel" id="dd-res-whatsapp" name="dd_whatsapp"
-                 placeholder="+250 78 000 0000" autocomplete="tel" required>
+                 placeholder="78 000 0000" autocomplete="tel" required>
+          <span class="dd-res-phone-warn" id="dd-res-phone-warn"
+                style="display:none;color:#e53935;font-size:13px;margin-top:4px;"></span>
         </div>
 
         <div class="dd-res-field-block">

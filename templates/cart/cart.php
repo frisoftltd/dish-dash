@@ -160,7 +160,7 @@ if ( ! isset( $dd_cart_count ) ) {
                 <div class="dd-cform-group">
                     <label for="ddFieldWhatsapp"><?php esc_html_e( 'WhatsApp Number', 'dish-dash' ); ?> <span aria-hidden="true">*</span></label>
                     <input type="tel" id="ddFieldWhatsapp" name="whatsapp"
-                           autocomplete="tel" placeholder="+250 78 000 0000" required>
+                           autocomplete="tel" placeholder="78 000 0000" required>
                     <span class="dd-cform-error" id="ddErrorWhatsapp"></span>
                 </div>
 
