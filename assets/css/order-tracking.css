@@ -1,0 +1,162 @@
+/**
+ * File: assets/css/order-tracking.css
+ * Purpose: Customer order-status timeline styling (v3.10.30).
+ *
+ * Brand color comes from the active template's token (var(--dd-accent) etc.);
+ * never hardcoded. Neutral scaffolding uses rgba() (consistent with the rest
+ * of the codebase — no hex literals here).
+ */
+
+.dd-track-wrap {
+    max-width: 640px;
+    margin: 48px auto;
+    padding: 0 20px;
+}
+
+.dd-track {
+    /* Brand accent — resolves against whichever token the active template exposes. */
+    --dd-track-accent: var(--dd-accent, var(--dd-brand, var(--dd-primary, currentColor)));
+    --dd-track-line:   rgba(0, 0, 0, 0.12);
+    --dd-track-muted:  rgba(0, 0, 0, 0.5);
+    --dd-track-idle:   rgba(0, 0, 0, 0.18);
+
+    background: var(--dd-bg-card, var(--dd-surface, transparent));
+    border-radius: var(--dd-radius, 12px);
+    box-shadow: var(--dd-shadow, 0 4px 24px rgba(0, 0, 0, 0.08));
+    padding: 28px 24px;
+}
+
+/* ── Header ───────────────────────────────────────────── */
+.dd-track__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.dd-track__title {
+    font-size: 1.35rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--dd-text, inherit);
+}
+
+.dd-track__num {
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--dd-track-accent);
+}
+
+/* ── Timeline ─────────────────────────────────────────── */
+.dd-track__timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.dd-track__step {
+    position: relative;
+    display: grid;
+    grid-template-columns: 28px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+}
+
+/* Connector line between dots. */
+.dd-track__step::before {
+    content: "";
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    width: 2px;
+    height: 100%;
+    background: var(--dd-track-line);
+    z-index: 0;
+}
+.dd-track__step:last-child::before { display: none; }
+
+.dd-track__dot {
+    position: relative;
+    z-index: 1;
+    width: 16px;
+    height: 16px;
+    margin: 0 6px;
+    border-radius: 50%;
+    background: var(--dd-track-idle);
+    box-shadow: 0 0 0 4px transparent;
+    transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dd-track__label {
+    font-size: 0.98rem;
+    font-weight: 500;
+    color: var(--dd-track-muted);
+}
+
+.dd-track__time {
+    font-size: 0.82rem;
+    color: var(--dd-track-muted);
+    white-space: nowrap;
+}
+
+/* Completed steps take the brand color. */
+.dd-track__step.is-done .dd-track__dot   { background: var(--dd-track-accent); }
+.dd-track__step.is-done .dd-track__label { color: var(--dd-text, inherit); }
+.dd-track__step.is-done::before          { background: var(--dd-track-accent); }
+
+/* Current step gets an emphasised ring. */
+.dd-track__step.is-current .dd-track__dot {
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.06);
+}
+.dd-track__step.is-current .dd-track__label {
+    font-weight: 700;
+    color: var(--dd-text, inherit);
+}
+
+/* Upcoming steps stay muted (default). */
+.dd-track__step.is-upcoming .dd-track__time { opacity: 0.75; }
+
+/* ── Cancelled state ──────────────────────────────────── */
+.dd-track__cancelled {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+}
+
+.dd-track__cancelled-badge {
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: rgba(255, 255, 255, 0.96);
+    background: var(--dd-track-accent);
+}
+
+.dd-track__cancelled-time {
+    font-size: 0.85rem;
+    color: var(--dd-track-muted);
+}
+
+/* ── Message states (guest / not found / empty) ───────── */
+.dd-track--message {
+    text-align: center;
+}
+.dd-track--message .dd-track__title { margin-bottom: 10px; }
+.dd-track__lead {
+    color: var(--dd-track-muted, rgba(0, 0, 0, 0.5));
+    margin: 0 0 22px;
+    font-size: 1rem;
+}
+
+@media (max-width: 480px) {
+    .dd-track { padding: 22px 16px; }
+    .dd-track__step { grid-template-columns: 28px 1fr; }
+    .dd-track__time { grid-column: 2; padding-left: 0; }
+}

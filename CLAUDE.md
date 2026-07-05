@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.29 (2026-07-04)
+> Last updated: v3.10.30 (2026-07-05)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.29 |
+| **Deployed version** | v3.10.30 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.30 — Phase 7C next |
-| **Last working state** | v3.10.29: Removed orphaned unauthenticated dd_cancel_order AJAX endpoint — write-path IDOR (guest-reachable, no capability/ownership check, cancelled any order by ID). Investigation confirmed zero callers; deregistered the action in class-dd-orders-module.php (method kept as dead code). Admin cancellation unaffected — uses the separately-gated dd_update_status. |
+| **Next task** | v3.10.31 — Phase 7C next |
+| **Last working state** | v3.10.30: Shipped customer order-tracking (logged-in only) — [dish_dash_track] now renders a live self-refreshing status timeline (Placed→Confirmed→Ready→Delivered, cancelled off-ramp) via templates/orders/track.php; order-tracking.js polls dd_get_order every 30s and stops on terminal status; server-side ownership gate mirrors ajax_get_order(). Resolved the [dish_dash_track] double-registration — DD_Orders_Module is now sole owner (removed the duplicate + dead shortcode_track() from DD_Menu_Module). Added track_order_view tracking schema. Guest tracking deferred. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -685,7 +685,8 @@ Every page before shipping must pass:
 | **v3.10.27** | ✅ **Done** | **Add padding: 4px 20px 8px to .dd-tier-hist so histogram bars/labels have horizontal breathing room** |
 | **v3.10.28** | ✅ **Done** | **Security fix — close IDOR on dd_get_order AJAX endpoint: ownership gate in ajax_get_order() (class-dd-orders-module.php), staff bypass via dd_manage_orders, customers restricted to own orders via customer_id === get_current_user_id(), guests refused** |
 | **v3.10.29** | ✅ **Done** | **Remove orphaned unauthenticated dd_cancel_order AJAX endpoint (write-path IDOR — zero callers, deregistered)** |
-| v3.10.30 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.30** | ✅ **Done** | **Customer order-tracking (logged-in): [dish_dash_track] live self-refreshing status timeline (polls dd_get_order, stops on terminal status); resolved [dish_dash_track] double-registration (Orders module sole owner); track_order_view schema added** |
+| v3.10.31 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)

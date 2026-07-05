@@ -19,8 +19,9 @@
  *
  * Shortcodes registered:
  *   [dish_dash_menu], [dish_dash_cart], [dish_dash_checkout],
- *   [dish_dash_reserve], [dish_dash_track] ⚠️, [dish_dash_account] ⚠️
- *   (⚠️ also registered by DD_Orders_Module — last one wins, see ARCHITECTURE.md)
+ *   [dish_dash_reserve], [dish_dash_account] ⚠️
+ *   (⚠️ [dish_dash_account] also registered by DD_Orders_Module — last one wins, see ARCHITECTURE.md)
+ *   ([dish_dash_track] removed here in v3.10.30 — DD_Orders_Module is now sole owner)
  *
  * AJAX actions registered:
  *   dd_menu_load_products (public — paginated product grid for desktop menu page)
@@ -49,7 +50,7 @@ class DD_Menu_Module extends DD_Module {
         add_shortcode( 'dish_dash_cart',     [ $this, 'shortcode_cart' ] );
         add_shortcode( 'dish_dash_checkout', [ $this, 'shortcode_checkout' ] );
         add_shortcode( 'dish_dash_reserve',  [ $this, 'shortcode_reserve' ] );
-        add_shortcode( 'dish_dash_track',    [ $this, 'shortcode_track' ] );
+        // [dish_dash_track] intentionally NOT registered here — DD_Orders_Module owns it (v3.10.30).
         add_shortcode( 'dish_dash_account',  [ $this, 'shortcode_account' ] );
 
         // Desktop menu page: conditional asset enqueue
@@ -454,22 +455,6 @@ class DD_Menu_Module extends DD_Module {
         return ob_get_clean();
     }
 
-
-    public function shortcode_track( $atts ): string {
-        ob_start();
-        $orders_url = function_exists( 'wc_get_account_url' )
-            ? wc_get_account_url( 'orders' )
-            : home_url( '/my-account/orders/' );
-        ?>
-        <div style="max-width:600px;margin:60px auto;padding:0 20px;text-align:center;">
-            <div style="font-size:48px;margin-bottom:16px;">&#128666;</div>
-            <h2 style="font-family:'Cormorant Garamond',serif;font-size:2rem;margin-bottom:12px;">Track Your Order</h2>
-            <p style="color:#6E5B4C;margin-bottom:28px;">View your order history and track current orders.</p>
-            <a href="<?php echo esc_url( $orders_url ); ?>" class="dd-btn dd-btn--brand" style="display:inline-flex;">View My Orders</a>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
 
     public function shortcode_account( $atts ): string {
         ob_start();

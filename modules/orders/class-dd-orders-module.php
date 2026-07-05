@@ -1643,8 +1643,72 @@ class DD_Orders_Module extends DD_Module {
     //  SHORTCODES
     // ─────────────────────────────────────────
     public function shortcode_track( $atts ): string {
-        $order_number = sanitize_text_field( $_GET['order'] ?? '' );
-        return $this->get_template( 'orders/track.php', [ 'order_number' => $order_number ] );
+        $account_url = function_exists( 'wc_get_account_url' )
+            ? wc_get_account_url()
+            : home_url( '/my-account/' );
+
+        // v1 — logged-in only.
+        if ( ! is_user_logged_in() ) {
+            return $this->get_template( 'orders/track.php', [
+                'state'       => 'guest',
+                'order'       => null,
+                'account_url' => $account_url,
+            ] );
+        }
+
+        global $wpdb;
+        $uid       = get_current_user_id();
+        $order     = null;
+        $requested = false; // whether the URL asked for a specific order
+
+        // Resolve the requested order: numeric id, or order_number, else most recent own order.
+        if ( isset( $_GET['order_id'] ) && is_numeric( $_GET['order_id'] ) ) {
+            $requested = true;
+            $order     = $this->get_order( absint( $_GET['order_id'] ) );
+        } elseif ( isset( $_GET['order'] ) && '' !== $_GET['order'] ) {
+            $requested    = true;
+            $order_number = sanitize_text_field( wp_unslash( $_GET['order'] ) );
+            $order        = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}dishdash_orders WHERE order_number = %s LIMIT 1",
+                $order_number
+            ) );
+        } else {
+            // No specific order requested — most recent non-test order owned by this user.
+            $order = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}dishdash_orders
+                 WHERE customer_id = %d AND is_test = 0
+                 ORDER BY id DESC LIMIT 1",
+                $uid
+            ) );
+        }
+
+        // Ownership gate — mirror ajax_get_order(): staff read any, customer reads own only.
+        // Do not leak existence: a failed gate is indistinguishable from "not found".
+        if ( $order && ! current_user_can( 'dd_manage_orders' ) && (int) $order->customer_id !== $uid ) {
+            $order = null;
+        }
+
+        if ( ! $order ) {
+            return $this->get_template( 'orders/track.php', [
+                'state'       => $requested ? 'notfound' : 'empty',
+                'order'       => null,
+                'account_url' => $account_url,
+            ] );
+        }
+
+        // Live order — enqueue the polling tracker and localise its config.
+        $this->enqueue_style( 'order-tracking', 'order-tracking.css' );
+        $this->enqueue_script( 'order-tracking', 'order-tracking.js', [], true );
+        wp_localize_script( 'dish-dash-order-tracking', 'ddTrackConfig', [
+            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'dish_dash_frontend' ),
+        ] );
+
+        return $this->get_template( 'orders/track.php', [
+            'state'       => 'ok',
+            'order'       => $order,
+            'account_url' => $account_url,
+        ] );
     }
 
     public function shortcode_account( $atts ): string {

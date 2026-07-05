@@ -104,6 +104,13 @@ return [
             'optional' => ['referrer'],
         ],
     ],
+    'track_order_view' => [
+        'current_version' => 1,
+        'metadata_schema' => [
+            'required' => ['order_id', 'status'],
+            'optional' => [],
+        ],
+    ],
     'reservation_made' => [
         'current_version' => 1,
         'metadata_schema' => [
