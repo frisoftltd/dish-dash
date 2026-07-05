@@ -1,199 +1,176 @@
-# Investigation — `render_order_history()` Ownership-Key Bug (READ-ONLY)
+# Investigation — `normalize_phone()` Trunk-0 Fix (READ-ONLY)
 
-Date: 2026-07-05. Working tree at v3.10.30 (`7198b98`). All findings from raw
-file reads / grep of the working tree.
+Date: 2026-07-05. Working tree v3.10.31 (`9d774d4`). No edits. Raw reads only.
 
-**Bug in one line:** customer-facing order queries filter
-`dishdash_orders.customer_id` (which stores the **WP user ID**) against
-`$customer->id` (the **`dishdash_customers` auto-increment PK**). Wrong key →
-wrong/empty results except by coincidence.
+**Bottom line:** the current output format for already-correct inputs is **bare
+`250XXXXXXXXX`** (12 digits, no `+`). The only defect is that the national trunk `0` is
+not stripped, so `0788123456` misses the `+250` path. The minimal, **format-preserving**
+fix strips a leading `0` from 10-digit input so it re-enters the existing 9-digit→`250…`
+branch. Do **not** switch to E.164 `+…` now — that would orphan every stored key until the
+backfill. Format change belongs to the library phase.
 
 ---
 
-## 1. The buggy query, verbatim
+## 1. The function verbatim
 
-**File:** `modules/profile/class-dd-profile-module.php:122-146`
+`modules/orders/class-dd-customer-manager.php:321-329`:
 ```php
-public function render_order_history(): void {
-    // Stop WooCommerce's default "no orders" output for this endpoint.
-    remove_all_actions( 'woocommerce_account_orders_endpoint' );
-
-    global $wpdb;
-    $user_id  = get_current_user_id();
-    $customer = DD_Customer_Manager::get_customer_for_user( $user_id );
-
-    echo '<div class="dd-order-history">';
-    echo '<h2 class="dd-order-history__title">Order history</h2>';
-
-    if ( ! $customer ) {
-        echo '<p class="dd-order-history__empty">Add your phone number on the ... My Profile ... page ...</p>';
-        echo '</div>';
-        return;
-    }
-
-    $orders = $wpdb->get_results( $wpdb->prepare(
-        "SELECT id, order_number, total, status, order_type, payment_method, created_at
-         FROM {$wpdb->prefix}dishdash_orders
-         WHERE customer_id = %d AND is_test = 0
-         ORDER BY id DESC
-         LIMIT 50",
-        (int) $customer->id            //  ← BUG: customers-table PK, not WP user ID
-    ) );
-    ...
+321  /**
+322   * Normalize phone to digits only with Rwanda prefix.
+323   */
+324  public static function normalize_phone( string $phone ): string {
+325      $digits = preg_replace( '/[^0-9]/', '', $phone );
+326      if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
+327      if ( strlen( $digits ) < 9 )  return '';
+328      return $digits;
+329  }
 ```
 
-**How the filter value is derived.**
-`DD_Customer_Manager::get_customer_for_user( $user_id )`
-(`modules/orders/class-dd-customer-manager.php:312-319`):
+Branch-by-branch on the raw digit string (`$digits`, after stripping all non-digits):
+
+| Input | `$digits` | len | Result | Correct? |
+|---|---|---|---|---|
+| `788123456` (bare 9) | `788123456` | 9 | `250788123456` | ✅ |
+| `+250 788 123 456` (has `+`, spaces) | `250788123456` | 12 | `250788123456` | ✅ |
+| `250788123456` (leading 250) | `250788123456` | 12 | `250788123456` | ✅ |
+| `0788123456` (leading 0) | `0788123456` | 10 | **`0788123456`** | ❌ trunk-0 not stripped |
+| `12345` (short) | `12345` | 5 | `''` | ✅ rejected |
+| `14155552671` (US, 11) | `14155552671` | 11 | `14155552671` | ⚠️ passes through, no country logic |
+
+So: `+`, embedded spaces, and a leading `250` all already collapse to bare `250…`. The
+**only** broken canonicalization is the leading-`0` national form (10 digits), which is left
+untouched and therefore never matches the `250…` key.
+
+**Canonical form the working cases produce today: bare `250` + 9 digits (12 digits, no `+`).**
+
+---
+
+## 2. All callers
+
+Grep `normalize_phone(` across the plugin — 4 call sites:
+
+| # | File:line | Method | Input | Output used as… |
+|---|---|---|---|---|
+| 1 | `modules/orders/class-dd-customer-manager.php:33` | `upsert()` | `$whatsapp` (order phone) | **identity key** — `WHERE whatsapp = %s` (`:40`) **and** stored `INSERT whatsapp` (`:69`) |
+| 2 | `class-dd-customer-manager.php:183` | `on_resolve_customer_id()` | `$whatsapp` | **identity key** — `WHERE whatsapp = %s` (`:188`) **and** stored `INSERT whatsapp` (`:196`) |
+| 3 | `class-dd-customer-manager.php:244` | `link_user_to_phone()` | `$phone` (profile input) | **identity key** — `WHERE whatsapp = %s` (`:255-256`), stored on `INSERT whatsapp` (`:289`), and `update_user_meta('dd_phone'/'billing_phone')` (`:299-300`) |
+| 4 | `modules/orders/class-dd-orders-module.php:136` | birthday-WhatsApp scheduler | `$whatsapp` | **presence/validity guard only** — `if ( ! $phone ) return;` (`:137`); not stored, not a match key |
+
+**Store-and-match confirmed for #1–#3.** Each uses the *same* `normalize_phone()` output to
+both look up and to persist `customers.whatsapp`. Therefore existing stored keys are in
+whatever format the function emitted at write time. Caller #4 only truthiness-checks the
+result, so it is format-insensitive.
+
+**Implication.** The fix must keep the identity-key callers (#1–#3) matching existing rows.
+A format-preserving trunk-0 fix does exactly that; a format *change* (to `+250…`) would break
+their `WHERE whatsapp = %s` against all previously stored `250…` values until a backfill runs.
+
+---
+
+## 3. The exact minimal change
+
+**Target canonical form (interim): keep the existing bare `250788123456`** (no `+`). This is
+what callers #1–#3 already stored for correctly-entered numbers, so keeping it means those
+rows keep matching. E.164 `+250…` is deferred to the library phase where the backfill rewrites
+all stored keys in one coordinated pass.
+
+**Smallest edit** — strip a single leading trunk `0` from 10-digit input *before* the existing
+9-digit check, so `0788123456` flows into the current `+250` branch:
+
 ```php
-public static function get_customer_for_user( int $user_id ) {
-    global $wpdb;
-    if ( ! $user_id ) return null;
-    $table = $wpdb->prefix . 'dishdash_customers';
-    return $wpdb->get_row( $wpdb->prepare(
-        "SELECT * FROM {$table} WHERE user_id = %d LIMIT 1", $user_id
-    ) );
+// BEFORE
+public static function normalize_phone( string $phone ): string {
+    $digits = preg_replace( '/[^0-9]/', '', $phone );
+    if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
+    if ( strlen( $digits ) < 9 )  return '';
+    return $digits;
+}
+
+// AFTER
+public static function normalize_phone( string $phone ): string {
+    $digits = preg_replace( '/[^0-9]/', '', $phone );
+    // National trunk prefix: 0788123456 (10) → 788123456 (9), then the +250 branch applies.
+    if ( strlen( $digits ) === 10 && $digits[0] === '0' ) {
+        $digits = substr( $digits, 1 );
+    }
+    if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
+    if ( strlen( $digits ) < 9 )  return '';
+    return $digits;
 }
 ```
-Returns the **`dishdash_customers` row**. So `$customer->id` is that table's
-auto-increment PK; the WP user ID is a **different** column, `$customer->user_id`.
-The query binds `$customer->id` → the wrong key.
 
-**Implication.** The bound value (`$customer->id`) is the commercial-record row PK,
-but `orders.customer_id` holds `get_current_user_id()`. Correct binding is
-`$user_id` (already computed at line 127) or `$customer->user_id`.
+- Output format **unchanged** for every currently-working case (still bare `250…`).
+- The only behavioral change: 10-digit leading-`0` input now yields `250…` instead of
+  `0788123456`. That is strictly an improvement — it *adds* matches to the existing `250…`
+  keyspace rather than moving the keyspace.
 
----
-
-## 2. The key mismatch, concretely (from `install.php`)
-
-**`dishdash_orders`** (`install.php:101-141`):
-```
-customer_id          BIGINT UNSIGNED          DEFAULT NULL,   (line 106)
-```
-Populated at order creation (`class-dd-orders-module.php:357`):
-```php
-'customer_id' => get_current_user_id() ?: null,
-```
-→ **holds the WP user ID** (or NULL for guests). Confirmed a second way by the
-`dd_get_order` ownership gate (`:1631`): `(int) $order->customer_id === get_current_user_id()`.
-
-**`dishdash_customers`** (`install.php:345-362`):
-```
-id       BIGINT UNSIGNED     NOT NULL AUTO_INCREMENT,   (line 346)  ← table PK
-user_id  BIGINT(20) UNSIGNED NULL DEFAULT NULL,         (line 347)  ← the WP user ID
-...
-PRIMARY KEY  (id),
-UNIQUE KEY   uniq_user_id (user_id)
-```
-
-**Unambiguous fix target:** compare `dishdash_orders.customer_id` against the
-**WP user ID** — i.e. `get_current_user_id()` / `$customer->user_id` — **never**
-`$customer->id`. The two coincide only when a user's customers-row PK happens to
-equal their WP user ID (early rows on a fresh install), which masks the bug in
-light testing.
+**Does stored data depend on the current format such that changing it orphans matches?**
+- The correctly-stored keys are already `250…`; the fix keeps emitting `250…`, so **they keep
+  matching** (no orphaning of the good rows).
+- The **previously mis-stored** `0788…` rows (written when trunk-0 slipped through) will *not*
+  match the new `250…` output — but they were already broken/duplicated. The fix doesn't create
+  new orphans of good data; it leaves the already-bad rows for the backfill to collapse.
+- Therefore: **format-preserving trunk-0-only fix now; defer any `+`/E.164 change to the
+  library+backfill phase.** This is the low-risk path.
 
 ---
 
-## 3. Every instance of this specific bug
+## 4. Test vectors the fix must satisfy
 
-Three query sites bind a customers-PK to `orders.customer_id`. All three are the
-same bug and are the full fix scope:
+Rwanda canonical target = **`250XXXXXXXXX`** (bare). All variants of one subscriber → one key:
 
-| # | File:line | Method | Query (WHERE) | Bound value |
-|---|---|---|---|---|
-| A | `modules/profile/class-dd-profile-module.php:139-146` | `render_order_history()` | `dishdash_orders … WHERE customer_id = %d AND is_test = 0 ORDER BY id DESC LIMIT 50` | `(int) $customer->id` |
-| B | `modules/orders/class-dd-customer-profile.php:100-112` | `DD_Customer_Profile::get()` — favorites | `… order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.customer_id = %d AND o.is_test = 0 AND o.status NOT IN ('cancelled') …` | `$customer_id = (int) $customer->id` (`:99`) |
-| C | `modules/orders/class-dd-customer-profile.php:122-131` | `DD_Customer_Profile::get()` — recent orders | `dishdash_orders WHERE customer_id = %d AND is_test = 0 AND status NOT IN ('cancelled') ORDER BY id DESC LIMIT 5` | `$customer_id = (int) $customer->id` (`:99`) |
+| Input | Expected output | Note |
+|---|---|---|
+| `0788123456` | `250788123456` | trunk-0 stripped → prefixed |
+| `250788123456` | `250788123456` | unchanged |
+| `+250788123456` | `250788123456` | `+` stripped |
+| `+250 788 123 456` | `250788123456` | spaces + `+` stripped |
+| `0788 123 456` | `250788123456` | spaces stripped, trunk-0 stripped |
+| `788123456` | `250788123456` | 9-digit branch |
+| `+250 787 538 546` (real, spaced) | `250787538546` | — |
+| `0787538546` (real) | `250787538546` | **matches the `+250 787…` variant** ✅ |
+| `250785553103` (real, no `+`) | `250785553103` | unchanged |
+| `+2507865340` (real, short/invalid) | `2507865340` | digits=`2507865340` (10, **not** leading `0`) → not trunk-stripped, not 9 → returned as-is. **Not** mangled into a false 12-digit match; stays a distinct, non-colliding (malformed) key. Acceptable — a fuller validity check is the library's job. |
+| `+1 415 555 2671` (US, non-RW) | `14155552671` | 11 digits → untouched, **no false 250 prefix** ✅ |
+| `+44 7911 123456` (UK, 12) | `447911123456` | untouched, no false prefix ✅ |
 
-B and C share the single wrong assignment at `class-dd-customer-profile.php:99`:
-```php
-$customer_id = (int) $customer->id;   // ← should be the WP user ID
+---
+
+## Proposed fix
+
+**Diff** (one file, `modules/orders/class-dd-customer-manager.php`, inside `normalize_phone()`):
+```diff
+     $digits = preg_replace( '/[^0-9]/', '', $phone );
++    // National trunk prefix: 0788123456 (10) → 788123456 (9), then the +250 branch applies.
++    if ( strlen( $digits ) === 10 && $digits[0] === '0' ) {
++        $digits = substr( $digits, 1 );
++    }
+     if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
+     if ( strlen( $digits ) < 9 )  return '';
+     return $digits;
 ```
+**Confirmed canonical output form (interim): bare `250` + 9 digits** (no `+`) — identical to
+what the working callers already store, so no format migration is triggered by this change.
 
-**Correct / NOT part of this bug (do not touch):**
-- `class-dd-orders-module.php:519` `get_orders()` generic `AND customer_id = %d` — its
-  callers all pass `get_current_user_id()` (`:1718` `shortcode_account`; the v3.10.30
-  tracker uses its own `$uid = get_current_user_id()` query at `:1679`). Correct.
-- `class-dd-orders-module.php:1631` `order_permission()` — uses `get_current_user_id()`. Correct.
-- `class-dd-profile-module.php:388` birthday save `$wpdb->update( ... [ 'id' => (int) $customer->id ] )`
-  — correctly targets the **customers** table by its own PK. Not an order query. Correct.
-- `class-dd-customer-manager.php` `[ 'id' => $existing->id ]` updates — operate on the
-  customers table by its PK. Correct.
+## Risks
 
-**Implication.** Fix exactly 3 query sites via 2 edits (the `$customer->id` bind in
-`render_order_history()`, and the single `$customer_id` assignment feeding B+C). Nothing
-else carries this bug.
+1. **No format-orphan for good data.** Output format is unchanged for all currently-working
+   inputs, so `upsert()`/`on_resolve_customer_id()`/`link_user_to_phone()` keep matching the
+   `250…` rows they already wrote. This is the key reason to do the trunk-0-only fix now and
+   defer the `+`/E.164 change to the backfill phase (where existing keys are rewritten in one
+   pass). Changing the format now instead would break `WHERE whatsapp = %s` against every stored
+   `250…` value until the backfill runs.
+2. **Previously mis-stored `0788…` rows stay unmatched until backfill.** The fix won't retro-match
+   rows that were saved in the broken trunk-0 format; those remain for the migration to collapse.
+   New activity for those subscribers now lands on the correct `250…` key (possibly creating one
+   more row to merge) — bounded, and exactly what the backfill handles.
+3. **Interim Rwanda assumption — flag for the library phase.** "10-digit leading-`0` ⇒ strip and
+   prefix `250`" is Rwanda-specific. A non-Rwandan 10-digit national number beginning with `0`
+   would be mis-prefixed to `250…`. Acceptable **only** because capture is currently Rwanda-only
+   (no country picker). This is precisely the limitation the libphonenumber phase removes; do not
+   generalize this heuristic by hand.
+4. **Non-Rwandan / malformed inputs pass through unhandled, not corrupted** (US 11-digit, UK
+   12-digit, short `2507865340`): none receive a false `250` prefix. They yield distinct
+   non-colliding keys rather than wrong matches — the intended interim behavior.
 
----
-
-## 4. The correct fix shape
-
-- **Filter value:** `orders.customer_id = get_current_user_id()` (WP user ID). In
-  `render_order_history()`, `$user_id` is already in scope (`:127`) — bind that. In
-  `DD_Customer_Profile::get()`, the method param `$user_id` is in scope — set
-  `$customer_id = $user_id;` (or bind `$user_id` directly).
-- **`is_test = 0`:** already present in all three queries — preserve.
-- **`ORDER BY … DESC` (newest first):** already present (`ORDER BY id DESC`) in A and C;
-  B is a favorites aggregate ordered by `times_ordered DESC` — preserve as-is.
-- **`status NOT IN ('cancelled')`:** present in B and C — preserve (favorites/recent-reorder
-  intentionally exclude cancelled). A (full history) intentionally includes all statuses —
-  preserve.
-- **Guest handling (`get_current_user_id() === 0`):** `render_order_history()` currently
-  gates on `if ( ! $customer )`. `DD_Customer_Profile::get()` already returns the empty
-  `$profile` early when `! $user_id` (`:70`). Note for the fix brief: once the queries key
-  off the WP user ID, they no longer *need* a linked `dishdash_customers` row to return the
-  user's own orders (orders are stamped with the WP user ID at creation regardless of phone
-  linking, v3.9.8). Whether to keep the "add your phone" gate as a precondition for showing
-  history, or show orders independent of phone-linking, is a **fix-brief design decision** —
-  flagged, not decided here.
-
-**Implication.** Minimal, safe change: swap the bound key. Behavior otherwise identical.
-The `if ( ! $customer )` / link gates can stay for v1 (smallest diff) or be revisited.
-
----
-
-## 5. Regression surface
-
-- **`render_order_history()`** is hooked at `class-dd-profile-module.php:38`:
-  `add_action( 'woocommerce_account_orders_endpoint', [ $this, 'render_order_history' ], 5 )`,
-  and calls `remove_all_actions( 'woocommerce_account_orders_endpoint' )` to suppress WC's
-  default. Its output is **echoed HTML only** — no downstream data consumer. The only
-  interactive element is the `.dd-reorder-btn` (reads `menu_item_id` from order items).
-  No code reads a return value or adapts to the (currently broken) result set.
-- **`DD_Customer_Profile::get()`** is consumed by `class-dd-profile-module.php:110`
-  (`$profile = DD_Customer_Profile::get( $user_id )`) and rendered by
-  `templates/profile/my-profile.php`. Crucially, the **stats shown on My Profile**
-  (`total_orders`, `total_spent`, `tier`, `member_since`) are read **directly from the
-  `dishdash_customers` row** (`class-dd-customer-profile.php:79-87`), **not** from the buggy
-  order queries — so those are already correct and **will not change**. Only `favorites`
-  and `recent_orders` derive from the buggy queries B/C; today they are effectively
-  empty/mismatched, and the fix will start populating them correctly.
-- **No compensating code found.** Nothing was written to expect the wrong key or the empty
-  favorites/recent lists; the independent stats path means no caller "adapted" to the bug.
-  Fixing it should only *add* correct data, not surprise an existing consumer.
-
-**Implication.** Low regression risk. Expected visible change post-fix: My-Account order
-history populates for logged-in customers who previously saw an empty/wrong list; My Profile
-favorites + reorder list populate. Profile stat tiles are unaffected (already correct).
-
----
-
-## Open questions / discrepancies
-
-1. **The bug exists in more places than the brief named.** Beyond
-   `render_order_history()` (site A), `DD_Customer_Profile::get()` carries it **twice**
-   (sites B favorites, C recent-orders), both from one `$customer->id` assignment
-   (`class-dd-customer-profile.php:99`). Recommend fixing all three in one release, as the
-   brief scopes ("all instances of THIS bug, only this bug").
-2. **Coincidental masking.** On a young single-restaurant install, early `customers.id`
-   values can equal their `user_id`, so the bug may appear to "work" for the first few users
-   and fail for later ones — consistent with intermittent reports.
-3. **Guest / phone-link gate is a design decision.** Post-fix, orders can be listed by WP
-   user ID without a linked `dishdash_customers` row. Keep the existing "add your phone"
-   gate (smallest diff) or decouple history from phone-linking? Fix brief to decide.
-4. **Do NOT over-fix.** `class-dd-profile-module.php:388` (birthday UPDATE by
-   `$customer->id`) and the `class-dd-customer-manager.php` customers-table updates correctly
-   use the customers PK — they are not this bug and must be left alone.
-
-**No code written. Not committed. Awaiting Phase 2 fix brief.**
+**No code written. Not committed. Awaiting the Phase 2 fix brief.**
