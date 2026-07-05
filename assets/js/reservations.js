@@ -69,6 +69,9 @@
       countryOrder:     ['rw', 'ke', 'ug', 'tz', 'bi'],
       nationalMode:     false,
       separateDialCode: true,
+      // Attach the fullscreen country popup to <body> for consistency with the
+      // cart picker (harmless here — no transformed ancestor to escape).
+      dropdownContainer: document.body,
       loadUtils:        vendor ? () => import(vendor) : undefined,
     });
     input.addEventListener('input', updateResPhoneHint);

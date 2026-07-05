@@ -549,6 +549,15 @@ body.dd-cart-open {
     .dd-checkout-wrap        { grid-template-columns: 1fr; }
     .dd-checkout-summary     { position: static; }
     .dd-form-row             { grid-template-columns: 1fr; }
+
+    /* Mobile anti-zoom: iOS Safari zooms any focused control < 16px. Keep the
+       phone input and the intl-tel-input country-search box (which v25 auto-
+       focuses when the dropdown opens) at 16px so tapping the flag opens the
+       picker instead of zooming the page. cart.css loads on every Dish Dash
+       frontend page, so .iti__search-input here covers all three picker
+       surfaces (cart drawer, My Profile, reservations). */
+    .dd-cform-group input[type="tel"] { font-size: 16px; }
+    .iti__search-input                { font-size: 16px; }
 }
 
 /* ── Cart item stepper + remove ─────────────────────────── */

@@ -541,6 +541,10 @@
             countryOrder:     [ 'rw', 'ke', 'ug', 'tz', 'bi' ],
             nationalMode:     false,
             separateDialCode: true,
+            // Attach the fullscreen country popup to <body> so its position:fixed
+            // overlay escapes the cart drawer's transform + overflow:hidden (which
+            // would otherwise trap/clip it inside the 420px drawer on mobile).
+            dropdownContainer: document.body,
             loadUtils:        vendor ? function () { return import( vendor ); } : undefined,
         } );
 

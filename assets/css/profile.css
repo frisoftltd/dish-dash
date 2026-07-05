@@ -284,6 +284,11 @@
         gap: 6px;
     }
     .woocommerce-account .woocommerce-MyAccount-content { padding: 22px; }
+
+    /* Mobile anti-zoom: keep the phone-connect input at 16px so iOS Safari does
+       not zoom the page when the field (or the picker's country-search box) is
+       focused. Was 0.95rem (~15.2px). */
+    .dd-profile__input { font-size: 16px; }
 }
 
 /* ── Order history ───────────────────────────────────────────────── */
