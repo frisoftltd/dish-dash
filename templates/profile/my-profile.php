@@ -117,11 +117,40 @@ $months = [ 1=>'January',2=>'February',3=>'March',4=>'April',5=>'May',6=>'June',
     var nonce   = wrap.dataset.nonce;
     var ajaxUrl = '<?php echo esc_js( admin_url( 'admin-ajax.php' ) ); ?>';
 
+    // Country-code picker (intl-tel-input, v3.10.33) on the phone-connect field.
+    // Bundle loads in the footer, so init after DOM is ready. E.164 is read via
+    // getNumber() at submit, with the raw trimmed value as fallback.
+    var itiProfile = null;
+    function ddInitProfilePicker() {
+        if ( itiProfile ) return;
+        if ( typeof window.intlTelInput !== 'function' ) return;
+        var input = document.getElementById( 'ddProfilePhone' );
+        if ( ! input ) return;
+        var vendor = ( window.ddIntlTel && window.ddIntlTel.utilsUrl ) || '';
+        itiProfile = window.intlTelInput( input, {
+            initialCountry:   'rw',
+            countryOrder:     [ 'rw', 'ke', 'ug', 'tz', 'bi' ],
+            nationalMode:     false,
+            separateDialCode: true,
+            loadUtils:        vendor ? function () { return import( vendor ); } : undefined
+        } );
+    }
+    if ( document.readyState === 'loading' ) {
+        document.addEventListener( 'DOMContentLoaded', ddInitProfilePicker );
+    } else {
+        ddInitProfilePicker();
+    }
+
     // Link phone
     var linkBtn = document.getElementById( 'ddProfileLinkBtn' );
     if ( linkBtn ) {
         linkBtn.addEventListener( 'click', function() {
-            var phone = ( document.getElementById( 'ddProfilePhone' ).value || '' ).trim();
+            var input = document.getElementById( 'ddProfilePhone' );
+            var raw   = ( input && input.value || '' ).trim();
+            var phone = raw;
+            if ( itiProfile && typeof itiProfile.getNumber === 'function' ) {
+                phone = itiProfile.getNumber() || raw;
+            }
             var msg   = document.getElementById( 'ddProfileLinkMsg' );
             if ( ! phone ) { msg.textContent = 'Please enter your phone number.'; return; }
             linkBtn.disabled = true;

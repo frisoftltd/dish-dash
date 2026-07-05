@@ -36,6 +36,14 @@ if ( ! isset( $dd_cart_count ) ) {
 }
 ?>
 
+<!-- intl-tel-input wraps its input in an .iti container (inline-block by
+     default). Keep the wrapped fields full-width like the plain inputs
+     they replace. Injected once here (cart drawer prints on every page). -->
+<style id="dd-iti-fix">
+.iti { width: 100%; }
+.dd-profile__link-row .iti { flex: 1; }
+</style>
+
 <!-- ══ CART OVERLAY ══════════════════════════════════════════ -->
 <div class="dd-cart-drawer-overlay" id="ddCartOverlay"></div>
 

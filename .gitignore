@@ -7,3 +7,8 @@ assets/css/*.min.css
 .DS_Store
 *.php.save
 VERSION
+
+# Whitelist vendored third-party assets (must ship in the release zip) —
+# these override the *.min.js / *.min.css ignore rules above.
+!assets/vendor/
+!assets/vendor/**

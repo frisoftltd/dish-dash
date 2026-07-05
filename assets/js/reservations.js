@@ -51,6 +51,35 @@
     bindNavigation();
     bindInputSync();
     initDepositBadge();
+    initPhonePicker();
+  }
+
+  // ── Phone picker (intl-tel-input, v3.10.33) ───────────────
+  // E.164 read via getNumber() at submit, raw trimmed value as fallback
+  // if the picker never initialized or utils.js hasn't loaded yet.
+  let itiWhatsapp = null;
+  function initPhonePicker() {
+    if (itiWhatsapp) return;
+    if (typeof window.intlTelInput !== 'function') return;
+    const input = document.getElementById('dd-res-whatsapp');
+    if (!input) return;
+    const vendor = (window.ddIntlTel && window.ddIntlTel.utilsUrl) || '';
+    itiWhatsapp = window.intlTelInput(input, {
+      initialCountry:   'rw',
+      countryOrder:     ['rw', 'ke', 'ug', 'tz', 'bi'],
+      nationalMode:     false,
+      separateDialCode: true,
+      loadUtils:        vendor ? () => import(vendor) : undefined,
+    });
+  }
+
+  function readPhone(inputEl, iti) {
+    const raw = inputEl ? inputEl.value.trim() : '';
+    if (iti && typeof iti.getNumber === 'function') {
+      const e164 = iti.getNumber();
+      if (e164) return e164;
+    }
+    return raw;
   }
 
   // ── Deposit badge on Screen 1 ─────────────────────────────
@@ -310,7 +339,7 @@
       if (!$('#dd-res-name')?.value.trim()) { alert('Please enter your name.'); return false; }
       if (!$('#dd-res-whatsapp')?.value.trim()) { alert('Please enter your WhatsApp number.'); return false; }
       state.name     = $('#dd-res-name').value.trim();
-      state.whatsapp = $('#dd-res-whatsapp').value.trim();
+      state.whatsapp = readPhone($('#dd-res-whatsapp'), itiWhatsapp);
       state.requests = $('#dd-res-requests')?.value.trim() || '';
     }
     return true;

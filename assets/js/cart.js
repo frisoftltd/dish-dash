@@ -523,6 +523,38 @@
         if ( panelEl ) panelEl.classList.remove( 'dd-cart-panel--hidden' );
     }
 
+    /* ── PHONE PICKER (intl-tel-input, v3.10.33) ────────────────
+       Attaches the country-code picker to the WhatsApp field. E.164
+       is read via iti.getNumber() at submit; if the picker never
+       initialized (or utils.js hasn't loaded yet) we fall back to the
+       raw trimmed field value — today's exact behavior. */
+    var itiWhatsapp = null;
+
+    function initPhonePicker() {
+        if ( itiWhatsapp ) return; // once
+        if ( typeof window.intlTelInput !== 'function' ) return;
+        var input = document.getElementById( 'ddFieldWhatsapp' );
+        if ( ! input ) return;
+        var vendor = ( window.ddIntlTel && window.ddIntlTel.utilsUrl ) || '';
+        itiWhatsapp = window.intlTelInput( input, {
+            initialCountry:   'rw',
+            countryOrder:     [ 'rw', 'ke', 'ug', 'tz', 'bi' ],
+            nationalMode:     false,
+            separateDialCode: true,
+            loadUtils:        vendor ? function () { return import( vendor ); } : undefined,
+        } );
+    }
+
+    // Read E.164 from the picker, or the raw trimmed value as fallback.
+    function readPhone( inputEl, iti ) {
+        var raw = inputEl ? inputEl.value.trim() : '';
+        if ( iti && typeof iti.getNumber === 'function' ) {
+            var e164 = iti.getNumber();
+            if ( e164 ) return e164;
+        }
+        return raw;
+    }
+
     // Proceed to checkout
     var checkoutBtn = document.getElementById( 'ddCartCheckout' );
     if ( checkoutBtn ) {
@@ -609,6 +641,9 @@
 
             showPanel( panelCheckout );
 
+            // Attach the country-code picker now that the field is visible.
+            initPhonePicker();
+
             // Scroll hint — reset to top so fade is visible
             var body = document.querySelector( '.dd-checkout-panel__body' );
             if ( body ) body.scrollTop = 0;
@@ -641,7 +676,7 @@
             if ( existingGenErr ) existingGenErr.remove();
 
             var name    = nameEl ? nameEl.value.trim() : '';
-            var wa      = waEl   ? waEl.value.trim()   : '';
+            var wa      = readPhone( waEl, itiWhatsapp );
             var addr    = addrEl ? addrEl.value.trim()  : '';
             var payment = pmEl   ? pmEl.value           : 'pay_on_delivery';
 

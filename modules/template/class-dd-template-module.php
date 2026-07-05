@@ -218,14 +218,37 @@ class DD_Template_Module extends DD_Module {
             }
         }
 
+        // ── intl-tel-input (self-hosted country-code picker, v3.10.33) ──
+        // Vendored under assets/vendor/. Loaded on every Dish Dash frontend page so
+        // the cart drawer, reservations modal, and My Profile phone inputs can attach
+        // the picker. utils.js is loaded lazily by the JS via loadUtils() (see below).
+        $itl_base = DD_ASSETS_URL . 'vendor/intl-tel-input';
+        wp_enqueue_style(
+            'dd-intl-tel-input',
+            $itl_base . '/css/intlTelInput.min.css',
+            [],
+            DD_VERSION
+        );
+        wp_enqueue_script(
+            'dd-intl-tel-input',
+            $itl_base . '/js/intlTelInput.min.js',
+            [],
+            DD_VERSION,
+            true
+        );
+        wp_localize_script( 'dd-intl-tel-input', 'ddIntlTel', [
+            'vendorUrl' => $itl_base,
+            'utilsUrl'  => $itl_base . '/js/utils.js',
+        ] );
+
         wp_enqueue_script( 'dish-dash-menu',     $this->asset_url( 'js', 'menu.js' ),     [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [ 'dd-intl-tel-input' ], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-search',   $this->asset_url( 'js', 'search.js' ),   [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search' ], DD_VERSION, true );
         wp_enqueue_script(
             'dish-dash-reservations',
             $this->asset_url( 'js', 'reservations.js' ),
-            [],
+            [ 'dd-intl-tel-input' ],
             DD_VERSION,
             true
         );

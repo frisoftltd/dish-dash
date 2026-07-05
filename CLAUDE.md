@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.32 (2026-07-05)
+> Last updated: v3.10.33 (2026-07-05)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.32 |
+| **Deployed version** | v3.10.33 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.33 — Phase 7C next (full-international phone rework + one-time normalization/dedupe backfill) |
-| **Last working state** | v3.10.32: normalize_phone() (class-dd-customer-manager.php) now strips the national trunk 0 from 10-digit Rwandan input (0788123456 → 788123456 → 250788123456) before the existing 9-digit→250 branch. Format-preserving (bare 250XXXXXXXXX, no +), so already-stored keys keep matching; 0788… and +250788… now resolve to one identity key, stopping new duplicate customer rows and failed phone-linking for the common case. Previously mis-stored 0788… rows stay unmatched until a later one-time backfill (deferred with the full-international/libphonenumber phase). |
+| **Next task** | v3.10.34 — Phase 7C next (R2/R3: full-international format flip via libphonenumber + one-time normalization/dedupe backfill) |
+| **Last working state** | v3.10.33 (R1): self-hosted intl-tel-input v25.3.1 country-code picker attached to the three live identity inputs — cart drawer (#ddFieldWhatsapp), My Profile connect (#ddProfilePhone), reservations (#dd-res-whatsapp). Config identical on all three: initialCountry rw, countryOrder [rw,ke,ug,tz,bi], nationalMode false, separateDialCode true, loadUtils () => import(local utils.js). Each submit reads iti.getNumber() (E.164) with graceful fallback to raw .value.trim() when the picker didn't init or utils.js hasn't loaded yet — so a missing/failed bundle degrades to prior behavior. Enqueued via class-dd-template-module.php on all DD frontend pages; vendored under assets/vendor/intl-tel-input/ (.gitignore whitelisted so *.min rules don't drop them). BEHAVIOR-NEUTRAL SERVER-SIDE: normalize_phone() and stored format untouched (+250788… collapses to the same 250788… key). NOTE: v25 required loadUtils as a function returning a promise (utils.js is an ES module) — the brief's string-path form throws; adapted to import(). Format flip + backfill deferred to R2/R3. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -688,7 +688,8 @@ Every page before shipping must pass:
 | **v3.10.30** | ✅ **Done** | **Customer order-tracking (logged-in): [dish_dash_track] live self-refreshing status timeline (polls dd_get_order, stops on terminal status); resolved [dish_dash_track] double-registration (Orders module sole owner); track_order_view schema added** |
 | **v3.10.31** | ✅ **Done** | **Fix order-history ownership-key bug (3 sites): order queries bind WP user ID (get_current_user_id()) not the customers-table PK — render_order_history() + DD_Customer_Profile::get() favorites/recent-orders now correct** |
 | **v3.10.32** | ✅ **Done** | **normalize_phone() strips national trunk 0 (10-digit leading-0 → +250 keyspace); format-preserving bare 250…; 0788… and +250788… now one identity key — stops new duplicate customers + failed linking. Backfill of legacy 0788… rows deferred to full-international phase** |
-| v3.10.33 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.33** | ✅ **Done** | **R1 — self-hosted intl-tel-input v25.3.1 country-code picker on cart drawer, My Profile connect, and reservations; getNumber() E.164 with raw fallback; initialCountry rw, EAC neighbors prioritized, separateDialCode; vendored under assets/vendor/ (.gitignore whitelisted); behavior-neutral server-side (normalize_phone + stored format unchanged)** |
+| v3.10.34 | ⏳ **NEXT** | Phase 7C next (R2/R3 — format flip + backfill) |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
