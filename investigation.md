@@ -1,88 +1,199 @@
-# Investigation — v3.10.29 ajax_cancel_order write-path IDOR
+# Investigation — `render_order_history()` Ownership-Key Bug (READ-ONLY)
 
-READ ONLY. No PHP edited, no version bump.
+Date: 2026-07-05. Working tree at v3.10.30 (`7198b98`). All findings from raw
+file reads / grep of the working tree.
 
-## Raw command output
+**Bug in one line:** customer-facing order queries filter
+`dishdash_orders.customer_id` (which stores the **WP user ID**) against
+`$customer->id` (the **`dishdash_customers` auto-increment PK**). Wrong key →
+wrong/empty results except by coincidence.
 
-```
---- ajax_cancel_order body ---
-    public function ajax_cancel_order(): void {
-        DD_Ajax::verify_nonce();
-        $order_id = absint( $_POST['order_id'] ?? 0 );
-        $result   = $this->update_status( $order_id, 'cancelled' );
+---
 
-        if ( ! $result ) {
-            $this->json_error( __( 'Cannot cancel this order.', 'dish-dash' ) );
-        }
+## 1. The buggy query, verbatim
 
-        $this->json_success( null, __( 'Order cancelled.', 'dish-dash' ) );
+**File:** `modules/profile/class-dd-profile-module.php:122-146`
+```php
+public function render_order_history(): void {
+    // Stop WooCommerce's default "no orders" output for this endpoint.
+    remove_all_actions( 'woocommerce_account_orders_endpoint' );
+
+    global $wpdb;
+    $user_id  = get_current_user_id();
+    $customer = DD_Customer_Manager::get_customer_for_user( $user_id );
+
+    echo '<div class="dd-order-history">';
+    echo '<h2 class="dd-order-history__title">Order history</h2>';
+
+    if ( ! $customer ) {
+        echo '<p class="dd-order-history__empty">Add your phone number on the ... My Profile ... page ...</p>';
+        echo '</div>';
+        return;
     }
---- how dd_cancel_order is registered (nonce + nopriv) ---
-modules/orders/class-dd-orders-module.php:19: *   - assets/js/cart.js (calls dd_place_order, dd_get_order, dd_cancel_order)
-modules/orders/class-dd-orders-module.php:29: *   dd_cancel_order (public), dd_update_status (admin only)
-modules/orders/class-dd-orders-module.php:78:        DD_Ajax::register( 'dd_cancel_order',      [ $this, 'ajax_cancel_order' ] );
-modules/orders/class-dd-orders-module.php:1350:    public function ajax_cancel_order(): void {
---- update_status signature (does it check status before cancelling?) ---
-    public function update_status( int $order_id, string $new_status ): bool {
-        global $wpdb;
 
-        $order = $this->get_order( $order_id );
-        if ( ! $order ) return false;
-
-        $old_status = $order->status;
-
-        // Validate transition
-        $allowed = dd_order_status_transitions()[ $old_status ] ?? [];
-        if ( ! in_array( $new_status, $allowed, true ) ) {
-            return false;
-        }
-        ... (timestamp column selection + $wpdb->update) ...
+    $orders = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id, order_number, total, status, order_type, payment_method, created_at
+         FROM {$wpdb->prefix}dishdash_orders
+         WHERE customer_id = %d AND is_test = 0
+         ORDER BY id DESC
+         LIMIT 50",
+        (int) $customer->id            //  ← BUG: customers-table PK, not WP user ID
+    ) );
+    ...
 ```
 
-### Registration / nonce / transition map (supporting)
-
+**How the filter value is derived.**
+`DD_Customer_Manager::get_customer_for_user( $user_id )`
+(`modules/orders/class-dd-customer-manager.php:312-319`):
+```php
+public static function get_customer_for_user( int $user_id ) {
+    global $wpdb;
+    if ( ! $user_id ) return null;
+    $table = $wpdb->prefix . 'dishdash_customers';
+    return $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE user_id = %d LIMIT 1", $user_id
+    ) );
+}
 ```
-DD_Ajax::register( string $action, callable $callback, bool $nopriv = true )   // default nopriv = TRUE
-verify_nonce( string $field = 'nonce', string $action = 'dish_dash_frontend' ) // default action = dish_dash_frontend
+Returns the **`dishdash_customers` row**. So `$customer->id` is that table's
+auto-increment PK; the WP user ID is a **different** column, `$customer->user_id`.
+The query binds `$customer->id` → the wrong key.
 
-Line 78:  DD_Ajax::register( 'dd_cancel_order', [ $this, 'ajax_cancel_order' ] );        // 3rd arg omitted -> nopriv = true
-Line 79:  DD_Ajax::register( 'dd_update_status', [ $this, 'ajax_update_status' ], false ); // admin path, nopriv = false
+**Implication.** The bound value (`$customer->id`) is the commercial-record row PK,
+but `orders.customer_id` holds `get_current_user_id()`. Correct binding is
+`$user_id` (already computed at line 127) or `$customer->user_id`.
 
-dd_order_status_transitions():
-    'pending'   => [ 'confirmed', 'cancelled' ],
-    'confirmed' => [ 'ready', 'cancelled' ],
-    'ready'     => [ 'delivered', 'cancelled' ],
-    'delivered' => [ 'ready' ],
-    'cancelled' => [ 'pending' ],
+---
+
+## 2. The key mismatch, concretely (from `install.php`)
+
+**`dishdash_orders`** (`install.php:101-141`):
+```
+customer_id          BIGINT UNSIGNED          DEFAULT NULL,   (line 106)
+```
+Populated at order creation (`class-dd-orders-module.php:357`):
+```php
+'customer_id' => get_current_user_id() ?: null,
+```
+→ **holds the WP user ID** (or NULL for guests). Confirmed a second way by the
+`dd_get_order` ownership gate (`:1631`): `(int) $order->customer_id === get_current_user_id()`.
+
+**`dishdash_customers`** (`install.php:345-362`):
+```
+id       BIGINT UNSIGNED     NOT NULL AUTO_INCREMENT,   (line 346)  ← table PK
+user_id  BIGINT(20) UNSIGNED NULL DEFAULT NULL,         (line 347)  ← the WP user ID
+...
+PRIMARY KEY  (id),
+UNIQUE KEY   uniq_user_id (user_id)
 ```
 
-### Frontend caller search (repo-wide)
+**Unambiguous fix target:** compare `dishdash_orders.customer_id` against the
+**WP user ID** — i.e. `get_current_user_id()` / `$customer->user_id` — **never**
+`$customer->id`. The two coincide only when a user's customers-row PK happens to
+equal their WP user ID (early rows on a fresh install), which masks the bug in
+light testing.
 
+---
+
+## 3. Every instance of this specific bug
+
+Three query sites bind a customers-PK to `orders.customer_id`. All three are the
+same bug and are the full fix scope:
+
+| # | File:line | Method | Query (WHERE) | Bound value |
+|---|---|---|---|---|
+| A | `modules/profile/class-dd-profile-module.php:139-146` | `render_order_history()` | `dishdash_orders … WHERE customer_id = %d AND is_test = 0 ORDER BY id DESC LIMIT 50` | `(int) $customer->id` |
+| B | `modules/orders/class-dd-customer-profile.php:100-112` | `DD_Customer_Profile::get()` — favorites | `… order_items oi JOIN orders o ON o.id=oi.order_id WHERE o.customer_id = %d AND o.is_test = 0 AND o.status NOT IN ('cancelled') …` | `$customer_id = (int) $customer->id` (`:99`) |
+| C | `modules/orders/class-dd-customer-profile.php:122-131` | `DD_Customer_Profile::get()` — recent orders | `dishdash_orders WHERE customer_id = %d AND is_test = 0 AND status NOT IN ('cancelled') ORDER BY id DESC LIMIT 5` | `$customer_id = (int) $customer->id` (`:99`) |
+
+B and C share the single wrong assignment at `class-dd-customer-profile.php:99`:
+```php
+$customer_id = (int) $customer->id;   // ← should be the WP user ID
 ```
---- repo-wide search for dd_cancel_order string (excluding class-dd-orders-module.php) ---
-(no matches)
---- 'cancel' in cart.js / admin.js ---
-assets/js/cart.js:69   '<button class="dd-momo-cancel" id="ddMomoCancel" ...>Cancel</button>'   (payment polling cancel)
-assets/js/cart.js:93   '<button class="dd-momo-cancel" id="ddIremboCancel" ...>Cancel</button>'  (payment polling cancel)
-assets/js/cart.js:113  '<button class="dd-momo-cancel" id="ddPesaPalCancel" ...>Cancel</button>' (payment polling cancel)
-assets/js/cart.js:239-250, 749-778  -> stop polling / return to checkout panel; NONE post to dd_cancel_order
-assets/js/admin.js:123 comment only
-```
 
-## The 4 answers
+**Correct / NOT part of this bug (do not touch):**
+- `class-dd-orders-module.php:519` `get_orders()` generic `AND customer_id = %d` — its
+  callers all pass `get_current_user_id()` (`:1718` `shortcode_account`; the v3.10.30
+  tracker uses its own `$uid = get_current_user_id()` query at `:1679`). Correct.
+- `class-dd-orders-module.php:1631` `order_permission()` — uses `get_current_user_id()`. Correct.
+- `class-dd-profile-module.php:388` birthday save `$wpdb->update( ... [ 'id' => (int) $customer->id ] )`
+  — correctly targets the **customers** table by its own PK. Not an order query. Correct.
+- `class-dd-customer-manager.php` `[ 'id' => $existing->id ]` updates — operate on the
+  customers table by its PK. Correct.
 
-**1. Does `ajax_cancel_order` have ANY `current_user_can()` check? Any ownership check?**
-No to both. The method body is: verify a shared frontend nonce, read `order_id` from `$_POST`, call `update_status( $order_id, 'cancelled' )`, return. There is **no `current_user_can()` capability check** and **no ownership check** (no comparison of `$order->customer_id` to `get_current_user_id()`). This is the same IDOR class as the v3.10.28 `dd_get_order` bug, but on a **write path** (it mutates order state), which is more severe than a read.
+**Implication.** Fix exactly 3 query sites via 2 edits (the `$customer->id` bind in
+`render_order_history()`, and the single `$customer_id` assignment feeding B+C). Nothing
+else carries this bug.
 
-**2. What nonce does it verify — `dish_dash_frontend` or `dish_dash_admin`? Is it registered nopriv (guests reachable)?**
-It calls `DD_Ajax::verify_nonce()` with no arguments, so it verifies the **`dish_dash_frontend`** action (the method default), field `nonce`. `dish_dash_frontend` is a shared, non-user-specific nonce rendered on public pages, so it does not bind the request to any identity. Registration at line 78 omits the third `$nopriv` argument, which **defaults to `true`** → `wp_ajax_nopriv_dd_cancel_order` is registered, so **guests are reachable** (any visitor holding a valid public frontend nonce can call it).
+---
 
-**3. Where is Cancel called from in the frontend — legitimate customer cancel path, or admin-only UI?**
-**Neither — there is no caller at all.** A repo-wide search for `dd_cancel_order` across `.js`, `.php`, and `.html` returns zero matches outside the handler/its own doc comments. The only "Cancel" buttons in the frontend (`cart.js` lines 69/93/113 — `ddMomoCancel`, `ddIremboCancel`, `ddPesaPalCancel`) are **payment-polling cancel buttons**: their handlers stop the status-polling interval and return the user to the checkout panel; none POST to `dd_cancel_order`. Admin order cancellation goes through the separate, properly-gated **`dd_update_status`** endpoint (registered `nopriv=false`, and `ajax_update_status` checks `current_user_can('dd_manage_orders')`). So `dd_cancel_order` is an **orphaned/dead public endpoint** — there is no legitimate customer cancel path wired to it, yet it remains registered and reachable (including nopriv) by anyone who submits an `order_id`.
+## 4. The correct fix shape
 
-**4. Does `update_status` restrict which statuses can transition to cancelled?**
-Yes — partially. `update_status()` validates the transition against `dd_order_status_transitions()` and returns `false` (no change) if `new_status` is not in the allowed set for the current status. For `cancelled`, the allowed source states are **`pending`, `confirmed`, and `ready`**. A **`delivered` order cannot be cancelled** (delivered only allows → `ready`), and an already-`cancelled` order cannot be re-cancelled (only → `pending`). So the transition map limits the blast radius to non-terminal orders — but it provides **no authorization**: any pending/confirmed/ready order can be cancelled by **anyone** (guest or any logged-in user) who knows or guesses its numeric `id`. This is a live, unauthenticated order-cancellation IDOR.
+- **Filter value:** `orders.customer_id = get_current_user_id()` (WP user ID). In
+  `render_order_history()`, `$user_id` is already in scope (`:127`) — bind that. In
+  `DD_Customer_Profile::get()`, the method param `$user_id` is in scope — set
+  `$customer_id = $user_id;` (or bind `$user_id` directly).
+- **`is_test = 0`:** already present in all three queries — preserve.
+- **`ORDER BY … DESC` (newest first):** already present (`ORDER BY id DESC`) in A and C;
+  B is a favorites aggregate ordered by `times_ordered DESC` — preserve as-is.
+- **`status NOT IN ('cancelled')`:** present in B and C — preserve (favorites/recent-reorder
+  intentionally exclude cancelled). A (full history) intentionally includes all statuses —
+  preserve.
+- **Guest handling (`get_current_user_id() === 0`):** `render_order_history()` currently
+  gates on `if ( ! $customer )`. `DD_Customer_Profile::get()` already returns the empty
+  `$profile` early when `! $user_id` (`:70`). Note for the fix brief: once the queries key
+  off the WP user ID, they no longer *need* a linked `dishdash_customers` row to return the
+  user's own orders (orders are stamped with the WP user ID at creation regardless of phone
+  linking, v3.9.8). Whether to keep the "add your phone" gate as a precondition for showing
+  history, or show orders independent of phone-linking, is a **fix-brief design decision** —
+  flagged, not decided here.
 
-## Recommendation (for the fix brief — not applied here)
+**Implication.** Minimal, safe change: swap the bound key. Behavior otherwise identical.
+The `if ( ! $customer )` / link gates can stay for v1 (smallest diff) or be revisited.
 
-Apply the same ownership gate pattern as v3.10.28 `ajax_get_order`, OR — since there is **no legitimate frontend caller** — consider deregistering the endpoint entirely (remove line 78) and, if a real customer-cancel feature is ever needed, add it deliberately with an ownership check. At minimum: fetch the order, then `if ( ! current_user_can('dd_manage_orders') ) { require $uid && (int)$order->customer_id === $uid, else json_error }`, and set `nopriv=false` on registration.
+---
+
+## 5. Regression surface
+
+- **`render_order_history()`** is hooked at `class-dd-profile-module.php:38`:
+  `add_action( 'woocommerce_account_orders_endpoint', [ $this, 'render_order_history' ], 5 )`,
+  and calls `remove_all_actions( 'woocommerce_account_orders_endpoint' )` to suppress WC's
+  default. Its output is **echoed HTML only** — no downstream data consumer. The only
+  interactive element is the `.dd-reorder-btn` (reads `menu_item_id` from order items).
+  No code reads a return value or adapts to the (currently broken) result set.
+- **`DD_Customer_Profile::get()`** is consumed by `class-dd-profile-module.php:110`
+  (`$profile = DD_Customer_Profile::get( $user_id )`) and rendered by
+  `templates/profile/my-profile.php`. Crucially, the **stats shown on My Profile**
+  (`total_orders`, `total_spent`, `tier`, `member_since`) are read **directly from the
+  `dishdash_customers` row** (`class-dd-customer-profile.php:79-87`), **not** from the buggy
+  order queries — so those are already correct and **will not change**. Only `favorites`
+  and `recent_orders` derive from the buggy queries B/C; today they are effectively
+  empty/mismatched, and the fix will start populating them correctly.
+- **No compensating code found.** Nothing was written to expect the wrong key or the empty
+  favorites/recent lists; the independent stats path means no caller "adapted" to the bug.
+  Fixing it should only *add* correct data, not surprise an existing consumer.
+
+**Implication.** Low regression risk. Expected visible change post-fix: My-Account order
+history populates for logged-in customers who previously saw an empty/wrong list; My Profile
+favorites + reorder list populate. Profile stat tiles are unaffected (already correct).
+
+---
+
+## Open questions / discrepancies
+
+1. **The bug exists in more places than the brief named.** Beyond
+   `render_order_history()` (site A), `DD_Customer_Profile::get()` carries it **twice**
+   (sites B favorites, C recent-orders), both from one `$customer->id` assignment
+   (`class-dd-customer-profile.php:99`). Recommend fixing all three in one release, as the
+   brief scopes ("all instances of THIS bug, only this bug").
+2. **Coincidental masking.** On a young single-restaurant install, early `customers.id`
+   values can equal their `user_id`, so the bug may appear to "work" for the first few users
+   and fail for later ones — consistent with intermittent reports.
+3. **Guest / phone-link gate is a design decision.** Post-fix, orders can be listed by WP
+   user ID without a linked `dishdash_customers` row. Keep the existing "add your phone"
+   gate (smallest diff) or decouple history from phone-linking? Fix brief to decide.
+4. **Do NOT over-fix.** `class-dd-profile-module.php:388` (birthday UPDATE by
+   `$customer->id`) and the `class-dd-customer-manager.php` customers-table updates correctly
+   use the customers PK — they are not this bug and must be left alone.
+
+**No code written. Not committed. Awaiting Phase 2 fix brief.**
