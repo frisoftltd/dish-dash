@@ -1,176 +1,221 @@
-# Investigation — `normalize_phone()` Trunk-0 Fix (READ-ONLY)
+# Investigation — Identity Unification (libphonenumber + intl-tel-input) — READ-ONLY plan
 
-Date: 2026-07-05. Working tree v3.10.31 (`9d774d4`). No edits. Raw reads only.
-
-**Bottom line:** the current output format for already-correct inputs is **bare
-`250XXXXXXXXX`** (12 digits, no `+`). The only defect is that the national trunk `0` is
-not stripped, so `0788123456` misses the `+250` path. The minimal, **format-preserving**
-fix strips a leading `0` from 10-digit input so it re-enters the existing 9-digit→`250…`
-branch. Do **not** switch to E.164 `+…` now — that would orphan every stored key until the
-backfill. Format change belongs to the library phase.
+Date: 2026-07-05. Working tree v3.10.32 (`0fea04a`). No edits, no installs. Survey + sequenced
+build plan only. All facts from raw reads/grep.
 
 ---
 
-## 1. The function verbatim
+## Part A — Capture surfaces (every place a phone is entered)
 
-`modules/orders/class-dd-customer-manager.php:321-329`:
-```php
-321  /**
-322   * Normalize phone to digits only with Rwanda prefix.
-323   */
-324  public static function normalize_phone( string $phone ): string {
-325      $digits = preg_replace( '/[^0-9]/', '', $phone );
-326      if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
-327      if ( strlen( $digits ) < 9 )  return '';
-328      return $digits;
-329  }
+**A1 — Order capture (two surfaces).**
+- **`/checkout/` page** — `templates/checkout/checkout.php:100-102`:
+  `<input type="tel" name="customer_phone" required />` (no pattern/picker). Bound by
+  `assets/js/cart.js` (header comment `checkout.php:12`).
+- **Cart drawer** — field `#ddFieldWhatsapp` (`cart.js:631`), read `:644`
+  `wa = waEl.value.trim()`, non-empty-validated `:654`, submitted as `whatsapp` in the
+  `dd_place_order` payload (`:682-687`).
+- **Server landing:** `DD_Orders_Module::place_order()` — `class-dd-orders-module.php:359`
+  `'customer_phone' => sanitize_text_field( $data['customer_phone'] )` → stored **raw** on the
+  order row (no normalization). The identity key is derived separately by `upsert()` (post-order).
+
+**A2 — Profile "connect your phone".**
+- Markup `templates/profile/my-profile.php:23`:
+  `<input type="tel" id="ddProfilePhone" placeholder="07XX XXX XXX" inputmode="numeric">`.
+- JS `:123-139` → POST `dd_profile_link_phone` (`phone`, nonce).
+- Handler `DD_Profile_Module::ajax_link_phone()` — `class-dd-profile-module.php:399-413`:
+  `check_ajax_referer('dd_profile','nonce')` → `DD_Customer_Manager::link_user_to_phone($user_id,$phone,$name)`.
+
+**A3 — Other surfaces (grepped).**
+- **Reservations modal (THIRD capture surface)** — `templates/reservations/modal.php:98-100`:
+  `<input type="tel" id="dd-res-whatsapp" name="dd_whatsapp" placeholder="+250 78 000 0000" required>`.
+  Submits to the reservations module, which resolves identity via
+  `apply_filters('dd_resolve_customer_id', 0, $whatsapp, $name)`
+  (`class-dd-reservations-module.php:82`) → `on_resolve_customer_id()` → `normalize_phone()`.
+- **MoMo payment sub-field** — `#ddMomoPhone` (`cart.js:574`, placeholder `e.g. 0788 123 456`),
+  read `:667`, sent as `momo_phone`; used by the MoMo gateway (`class-dd-orders-module.php:818`),
+  **not** an identity key. (Should still get the picker for UX consistency, but is out of the
+  identity path.)
+- **Display-only (no capture)** — `wa.me` links in `class-dd-notifications.php:252,:472`,
+  `my-profile.php:100`, and a `tel:` link in `class-dd-template-module.php:843`. These strip to
+  digits for URLs; unaffected by identity normalization but should be re-derived from the E.164
+  key post-migration for consistency.
+- **No admin manual order-entry surface** (POS module is commented out in the loader).
+
+**Capture inventory for intl-tel-input:** checkout `customer_phone`, cart `#ddFieldWhatsapp`,
+reservations `#dd-res-whatsapp`, profile `#ddProfilePhone` (+ optional MoMo `#ddMomoPhone`).
+**Server normalize-on-submit points:** `place_order()` (add normalization of `customer_phone`),
+`upsert()`, `on_resolve_customer_id()`, `link_user_to_phone()` — all already funnel through
+`normalize_phone()` except the raw order-row store at `:359`.
+
+---
+
+## Part B — intl-tel-input integration (front end)
+
+**B1 — Current enqueue pattern.** Frontend JS/CSS is enqueued via `wp_enqueue_script/style` with
+`DD_ASSETS_URL . "js|css/{file}"` — see `DD_Module::enqueue_script()`
+(`dishdash-core/class-dd-module.php:99-107`), `DD_Frontend::enqueue_assets()`
+(`frontend/class-dd-frontend.php:50`), and `DD_Template_Module::enqueue_frontend_assets()`.
+No build step, no jQuery, no `asset_url()` (that helper was removed in v3.10.20 — minification is
+gone; sources are served directly). **Slot-in for intl-tel-input v17+:** vendor the UMD build into
+`assets/vendor/intl-tel-input/` (`intlTelInput.min.js`, `intlTelInput.css`, `utils.js`, and the flag
+`img/` or CSS sprite), and enqueue them from the same module that enqueues `cart.js` (Template
+module) + wherever profile/reservations assets load. **The `utils.js` (formatting/validation, which
+embeds libphonenumber-js) CAN be self-hosted** — pass `loadUtils`/`utilsScript` to the vendored file
+instead of the CDN. No runtime CDN dependency; consistent with LiteSpeed/self-host posture.
+⚠️ `.gitignore` currently ignores `*.min.js`/`*.min.css` (lines 2-5) — **the vendored
+`intlTelInput.min.*` files would be gitignored and silently excluded**; the enqueue must reference
+non-min filenames, or `.gitignore` must whitelist `assets/vendor/**`. Flag for the build phase.
+
+**B2 — E.164 hand-off on submit.** intl-tel-input exposes `iti.getNumber()` →
+full E.164 string (e.g. `+250788123456`), and `iti.isValidNumber()`. Wiring (no build step): on
+each form's submit/place-order handler, before building the AJAX payload, read `iti.getNumber()`
+and write it into the value that currently gets sent (`wa`, `customer_phone`, `dd_whatsapp`,
+`ddProfilePhone`), e.g. via a hidden field or by replacing the variable read at `cart.js:644`.
+Plain `addEventListener` on the existing submit path — no bundler.
+
+**B3 — UX / edge concerns.** Default country = Rwanda (`initialCountry:"rw"`,
+`countrySearch`, and geo-IP lookup optional). Invalid input → `isValidNumber()` false; must show a
+field error and block submit (coexists with the existing vanilla non-empty checks — extend them,
+don't replace). Mobile: `type="tel"` keypad stays; intl-tel-input adds the flag dropdown and live
+formatting. It must not double-submit both the formatted display value and the E.164 — always send
+`getNumber()`. Keep graceful degradation: if the vendored JS fails to load, fall back to the raw
+input + server-side normalization so checkout never blocks.
+
+---
+
+## Part C — libphonenumber integration (server)
+
+**C1 — Introducing Composer.** No `composer.json` exists (confirmed — Glob `**/composer.json` →
+none). Plan: add `composer.json` + `composer.lock` at repo root; run `composer install` **locally**;
+**commit the resulting `vendor/`**; `require_once __DIR__ . '/vendor/autoload.php';` guarded in
+`dish-dash.php` before modules load. Because the release workflow does not run Composer (Part C3),
+`vendor/` **must** be committed — nothing installs on the server. Package choice: **use
+`giggsey/libphonenumber-for-php-lite`** — it drops geocoder/carrier/timezone metadata and keeps
+`PhoneNumberUtil::parse/isValidNumber/format`, which is all we need (E.164 in/out + validity). Full
+package is several MB; `-lite` is substantially smaller but still the heaviest thing in the repo.
+Report/decision point: confirm `-lite` includes core parse+format for all regions (it does — it
+only strips the auxiliary metadata), so it covers our needs.
+
+**C2 — Reworking `normalize_phone()` — the format flip.** New body: `parse($input, $regionHint)`
+where `$regionHint` comes from the picker's selected country (default `RW`), then
+`format(E164)` → `+250788123456`; on `NumberParseException`/invalid, return `''`. **This CHANGES the
+canonical output from bare `250…` to `+250…`.** Every identity site is affected because each both
+*stores* and *matches* on this output:
+- `upsert()` `:33/:40/:69`, `on_resolve_customer_id()` `:183/:188/:196`,
+  `link_user_to_phone()` `:244/:255/:289` — all write `customers.whatsapp` and look up
+  `WHERE whatsapp = %s` using the function's return value.
+- Existing stored keys are bare `250…` (and some broken `0788…`). The moment the function emits
+  `+250…`, **`WHERE whatsapp = %s` stops matching every existing row** until those rows are rewritten.
+  → **The format flip and the Part D backfill MUST ship in the same coordinated release** (or behind
+  the same migration guard). You cannot flip the format without simultaneously migrating stored keys.
+
+**C3 — GitHub Actions / vendor-in-zip (LOUD FLAG).** `.github/workflows/release.yml` zips the
+**checked-out git tree** via `rsync` and has **no `composer install` step**. Its excludes are
+`.git`, `.github`, `.gitignore`, `node_modules`, `*.md`, `tests` — **`vendor/` is NOT excluded**, so
+a committed `vendor/` **will** be bundled. Consequences:
+- **`vendor/` must be committed** (the workflow can't generate it). If it's missing or gitignored,
+  the zip ships without it and the plugin **fatals on load** at `require vendor/autoload.php`.
+- The `--exclude='*.md'` and `--exclude='tests'` rules will strip markdown/test dirs *inside*
+  vendor packages — harmless for runtime, but ensure no package needs a `*.md` at runtime (none do)
+  and that Apache-2.0 **LICENSE** files (extensionless) are retained (they are — not `*.md`).
+- Add a CI guard: fail the build if `vendor/autoload.php` is absent, so a bad release can't publish.
+
+---
+
+## Part D — Backfill / dedupe migration
+
+**D1 — Scope (not written).** One-time migration must:
+1. **Normalize** existing `dishdash_customers.whatsapp` and `dishdash_orders.customer_phone` to the
+   new E.164 form.
+2. **Collapse duplicate customer rows** that are the same subscriber under different formats
+   (e.g. `250788…`, `0788…`).
+Decisions the collapse must make: **which row survives** (recommend oldest `first_order_at` /
+lowest `id`, or the one carrying `user_id`); **merge `total_orders` (sum), `total_spent` (sum),
+`first_order_at` (min), `last_order_at` (max), `birthday`/`user_id`/`dd_birthday_asked` (prefer
+non-null / the linked row)**; **re-point** `dishdash_birthday_tokens.customer_id` and anything keyed
+to the losing rows; **UNIQUE-key handling** — `customers.whatsapp` and `uniq_user_id` are UNIQUE, so
+the merge must delete losers *before/at* the moment the survivor takes the canonical `whatsapp`.
+**Do NOT touch `dishdash_reservations.customer_id`** — that column is the customers-table **PK by
+design** (`reservations:82→:113`); after customer rows merge, reservation `customer_id` values that
+point at a losing row must be **re-pointed to the surviving PK** (this is the one place reservations
+intersect the dedupe). Order rows use `customer_id = WP user ID` (v3.10.31) — independent of this
+dedupe, but `orders.customer_phone` still gets normalized for the phone-anchored resolution (Part E).
+
+Read-only impact counts (run before designing — NOT run here):
+```sql
+SELECT COUNT(*) FROM wp_dishdash_customers;                    -- rows to normalize
+SELECT COUNT(*) FROM wp_dishdash_orders;                       -- customer_phone to normalize
+-- duplicate groups after digits-only collapse:
+SELECT RIGHT(REGEXP_REPLACE(whatsapp,'[^0-9]',''),9) tail9, COUNT(*) n, GROUP_CONCAT(id) ids
+FROM wp_dishdash_customers GROUP BY tail9 HAVING n>1 ORDER BY n DESC;
 ```
 
-Branch-by-branch on the raw digit string (`$digits`, after stripping all non-digits):
-
-| Input | `$digits` | len | Result | Correct? |
-|---|---|---|---|---|
-| `788123456` (bare 9) | `788123456` | 9 | `250788123456` | ✅ |
-| `+250 788 123 456` (has `+`, spaces) | `250788123456` | 12 | `250788123456` | ✅ |
-| `250788123456` (leading 250) | `250788123456` | 12 | `250788123456` | ✅ |
-| `0788123456` (leading 0) | `0788123456` | 10 | **`0788123456`** | ❌ trunk-0 not stripped |
-| `12345` (short) | `12345` | 5 | `''` | ✅ rejected |
-| `14155552671` (US, 11) | `14155552671` | 11 | `14155552671` | ⚠️ passes through, no country logic |
-
-So: `+`, embedded spaces, and a leading `250` all already collapse to bare `250…`. The
-**only** broken canonicalization is the leading-`0` national form (10 digits), which is left
-untouched and therefore never matches the `250…` key.
-
-**Canonical form the working cases produce today: bare `250` + 9 digits (12 digits, no `+`).**
+**D2 — Dry-run + rollback (mandatory).** Structure the migration as a WP-CLI command with a
+`--dry-run` default that **only SELECTs and prints a report**: per duplicate group, the survivor,
+the losers, the merged stat totals, and every row that would be re-pointed/deleted — with a final
+"X customers merged, Y orders/reservations re-pointed, Z keys rewritten" summary. A human reviews
+that report; a `--commit` flag (or second run) performs writes inside a transaction where the engine
+allows. **Rollback = a full DB backup taken immediately before the `--commit` run.** On this host
+(cPanel/`server372`), that's a `mysqldump` via cPanel Terminal or phpMyAdmin export of the `wp_`
+tables before running; document the exact dump command in the release notes. No schema change is
+required by the backfill (it's data-only), so rollback is a restore of the dumped tables.
 
 ---
 
-## 2. All callers
+## Part E — Phone-anchored resolution (the original goal)
 
-Grep `normalize_phone(` across the plugin — 4 call sites:
-
-| # | File:line | Method | Input | Output used as… |
-|---|---|---|---|---|
-| 1 | `modules/orders/class-dd-customer-manager.php:33` | `upsert()` | `$whatsapp` (order phone) | **identity key** — `WHERE whatsapp = %s` (`:40`) **and** stored `INSERT whatsapp` (`:69`) |
-| 2 | `class-dd-customer-manager.php:183` | `on_resolve_customer_id()` | `$whatsapp` | **identity key** — `WHERE whatsapp = %s` (`:188`) **and** stored `INSERT whatsapp` (`:196`) |
-| 3 | `class-dd-customer-manager.php:244` | `link_user_to_phone()` | `$phone` (profile input) | **identity key** — `WHERE whatsapp = %s` (`:255-256`), stored on `INSERT whatsapp` (`:289`), and `update_user_meta('dd_phone'/'billing_phone')` (`:299-300`) |
-| 4 | `modules/orders/class-dd-orders-module.php:136` | birthday-WhatsApp scheduler | `$whatsapp` | **presence/validity guard only** — `if ( ! $phone ) return;` (`:137`); not stored, not a match key |
-
-**Store-and-match confirmed for #1–#3.** Each uses the *same* `normalize_phone()` output to
-both look up and to persist `customers.whatsapp`. Therefore existing stored keys are in
-whatever format the function emitted at write time. Caller #4 only truthiness-checks the
-result, so it is format-insensitive.
-
-**Implication.** The fix must keep the identity-key callers (#1–#3) matching existing rows.
-A format-preserving trunk-0 fix does exactly that; a format *change* (to `+250…`) would break
-their `WHERE whatsapp = %s` against all previously stored `250…` values until a backfill runs.
-
----
-
-## 3. The exact minimal change
-
-**Target canonical form (interim): keep the existing bare `250788123456`** (no `+`). This is
-what callers #1–#3 already stored for correctly-entered numbers, so keeping it means those
-rows keep matching. E.164 `+250…` is deferred to the library phase where the backfill rewrites
-all stored keys in one coordinated pass.
-
-**Smallest edit** — strip a single leading trunk `0` from 10-digit input *before* the existing
-9-digit check, so `0788123456` flows into the current `+250` branch:
-
-```php
-// BEFORE
-public static function normalize_phone( string $phone ): string {
-    $digits = preg_replace( '/[^0-9]/', '', $phone );
-    if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
-    if ( strlen( $digits ) < 9 )  return '';
-    return $digits;
-}
-
-// AFTER
-public static function normalize_phone( string $phone ): string {
-    $digits = preg_replace( '/[^0-9]/', '', $phone );
-    // National trunk prefix: 0788123456 (10) → 788123456 (9), then the +250 branch applies.
-    if ( strlen( $digits ) === 10 && $digits[0] === '0' ) {
-        $digits = substr( $digits, 1 );
-    }
-    if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
-    if ( strlen( $digits ) < 9 )  return '';
-    return $digits;
-}
+**E1 — Layer on v3.10.31, don't replace it.** Today favorites/history/recent resolve by
+`orders.customer_id = get_current_user_id()` (v3.10.31). The identity phase adds a **second axis**:
+a customer's **set of known E.164 numbers**. Post-dedupe, "known numbers for this user" =
+`customers.whatsapp` for every row where `customers.user_id = $user_id` (normally one after dedupe,
+but the query should tolerate several). Resolution becomes:
 ```
-
-- Output format **unchanged** for every currently-working case (still bare `250…`).
-- The only behavioral change: 10-digit leading-`0` input now yields `250…` instead of
-  `0788123456`. That is strictly an improvement — it *adds* matches to the existing `250…`
-  keyspace rather than moving the keyspace.
-
-**Does stored data depend on the current format such that changing it orphans matches?**
-- The correctly-stored keys are already `250…`; the fix keeps emitting `250…`, so **they keep
-  matching** (no orphaning of the good rows).
-- The **previously mis-stored** `0788…` rows (written when trunk-0 slipped through) will *not*
-  match the new `250…` output — but they were already broken/duplicated. The fix doesn't create
-  new orphans of good data; it leaves the already-bad rows for the backfill to collapse.
-- Therefore: **format-preserving trunk-0-only fix now; defer any `+`/E.164 change to the
-  library+backfill phase.** This is the low-risk path.
-
----
-
-## 4. Test vectors the fix must satisfy
-
-Rwanda canonical target = **`250XXXXXXXXX`** (bare). All variants of one subscriber → one key:
-
-| Input | Expected output | Note |
-|---|---|---|
-| `0788123456` | `250788123456` | trunk-0 stripped → prefixed |
-| `250788123456` | `250788123456` | unchanged |
-| `+250788123456` | `250788123456` | `+` stripped |
-| `+250 788 123 456` | `250788123456` | spaces + `+` stripped |
-| `0788 123 456` | `250788123456` | spaces stripped, trunk-0 stripped |
-| `788123456` | `250788123456` | 9-digit branch |
-| `+250 787 538 546` (real, spaced) | `250787538546` | — |
-| `0787538546` (real) | `250787538546` | **matches the `+250 787…` variant** ✅ |
-| `250785553103` (real, no `+`) | `250785553103` | unchanged |
-| `+2507865340` (real, short/invalid) | `2507865340` | digits=`2507865340` (10, **not** leading `0`) → not trunk-stripped, not 9 → returned as-is. **Not** mangled into a false 12-digit match; stays a distinct, non-colliding (malformed) key. Acceptable — a fuller validity check is the library's job. |
-| `+1 415 555 2671` (US, non-RW) | `14155552671` | 11 digits → untouched, **no false 250 prefix** ✅ |
-| `+44 7911 123456` (UK, 12) | `447911123456` | untouched, no false prefix ✅ |
-
----
-
-## Proposed fix
-
-**Diff** (one file, `modules/orders/class-dd-customer-manager.php`, inside `normalize_phone()`):
-```diff
-     $digits = preg_replace( '/[^0-9]/', '', $phone );
-+    // National trunk prefix: 0788123456 (10) → 788123456 (9), then the +250 branch applies.
-+    if ( strlen( $digits ) === 10 && $digits[0] === '0' ) {
-+        $digits = substr( $digits, 1 );
-+    }
-     if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
-     if ( strlen( $digits ) < 9 )  return '';
-     return $digits;
+orders WHERE customer_id = :wp_user_id
+   OR  customer_phone IN (:known_e164_numbers)   -- normalized both sides
 ```
-**Confirmed canonical output form (interim): bare `250` + 9 digits** (no `+`) — identical to
-what the working callers already store, so no format migration is triggered by this change.
+This recovers **guest orders** (NULL `customer_id`) that the person placed under a phone they later
+linked — the current WP-user-ID-only match can never surface those. Requires `orders.customer_phone`
+to be normalized (Part D) so the `IN (...)` compares like-for-like. The "known numbers" set comes
+from the (now deduped, E.164) `customers` rows linked to the user via `user_id`.
 
-## Risks
+---
 
-1. **No format-orphan for good data.** Output format is unchanged for all currently-working
-   inputs, so `upsert()`/`on_resolve_customer_id()`/`link_user_to_phone()` keep matching the
-   `250…` rows they already wrote. This is the key reason to do the trunk-0-only fix now and
-   defer the `+`/E.164 change to the backfill phase (where existing keys are rewritten in one
-   pass). Changing the format now instead would break `WHERE whatsapp = %s` against every stored
-   `250…` value until the backfill runs.
-2. **Previously mis-stored `0788…` rows stay unmatched until backfill.** The fix won't retro-match
-   rows that were saved in the broken trunk-0 format; those remain for the migration to collapse.
-   New activity for those subscribers now lands on the correct `250…` key (possibly creating one
-   more row to merge) — bounded, and exactly what the backfill handles.
-3. **Interim Rwanda assumption — flag for the library phase.** "10-digit leading-`0` ⇒ strip and
-   prefix `250`" is Rwanda-specific. A non-Rwandan 10-digit national number beginning with `0`
-   would be mis-prefixed to `250…`. Acceptable **only** because capture is currently Rwanda-only
-   (no country picker). This is precisely the limitation the libphonenumber phase removes; do not
-   generalize this heuristic by hand.
-4. **Non-Rwandan / malformed inputs pass through unhandled, not corrupted** (US 11-digit, UK
-   12-digit, short `2507865340`): none receive a false `250` prefix. They yield distinct
-   non-colliding keys rather than wrong matches — the intended interim behavior.
+## Proposed release sequence (single-fix releases, in order)
 
-**No code written. Not committed. Awaiting the Phase 2 fix brief.**
+1. **R1 — Vendor intl-tel-input (front-end capture only, no format change).** Add the picker to all
+   capture surfaces; on submit send `getNumber()` E.164 into the *existing* fields; server still runs
+   the **current** bare-`250…` `normalize_phone()` (E.164 input like `+250788…` already normalizes to
+   `250788…` today, so no format break). Pure UX + cleaner input. *Depends on: nothing.* Also resolve
+   the `.gitignore` `*.min` exclusion for `assets/vendor/**`.
+2. **R2 — Introduce Composer + committed `vendor/` + CI guard, NO behavior change.** Add
+   `composer.json`, commit `vendor/` (`-lite`), `require autoload.php`, and a CI step that fails if
+   `vendor/autoload.php` is missing. `normalize_phone()` still returns bare `250…` (don't flip yet).
+   *Depends on: R2 must land and be confirmed in a deployed zip before R3, to prove `vendor/` ships.*
+3. **R3 — Format flip + backfill, SAME release.** Rework `normalize_phone()` to emit `+250…` via
+   libphonenumber **and** run the D1/D2 migration (dry-run reviewed first, DB backup taken) that
+   rewrites all stored keys and dedupes — atomically paired. *Depends on: R1, R2. MUST be one release.*
+4. **R4 — Phone-anchored resolution (Part E).** Extend favorites/history/recent to match
+   `customer_id = user_id OR customer_phone IN (known E.164 set)`. *Depends on: R3 (needs E.164
+   everywhere + deduped known-number set).*
+5. **R5 — Display cleanup (optional).** Re-derive `wa.me`/`tel:` links from the E.164 key. *Depends on: R3.*
+
+## Top risks
+
+1. **`vendor/`-missing-in-zip → fatal on load (C3).** The workflow runs no `composer install`; if
+   `vendor/` isn't committed (or is gitignored), every install fatals at `require autoload.php`.
+   Mitigate: commit `vendor/`, add a CI presence-guard, and verify a built zip contains it before R3.
+2. **Format-flip / backfill coupling (C2 + D1).** Flipping `normalize_phone()` to `+250…` without
+   simultaneously migrating stored keys breaks `WHERE whatsapp = %s` for **every** existing customer
+   → mass linking/upsert failure and duplicate creation. They **must** ship together (R3), behind a
+   reviewed dry-run and a fresh DB backup.
+3. **`.gitignore` swallowing vendored min assets (B1).** `*.min.js`/`*.min.css` are ignored;
+   intl-tel-input's `.min` files would be silently excluded from git → missing on deploy. Whitelist
+   `assets/vendor/**` or ship non-min filenames.
+4. **Dedupe correctness / UNIQUE-key collisions (D1).** Merging rows that share the soon-to-be
+   canonical `whatsapp` must delete losers before the survivor claims the key, and re-point
+   reservations (`customer_id` = customers PK) and birthday tokens — or the migration half-completes.
+   Dry-run must surface every collision first.
+5. **Repo/zip weight (C1/C3).** Committing `vendor/` (even `-lite`) markedly enlarges the repo and the
+   release zip; confirm acceptable and that the `*.md`/`tests` excludes don't strip anything runtime.
+
+**No code. No installs. Awaiting scoping.**
