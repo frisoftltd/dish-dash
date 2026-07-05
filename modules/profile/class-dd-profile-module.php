@@ -142,7 +142,7 @@ class DD_Profile_Module extends DD_Module {
              WHERE customer_id = %d AND is_test = 0
              ORDER BY id DESC
              LIMIT 50",
-            (int) $customer->id
+            (int) $user_id
         ) );
 
         if ( empty( $orders ) ) {

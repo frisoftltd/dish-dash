@@ -96,7 +96,8 @@ class DD_Customer_Profile {
             }
 
             // ── Favorites — authoritative from order history (non-cancelled) ──
-            $customer_id = (int) $customer->id;
+            // Orders store the WP user ID in customer_id (not the customers-table PK).
+            $customer_id = (int) $user_id;
             $fav_rows = $wpdb->get_results( $wpdb->prepare(
                 "SELECT oi.menu_item_id, oi.item_name,
                         SUM(oi.quantity) AS times_ordered

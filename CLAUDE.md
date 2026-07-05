@@ -8,7 +8,7 @@
 > `dish-dash.php`. A release that ships code without updating this file
 > is incomplete. No exceptions.
 >
-> Last updated: v3.10.30 (2026-07-05)
+> Last updated: v3.10.31 (2026-07-05)
 
 ---
 
@@ -90,11 +90,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.10.30 |
+| **Deployed version** | v3.10.31 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Phase 7C — Customer Profile |
-| **Next task** | v3.10.31 — Phase 7C next |
-| **Last working state** | v3.10.30: Shipped customer order-tracking (logged-in only) — [dish_dash_track] now renders a live self-refreshing status timeline (Placed→Confirmed→Ready→Delivered, cancelled off-ramp) via templates/orders/track.php; order-tracking.js polls dd_get_order every 30s and stops on terminal status; server-side ownership gate mirrors ajax_get_order(). Resolved the [dish_dash_track] double-registration — DD_Orders_Module is now sole owner (removed the duplicate + dead shortcode_track() from DD_Menu_Module). Added track_order_view tracking schema. Guest tracking deferred. |
+| **Next task** | v3.10.32 — Phase 7C next |
+| **Last working state** | v3.10.31: Fixed customer order-history ownership-key bug at 3 sites — order queries now filter dishdash_orders.customer_id against the WP user ID (get_current_user_id()) instead of the dishdash_customers PK. render_order_history() (class-dd-profile-module.php) and DD_Customer_Profile::get() favorites + recent-orders queries (class-dd-customer-profile.php) now bind $user_id. Profile stat tiles were already correct (read from customers row); My-Account order history + favorites/recent now populate correctly. Phone-link gates untouched. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -686,7 +686,8 @@ Every page before shipping must pass:
 | **v3.10.28** | ✅ **Done** | **Security fix — close IDOR on dd_get_order AJAX endpoint: ownership gate in ajax_get_order() (class-dd-orders-module.php), staff bypass via dd_manage_orders, customers restricted to own orders via customer_id === get_current_user_id(), guests refused** |
 | **v3.10.29** | ✅ **Done** | **Remove orphaned unauthenticated dd_cancel_order AJAX endpoint (write-path IDOR — zero callers, deregistered)** |
 | **v3.10.30** | ✅ **Done** | **Customer order-tracking (logged-in): [dish_dash_track] live self-refreshing status timeline (polls dd_get_order, stops on terminal status); resolved [dish_dash_track] double-registration (Orders module sole owner); track_order_view schema added** |
-| v3.10.31 | ⏳ **NEXT** | Phase 7C next |
+| **v3.10.31** | ✅ **Done** | **Fix order-history ownership-key bug (3 sites): order queries bind WP user ID (get_current_user_id()) not the customers-table PK — render_order_history() + DD_Customer_Profile::get() favorites/recent-orders now correct** |
+| v3.10.32 | ⏳ **NEXT** | Phase 7C next |
 
 **Dashboard v3.4.44 spec (agreed design):**
 - Header: page title + open/closed status dot + date range filter (Today/7d/30d/All)
