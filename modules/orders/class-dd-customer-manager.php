@@ -323,6 +323,10 @@ class DD_Customer_Manager {
      */
     public static function normalize_phone( string $phone ): string {
         $digits = preg_replace( '/[^0-9]/', '', $phone );
+        // National trunk prefix: 0788123456 (10) → 788123456 (9), then the +250 branch applies.
+        if ( strlen( $digits ) === 10 && $digits[0] === '0' ) {
+            $digits = substr( $digits, 1 );
+        }
         if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
         if ( strlen( $digits ) < 9 )  return '';
         return $digits;
