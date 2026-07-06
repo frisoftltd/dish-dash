@@ -86,9 +86,12 @@ body.dd-cart-open {
    sits BEHIND the cart drawer (desktop z-index 9200; mobile 10001 !important) — so
    the list renders buried/unclickable. Raise it above the drawer on every surface.
    NOT media-scoped: desktop (body-detached dropdown) and mobile (fullscreen popup)
-   both need it, and it must clear the mobile drawer's 10001. */
+   both need it, and it must clear the mobile drawer's 10001. !important is required:
+   the vendored intlTelInput.min.css sets .iti--container{z-index:1060} at identical
+   specificity and is enqueued AFTER cart.css, so without !important it wins the tie
+   by load order and the dropdown stays buried. */
 .iti--container {
-    z-index: 10050;
+    z-index: 10050 !important;
 }
 
 /* ── Header ─────────────────────────────────────────────────── */
