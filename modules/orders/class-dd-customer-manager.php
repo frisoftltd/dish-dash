@@ -319,16 +319,50 @@ class DD_Customer_Manager {
     }
 
     /**
-     * Normalize phone to digits only with Rwanda prefix.
+     * Normalize phone to the canonical bare identity key: 250XXXXXXXXX (no +).
+     *
+     * R2.5 (v3.10.39): parses via libphonenumber as the primary path, then emits the
+     * SAME bare 250… form this function produced before — byte-identical, so stored
+     * customer keys never change. The historical digit-based logic is retained as the
+     * fallback AND the validity gate:
+     *   - The "< 9 → ''" rejection below runs FIRST, so junk the old logic would have
+     *     dropped (e.g. an 8-digit string) is still dropped — the library never gets
+     *     to coerce it into a spurious key.
+     *   - For inputs that pass that gate, libphonenumber recomputes the canonical bare
+     *     form. On a parse throw, a missing library, or non-digit output, we fall back
+     *     to $digits (today's exact result). Malformed input therefore degrades
+     *     gracefully instead of fataling the order flow.
+     * No format flip here (still bare, no +); the E.164 migration is R3.
      */
     public static function normalize_phone( string $phone ): string {
+        // ── Historical digit-based logic: canonical fallback + validity gate ──
         $digits = preg_replace( '/[^0-9]/', '', $phone );
         // National trunk prefix: 0788123456 (10) → 788123456 (9), then the +250 branch applies.
         if ( strlen( $digits ) === 10 && $digits[0] === '0' ) {
             $digits = substr( $digits, 1 );
         }
         if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
-        if ( strlen( $digits ) < 9 )  return '';
+        if ( strlen( $digits ) < 9 )  return '';   // parity gate: junk stays rejected
+
+        // ── Primary path: libphonenumber → byte-identical bare 250… output ──
+        // Guarded on class_exists so a missing/unloaded vendor tree never fatals; only
+        // reached for inputs the gate above already accepted.
+        if ( class_exists( '\libphonenumber\PhoneNumberUtil' ) ) {
+            try {
+                $util   = \libphonenumber\PhoneNumberUtil::getInstance();
+                $parsed = $util->parse( $phone, 'RW' );
+                $e164   = $util->format( $parsed, \libphonenumber\PhoneNumberFormat::E164 );
+                $bare   = ltrim( $e164, '+' );
+                // Parity guard: accept only clean bare digits. Anything unexpected
+                // (empty, non-digit) falls through to today's $digits result.
+                if ( '' !== $bare && ctype_digit( $bare ) ) {
+                    return $bare;
+                }
+            } catch ( \libphonenumber\NumberParseException $e ) {
+                // Malformed for the library — fall through to the historical result.
+            }
+        }
+
         return $digits;
     }
 }
