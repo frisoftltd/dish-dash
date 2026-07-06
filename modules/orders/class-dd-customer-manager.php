@@ -355,31 +355,47 @@ class DD_Customer_Manager {
         // ── Primary path: libphonenumber ──
         // Guarded on class_exists so a missing/unloaded vendor tree never fatals; only
         // reached for inputs the gate above already accepted.
+        //
+        // Region rule (R3-fix, v3.10.41): a value that ALREADY carries a leading '+' is
+        // authoritative about its country — parse it as INTERNATIONAL (region null) so a
+        // foreign number stays foreign (+674069873633 → +674…, never coerced to +250…).
+        // A BARE value is assumed Rwandan, but accepted ONLY when it is a VALID RW number;
+        // bare non-RW digits (a foreign number that lost its '+') are treated as junk
+        // (return '') rather than coerced to +250…, per locked decision #3.
         if ( class_exists( '\libphonenumber\PhoneNumberUtil' ) ) {
             try {
-                $util   = \libphonenumber\PhoneNumberUtil::getInstance();
-                $parsed = $util->parse( $phone, 'RW' );
-                $e164   = $util->format( $parsed, \libphonenumber\PhoneNumberFormat::E164 ); // "+250788123456"
-                if ( $e164_mode ) {
-                    // E.164 WITH the leading +. Guard: + then 9–15 digits.
-                    if ( preg_match( '/^\+\d{9,15}$/', $e164 ) ) {
-                        return $e164;
-                    }
-                } else {
-                    // Legacy bare (today's behavior): strip the +.
-                    $bare = ltrim( $e164, '+' );
-                    if ( '' !== $bare && ctype_digit( $bare ) ) {
-                        return $bare;
+                $util     = \libphonenumber\PhoneNumberUtil::getInstance();
+                $has_plus = ( 1 === preg_match( '/^\s*\+/', $phone ) );
+                $parsed   = $util->parse( $phone, $has_plus ? null : 'RW' );
+
+                // '+' input trusted as-declared; bare input must be a valid RW number.
+                if ( $has_plus || $util->isValidNumber( $parsed ) ) {
+                    $e164 = $util->format( $parsed, \libphonenumber\PhoneNumberFormat::E164 ); // "+250788123456"
+                    if ( $e164_mode ) {
+                        // E.164 WITH the leading +. Guard: + then 9–15 digits.
+                        if ( preg_match( '/^\+\d{9,15}$/', $e164 ) ) {
+                            return $e164;
+                        }
+                    } else {
+                        // Legacy bare (today's behavior): strip the +.
+                        $bare = ltrim( $e164, '+' );
+                        if ( '' !== $bare && ctype_digit( $bare ) ) {
+                            return $bare;
+                        }
                     }
                 }
+
+                // Parsed but not accepted (bare + invalid RW) → junk. Do NOT coerce.
+                return '';
             } catch ( \libphonenumber\NumberParseException $e ) {
-                // Malformed for the library — fall through to the historical result.
+                // Unparseable → junk.
+                return '';
             }
         }
 
-        // ── Fallback: historical digit result, format-matched to the flag ──
-        // Under e164 the fallback MUST also carry the '+', or a library miss would
-        // silently re-fragment the column with bare values.
+        // ── Fallback: only when the library is UNAVAILABLE (class_exists false) ──
+        // Historical digit result, format-matched to the flag. Under e164 it must carry
+        // the '+', or a library-less environment would re-fragment the column.
         return $e164_mode ? ( '+' . $digits ) : $digits;
     }
 }
