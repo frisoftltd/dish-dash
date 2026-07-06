@@ -136,13 +136,25 @@ class DD_Profile_Module extends DD_Module {
             return;
         }
 
+        // Phone-anchored resolution (R4b): also match guest orders placed under this
+        // user's canonical E.164. Canonical-only set; empty → customer_id-only (no IN ()).
+        $phones = array_values( array_filter( [ (string) ( $customer->whatsapp ?? '' ) ] ) );
+        if ( $phones ) {
+            $ph      = implode( ',', array_fill( 0, count( $phones ), '%s' ) );
+            $where   = "( customer_id = %d OR customer_phone IN ($ph) )";
+            $args    = array_merge( [ (int) $user_id ], $phones );
+        } else {
+            $where   = "customer_id = %d";
+            $args    = [ (int) $user_id ];
+        }
+
         $orders = $wpdb->get_results( $wpdb->prepare(
             "SELECT id, order_number, total, status, order_type, payment_method, created_at
              FROM {$wpdb->prefix}dishdash_orders
-             WHERE customer_id = %d AND is_test = 0
+             WHERE {$where} AND is_test = 0
              ORDER BY id DESC
              LIMIT 50",
-            (int) $user_id
+            $args
         ) );
 
         if ( empty( $orders ) ) {

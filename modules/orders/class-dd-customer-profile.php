@@ -98,18 +98,34 @@ class DD_Customer_Profile {
             // ── Favorites — authoritative from order history (non-cancelled) ──
             // Orders store the WP user ID in customer_id (not the customers-table PK).
             $customer_id = (int) $user_id;
+
+            // Phone-anchored resolution (R4b): also match orders placed as a guest under
+            // this user's canonical E.164 (customers.whatsapp). Canonical-only set; drop
+            // empties. Empty set → customer_id-only query (never emit IN ()/IN (NULL)).
+            $phones = array_values( array_filter( [ (string) ( $customer->whatsapp ?? '' ) ] ) );
+            if ( $phones ) {
+                $ph      = implode( ',', array_fill( 0, count( $phones ), '%s' ) );
+                $where_o = "( o.customer_id = %d OR o.customer_phone IN ($ph) )"; // aliased (favorites)
+                $where_p = "( customer_id = %d OR customer_phone IN ($ph) )";     // plain (recent)
+                $match_args = array_merge( [ $customer_id ], $phones );
+            } else {
+                $where_o    = "o.customer_id = %d";
+                $where_p    = "customer_id = %d";
+                $match_args = [ $customer_id ];
+            }
+
             $fav_rows = $wpdb->get_results( $wpdb->prepare(
                 "SELECT oi.menu_item_id, oi.item_name,
                         SUM(oi.quantity) AS times_ordered
                  FROM {$wpdb->prefix}dishdash_order_items oi
                  JOIN {$wpdb->prefix}dishdash_orders o ON o.id = oi.order_id
-                 WHERE o.customer_id = %d
+                 WHERE {$where_o}
                    AND o.is_test = 0
                    AND o.status NOT IN ('cancelled')
                  GROUP BY oi.menu_item_id, oi.item_name
                  ORDER BY times_ordered DESC
                  LIMIT 6",
-                $customer_id
+                $match_args
             ) );
             foreach ( $fav_rows as $f ) {
                 $profile['favorites'][] = [
@@ -123,12 +139,12 @@ class DD_Customer_Profile {
             $order_rows = $wpdb->get_results( $wpdb->prepare(
                 "SELECT id, order_number, total, status, created_at
                  FROM {$wpdb->prefix}dishdash_orders
-                 WHERE customer_id = %d
+                 WHERE {$where_p}
                    AND is_test = 0
                    AND status NOT IN ('cancelled')
                  ORDER BY id DESC
                  LIMIT 5",
-                $customer_id
+                $match_args
             ) );
             foreach ( $order_rows as $o ) {
                 $items = $wpdb->get_results( $wpdb->prepare(

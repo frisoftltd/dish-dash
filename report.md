@@ -1,64 +1,62 @@
-# R4a Report — Order Phone E.164 Normalization (data-only) — v3.10.42
+# R4b Report — Read-Side Phone-Anchored Order Resolution — v3.10.43
 
-**Nature:** data migration **already applied + verified on live**; this release is a
-version bump + documentation only — **no plugin code logic changed**.
-**Scope:** rewrote legacy non-E.164 `wp_dishdash_orders.customer_phone` values to `+250…`
-so the order-side match key aligns with the R3 customers table. **No `customer_id` /
-attribution / schema changes.**
+**Scope:** the three customer-facing history/aggregation queries now resolve a user's
+orders by `( customer_id = %d OR customer_phone IN (<their canonical E.164>) )`, tying
+previously-guest orders to the logged-in identity. **Read-side only** — no `customer_id`
+write, no schema change, ownership gates untouched.
 
-> Phases A–D ran on the cPanel server (Claude Code has no live-DB access). Results below
-> are the confirmed live output.
+## Shared pattern (all three)
+Known-phone set = **canonical-only**: the user's `customers.whatsapp` via
+`get_customer_for_user()` (user_id is UNIQUE → exactly one per user). Built in PHP,
+`array_filter` drops `''`. **If empty → the original `customer_id = %d` query runs
+unchanged** (never emits `IN ()` / `IN (NULL)`). Phones bound via generated `%s`
+placeholders through `$wpdb->prepare(..., array_merge([$user_id], $phones))` — never
+string-concatenated.
 
-## Migrated — 6 rows → clean `+250…`
-| id | before | after |
-|---|---|---|
-| 1  | `0780006956`  | `+250780006956` |
-| 25 | *(0-prefixed / bare 250, per dry-run)* | `+250…` (clean, confirmed) |
-| 26 | *(0-prefixed / bare 250, per dry-run)* | `+250…` (clean, confirmed) |
-| 35 | *(0-prefixed / bare 250, per dry-run)* | `+250…` (clean, confirmed) |
-| 44 | `0787538546`  | `+250787538546` |
-| 57 | `0788496581`  | `+250788496581` |
+## Query A — Favorites (`class-dd-customer-profile.php:106`)
+- Added, before the query: build `$phones`, then `$where_o` (aliased, favorites) /
+  `$where_p` (plain, recent) / `$match_args`.
+- `WHERE o.customer_id = %d` → `WHERE {$where_o}` =
+  `( o.customer_id = %d OR o.customer_phone IN (%s…) )`.
+- **`GROUP BY oi.menu_item_id, oi.item_name` unchanged** — item-level, not order-level. The
+  wider order set folds MORE orders into the same item buckets → higher favorite counts, no
+  grouping-cardinality change, no fragmentation. `ORDER BY times_ordered DESC LIMIT 6`,
+  `is_test = 0`, `status NOT IN ('cancelled')` all preserved.
 
-(Transform: `0XXXXXXXXX`→`+250`+last 9; `250XXXXXXXXX`→prefix `+`. All six confirmed
-against the Phase B dry-run and re-read in Phase D.)
+## Query B — Recent orders (`class-dd-customer-profile.php:126`)
+- Reuses `$where_p` / `$match_args` computed for A (same user, same set).
+- `WHERE customer_id = %d` → `WHERE {$where_p}` =
+  `( customer_id = %d OR customer_phone IN (%s…) )`. Single table → OR dedupes at row level.
+- `AND is_test = 0 AND status NOT IN ('cancelled') ORDER BY id DESC LIMIT 5` preserved.
 
-## Excluded — truncated / unrecoverable (8 rows, left untouched)
-ids **38, 43, 88, 90, 91, 110, 111, 112** — stored as `+2507865340` (7 significant digits)
-or `+25078562304` (8 digits). Missing digits cannot be reconstructed, so these are left
-intact per the R3 malformed-row precedent (never guess/fabricate a phone).
+## Query C — Order history (`class-dd-profile-module.php:142`)
+- Own `$customer` (method returns early if unlinked, so `$customer` is non-null here).
+  Builds its own `$phones` / `$where` / `$args`.
+- `WHERE customer_id = %d AND is_test = 0` → `WHERE {$where} AND is_test = 0` with
+  `( customer_id = %d OR customer_phone IN (%s…) )`. `ORDER BY id DESC LIMIT 50` preserved.
 
-## Excluded — foreign, preserved (1 row)
-id **116** `+674069873633` (Nauru, +674) — a valid international number; **not coerced to
-+250** (consistent with the R3-fix normalizer). Its len-13 `+…` value correctly sits with
-the clean set by prefix but is a foreign number, not Rwandan.
+## Safety / no-double-count
+- B and C are single-table; A adds no JOIN (the OR is a WHERE filter) and groups by item.
+  No row multiplication on any of the three → **no `DISTINCT` needed** (Phase 1 confirmed).
+- Empty-set guard verified on all three: unlinked user → `$phones` empty →
+  `customer_id`-only query → sees only their own (empty) history, never everyone's.
 
-## Verification (live, Phase D — actual)
-- **Non-clean count:** `15 → 9` (the 9 = 8 truncated + 1 foreign, all intentional exclusions).
-- **Format distribution:** 113 clean Rwandan E.164 (`+250` + 9 digits, len 13) + 8 truncated
-  (7×len-11 `+2507865340`, 1×len-12 `+25078562304`) + 1 foreign (`+674069873633`, len 13) =
-  **122 total**. (The Nauru row is len-13 so it counts inside the 114 `+…` rows; true
-  clean-Rwandan = 113. Everything reconciles: 113 + 8 + 1 = 122.)
-- **customer_id / attribution:** untouched. The 7 conflict orders (3, 52, 81, 83, 97, 98,
-  109) not touched.
+## Out of scope (confirmed NOT touched)
+- Ownership / IDOR gates (`class-dd-orders-module.php` ~1159/1631/1687/1718) — remain strict
+  `customer_id = get_current_user_id()`.
+- No `customer_id` write / attribution (parked R4c).
+- The 7 conflict orders (3, 52, 81, 83, 97, 98, 109) — untouched (canonical-only set
+  cannot include the conflict phones).
+- No schema / customers-table change.
 
-## Backup
-`~/dd-backups/pre-r4a-20260706-155534.sql` (7.4M, non-empty, taken before the first UPDATE).
+## Files changed
+- `modules/orders/class-dd-customer-profile.php` (queries A + B)
+- `modules/profile/class-dd-profile-module.php` (query C)
+- `dish-dash.php` (v3.10.43, header + constant), `CLAUDE.md`
 
-## Flag forward (NOT R4a scope)
-The 8 truncated rows all share the value `+2507865340` across **distinct** orders — that
-pattern points to a **write-path truncation bug at insert time**, not independent typos.
-Belongs to the parked write-path / guest-linkage investigation, not this data release.
-
-## Out of scope (confirmed not done)
-- No `customer_id` / attribution write (parked pending the user-1/user-14 conflict decision).
-- No read-side phone-anchor OR (that's R4b).
-- No customers-table change (R3 owns it).
-
----
-
-## Release (v3.10.42)
-- Version bumped: `dish-dash.php` header + `DD_VERSION` constant → `3.10.42`; CLAUDE.md
-  `Last updated` + Current State + release table updated.
-- Commit: `git add dish-dash.php CLAUDE.md report.md` →
-  `v3.10.42 — R4a: normalize 6 legacy order phones to E.164; document 9 excluded (8 truncated, 1 foreign)` → push `main`.
-- GitHub release: tag `v3.10.42`, title "R4a — Order phone E.164 normalization".
+## Verification (manual, after deploy — pending developer)
+- Log in as **user 14** (whatsapp `+250785553103`, 46 guest orders under it) → order
+  history + recent-orders should now include those previously-guest orders; record
+  before/after count.
+- A **fresh user** with no customers row → history renders empty (the prompt to add a
+  phone), not errored, not everyone's orders (1d guard).
