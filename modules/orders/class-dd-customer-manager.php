@@ -335,6 +335,14 @@ class DD_Customer_Manager {
      * No format flip here (still bare, no +); the E.164 migration is R3.
      */
     public static function normalize_phone( string $phone ): string {
+        // ── Format flag (R3, v3.10.40) ──
+        // 'bare' → 250788123456 (legacy);  'e164' → +250788123456.
+        // Defaults to 'bare', so deploying R3 is behavior-neutral — the flip stays
+        // dormant until the R3 --commit migration sets dd_phone_format = 'e164' as its
+        // FINAL step, AFTER every stored key has been backfilled. Gating the single
+        // normalizer covers all 7 store/match sites (they all route through here).
+        $e164_mode = ( 'e164' === get_option( 'dd_phone_format', 'bare' ) );
+
         // ── Historical digit-based logic: canonical fallback + validity gate ──
         $digits = preg_replace( '/[^0-9]/', '', $phone );
         // National trunk prefix: 0788123456 (10) → 788123456 (9), then the +250 branch applies.
@@ -342,27 +350,36 @@ class DD_Customer_Manager {
             $digits = substr( $digits, 1 );
         }
         if ( strlen( $digits ) === 9 ) $digits = '250' . $digits;
-        if ( strlen( $digits ) < 9 )  return '';   // parity gate: junk stays rejected
+        if ( strlen( $digits ) < 9 )  return '';   // parity gate: junk stays rejected (format-agnostic)
 
-        // ── Primary path: libphonenumber → byte-identical bare 250… output ──
+        // ── Primary path: libphonenumber ──
         // Guarded on class_exists so a missing/unloaded vendor tree never fatals; only
         // reached for inputs the gate above already accepted.
         if ( class_exists( '\libphonenumber\PhoneNumberUtil' ) ) {
             try {
                 $util   = \libphonenumber\PhoneNumberUtil::getInstance();
                 $parsed = $util->parse( $phone, 'RW' );
-                $e164   = $util->format( $parsed, \libphonenumber\PhoneNumberFormat::E164 );
-                $bare   = ltrim( $e164, '+' );
-                // Parity guard: accept only clean bare digits. Anything unexpected
-                // (empty, non-digit) falls through to today's $digits result.
-                if ( '' !== $bare && ctype_digit( $bare ) ) {
-                    return $bare;
+                $e164   = $util->format( $parsed, \libphonenumber\PhoneNumberFormat::E164 ); // "+250788123456"
+                if ( $e164_mode ) {
+                    // E.164 WITH the leading +. Guard: + then 9–15 digits.
+                    if ( preg_match( '/^\+\d{9,15}$/', $e164 ) ) {
+                        return $e164;
+                    }
+                } else {
+                    // Legacy bare (today's behavior): strip the +.
+                    $bare = ltrim( $e164, '+' );
+                    if ( '' !== $bare && ctype_digit( $bare ) ) {
+                        return $bare;
+                    }
                 }
             } catch ( \libphonenumber\NumberParseException $e ) {
                 // Malformed for the library — fall through to the historical result.
             }
         }
 
-        return $digits;
+        // ── Fallback: historical digit result, format-matched to the flag ──
+        // Under e164 the fallback MUST also carry the '+', or a library miss would
+        // silently re-fragment the column with bare values.
+        return $e164_mode ? ( '+' . $digits ) : $digits;
     }
 }
