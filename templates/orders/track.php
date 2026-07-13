@@ -9,17 +9,20 @@
  * status is terminal (delivered/cancelled).
  *
  * Provided vars (from get_template):
- *   string      $state        'guest' | 'notfound' | 'empty' | 'list' | 'ok'
- *   object|null $order         dishdash_orders row when $state === 'ok'
- *   array       $orders        active-order rows when $state === 'list' (R2)
- *   string      $account_url   my-account / login URL
+ *   string      $state           'guest' | 'notfound' | 'empty' | 'list' | 'ok'
+ *   object|null $order            dishdash_orders row when $state === 'ok'
+ *   array       $orders           active-order rows when $state === 'list' (R2)
+ *   int         $current_user_id  logged-in user id — a list row is clickable only
+ *                                 when its customer_id matches (R2 fix, v3.10.46)
+ *   string      $account_url      my-account / login URL
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-$state       = isset( $state ) ? $state : 'empty';
-$orders      = isset( $orders ) && is_array( $orders ) ? $orders : [];
-$account_url = isset( $account_url ) ? $account_url : home_url( '/my-account/' );
+$state           = isset( $state ) ? $state : 'empty';
+$orders          = isset( $orders ) && is_array( $orders ) ? $orders : [];
+$current_user_id = isset( $current_user_id ) ? (int) $current_user_id : get_current_user_id();
+$account_url     = isset( $account_url ) ? $account_url : home_url( '/my-account/' );
 
 /**
  * Timeline steps. There is no `pending_at` column — `created_at` is the
@@ -95,16 +98,29 @@ if ( ! function_exists( 'dd_track_fmt_time' ) ) {
                 $onum  = $o->order_number ? $o->order_number : ( 'DD-' . str_pad( (string) $o->id, 5, '0', STR_PAD_LEFT ) );
                 $label = function_exists( 'dd_order_status_label' ) ? dd_order_status_label( (string) $o->status ) : ucfirst( (string) $o->status );
                 $time  = dd_track_fmt_time( $o->created_at );
+                // Clickable only for orders the current user OWNS (customer_id match) — the
+                // per-order tracker's ownership gate is customer_id-only, so linking a
+                // phone-only row would land on "Order not found". Render those inert.
+                $owned = isset( $o->customer_id ) && (int) $o->customer_id === $current_user_id;
                 $href  = function_exists( 'dd_track_url' )
                     ? add_query_arg( 'order_id', (int) $o->id, dd_track_url() )
                     : add_query_arg( 'order_id', (int) $o->id );
                 ?>
                 <li class="dd-track__order-row">
+                <?php if ( $owned ) : ?>
                     <a class="dd-track__order-link" href="<?php echo esc_url( $href ); ?>">
                         <span class="dd-track__order-num"><?php echo esc_html( $onum ); ?></span>
                         <span class="dd-track__order-status dd-status--<?php echo esc_attr( $o->status ); ?>"><?php echo esc_html( $label ); ?></span>
                         <span class="dd-track__order-time"><?php echo esc_html( $time ); ?></span>
                     </a>
+                <?php else : ?>
+                    <div class="dd-track__order-link dd-track__order-link--static">
+                        <span class="dd-track__order-num"><?php echo esc_html( $onum ); ?></span>
+                        <span class="dd-track__order-status dd-status--<?php echo esc_attr( $o->status ); ?>"><?php echo esc_html( $label ); ?></span>
+                        <span class="dd-track__order-time"><?php echo esc_html( $time ); ?></span>
+                        <span class="dd-track__order-note"><?php esc_html_e( 'In progress', 'dish-dash' ); ?></span>
+                    </div>
+                <?php endif; ?>
                 </li>
             <?php endforeach; ?>
             </ul>

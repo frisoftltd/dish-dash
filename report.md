@@ -1,8 +1,14 @@
 # R2 — Track Order Page: Active-Orders List (Option A) — Build Report
 
-**Version:** 3.10.45 (bumped in `dish-dash.php` header + `DD_VERSION`, and CLAUDE.md).
+**Version:** 3.10.46 (bumped in `dish-dash.php` header + `DD_VERSION`, and CLAUDE.md).
 **Sidebar wiring:** S1 (href remap; standalone `/track-order/` page kept as the single surface).
 **Status:** built, committed, pushed. **Not released** — developer creates the GitHub release.
+
+> **v3.10.46 fix (this release):** in the list, **only orders the user owns are clickable**. The list SELECT
+> now returns `customer_id`; a row links to `?order_id=` only when `customer_id === current_user_id`.
+> Phone-only rows (customer_id NULL / another id) render `number · status · time · "In progress"` as a
+> **non-clickable** `<div class="dd-track__order-link--static">` (hover/pointer disabled) — so no one can
+> reach the customer_id-only ownership gate → "Order not found". No gate change, no customer_id write.
 
 ---
 
@@ -54,9 +60,10 @@
 | Scenario | Result |
 |---|---|
 | Logged-out → `/track-order/` | `guest` state — "Please log in" (unchanged) |
-| Logged-in, has active orders | **List** of pending/confirmed/ready orders (is_test=0), newest first, each row links to `?order_id=` |
+| Logged-in, has active orders | **List** of pending/confirmed/ready orders (is_test=0), newest first |
+| — owned row (customer_id = you) | Clickable → `?order_id=` single-order live timeline (unchanged) |
+| — phone-only row (customer_id NULL) | Non-clickable: `number · status · time · "In progress"` |
 | Logged-in, no active orders | Clean **"No active orders."** empty state |
-| Row click → `?order_id=<id>` | Existing single-order **live timeline** (polls until terminal) — unchanged |
 | `?order=<number>` | Existing single-order path — unchanged |
 | Sidebar "Track Order" | Links to `/track-order/` (S1 href remap), not the account dashboard |
 
@@ -66,12 +73,12 @@
 - ❌ No `ajax_get_order()` gate change. ❌ No guest tracking. ❌ No `customer_id` writes / R4c.
 - The `?order_id=`/`?order=` per-order tracker branches are behavior-identical (extracted, not modified).
 
-## Known v1 limitation (accepted per brief)
-A **phone-only** active order (matched by canonical phone but `customer_id` null/mismatched) **appears in the
-list**, but clicking it → `?order_id=` → `render_single_track()` ownership gate (`customer_id !== uid`) →
-**"Order not found"** on the detail page. For logged-in users placing orders while authenticated,
-`customer_id` is set, so the common path links through and live-polls fine. Full resolution comes with **R4c**
-(customer_id attribution). Documented in CLAUDE.md Next task.
+## Phone-only orders (handled in v3.10.46)
+A **phone-only** active order (matched by canonical phone but `customer_id` null/mismatched) still **appears in
+the list** for completeness, but is now rendered **non-clickable** (`number · status · time · "In progress"`),
+so no one reaches the `render_single_track()` ownership gate → "Order not found". Owned orders
+(`customer_id === current user`) remain clickable → per-order live tracker. Full attribution (making these
+orders owned/live) comes with **R4c**. Documented in CLAUDE.md Next task.
 
 ---
 

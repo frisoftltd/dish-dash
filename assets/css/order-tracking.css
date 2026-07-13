@@ -204,6 +204,21 @@
     white-space: nowrap;
 }
 
+/* Phone-only (non-owned) rows are informational — not clickable. */
+.dd-track__order-link--static {
+    cursor: default;
+}
+.dd-track__order-link--static:hover,
+.dd-track__order-link--static:focus {
+    background: transparent;
+}
+.dd-track__order-note {
+    grid-column: 1 / -1;
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--dd-track-muted);
+}
+
 .dd-track__body--empty {
     text-align: center;
 }

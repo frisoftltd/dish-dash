@@ -1690,7 +1690,7 @@ class DD_Orders_Module extends DD_Module {
         }
 
         $orders = $wpdb->get_results( $wpdb->prepare(
-            "SELECT id, order_number, status, created_at
+            "SELECT id, order_number, status, created_at, customer_id
              FROM {$wpdb->prefix}dishdash_orders
              WHERE {$where}
                AND is_test = 0
@@ -1699,15 +1699,18 @@ class DD_Orders_Module extends DD_Module {
             $args
         ) );
 
-        // Snapshot list — style only (no live poll on the list; each row deep-links to
-        // the single-order tracker, which polls for customer_id-owned orders).
+        // Snapshot list — style only (no live poll on the list). Only rows the user OWNS
+        // (customer_id = current user) deep-link to the single-order tracker; phone-only
+        // rows (customer_id NULL / another id) render non-clickable so no one hits the
+        // customer_id-only ownership gate → "Order not found". (Full fix: R4c.)
         $this->enqueue_style( 'order-tracking', 'order-tracking.css' );
 
         return $this->get_template( 'orders/track.php', [
-            'state'       => 'list',
-            'order'       => null,
-            'orders'      => $orders,
-            'account_url' => $account_url,
+            'state'           => 'list',
+            'order'           => null,
+            'orders'          => $orders,
+            'current_user_id' => $uid,
+            'account_url'     => $account_url,
         ] );
     }
 
