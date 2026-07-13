@@ -8,6 +8,12 @@
  * then polls dd_get_order every 30s and re-renders authoritatively until the
  * status is terminal (delivered/cancelled).
  *
+ * Layout (R2 polish, v3.10.48): logged-in states render inside a `.dd-account`
+ * wrapper carrying the profile sidebar (My Profile / Order History / Track Order /
+ * Addresses / Account details / Log out) — Option 2 (isolated wrapper, NOT the
+ * .woocommerce-account body class). Sidebar styling comes from profile.css
+ * (selectors extended to `.dd-account`). The guest state stays a centered message.
+ *
  * Provided vars (from get_template):
  *   string      $state           'guest' | 'notfound' | 'empty' | 'list' | 'ok'
  *   object|null $order            dishdash_orders row when $state === 'ok'
@@ -46,10 +52,10 @@ if ( ! function_exists( 'dd_track_fmt_time' ) ) {
     }
 }
 ?>
+
+<?php if ( 'guest' === $state ) : // Not logged in — centered message, no sidebar. ?>
+
 <div class="dd-track-wrap">
-
-<?php if ( 'guest' === $state ) : ?>
-
     <div class="dd-track dd-track--message">
         <h2 class="dd-track__title"><?php esc_html_e( 'Track your order', 'dish-dash' ); ?></h2>
         <p class="dd-track__lead"><?php esc_html_e( 'Please log in to track your order.', 'dish-dash' ); ?></p>
@@ -57,120 +63,156 @@ if ( ! function_exists( 'dd_track_fmt_time' ) ) {
             <?php esc_html_e( 'Log in', 'dish-dash' ); ?>
         </a>
     </div>
+</div>
 
-<?php elseif ( 'notfound' === $state ) : ?>
+<?php else : // Logged-in — profile sidebar + content column. ?>
 
-    <div class="dd-track dd-track--message">
-        <h2 class="dd-track__title"><?php esc_html_e( 'Order not found', 'dish-dash' ); ?></h2>
-        <p class="dd-track__lead"><?php esc_html_e( 'We couldn’t find that order under your account.', 'dish-dash' ); ?></p>
-        <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( $account_url ); ?>">
-            <?php esc_html_e( 'View my account', 'dish-dash' ); ?>
-        </a>
-    </div>
+<div class="dd-account">
 
-<?php elseif ( 'empty' === $state ) : ?>
+    <nav class="woocommerce-MyAccount-navigation" aria-label="<?php esc_attr_e( 'Account', 'dish-dash' ); ?>">
+        <ul>
+        <?php
+        if ( function_exists( 'wc_get_account_menu_items' ) ) :
+            foreach ( wc_get_account_menu_items() as $dd_ep => $dd_lbl ) :
+                $dd_li = 'woocommerce-MyAccount-navigation-link woocommerce-MyAccount-navigation-link--' . sanitize_html_class( $dd_ep );
+                if ( 'track-order' === $dd_ep ) {
+                    // We're already on the track page — mark active, and resolve the href
+                    // directly (bulletproof, independent of the endpoint-URL filter).
+                    $dd_li .= ' is-active';
+                    $dd_url = function_exists( 'dd_track_url' ) ? dd_track_url() : home_url( '/track-order/' );
+                } else {
+                    $dd_url = function_exists( 'wc_get_account_endpoint_url' )
+                        ? wc_get_account_endpoint_url( $dd_ep )
+                        : '#';
+                }
+                ?>
+                <li class="<?php echo esc_attr( $dd_li ); ?>">
+                    <a href="<?php echo esc_url( $dd_url ); ?>"><?php echo esc_html( $dd_lbl ); ?></a>
+                </li>
+            <?php endforeach;
+        endif;
+        ?>
+        </ul>
+    </nav>
 
-    <div class="dd-track dd-track--message">
-        <h2 class="dd-track__title"><?php esc_html_e( 'No orders yet', 'dish-dash' ); ?></h2>
-        <p class="dd-track__lead"><?php esc_html_e( 'You haven’t placed any orders yet.', 'dish-dash' ); ?></p>
-        <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>">
-            <?php esc_html_e( 'Browse the menu', 'dish-dash' ); ?>
-        </a>
-    </div>
+    <div class="dd-account__content">
 
-<?php elseif ( 'list' === $state ) : ?>
+    <?php if ( 'notfound' === $state ) : ?>
 
-    <div class="dd-track dd-track--list">
-        <div class="dd-track__header">
-            <h2 class="dd-track__title"><?php esc_html_e( 'Track your orders', 'dish-dash' ); ?></h2>
+        <div class="dd-track dd-track--message">
+            <h2 class="dd-track__title"><?php esc_html_e( 'Order not found', 'dish-dash' ); ?></h2>
+            <p class="dd-track__lead"><?php esc_html_e( 'We couldn’t find that order under your account.', 'dish-dash' ); ?></p>
+            <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( $account_url ); ?>">
+                <?php esc_html_e( 'View my account', 'dish-dash' ); ?>
+            </a>
         </div>
 
-        <?php if ( empty( $orders ) ) : ?>
-            <div class="dd-track__body dd-track__body--empty">
-                <p class="dd-track__lead"><?php esc_html_e( 'No active orders.', 'dish-dash' ); ?></p>
-                <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>">
-                    <?php esc_html_e( 'Browse the menu', 'dish-dash' ); ?>
-                </a>
+    <?php elseif ( 'empty' === $state ) : ?>
+
+        <div class="dd-track dd-track--message">
+            <h2 class="dd-track__title"><?php esc_html_e( 'No orders yet', 'dish-dash' ); ?></h2>
+            <p class="dd-track__lead"><?php esc_html_e( 'You haven’t placed any orders yet.', 'dish-dash' ); ?></p>
+            <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>">
+                <?php esc_html_e( 'Browse the menu', 'dish-dash' ); ?>
+            </a>
+        </div>
+
+    <?php elseif ( 'list' === $state ) : ?>
+
+        <div class="dd-track dd-track--list">
+            <div class="dd-track__header">
+                <h2 class="dd-track__title"><?php esc_html_e( 'Track your orders', 'dish-dash' ); ?></h2>
             </div>
-        <?php else : ?>
-            <ul class="dd-track__orders">
-            <?php foreach ( $orders as $o ) :
-                $onum  = $o->order_number ? $o->order_number : ( 'DD-' . str_pad( (string) $o->id, 5, '0', STR_PAD_LEFT ) );
-                $label = function_exists( 'dd_order_status_label' ) ? dd_order_status_label( (string) $o->status ) : ucfirst( (string) $o->status );
-                $time  = dd_track_fmt_time( $o->created_at );
-                // Clickable only for orders the current user OWNS (customer_id match) — the
-                // per-order tracker's ownership gate is customer_id-only, so linking a
-                // phone-only row would land on "Order not found". Render those inert.
-                $owned = isset( $o->customer_id ) && (int) $o->customer_id === $current_user_id;
-                $href  = function_exists( 'dd_track_url' )
-                    ? add_query_arg( 'order_id', (int) $o->id, dd_track_url() )
-                    : add_query_arg( 'order_id', (int) $o->id );
-                ?>
-                <li class="dd-track__order-row">
-                <?php if ( $owned ) : ?>
-                    <a class="dd-track__order-link" href="<?php echo esc_url( $href ); ?>">
-                        <span class="dd-track__order-num"><?php echo esc_html( $onum ); ?></span>
-                        <span class="dd-track__order-status dd-status--<?php echo esc_attr( $o->status ); ?>"><?php echo esc_html( $label ); ?></span>
-                        <span class="dd-track__order-time"><?php echo esc_html( $time ); ?></span>
+
+            <?php if ( empty( $orders ) ) : ?>
+                <div class="dd-track__body dd-track__body--empty">
+                    <p class="dd-track__lead"><?php esc_html_e( 'No active orders.', 'dish-dash' ); ?></p>
+                    <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>">
+                        <?php esc_html_e( 'Browse the menu', 'dish-dash' ); ?>
                     </a>
-                <?php else : ?>
-                    <div class="dd-track__order-link dd-track__order-link--static">
-                        <span class="dd-track__order-num"><?php echo esc_html( $onum ); ?></span>
-                        <span class="dd-track__order-status dd-status--<?php echo esc_attr( $o->status ); ?>"><?php echo esc_html( $label ); ?></span>
-                        <span class="dd-track__order-time"><?php echo esc_html( $time ); ?></span>
-                        <span class="dd-track__order-note"><?php esc_html_e( 'In progress', 'dish-dash' ); ?></span>
-                    </div>
-                <?php endif; ?>
-                </li>
-            <?php endforeach; ?>
-            </ul>
-        <?php endif; ?>
-    </div>
-
-<?php else : // 'ok'
-    $status     = (string) $order->status;
-    $is_cancel  = ( 'cancelled' === $status ) || ! empty( $order->cancelled_at );
-    $order_num  = $order->order_number ? $order->order_number : ( 'DD-' . str_pad( (string) $order->id, 5, '0', STR_PAD_LEFT ) );
-    ?>
-    <div class="dd-track"
-         data-order-id="<?php echo esc_attr( (int) $order->id ); ?>"
-         data-status="<?php echo esc_attr( $status ); ?>">
-
-        <div class="dd-track__header">
-            <h2 class="dd-track__title"><?php esc_html_e( 'Track your order', 'dish-dash' ); ?></h2>
-            <span class="dd-track__num"><?php echo esc_html( $order_num ); ?></span>
+                </div>
+            <?php else : ?>
+                <ul class="dd-track__orders">
+                <?php foreach ( $orders as $o ) :
+                    $onum  = $o->order_number ? $o->order_number : ( 'DD-' . str_pad( (string) $o->id, 5, '0', STR_PAD_LEFT ) );
+                    $label = function_exists( 'dd_order_status_label' ) ? dd_order_status_label( (string) $o->status ) : ucfirst( (string) $o->status );
+                    $time  = dd_track_fmt_time( $o->created_at );
+                    // Clickable only for orders the current user OWNS (customer_id match) — the
+                    // per-order tracker's ownership gate is customer_id-only, so linking a
+                    // phone-only row would land on "Order not found". Render those inert.
+                    $owned = isset( $o->customer_id ) && (int) $o->customer_id === $current_user_id;
+                    $href  = function_exists( 'dd_track_url' )
+                        ? add_query_arg( 'order_id', (int) $o->id, dd_track_url() )
+                        : add_query_arg( 'order_id', (int) $o->id );
+                    ?>
+                    <li class="dd-track__order-row">
+                    <?php if ( $owned ) : ?>
+                        <a class="dd-track__order-link" href="<?php echo esc_url( $href ); ?>">
+                            <span class="dd-track__order-num"><?php echo esc_html( $onum ); ?></span>
+                            <span class="dd-track__order-status dd-status--<?php echo esc_attr( $o->status ); ?>"><?php echo esc_html( $label ); ?></span>
+                            <span class="dd-track__order-time"><?php echo esc_html( $time ); ?></span>
+                        </a>
+                    <?php else : ?>
+                        <div class="dd-track__order-link dd-track__order-link--static">
+                            <span class="dd-track__order-num"><?php echo esc_html( $onum ); ?></span>
+                            <span class="dd-track__order-status dd-status--<?php echo esc_attr( $o->status ); ?>"><?php echo esc_html( $label ); ?></span>
+                            <span class="dd-track__order-time"><?php echo esc_html( $time ); ?></span>
+                            <span class="dd-track__order-note"><?php esc_html_e( 'In progress', 'dish-dash' ); ?></span>
+                        </div>
+                    <?php endif; ?>
+                    </li>
+                <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
         </div>
 
-        <div class="dd-track__body">
-        <?php if ( $is_cancel ) : ?>
-            <div class="dd-track__cancelled">
-                <span class="dd-track__cancelled-badge"><?php esc_html_e( 'Cancelled', 'dish-dash' ); ?></span>
-                <?php if ( ! empty( $order->cancelled_at ) ) : ?>
-                    <span class="dd-track__cancelled-time"><?php echo esc_html( dd_track_fmt_time( $order->cancelled_at ) ); ?></span>
-                <?php endif; ?>
+    <?php else : // 'ok'
+        $status     = (string) $order->status;
+        $is_cancel  = ( 'cancelled' === $status ) || ! empty( $order->cancelled_at );
+        $order_num  = $order->order_number ? $order->order_number : ( 'DD-' . str_pad( (string) $order->id, 5, '0', STR_PAD_LEFT ) );
+        ?>
+        <div class="dd-track"
+             data-order-id="<?php echo esc_attr( (int) $order->id ); ?>"
+             data-status="<?php echo esc_attr( $status ); ?>">
+
+            <div class="dd-track__header">
+                <h2 class="dd-track__title"><?php esc_html_e( 'Track your order', 'dish-dash' ); ?></h2>
+                <span class="dd-track__num"><?php echo esc_html( $order_num ); ?></span>
             </div>
-        <?php else : ?>
-            <ol class="dd-track__timeline">
-            <?php foreach ( $dd_track_steps as $key => $step ) :
-                $stamp   = isset( $order->{$step['stamp']} ) ? $order->{$step['stamp']} : null;
-                $done    = ! empty( $stamp );
-                $classes = 'dd-track__step ' . ( $done ? 'is-done' : 'is-upcoming' );
-                if ( $status === $key ) $classes .= ' is-current';
-                ?>
-                <li class="<?php echo esc_attr( $classes ); ?>">
-                    <span class="dd-track__dot" aria-hidden="true"></span>
-                    <span class="dd-track__label"><?php echo esc_html( $step['label'] ); ?></span>
-                    <span class="dd-track__time">
-                        <?php echo $done ? esc_html( dd_track_fmt_time( $stamp ) ) : esc_html__( 'Pending', 'dish-dash' ); ?>
-                    </span>
-                </li>
-            <?php endforeach; ?>
-            </ol>
-        <?php endif; ?>
+
+            <div class="dd-track__body">
+            <?php if ( $is_cancel ) : ?>
+                <div class="dd-track__cancelled">
+                    <span class="dd-track__cancelled-badge"><?php esc_html_e( 'Cancelled', 'dish-dash' ); ?></span>
+                    <?php if ( ! empty( $order->cancelled_at ) ) : ?>
+                        <span class="dd-track__cancelled-time"><?php echo esc_html( dd_track_fmt_time( $order->cancelled_at ) ); ?></span>
+                    <?php endif; ?>
+                </div>
+            <?php else : ?>
+                <ol class="dd-track__timeline">
+                <?php foreach ( $dd_track_steps as $key => $step ) :
+                    $stamp   = isset( $order->{$step['stamp']} ) ? $order->{$step['stamp']} : null;
+                    $done    = ! empty( $stamp );
+                    $classes = 'dd-track__step ' . ( $done ? 'is-done' : 'is-upcoming' );
+                    if ( $status === $key ) $classes .= ' is-current';
+                    ?>
+                    <li class="<?php echo esc_attr( $classes ); ?>">
+                        <span class="dd-track__dot" aria-hidden="true"></span>
+                        <span class="dd-track__label"><?php echo esc_html( $step['label'] ); ?></span>
+                        <span class="dd-track__time">
+                            <?php echo $done ? esc_html( dd_track_fmt_time( $stamp ) ) : esc_html__( 'Pending', 'dish-dash' ); ?>
+                        </span>
+                    </li>
+                <?php endforeach; ?>
+                </ol>
+            <?php endif; ?>
+            </div>
+
         </div>
 
-    </div>
+    <?php endif; ?>
+
+    </div><!-- .dd-account__content -->
+</div><!-- .dd-account -->
 
 <?php endif; ?>
-
-</div>

@@ -172,8 +172,12 @@
     .dd-profile__stats  { flex-direction: column; }
 }
 
-/* ── Account page: two-column branded layout ─────────────────────── */
-.woocommerce-account .woocommerce {
+/* ── Account page: two-column branded layout ─────────────────────────
+   Also extended to `.dd-account` (R2 polish, v3.10.48) so the standalone
+   /track-order/ page reuses the identical sidebar WITHOUT the
+   .woocommerce-account body class (Option 2 — isolated wrapper). */
+.woocommerce-account .woocommerce,
+.dd-account {
     display: flex;
     gap: 32px;
     max-width: var(--dd-container, 1240px);
@@ -183,7 +187,8 @@
 }
 
 /* Sidebar navigation */
-.woocommerce-account .woocommerce-MyAccount-navigation {
+.woocommerce-account .woocommerce-MyAccount-navigation,
+.dd-account .woocommerce-MyAccount-navigation {
     flex: 0 0 240px;
     background: var(--dd-surface, #FBF7F1);
     border: 1px solid var(--dd-line, #EADfCE);
@@ -192,12 +197,14 @@
     position: sticky;
     top: 90px;
 }
-.woocommerce-account .woocommerce-MyAccount-navigation ul {
+.woocommerce-account .woocommerce-MyAccount-navigation ul,
+.dd-account .woocommerce-MyAccount-navigation ul {
     list-style: none;
     margin: 0;
     padding: 0;
 }
-.woocommerce-account .woocommerce-MyAccount-navigation-link a {
+.woocommerce-account .woocommerce-MyAccount-navigation-link a,
+.dd-account .woocommerce-MyAccount-navigation-link a {
     display: block;
     padding: 12px 16px;
     border-radius: 10px;
@@ -207,14 +214,17 @@
     font-size: .95rem;
     transition: background .15s ease, color .15s ease;
 }
-.woocommerce-account .woocommerce-MyAccount-navigation-link a:hover {
+.woocommerce-account .woocommerce-MyAccount-navigation-link a:hover,
+.dd-account .woocommerce-MyAccount-navigation-link a:hover {
     background: var(--dd-surface-2, #FFF7EA);
 }
-.woocommerce-account .woocommerce-MyAccount-navigation-link.is-active a {
+.woocommerce-account .woocommerce-MyAccount-navigation-link.is-active a,
+.dd-account .woocommerce-MyAccount-navigation-link.is-active a {
     background: var(--brand);
     color: #fff;
 }
-.woocommerce-account .woocommerce-MyAccount-navigation-link--customer-logout a {
+.woocommerce-account .woocommerce-MyAccount-navigation-link--customer-logout a,
+.dd-account .woocommerce-MyAccount-navigation-link--customer-logout a {
     color: var(--dd-muted, #6E5B4C);
     margin-top: 6px;
     border-top: 1px solid var(--dd-line, #EADfCE);
@@ -272,13 +282,16 @@
 
 /* Mobile: stack sidebar above content */
 @media (max-width: 768px) {
-    .woocommerce-account .woocommerce { flex-direction: column; }
-    .woocommerce-account .woocommerce-MyAccount-navigation {
+    .woocommerce-account .woocommerce,
+    .dd-account { flex-direction: column; }
+    .woocommerce-account .woocommerce-MyAccount-navigation,
+    .dd-account .woocommerce-MyAccount-navigation {
         flex: 1 1 auto;
         width: 100%;
         position: static;
     }
-    .woocommerce-account .woocommerce-MyAccount-navigation ul {
+    .woocommerce-account .woocommerce-MyAccount-navigation ul,
+    .dd-account .woocommerce-MyAccount-navigation ul {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;

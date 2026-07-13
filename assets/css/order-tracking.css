@@ -14,8 +14,10 @@
 }
 
 .dd-track {
-    /* Brand accent — resolves against whichever token the active template exposes. */
-    --dd-track-accent: var(--dd-accent, var(--dd-brand, var(--dd-primary, currentColor)));
+    /* Brand accent — the frontend exposes `--brand` (global header :root); the
+       admin-only --dd-* tokens are fallbacks. Ends in a concrete hex, NEVER
+       currentColor (which collapsed the white-on-accent status pill to white-on-white). */
+    --dd-track-accent: var(--brand, var(--dd-accent, var(--dd-brand, #65040d)));
     --dd-track-line:   rgba(0, 0, 0, 0.12);
     --dd-track-muted:  rgba(0, 0, 0, 0.5);
     --dd-track-idle:   rgba(0, 0, 0, 0.18);
@@ -198,6 +200,11 @@
     white-space: nowrap;
 }
 
+/* Color-by-status — readable white text on distinct, semantic status fills. */
+.dd-track__order-status.dd-status--pending   { background: #C77700; } /* amber  — awaiting confirmation */
+.dd-track__order-status.dd-status--confirmed { background: #2563EB; } /* blue   — in the kitchen        */
+.dd-track__order-status.dd-status--ready     { background: #157A46; } /* green  — ready / on the way    */
+
 .dd-track__order-time {
     font-size: 0.82rem;
     color: var(--dd-track-muted);
@@ -221,6 +228,20 @@
 
 .dd-track__body--empty {
     text-align: center;
+}
+
+/* ── Account layout (R2 polish): sidebar + content column ─────────────
+   The .dd-account flex container and the .woocommerce-MyAccount-navigation
+   sidebar are styled by profile.css (extended to .dd-account for isolation).
+   The content column is plain so the inner .dd-track card keeps its own look
+   (the ?order_id= timeline stays visually unchanged). */
+.dd-account__content {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+/* Inside the account layout the card no longer needs the 640px wrapper's margin. */
+.dd-account__content .dd-track {
+    margin: 0;
 }
 
 @media (max-width: 480px) {

@@ -1704,6 +1704,8 @@ class DD_Orders_Module extends DD_Module {
         // rows (customer_id NULL / another id) render non-clickable so no one hits the
         // customer_id-only ownership gate → "Order not found". (Full fix: R4c.)
         $this->enqueue_style( 'order-tracking', 'order-tracking.css' );
+        // Profile sidebar styling (R2 polish) — the track page reuses the account nav.
+        $this->enqueue_style( 'profile', 'profile.css' );
 
         return $this->get_template( 'orders/track.php', [
             'state'           => 'list',
@@ -1721,6 +1723,10 @@ class DD_Orders_Module extends DD_Module {
      * from "not found"), then enqueues the polling tracker on a live order.
      */
     private function render_single_track( $order, string $account_url, int $uid ): string {
+        // Both the not-found and live views render inside the account sidebar layout.
+        $this->enqueue_style( 'order-tracking', 'order-tracking.css' );
+        $this->enqueue_style( 'profile', 'profile.css' );
+
         // Ownership gate — mirror ajax_get_order(). Do not leak existence.
         if ( $order && ! current_user_can( 'dd_manage_orders' ) && (int) $order->customer_id !== $uid ) {
             $order = null;
@@ -1735,7 +1741,7 @@ class DD_Orders_Module extends DD_Module {
             ] );
         }
 
-        $this->enqueue_style( 'order-tracking', 'order-tracking.css' );
+        // CSS already enqueued above; a live order additionally needs the polling JS.
         $this->enqueue_script( 'order-tracking', 'order-tracking.js', [], true );
         wp_localize_script( 'dish-dash-order-tracking', 'ddTrackConfig', [
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
