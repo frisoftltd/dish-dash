@@ -19,9 +19,9 @@
  *
  * Shortcodes registered:
  *   [dish_dash_menu], [dish_dash_cart], [dish_dash_checkout],
- *   [dish_dash_reserve], [dish_dash_account] ⚠️
- *   (⚠️ [dish_dash_account] also registered by DD_Orders_Module — last one wins, see ARCHITECTURE.md)
+ *   [dish_dash_reserve]
  *   ([dish_dash_track] removed here in v3.10.30 — DD_Orders_Module is now sole owner)
+ *   ([dish_dash_account] removed here in v3.10.44 — vestigial account page retired, R1)
  *
  * AJAX actions registered:
  *   dd_menu_load_products (public — paginated product grid for desktop menu page)
@@ -51,7 +51,7 @@ class DD_Menu_Module extends DD_Module {
         add_shortcode( 'dish_dash_checkout', [ $this, 'shortcode_checkout' ] );
         add_shortcode( 'dish_dash_reserve',  [ $this, 'shortcode_reserve' ] );
         // [dish_dash_track] intentionally NOT registered here — DD_Orders_Module owns it (v3.10.30).
-        add_shortcode( 'dish_dash_account',  [ $this, 'shortcode_account' ] );
+        // [dish_dash_account] registration removed in v3.10.44 (R1) — vestigial account page retired.
 
         // Desktop menu page: conditional asset enqueue
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_menu_assets' ] );

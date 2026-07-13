@@ -107,7 +107,7 @@ class DD_Orders_Module extends DD_Module {
 
         // Shortcodes
         add_shortcode( 'dish_dash_track',   [ $this, 'shortcode_track' ] );
-        add_shortcode( 'dish_dash_account', [ $this, 'shortcode_account' ] );
+        // [dish_dash_account] registration removed in v3.10.44 (R1) — vestigial account page retired.
     }
 
     // ─────────────────────────────────────────
