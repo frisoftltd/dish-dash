@@ -168,12 +168,15 @@
     border-top: 1px solid var(--dd-track-line);
 }
 
+/* Flex row: the order number flexes/ellipsizes; the pill and timestamp never
+   shrink (flex:0 0 auto) so they always sit fully inside the card — no clipping.
+   flex-wrap lets them drop to a second line only on an extreme squeeze. */
 .dd-track__order-link {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
+    display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 14px 4px;
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding: 14px 8px;
     text-decoration: none;
     color: var(--dd-text, inherit);
     transition: background 0.15s ease;
@@ -184,28 +187,31 @@
 }
 
 .dd-track__order-num {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.98rem;
     font-weight: 600;
     letter-spacing: 0.3px;
 }
 
+/* One consistent brand pill for all statuses (pending / confirmed / ready). */
 .dd-track__order-status {
+    flex: 0 0 auto;
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.3px;
     padding: 4px 12px;
     border-radius: 999px;
     color: rgba(255, 255, 255, 0.96);
-    background: var(--dd-track-accent);
+    background: var(--brand, #65040d);
     white-space: nowrap;
 }
 
-/* Color-by-status — readable white text on distinct, semantic status fills. */
-.dd-track__order-status.dd-status--pending   { background: #C77700; } /* amber  — awaiting confirmation */
-.dd-track__order-status.dd-status--confirmed { background: #2563EB; } /* blue   — in the kitchen        */
-.dd-track__order-status.dd-status--ready     { background: #157A46; } /* green  — ready / on the way    */
-
 .dd-track__order-time {
+    flex: 0 0 auto;
     font-size: 0.82rem;
     color: var(--dd-track-muted);
     white-space: nowrap;
@@ -220,7 +226,7 @@
     background: transparent;
 }
 .dd-track__order-note {
-    grid-column: 1 / -1;
+    flex: 1 0 100%;
     font-size: 0.75rem;
     font-style: italic;
     color: var(--dd-track-muted);
@@ -248,10 +254,6 @@
     .dd-track { padding: 22px 16px; }
     .dd-track__step { grid-template-columns: 28px 1fr; }
     .dd-track__time { grid-column: 2; padding-left: 0; }
-
-    .dd-track__order-link {
-        grid-template-columns: 1fr auto;
-        row-gap: 6px;
-    }
-    .dd-track__order-time { grid-column: 1 / -1; }
+    /* The order rows are flex + flex-wrap, so they reflow on narrow screens
+       without any grid overrides. */
 }

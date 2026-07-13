@@ -1,80 +1,50 @@
-# R2 polish — Empty status pills fixed + profile sidebar on Track page — Build Report
+# R2 pill polish — brand-color pills + fix row overflow — Build Report
 
-**Version:** 3.10.48 (bumped in `dish-dash.php` header + `DD_VERSION`, and CLAUDE.md).
-**Approach:** Option 2 (isolated `.dd-account` wrapper — no `.woocommerce-account` body class).
+**Version:** 3.10.49 (bumped in `dish-dash.php` header + `DD_VERSION`, and CLAUDE.md).
 **Status:** built, committed, pushed. **Not released** — developer creates the GitHub release.
+**One file changed:** `assets/css/order-tracking.css` (list-row pills + row layout).
 
 ---
 
-## 1. Empty status pills — fixed (`assets/css/order-tracking.css`)
+## 1. Brand-color pills (dropped per-status colors)
+- All status pills now use `background: var(--brand, #65040d)` with white text — one consistent brand pill
+  for `pending` / `confirmed` / `ready`.
+- Removed the per-status rules (`.dd-status--pending` amber / `--confirmed` blue / `--ready` green).
 
-**Cause:** the pill is white text on `var(--dd-track-accent)`, whose fallback chain referenced
-`--dd-accent`/`--dd-brand`/`--dd-primary` — none of which exist on the frontend (the frontend brand token is
-`--brand`; the `--dd-*` ones live only in admin.css). The chain fell to `currentColor` = the pill's own white
-text → **white-on-white**.
+## 2. Fixed the row overflow (pill + date clipping at the card edge)
+Root cause: the row was `display: grid; grid-template-columns: 1fr auto auto`. The `1fr` (order-number)
+column has an implicit `min-width: auto` = its content width, so a long order number couldn't shrink and
+pushed the `auto` pill/time columns past the card's right edge → the pill text and timestamp got clipped.
 
-**Fix:**
-- `--dd-track-accent: var(--brand, var(--dd-accent, var(--dd-brand, #65040d)))` — real frontend token first,
-  **concrete hex end, never `currentColor`**. (Also makes the timeline dots / order-number / cancel badge
-  brand-colored, since they share this accent.)
-- **Color-by-status pills** (readable white text on distinct semantic fills):
-  `.dd-status--pending` `#C77700` (amber) · `.dd-status--confirmed` `#2563EB` (blue) ·
-  `.dd-status--ready` `#157A46` (green).
+Fix — converted the row to **flex** so the right-hand items can never be squeezed out:
+```css
+.dd-track__order-link { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 14px 8px; }
+.dd-track__order-num  { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dd-track__order-status { flex: 0 0 auto; background: var(--brand, #65040d); /* white text, nowrap */ }
+.dd-track__order-time   { flex: 0 0 auto; white-space: nowrap; }
+.dd-track__order-note   { flex: 1 0 100%; /* own line under the row */ }
+```
+- The **order number** flexes and ellipsizes (`min-width:0`), so it — not the pill/date — absorbs any tight
+  space.
+- The **pill** and **timestamp** are `flex: 0 0 auto` → they keep their full size and sit fully inside the
+  card. Combined with the card's 24px padding + the row's 8px padding, they have proper right-edge breathing
+  room. `flex-wrap` only drops them to a second line on an extreme squeeze (never mid-word clipping).
+- Removed the now-obsolete grid overrides in the `≤480px` media block (flex + wrap reflow on their own).
 
-## 2. Profile sidebar on the Track page — added (Option 2, isolated)
-
-**`templates/orders/track.php`** restructured:
-- **Guest** state → unchanged centered `.dd-track-wrap` message (no sidebar).
-- **Logged-in** states (`list` / `ok` / `notfound` / `empty`) → wrapped in `.dd-account`:
-  - `<nav class="woocommerce-MyAccount-navigation">` built from `wc_get_account_menu_items()` (the same
-    filtered list as the profile page: My Profile / Order History / Track Order / Addresses / Account details /
-    Log out). Item hrefs via `wc_get_account_endpoint_url()`; **Track Order** resolved directly with
-    `dd_track_url()` and marked `is-active` (bulletproof, independent of the endpoint-URL filter).
-  - `.dd-account__content` column holds the existing `.dd-track` card(s) — **list and timeline markup
-    unchanged**.
-
-**`assets/css/profile.css`** — Option 2 isolation: the two-column layout + sidebar selectors
-(`.woocommerce`, `.woocommerce-MyAccount-navigation`, `-navigation ul`, `-navigation-link a`, `:hover`,
-`.is-active`, `--customer-logout`, and the ≤768px responsive block) now **also target `.dd-account`**. No
-`.woocommerce-account` body class is added, so there's no WooCommerce style bleed onto the track page.
-
-**`assets/css/order-tracking.css`** — added `.dd-account__content { flex:1 1 auto; min-width:0 }` (plain
-column so the inner `.dd-track` card keeps its own look) and `.dd-account__content .dd-track { margin:0 }`.
-
-**`modules/orders/class-dd-orders-module.php`** — `profile.css` is now enqueued on the track page
-(both the list branch and `render_single_track()`), since the profile module only enqueues it on
-`is_account_page()`.
-
-## 3. Timeline (`?order_id=`) — not regressed
-The single-order view still renders the exact same `.dd-track` timeline card (same markup + order-tracking.css),
-now sitting inside `.dd-account__content` with the sidebar beside it. `order-tracking.js` still polls and
-re-renders `.dd-track[data-order-id]` until terminal — unchanged. The accent fix additionally makes its dots
-render in the brand color.
+## 3. Unchanged
+Sidebar, timeline card, and the `--dd-track-accent` variable (still drives the timeline dots / order number /
+cancel badge) are untouched. No PHP/template/query changes this release.
 
 ---
-
-## Files changed
-- `assets/css/order-tracking.css` — accent chain fix + status pill colors + account content column.
-- `assets/css/profile.css` — sidebar/layout selectors extended to `.dd-account` (+ responsive).
-- `templates/orders/track.php` — sidebar layout for logged-in states; guest unchanged.
-- `modules/orders/class-dd-orders-module.php` — enqueue `profile.css` on the track page.
-- `dish-dash.php` (×2) + `CLAUDE.md` — version 3.10.48.
-
-## Out of scope (untouched)
-No query/attribution changes, no `ajax_get_order()` / ownership-gate change, no guest tracking, no
-`customer_id` writes.
 
 ## Verify after deploy (LiteSpeed purge, logged in as user 14)
-1. `/track-order/` → **status pills are colored and readable** (amber/blue/green), sidebar on the left
-   identical to the profile page, **Track Order highlighted** as active, list on the right.
-2. Click an owned order → **timeline view** with the sidebar beside it; steps/dots render in the brand color;
-   card look unchanged from before.
-3. Sidebar links (My Profile / Order History / Addresses / Account details / Log out) navigate to the WC
-   account pages; **Track Order** points to `/track-order/`.
-4. Eyeball for **no stray WooCommerce styling** bleeding onto the page (Option 2 avoids the
-   `.woocommerce-account` body class specifically to prevent this).
-5. Mobile ≤768px: sidebar stacks above the content (chips row).
+1. `/track-order/` list → every pill is the **brand color** with its label fully visible (Pending / Confirmed
+   / Ready), and the **timestamp is fully inside the card** — nothing clipped at the right edge.
+2. Try an order with a long order number → the number ellipsizes; the pill + date stay put.
+3. Narrow the window / mobile → rows reflow cleanly (pill/date wrap to a second line only when truly needed),
+   still no clipping.
+4. Timeline (`?order_id=`) and sidebar look identical to v3.10.48.
 
 ## Note
-- PHP not available locally → no `php -l`; edited regions verified by re-reading (template branch/brace
-  structure and the nav loop confirmed). Smoke-load `/track-order/` right after deploy.
+- No local `php -l` (PHP not installed here) — but this release is CSS-only. Purge LiteSpeed and hard-refresh
+  so the updated `order-tracking.css` loads.
