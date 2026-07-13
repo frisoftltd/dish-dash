@@ -180,6 +180,7 @@ class DD_Template_Module extends DD_Module {
         if ( is_page( 'checkout' ) )              return true;
         if ( is_page( 'birthday' ) )              return true;
         if ( is_page( 'my-account' ) )            return true;
+        if ( is_page( 'track-order' ) )           return true;
         if ( is_page() ) {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
             if ( 'page-dishdash.php' === $meta ) return true;
