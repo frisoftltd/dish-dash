@@ -1,251 +1,270 @@
-# R4b Verification — Diagnostic Investigation (READ-ONLY)
+# Order Tracking — Phase 1 Investigation (READ-ONLY)
 
-**Brief:** Reconcile "user 14 (habumugisha.innocent, +250785553103) shows **39** orders in the
-browser, but the DB phone-anchored set is **56** (delivered 33, ready 10, cancelled 13). No clean
-status filter produces 39." Find why the UI shows 39.
+**Feature:** Dedicated "Track Order" page for logged-in customers showing live status of their
+**active** orders. Guest tracking deferred. Also: diagnose the `[dish_dash_account]`
+double-registration.
 
-**Scope:** Read-only. No code edits, no version bump, no release. Claude Code has NO live DB access —
-every count/verification query is marked **[RUN ON SERVER]** for the developer.
-
----
-
-## Headline answer (the shortcut the developer asked for)
-
-**The counted list is the full Order History page (Query C), NOT the "recent orders" widget.**
-39 is far above the recent widget's `LIMIT 5` and favorites' `LIMIT 6`, so it can only be Query C.
-
-Query C's only reductions vs. the raw 56-row count are:
-1. `AND is_test = 0` — **excludes test orders** (the raw 56 almost certainly did NOT filter this), and
-2. `LIMIT 50` — **not binding** at 39 (39 < 50).
-
-Query C has **no status filter** (cancelled orders ARE shown) and **no date cutoff**.
-
-**Therefore the 56→39 gap = ~17 rows with `is_test = 1`.** This is the primary reconciliation and
-is a single [RUN ON SERVER] query to confirm (Task 4). If the raw 56 was computed with `+250785553103`
-but the customer's stored `whatsapp` is a different string, a secondary phone-format effect is also
-possible (Task 5, H1) — but since 39 is large, phone matching is clearly working, so `is_test` is by
-far the likeliest gap.
+**Live version:** `3.10.43` (dish-dash.php:47). Read-only — no edits, no version bump, no release.
+Claude Code has NO live DB access → live-data checks marked **[RUN ON SERVER]**.
 
 ---
 
-## Task 1 — The three profile order-display queries (full SQL + assembling PHP)
+## TL;DR (the two scope-shaping facts)
 
-All three build the WHERE from a **canonical-only phone set** = `[ customer->whatsapp ]`
-(after `array_filter` drops empties). If the set is non-empty it becomes
-`( customer_id = %d OR customer_phone IN (%s,…) )`; if empty it falls back to `customer_id = %d`.
-`get_customer_for_user()` returns `SELECT *` (customer-manager.php:312-319) — so the phone value is
-the **raw stored `wp_dishdash_customers.whatsapp` string, un-normalized at runtime**.
+1. **A Track page already exists and is FUNCTIONAL — not a stub.** `install.php` auto-creates
+   `/track-order/` with `[dish_dash_track]`, and `DD_Orders_Module::shortcode_track()` +
+   `templates/orders/track.php` render a **live, polling single-order status timeline** (built v3.10.30).
+   The work is **upgrading** it from *one most-recent order* → *a list of active orders* (phone-anchored,
+   active-status-filtered) — **not greenfield**.
 
-### Query A — Favorites — `modules/orders/class-dd-customer-profile.php:117-129`
-PHP assembly (lines 100-115):
+2. **The double-registration is decoupled from the tracker → two releases.** `[dish_dash_account]` is
+   registered by two modules; the tracker uses `[dish_dash_track]` (already sole-owned since v3.10.30) and
+   never touches the account registration. **R1 = delete the dead account twin (isolated, small);
+   R2 = the active-orders tracker upgrade.**
+
+---
+
+## Task 1 — Order status model
+
+### The complete status set (5)
+Plain **string values** in `wp_dishdash_orders.status` (VARCHAR; no PHP enum/constant class). The
+canonical set is defined by two helpers in `dishdash-core/class-dd-helpers.php`:
+
+| Status | Label (helpers.php:125-134) | Timestamp column | Role |
+|---|---|---|---|
+| `pending` | Pending | *(none — `created_at` = placed)* | **active** |
+| `confirmed` | Confirmed | `confirmed_at` | **active** |
+| `ready` | Ready | `ready_at` | **active** |
+| `delivered` | Delivered | `delivered_at` | **terminal** |
+| `cancelled` | Cancelled | `cancelled_at` | **terminal** |
+
+There is **no `preparing` / `out_for_delivery`** status — the earlier brief's guess doesn't match the
+code. Five statuses only.
+
+### Lifecycle (transition map — helpers.php:112-119)
 ```php
-$customer_id = (int) $user_id;
-$phones = array_values( array_filter( [ (string) ( $customer->whatsapp ?? '' ) ] ) );
-if ( $phones ) {
-    $ph      = implode( ',', array_fill( 0, count( $phones ), '%s' ) );
-    $where_o = "( o.customer_id = %d OR o.customer_phone IN ($ph) )"; // aliased (favorites)
-    $match_args = array_merge( [ $customer_id ], $phones );
-} else {
-    $where_o    = "o.customer_id = %d";
-    $match_args = [ $customer_id ];
-}
+'pending'   => [ 'confirmed', 'cancelled' ],
+'confirmed' => [ 'ready',     'cancelled' ],
+'ready'     => [ 'delivered', 'cancelled' ],
+'delivered' => [ 'ready' ],       // reverse (reopen)
+'cancelled' => [ 'pending' ],     // reverse (reopen)
 ```
-SQL:
-```sql
-SELECT oi.menu_item_id, oi.item_name, SUM(oi.quantity) AS times_ordered
-FROM wp_dishdash_order_items oi
-JOIN wp_dishdash_orders o ON o.id = oi.order_id
-WHERE ( o.customer_id = %d OR o.customer_phone IN (%s,…) )
-  AND o.is_test = 0
-  AND o.status NOT IN ('cancelled')
-GROUP BY oi.menu_item_id, oi.item_name
-ORDER BY times_ordered DESC
-LIMIT 6
-```
-Item-level GROUP BY, `LIMIT 6`. **Cannot show 39.**
+Forward path: **placed(pending) → confirmed → ready → delivered**. `cancelled` reachable from
+pending/confirmed/ready. Two reverse (reopen) transitions exist for staff correction.
 
-### Query B — Recent orders (reorder widget) — `class-dd-customer-profile.php:139-148`
-```sql
-SELECT id, order_number, total, status, created_at
-FROM wp_dishdash_orders
-WHERE ( customer_id = %d OR customer_phone IN (%s,…) )
-  AND is_test = 0
-  AND status NOT IN ('cancelled')
-ORDER BY id DESC
-LIMIT 5
-```
-`LIMIT 5`, excludes cancelled. **Cannot show 39.**
+- **Active / trackable (in-progress):** `pending`, `confirmed`, `ready`
+- **Terminal:** `delivered`, `cancelled`
 
-### Query C — Order History page — `modules/profile/class-dd-profile-module.php:151-158`
-PHP assembly (lines 128-149):
+### How status is updated + timestamps → **timeline IS possible**
+`DD_Orders_Module::update_status()` (orders-module.php:537-586):
+- Validates the transition against the map (rejects illegal jumps).
+- **Stamps a dedicated per-status DATETIME column** (`confirmed_at` / `ready_at` / `delivered_at` /
+  `cancelled_at`) on each change — so each milestone has its own timestamp.
+- Fires `do_action('dish_dash_order_status_changed', …)` and (on delivered) `dish_dash_order_delivered`,
+  then `send_status_update()` to notify the customer.
+- **`created_at` is the "Placed" stamp** — there is no `pending_at` column (order exists = placed).
+
+Callers: admin order modal (status-change AJAX), gateway/thank-you flows create the order. Because every
+non-pending milestone has its own column, `track.php` already renders a **4-step timeline** (Placed →
+Confirmed → Ready → Delivered) with real times — not just current state. **[RUN ON SERVER]** to confirm
+the live status vocabulary matches:
+```sql
+SELECT status, COUNT(*) FROM wp_dishdash_orders GROUP BY status ORDER BY 2 DESC;
+```
+Schema confirmed in `install.php:99-139` (all four `_at` columns + `is_test` + `KEY customer_id`).
+
+---
+
+## Task 2 — Active-orders query for a logged-in user
+
+**Reuse the R4b pattern.** The canonical phone set comes from
+`DD_Customer_Manager::get_customer_for_user( $uid )` (customer-manager.php:312-319, `SELECT *`) → use its
+`->whatsapp` (raw stored value, not re-normalized). The exact PHP assembly to copy is already in
+`profile-module.php:141-149`:
+
 ```php
-$customer = DD_Customer_Manager::get_customer_for_user( $user_id );
-// … if ! $customer → early return ("add your phone number") …
+$customer = DD_Customer_Manager::get_customer_for_user( $uid );
 $phones = array_values( array_filter( [ (string) ( $customer->whatsapp ?? '' ) ] ) );
 if ( $phones ) {
     $ph    = implode( ',', array_fill( 0, count( $phones ), '%s' ) );
     $where = "( customer_id = %d OR customer_phone IN ($ph) )";
-    $args  = array_merge( [ (int) $user_id ], $phones );
+    $args  = array_merge( [ (int) $uid ], $phones );
 } else {
     $where = "customer_id = %d";
-    $args  = [ (int) $user_id ];
+    $args  = [ (int) $uid ];
 }
+// active-orders query:
+"SELECT * FROM {$wpdb->prefix}dishdash_orders
+ WHERE {$where} AND is_test = 0
+   AND status IN ('pending','confirmed','ready')
+ ORDER BY id DESC"
 ```
-SQL:
+
+**Neither existing helper does this today** — both are `customer_id`-only:
+- `shortcode_track()` default fetch (orders-module.php:1677-1682): `WHERE customer_id = %d AND is_test = 0
+  ORDER BY id DESC LIMIT 1` — single order, **no phone anchor, no active-status filter** (returns the most
+  recent order even if delivered/cancelled).
+- `get_orders()` helper (orders-module.php:502-531): supports `status`/`customer_id` args but **no phone
+  OR** and only a single exact `status`, not a set.
+
+So the active-orders list query is genuinely new; model it on R4b, don't reuse `get_orders()` as-is.
+**[RUN ON SERVER]** sanity check for a sample user (replace 14 / phone with real values):
 ```sql
-SELECT id, order_number, total, status, order_type, payment_method, created_at
-FROM wp_dishdash_orders
-WHERE ( customer_id = %d OR customer_phone IN (%s,…) ) AND is_test = 0
-ORDER BY id DESC
-LIMIT 50
+SELECT id, order_number, status, created_at FROM wp_dishdash_orders
+WHERE ( customer_id = 14 OR customer_phone = '+250785553103' )
+  AND is_test = 0 AND status IN ('pending','confirmed','ready')
+ORDER BY id DESC;
 ```
-Rendered by `render_order_history()` — echoes **every** returned row as a `.dd-order-card`
-(the per-order items sub-query at :167 does not drop the card; the items `<ul>` is conditional but the
-card wrapper is always emitted). **This is the 39-order list.**
 
 ---
 
-## Task 2 — Which query renders the counted list
+## Task 3 — Page/route infrastructure + current Track-page state
 
-**Query C (`render_order_history`, profile-module.php:122-214).**
+### How the six customer pages are created & routed
+`DD_Schema_Upgrader::create_pages()` (install.php:591-650) auto-creates plain **WP pages** (each holding
+one shortcode) and stores each page ID in an option. Idempotent: skips if the option is set, else adopts an
+existing same-slug page, else `wp_insert_post`.
 
-- It is hooked to `woocommerce_account_orders_endpoint` (priority 5, line 38) and titled
-  **"Order history"** — the "Order History" menu tab the developer was viewing.
-- It first `remove_all_actions('woocommerce_account_orders_endpoint')` (line 124), so WooCommerce's
-  own paginated order list never runs. There is **no WooCommerce pagination** — the module echoes all
-  rows directly. The only cap is the SQL `LIMIT 50`.
-- 39 rows ≫ Query B's `LIMIT 5` and Query A's `LIMIT 6`, so neither of those is the counted list.
-
-**Is 39 a LIMIT cap?** No. Query C's `LIMIT 50 > 39`, so the limit is not binding — 39 is the true
-returned row count, not a truncation. (Had the developer been counting the *recent* widget, a low
-LIMIT could have explained a capped number — but that widget is `LIMIT 5`, so this is ruled out.)
-
----
-
-## Task 3 — Every filter narrowing Query C
-
-| Filter | Present? | Detail |
+| Option key | Slug | Shortcode |
 |---|---|---|
-| **Status filter** | ❌ **None** | No `status IN(...)`, no exclusion. **Cancelled orders ARE included.** So all of delivered 33 + ready 10 + cancelled 13 are eligible. |
-| **`is_test`** | ✅ | `AND is_test = 0` — **test orders excluded.** The only status-independent row filter. |
-| **LIMIT / offset** | ✅ (non-binding) | `LIMIT 50`, no offset. 39 < 50 → not truncating. |
-| **Date cutoff** | ❌ None | No `created_at >` window. Full history. |
-| **Deduplication** | ❌ None | No `DISTINCT`, no `GROUP BY`, no PHP-side dedupe. The render loop (:166-210) emits one card per row, skips nothing. |
-| **JOIN drop/multiply** | ❌ None | Query C is single-table (`dishdash_orders`). The items fetch (:167) is a *separate* per-order query and never removes the parent order card (card head at :179 is unconditional). No INNER JOIN that could drop rows. |
+| `dish_dash_menu_page_id` | `restaurant-menu` | `[dish_dash_menu]` |
+| `dish_dash_cart_page_id` | `cart-dd` | `[dish_dash_cart]` |
+| `dish_dash_checkout_page_id` | `checkout-dd` | `[dish_dash_checkout]` |
+| **`dish_dash_track_page_id`** | **`track-order`** | **`[dish_dash_track]`** |
+| `dish_dash_account_page_id` | `my-restaurant-account` | `[dish_dash_account]` |
+| `dish_dash_reserve_page_id` | `reserve-table` | `[dish_dash_reserve]` |
 
-**Net:** the ONLY thing separating Query C's result from the raw 56-row set is `AND is_test = 0`
-(and a non-binding `LIMIT 50`). Everything else (status, date, dedupe, joins) is a no-op.
+Routing = normal WP page + shortcode (NOT WC endpoints). Exception: the **My Profile / Order History**
+experience lives on `/my-account/` as WooCommerce account endpoints (DD_Profile_Module), separate from the
+standalone `[dish_dash_account]` page. `dishdash-core/class-dd-helpers.php:178` reads
+`dish_dash_track_page_id` (a helper resolves the track page URL).
 
----
+### Current state of the Track page → **FUNCTIONAL, single-order**
+`shortcode_track()` (orders-module.php:1645-1712) + `templates/orders/track.php`:
+- **Logged-in only** (guests get a "please log in" state). Four states: `guest` / `notfound` / `empty` / `ok`.
+- Resolves the order: `?order_id=` (numeric) → `?order=` (order_number) → else **most-recent own order**
+  (`customer_id = %d`, LIMIT 1).
+- Ownership-gated (staff read any; customer reads own only; failed gate == "not found", no existence leak).
+- On `ok`, enqueues `order-tracking.css/js` + localizes `ddTrackConfig` (ajaxUrl + `dish_dash_frontend`
+  nonce). The template renders a **4-step timeline** from the `_at` columns; `order-tracking.js` **polls
+  `dd_get_order` every 30s and re-renders until terminal**.
 
-## Task 4 — Expected count vs. 39
-
-Given Task 3, the UI count should equal the phone-anchored set **with test orders removed**:
-
-**[RUN ON SERVER] — primary reconciliation**
-```sql
--- Use the SAME phone string the app uses (see Task 5 H1 — confirm it first).
-SELECT COUNT(*) AS ui_expected
-FROM wp_dishdash_orders
-WHERE ( customer_id = 14 OR customer_phone = '+250785553103' )
-  AND is_test = 0;
-```
-**Prediction: 39.** If this returns 39 → **R4b VERIFIED. The number was correct all along; the raw 56
-simply included ~17 test orders that the live page correctly hides.**
-
-**[RUN ON SERVER] — prove the gap is exactly `is_test`**
-```sql
-SELECT is_test, COUNT(*) AS n
-FROM wp_dishdash_orders
-WHERE ( customer_id = 14 OR customer_phone = '+250785553103' )
-GROUP BY is_test;
--- Expect: is_test=0 → 39, is_test=1 → 17  (39 + 17 = 56)
-```
-
-**[RUN ON SERVER] — status breakdown of what the page actually shows (all statuses, test excluded)**
-```sql
-SELECT status, COUNT(*) AS n
-FROM wp_dishdash_orders
-WHERE ( customer_id = 14 OR customer_phone = '+250785553103' )
-  AND is_test = 0
-GROUP BY status ORDER BY n DESC;
--- Sum should be 39. Cancelled rows WILL appear here (Query C has no status filter),
--- but their count will be lower than the raw 13 if some cancelled orders were test rows.
-```
-
-If COUNT = 39 → done, R4b is verified and the "56 vs 39" was an apples-to-oranges compare
-(raw counted test rows; the page correctly excludes them). If it does **not** equal 39 → Task 5.
+**Gap vs. this brief:** it tracks **one** order (most-recent by `customer_id`, or an explicitly requested
+one), **not a list of active orders**, and the default fetch isn't status-filtered (a delivered order shows)
+nor phone-anchored (guest-placed orders under the user's phone won't appear by default). So v1 = **upgrade
+the existing functional page** to a phone-anchored, active-status list — reusing the timeline template and
+the existing per-order polling for drill-in.
 
 ---
 
-## Task 5 — If unreconciled: ranked hypotheses (each with a [RUN ON SERVER] SELECT)
+## Task 4 — `[dish_dash_account]` double-registration
 
-### H1 — Phone-format mismatch: the app's `whatsapp` ≠ `'+250785553103'` (HIGH — verify FIRST)
-`get_customer_for_user()` returns the **raw stored `whatsapp`** (customer-manager.php:316-318, `SELECT *`,
-no re-normalization). Per CLAUDE.md the R3 E.164 flip migration has **not** run on the server
-(`dd_phone_format` still `bare`), so `customers.whatsapp` for user 14 may be stored **bare**
-(`250785553103`, no `+`) while R4a rewrote 6 order rows to E.164 (`+250785553103`) and newer
-intl-tel-input guest orders store `+250…`. If the developer's raw "56" used `'+250785553103'` but the
-app binds a **different** string, the app matches a different row set → the two counts are not
-comparable and 39 may be the app matching a *different* ~37 rows.
-> Note: because 39 is large, the phone arm is clearly matching ~37 rows, so `whatsapp` is *probably*
-> already `+250785553103`. But this must be confirmed before trusting the Task 4 query.
-
-**[RUN ON SERVER] — confirm the exact string the app uses, then re-run Task 4 with it verbatim:**
-```sql
-SELECT id, user_id, whatsapp, LENGTH(whatsapp) AS len, HEX(whatsapp) AS hx
-FROM wp_dishdash_customers
-WHERE user_id = 14;
--- If whatsapp = '+250785553103' → Task 4's query is valid as written.
--- If whatsapp = '250785553103' (bare, len 12) → the app matches bare-format order rows only;
---    re-run Task 4 with customer_phone = '250785553103' to get the app's TRUE set, then apply is_test.
--- HEX reveals hidden whitespace / leading chars if len looks off.
+### The two registrations (exact file:line)
 ```
-```sql
--- Distribution of the two matched arms in BOTH formats, to see which the app really hits:
-SELECT
-  SUM(customer_id = 14)                          AS by_customer_id,
-  SUM(customer_phone = '+250785553103')          AS by_phone_e164,
-  SUM(customer_phone = '250785553103')           AS by_phone_bare
-FROM wp_dishdash_orders;
+modules/menu/class-dd-menu-module.php:54    add_shortcode( 'dish_dash_account', [ $this, 'shortcode_account' ] );
+modules/orders/class-dd-orders-module.php:110  add_shortcode( 'dish_dash_account', [ $this, 'shortcode_account' ] );
 ```
+Two **different** handlers:
+- **Menu** (`shortcode_account`, menu-module.php:459-467): outputs `woocommerce_account_content()` — the
+  real WC account UI.
+- **Orders** (`shortcode_account`, orders-module.php:1714-1720): outputs a custom `orders/account.php` list
+  of the user's 10 most recent orders (`get_orders([customer_id, limit:10])`).
 
-### H2 — `is_test` accounts for the whole gap (HIGH — the expected answer)
-Already covered by Task 4's `GROUP BY is_test` (expect 17 test rows). If that shows is_test=0 → 39,
-H2 is confirmed and no other hypothesis is needed.
+### Cause & symptom — a silent shadow, not doubled output
+`add_shortcode()` with the same tag **overwrites** the prior callback (WordPress keeps one callback per tag
+in `$shortcode_tags`). Load order (loader.php:68-106, foreach over the array): **Menu (`:84`) inits before
+Orders (`:86`)**, so **Orders registers last and WINS**. Result:
+- `[dish_dash_account]` (the `/my-restaurant-account/` page) currently renders the **DD custom orders
+  list**, and the **menu-module's WooCommerce-account version is dead/unreachable code**.
+- **No doubled UI, no PHP notice** — `add_shortcode` doesn't warn on override. The defect is *ambiguity +
+  dead code*: two sources of truth, wrong-handler-silently-wins, brittle to load-order changes. It's already
+  flagged in the menu-module header comment (`:23` "last one wins, see ARCHITECTURE.md").
+- **Precedent:** the identical `[dish_dash_track]` twin was removed from menu-module in **v3.10.30** (see
+  menu-module.php:53-54) making Orders the sole owner. The account twin is the leftover that de-dup missed.
 
-### H3 — A second, un-migrated order-fetch path feeds the list (LOW)
-Codebase grep for order fetches that could feed the profile:
-- `class-dd-orders-module.php:519 / 526` — `get_customer_orders()`-style query, `AND customer_id = %d`
-  (no phone OR). **Not wired to the My-Account Order History tab** (that tab is exclusively Query C via
-  the `woocommerce_account_orders_endpoint` hook, which `render_order_history()` clears at :124). Feeds
-  self-service order views, not this page.
-- `class-dd-orders-module.php:1679` — single-order lookup (`LIMIT 1`), IDOR-gated. Not a list.
-- Favorites/Recent (Query A/B) — different LIMITs, cannot yield 39.
+### Coupling assessment → **independent, ship R1 first**
+The tracker consumes `[dish_dash_track]` (already sole-owned in Orders) and does **not** read or modify the
+account-shortcode registration. Fixing this = **delete one of the two `add_shortcode` lines**; zero overlap
+with the tracker page. → **Two releases.** R1 (double-registration) can and should ship in isolation.
 
-**[RUN ON SERVER] — only if H1/H2 fail:** confirm no other list is on screen by checking the page HTML
-has exactly one `.dd-order-history` block. (No SQL — DOM inspection.)
-
-### H4 — PHP-side row skipping after the SQL (RULED OUT)
-`render_order_history()` (:166-210) loops every returned row and always emits the card head (:179).
-The only conditional is the items `<ul>` (:191) and the Reorder button (:204, hidden for cancelled),
-neither of which removes the order card. **No hidden/soft-delete/status skip in PHP.**
-
-### H5 — LIMIT 50 truncation (RULED OUT)
-39 < 50, so the limit is not binding. Would only matter if the true is_test=0 set exceeded 50.
+**One decision for R1 (which handler is canonical):** should `/my-restaurant-account/` be the **WC account
+UI** (keep Menu, delete Orders line) or the **DD orders list** (keep Orders, delete Menu line)? Note the real
+account experience now lives at `/my-account/` via DD_Profile_Module (My Profile + Order History). Recommend
+confirming the page's intended role before deleting — the safe default is to keep whichever matches what the
+live `/my-restaurant-account/` page is expected to show and delete the other. **[RUN ON SERVER]** to see what
+currently renders:
+```sql
+SELECT ID, post_title, post_status, post_name FROM wp_posts
+WHERE ID = (SELECT option_value FROM wp_options WHERE option_name = 'dish_dash_account_page_id');
+```
 
 ---
 
-## Deliverable summary
+## Task 5 — Sidebar / navigation for a "Track Order" item
 
-- **Counted list** = Query C, the full Order History page (profile-module.php:151-158), `LIMIT 50`,
-  **all statuses (incl. cancelled)**, `is_test = 0`. Not the recent widget, not a LIMIT cap.
-- **Only narrowing filter vs. the raw 56** = `AND is_test = 0`.
-- **Expected UI count** = phone-anchored set minus test orders. Predicted **39**; confirm with the
-  Task 4 `COUNT(*) … AND is_test = 0` and the `GROUP BY is_test` (expect 17 test rows).
-- **Before trusting Task 4**, confirm H1: the app binds the *raw stored* `whatsapp`; if that string
-  isn't `+250785553103`, re-run Task 4 with the actual stored value.
-- **Most likely conclusion:** R4b is correct; "56 vs 39" is raw-count (includes test orders) vs.
-  live page (correctly excludes test orders). No code defect indicated.
+The relevant nav is the **WooCommerce My-Account menu**, built by
+`DD_Profile_Module::add_menu_item()` (profile-module.php:81-98) via the `woocommerce_account_menu_items`
+filter — it **rebuilds the array**: `My Profile · Order History · Addresses · Account details · Log out`.
+
+Adding "Track Order" is a **data/template change, not a structural rebuild**: append one entry to that array
+(one line), mirroring how `my-profile` is added. Two viable shapes:
+- **(a) WC endpoint** (like `my-profile`): also needs the triple registration WC requires —
+  `add_rewrite_endpoint` + `query_vars` + `woocommerce_get_query_vars` + a one-time `flush_rewrite_rules`
+  (the v3.10.3 fix documents this gotcha: miss the third and WC falls back to the dashboard).
+- **(b) Plain menu link** to the **already-existing `/track-order/` page** — simplest; no endpoint plumbing.
+
+**Fragile-CSS lesson does NOT apply here.** The `:has()` breakage (v3.10.16) was in the **admin** sidebar
+hider (`hide_irrelevant_menu_items`), not this menu. The WC account menu is a PHP-filtered array rendered by
+a WC template — no `:has()`, no CSS-structural dependency. Safe to extend.
+
+---
+
+## Task 6 — Real-time-ness (recommendation for v1)
+
+**Polling infra already exists and ships:** `order-tracking.js` polls `dd_get_order` every 30s and
+re-renders the timeline until terminal; the endpoint `dd_get_order` → `ajax_get_order()`
+(orders-module.php:1146-1168) is registered (`:78`) and ownership-gated.
+
+**Critical caveat for phone-anchored orders:** `ajax_get_order()` gates on
+`(int) $order->customer_id === get_current_user_id()` (**customer_id only**, line 1159) with a staff bypass.
+A **guest-placed order matched only by phone** (customer_id NULL/mismatched) would render on first paint but
+**fail the 30s poll gate** → the live refresh breaks for exactly the orders R4b/phone-anchoring surfaces.
+Closing that needs either **R4c** (write `customer_id` onto those orders — parked) or a **phone-aware
+extension of the ownership gate**. Flagging as the realtime coupling risk.
+
+**Recommended v1 = snapshot-on-load list, reuse existing live tracker for drill-in.** Concretely:
+- The Track page shows a **snapshot list of active orders** (phone-anchored query from Task 2) at page load —
+  simple, no new polling, avoids the gate mismatch (list query is server-side, no per-order AJAX gate).
+- Each row **deep-links to the existing single-order tracker** (`?order_id=`), which already polls live — for
+  `customer_id`-owned orders this "just works" today; phone-only orders would need the gate fix (defer with
+  R4c, or land the phone-aware gate as a small add-on).
+- **Defer** simultaneous multi-order live polling to a later release — it's the heavy part and not needed for
+  a useful v1.
+
+---
+
+## Deliverable summary & recommended shape
+
+- **Status model:** 5 string statuses (pending/confirmed/ready/cancelled/delivered); active =
+  pending/confirmed/ready; each milestone has its own `_at` column → full timeline supported
+  (helpers.php:112-134, update_status orders-module.php:537).
+- **Active-orders query:** reuse R4b `( customer_id = %d OR customer_phone IN (…) )` from
+  profile-module.php:141-149, add `AND is_test = 0 AND status IN ('pending','confirmed','ready')`. Phone set
+  from `get_customer_for_user()->whatsapp`.
+- **Track page:** already exists & functional (single-order live timeline, v3.10.30). v1 = upgrade to a
+  phone-anchored **list of active orders**, not a new build.
+- **Double-registration:** `[dish_dash_account]` in menu-module.php:54 vs orders-module.php:110; Orders wins
+  by load order; symptom = silent shadow / dead WC-account handler, no notice. **Independent of the tracker →
+  R1 fix first** (delete one line; confirm which handler is canonical for `/my-restaurant-account/`).
+- **Sidebar:** append one item to `add_menu_item()` (profile-module.php:81-98) — data change; link to the
+  existing `/track-order/` page (simplest) or add a WC endpoint (triple-register like my-profile). No fragile
+  CSS involved.
+- **Realtime:** polling infra exists; recommend **snapshot list for v1** + deep-link to the existing
+  per-order live tracker. Watch the `ajax_get_order` customer_id-only gate for phone-only orders (needs R4c
+  or a phone-aware gate).
+
+**Suggested releases:** **R1** = `[dish_dash_account]` de-dup (small, isolated). **R2** = Track Order page
+upgrade (snapshot active-orders list, phone-anchored; live per-order polling reused via deep-link, full
+multi-order polling deferred).
 
 *No files were modified. No version bump. No release.*
