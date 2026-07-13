@@ -26,6 +26,9 @@ class DD_Profile_Module extends DD_Module {
     public function init(): void {
         add_action( 'init', [ $this, 'add_endpoint' ] );
         add_filter( 'woocommerce_account_menu_items', [ $this, 'add_menu_item' ] );
+        // S1: the "Track Order" menu item points at the standalone /track-order/ page,
+        // not a WC endpoint — remap its href so WC doesn't build /my-account/track-order/.
+        add_filter( 'woocommerce_get_endpoint_url', [ $this, 'track_order_menu_url' ], 10, 4 );
         add_action( 'woocommerce_account_' . self::ENDPOINT . '_endpoint', [ $this, 'render_endpoint' ] );
         add_filter( 'query_vars', [ $this, 'add_query_var' ], 0 );
         // Register the endpoint with WooCommerce's OWN query-vars list — without this,
@@ -85,6 +88,9 @@ class DD_Profile_Module extends DD_Module {
         if ( isset( $items['orders'] ) ) {
             $clean['orders'] = __( 'Order History', 'dish-dash' );
         }
+        // R2 — Track Order (links to the standalone /track-order/ page; href remapped
+        // by track_order_menu_url() since this is not a WC endpoint).
+        $clean['track-order'] = __( 'Track Order', 'dish-dash' );
         if ( isset( $items['edit-address'] ) ) {
             $clean['edit-address'] = __( 'Addresses', 'dish-dash' );
         }
@@ -95,6 +101,22 @@ class DD_Profile_Module extends DD_Module {
             $clean['customer-logout'] = $items['customer-logout'];
         }
         return $clean;
+    }
+
+    /**
+     * S1 — remap the "track-order" account-menu key to the standalone /track-order/
+     * page. Without this, WooCommerce would build /my-account/track-order/ (an
+     * unregistered endpoint that falls back to the account dashboard).
+     *
+     * @param string $url      The URL WooCommerce built.
+     * @param string $endpoint The account endpoint / menu key.
+     * @return string
+     */
+    public function track_order_menu_url( $url, $endpoint, $value, $permalink ) {
+        if ( 'track-order' === $endpoint && function_exists( 'dd_track_url' ) ) {
+            return dd_track_url();
+        }
+        return $url;
     }
 
     public function enqueue_assets(): void {

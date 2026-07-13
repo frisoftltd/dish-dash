@@ -9,14 +9,16 @@
  * status is terminal (delivered/cancelled).
  *
  * Provided vars (from get_template):
- *   string      $state        'guest' | 'notfound' | 'empty' | 'ok'
+ *   string      $state        'guest' | 'notfound' | 'empty' | 'list' | 'ok'
  *   object|null $order         dishdash_orders row when $state === 'ok'
+ *   array       $orders        active-order rows when $state === 'list' (R2)
  *   string      $account_url   my-account / login URL
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 $state       = isset( $state ) ? $state : 'empty';
+$orders      = isset( $orders ) && is_array( $orders ) ? $orders : [];
 $account_url = isset( $account_url ) ? $account_url : home_url( '/my-account/' );
 
 /**
@@ -71,6 +73,42 @@ if ( ! function_exists( 'dd_track_fmt_time' ) ) {
         <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>">
             <?php esc_html_e( 'Browse the menu', 'dish-dash' ); ?>
         </a>
+    </div>
+
+<?php elseif ( 'list' === $state ) : ?>
+
+    <div class="dd-track dd-track--list">
+        <div class="dd-track__header">
+            <h2 class="dd-track__title"><?php esc_html_e( 'Track your orders', 'dish-dash' ); ?></h2>
+        </div>
+
+        <?php if ( empty( $orders ) ) : ?>
+            <div class="dd-track__body dd-track__body--empty">
+                <p class="dd-track__lead"><?php esc_html_e( 'No active orders.', 'dish-dash' ); ?></p>
+                <a class="dd-btn dd-btn--brand" href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>">
+                    <?php esc_html_e( 'Browse the menu', 'dish-dash' ); ?>
+                </a>
+            </div>
+        <?php else : ?>
+            <ul class="dd-track__orders">
+            <?php foreach ( $orders as $o ) :
+                $onum  = $o->order_number ? $o->order_number : ( 'DD-' . str_pad( (string) $o->id, 5, '0', STR_PAD_LEFT ) );
+                $label = function_exists( 'dd_order_status_label' ) ? dd_order_status_label( (string) $o->status ) : ucfirst( (string) $o->status );
+                $time  = dd_track_fmt_time( $o->created_at );
+                $href  = function_exists( 'dd_track_url' )
+                    ? add_query_arg( 'order_id', (int) $o->id, dd_track_url() )
+                    : add_query_arg( 'order_id', (int) $o->id );
+                ?>
+                <li class="dd-track__order-row">
+                    <a class="dd-track__order-link" href="<?php echo esc_url( $href ); ?>">
+                        <span class="dd-track__order-num"><?php echo esc_html( $onum ); ?></span>
+                        <span class="dd-track__order-status dd-status--<?php echo esc_attr( $o->status ); ?>"><?php echo esc_html( $label ); ?></span>
+                        <span class="dd-track__order-time"><?php echo esc_html( $time ); ?></span>
+                    </a>
+                </li>
+            <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
     </div>
 
 <?php else : // 'ok'
