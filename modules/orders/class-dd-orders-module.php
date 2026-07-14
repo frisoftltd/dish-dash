@@ -805,7 +805,12 @@ class DD_Orders_Module extends DD_Module {
             : (float) get_option( 'dd_delivery_fee', 1500 );
 
         // ─── 4. Branch: MoMo / online / offline gateway ───────────────
-        $is_online = ! in_array( $payment_method, self::OFFLINE_GATEWAYS, true );
+        // Manual MoMo (scan & pay) is placed UP FRONT like COD. Treat it as an
+        // offline (no-redirect) flow so it NEVER enters the online branch or the
+        // Collections/PesaPal "Option B" transient-then-confirm path. It does not
+        // touch DD_MoMo, dd_momo_check_status, or any transient payload.
+        $is_online = ! in_array( $payment_method, self::OFFLINE_GATEWAYS, true )
+                     && 'momo_manual' !== $payment_method;
 
         // ─── 4a. MTN MoMo — in-drawer, no WC redirect ─────────────────
         if ( 'mtn_momo' === $payment_method ) {
@@ -1084,6 +1089,20 @@ class DD_Orders_Module extends DD_Module {
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( [ 'message' => $result->get_error_message() ] );
             return;
+        }
+
+        // Manual MoMo (scan & pay): stamp the claim-pending state up front.
+        // payment_status is a free-text VARCHAR — no schema change. The customer
+        // will confirm real receipt in a later release (R6 "I have paid").
+        if ( 'momo_manual' === $payment_method ) {
+            global $wpdb;
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_orders',
+                [ 'payment_status' => 'claimed_pending' ],
+                [ 'id'             => $result['order_id'] ],
+                [ '%s' ],
+                [ '%d' ]
+            );
         }
 
         // ─── 5. Clear cart ─────────────────────────────────────────────

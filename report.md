@@ -144,8 +144,77 @@ no "I have paid" combine logic (that is Release 6).
 
 **Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before Release 4.
 
-## Release 4 — v3.10.53 — Manual MoMo up-front placement
-_Pending._
+## Release 4 — v3.10.53 — Manual MoMo up-front placement (COD-style) ✅
+
+**Goal:** New `momo_manual` ("MoMo (scan & pay)") method places the DB row immediately like COD with
+`payment_status='claimed_pending'`, fully separate from the Collections/PesaPal Option B transient flow.
+
+**Files changed (4 edits, minimal):**
+- `modules/orders/class-dd-orders-module.php`:
+  - **Where it branches off from COD / where it is kept out of Option B** — `ajax_place_order()`,
+    the `$is_online` computation (now ~line 808–813):
+    ```php
+    $is_online = ! in_array( $payment_method, self::OFFLINE_GATEWAYS, true )
+                 && 'momo_manual' !== $payment_method;
+    ```
+    Forcing `$is_online = false` for `momo_manual` is the exact point that keeps it OUT of the online
+    branch and the Option B path: it means the method skips `if ('mtn_momo')` (~line 815),
+    `if ('irembopay')` (~line 862), `if ('pesapal')` (~line 968), and `if ($is_online)` (~line 1013),
+    and falls through to the **OFFLINE GATEWAY FLOW** (~line 1075) — the same block COD/bacs/cheque use
+    (`place_order()` up front → clear cart → notifications → customer upsert → birthday).
+  - **The claim-state stamp** — right after the offline `place_order()` `is_wp_error` check (~line 1088):
+    ```php
+    if ( 'momo_manual' === $payment_method ) {
+        global $wpdb;
+        $wpdb->update( $wpdb->prefix . 'dishdash_orders',
+            [ 'payment_status' => 'claimed_pending' ], [ 'id' => $result['order_id'] ],
+            [ '%s' ], [ '%d' ] );
+    }
+    ```
+    `place_order()` inserts with `payment_status='unpaid'`; this override sets `claimed_pending`.
+    Free-text VARCHAR(50) → no schema change.
+- `modules/template/class-dd-template-module.php` — after the WC-gateway loop that builds
+  `ddCartData.paymentGateways` (~line 300), append a synthetic entry so the method renders in the drawer,
+  visibly distinct from the Collections `mtn_momo` gateway:
+  `[ 'id' => 'momo_manual', 'title' => 'MoMo (scan & pay)', 'icon' => '📲', 'iconUrl' => '' ]`.
+  It is NOT a WooCommerce gateway (self-contained; no Collections API, no Option B transient).
+- `dishdash-core/class-dd-helpers.php` — `dd_format_payment_method()` map adds
+  `'momo_manual' => 'MoMo (scan & pay)'` (admin Orders list + email/notification labels).
+- `assets/js/admin.js` — `ddFormatPaymentMethod()` map adds the same label (bell/notification panel).
+- `dish-dash.php` — version `3.10.53`. `CLAUDE.md` — Current State + release row.
+
+**Flow proof (why it can't touch Option B):** `momo_manual` is an exact string; it does not equal
+`mtn_momo`/`irembopay`/`pesapal`, and with `$is_online=false` it never enters the online branch. It never
+reads/writes the `dd_momo_pending_*` / `dd_pesapal_pending_*` transients, never calls `DD_MoMo` or
+`dd_momo_check_status`, and never hits the Collections API. The row is written by `place_order()` at
+checkout time. `momo_phone` is not required (that validation lives only inside the `mtn_momo` branch).
+
+**PesaPal abandon-at-payment regression (required report item):** I did **not** run a live test —
+I cannot drive the hosted PesaPal page from here; that live check is the developer's gate (and is listed
+under the brief's developer-verify). **Code-inspection confirmation that no row is created on abandon:**
+PesaPal is handled entirely by its own `if ( 'pesapal' === $payment_method )` branch (~line 968), which
+`return`s BEFORE `$is_online` is ever used, so my `$is_online` change cannot affect it. That branch still
+only stores a transient (`dd_pesapal_pending_*`) and writes the DB row exclusively inside
+`ajax_pesapal_check_status()` on `status === 'COMPLETED'` — both untouched this release. My
+`claimed_pending` stamp is guarded to `momo_manual`, so it never runs for PesaPal. Therefore abandoning
+at the PesaPal page still creates no row (v3.6.8 ghost-order fix intact). **Developer must still run the
+live abandon test as the release gate.**
+
+**cart.js NOT touched this release:** a `momo_manual` order currently lands on the generic confirmation
+panel (the offline response shape). That is acceptable for R4 (proves up-front placement); R5 branches
+the frontend to the QR screen.
+
+**Test steps (developer, after deploy) — regression-focused:**
+1. Checkout drawer shows **MoMo (scan & pay)** as a method, visibly distinct from the Collections MoMo.
+2. Place an order with it → a row exists IMMEDIATELY with `payment_status='claimed_pending'`:
+   `wp db query "SELECT id, order_number, payment_method, payment_status FROM wp_dishdash_orders ORDER BY id DESC LIMIT 3"`.
+3. **CRITICAL:** Place a **PesaPal** order, abandon at the payment page (don't pay) → NO new row exists
+   (ghost-order fix still working).
+4. Place a **Collections MoMo** order → still behaves as before (row on confirm only).
+5. **COD** still works unchanged.
+
+**Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + the PesaPal abandon
+regression check before Release 5.
 
 ## Release 5 — v3.10.54 — Dynamic QR + iOS copy fallback
 _Pending._

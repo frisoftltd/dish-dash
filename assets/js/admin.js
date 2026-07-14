@@ -8,6 +8,7 @@
             'pay_on_delivery':      'Cash on Delivery',
             'mtn_momo':             'MTN Mobile Money',
             'momo':                 'MTN Mobile Money',
+            'momo_manual':          'MoMo (scan & pay)',
             'irembopay':            'IremboPay',
             'pesapal':              'PesaPal',
             'pay_now':              'Card Payment',

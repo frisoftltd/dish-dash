@@ -297,6 +297,17 @@ class DD_Template_Module extends DD_Module {
                         'iconUrl' => $icon_urls[ $id ] ?? '',
                     ];
                 }
+                // Manual MoMo (scan & pay) — DishDash-native method, placed up front
+                // like COD (payment_status=claimed_pending). Intentionally distinct
+                // from the Collections 'mtn_momo' gateway so they are never confused.
+                // NOT a WooCommerce gateway: no Collections API, no Option B transient.
+                // QR render + merchant-code gating arrive in R5.
+                $out[] = [
+                    'id'      => 'momo_manual',
+                    'title'   => __( 'MoMo (scan & pay)', 'dish-dash' ),
+                    'icon'    => '📲',
+                    'iconUrl' => '',
+                ];
                 return $out;
             })(),
         ] );
