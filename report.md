@@ -1,50 +1,60 @@
-# R2 pill polish — brand-color pills + fix row overflow — Build Report
+# Report — Order Delivery Modes + Manual MoMo QR
 
-**Version:** 3.10.49 (bumped in `dish-dash.php` header + `DD_VERSION`, and CLAUDE.md).
-**Status:** built, committed, pushed. **Not released** — developer creates the GitHub release.
-**One file changed:** `assets/css/order-tracking.css` (list-row pills + row layout).
+Rolling report. One section per release. Do not push until told.
 
 ---
 
-## 1. Brand-color pills (dropped per-status colors)
-- All status pills now use `background: var(--brand, #65040d)` with white text — one consistent brand pill
-  for `pending` / `confirmed` / `ready`.
-- Removed the per-status rules (`.dd-status--pending` amber / `--confirmed` blue / `--ready` green).
+## Release 1 — v3.10.50 — Settings fields only (no behavior change) ✅
 
-## 2. Fixed the row overflow (pill + date clipping at the card edge)
-Root cause: the row was `display: grid; grid-template-columns: 1fr auto auto`. The `1fr` (order-number)
-column has an implicit `min-width: auto` = its content width, so a long order number couldn't shrink and
-pushed the `auto` pill/time columns past the card's right edge → the pill text and timestamp got clipped.
+**Root cause / goal:** Add three persisted settings so later releases can branch on them.
+No behavior is wired this release.
 
-Fix — converted the row to **flex** so the right-hand items can never be squeezed out:
-```css
-.dd-track__order-link { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; padding: 14px 8px; }
-.dd-track__order-num  { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dd-track__order-status { flex: 0 0 auto; background: var(--brand, #65040d); /* white text, nowrap */ }
-.dd-track__order-time   { flex: 0 0 auto; white-space: nowrap; }
-.dd-track__order-note   { flex: 1 0 100%; /* own line under the row */ }
-```
-- The **order number** flexes and ellipsizes (`min-width:0`), so it — not the pill/date — absorbs any tight
-  space.
-- The **pill** and **timestamp** are `flex: 0 0 auto` → they keep their full size and sit fully inside the
-  card. Combined with the card's 24px padding + the row's 8px padding, they have proper right-edge breathing
-  room. `flex-wrap` only drops them to a second line on an extreme squeeze (never mid-word clipping).
-- Removed the now-obsolete grid overrides in the `≤480px` media block (flex + wrap reflow on their own).
+**Files changed:**
+- `admin/pages/settings.php`
+  - Save handler (after the Pricing & Fees block): persist three new options.
+    - `dish_dash_order_notify_dashboard` — `isset($_POST[...]) ? '1' : '0'`, checkbox default **'1'** (on).
+    - `dish_dash_order_handoff_whatsapp` — `isset($_POST[...]) ? '1' : '0'`, checkbox default **'0'** (off).
+    - `dish_dash_momo_merchant_code` — text, **digits-only** via `preg_replace('/\D/','', …)`, no default.
+  - Markup: new **"📦 Order Handling"** `dd-settings-card` inserted after the Pricing & Fees card
+    (before the hidden opening-hours field). Two `.dd-check-label` checkboxes + one `dd-input--medium`
+    numeric text field, each with the brief's helper text. Follows the `dd_fees_enabled` pattern verbatim
+    (`checked()` for state, `get_option()` for read).
+- `dish-dash.php` — version bumped to `3.10.50` (header comment + `DD_VERSION` constant).
+- `CLAUDE.md` — `Last updated`, Current State (Deployed version / sub-phase / Next task / Last working
+  state), and release table rows for v3.10.50–v3.10.55.
 
-## 3. Unchanged
-Sidebar, timeline card, and the `--dd-track-accent` variable (still drives the timeline dots / order number /
-cancel badge) are untouched. No PHP/template/query changes this release.
+**Scope guard:** Only the three `update_option()` calls + one settings card were added. No consumer reads
+these options yet. No gateway, order-flow, notification, or schema code touched. The `DD_MoMo` Collections
+path, PesaPal, and `dd_momo_check_status` are untouched (Option B boundary intact).
+
+**Test steps (developer, after deploy):**
+1. WP Admin → Dish Dash → Settings → scroll to **📦 Order Handling**. Confirm three fields render:
+   Dashboard Notifications (checked), WhatsApp Handoff (unchecked), MoMo Merchant Code (empty).
+2. Enter a merchant code with spaces/letters (e.g. `12 34ab5`) → Save → reopen → value is digits only
+   (`12345`).
+3. Toggle WhatsApp Handoff on → Save → box stays checked on reload.
+4. Verify persistence:
+   - `wp option get dish_dash_order_notify_dashboard` → `1`
+   - `wp option get dish_dash_order_handoff_whatsapp` → `1` (after toggling on) / `0` (default)
+   - `wp option get dish_dash_momo_merchant_code` → the digits saved
+5. Confirm no visible behavior change anywhere else (dashboard notifications, checkout, WhatsApp all
+   exactly as before).
+
+**Status:** Implemented, committed (not pushed). Awaiting developer publish + deploy before Release 2.
 
 ---
 
-## Verify after deploy (LiteSpeed purge, logged in as user 14)
-1. `/track-order/` list → every pill is the **brand color** with its label fully visible (Pending / Confirmed
-   / Ready), and the **timestamp is fully inside the card** — nothing clipped at the right edge.
-2. Try an order with a long order number → the number ellipsizes; the pill + date stay put.
-3. Narrow the window / mobile → rows reflow cleanly (pill/date wrap to a second line only when truly needed),
-   still no clipping.
-4. Timeline (`?order_id=`) and sidebar look identical to v3.10.48.
+## Release 2 — v3.10.51 — Gate dashboard notifications
+_Pending — starts after Release 1 is deployed._
 
-## Note
-- No local `php -l` (PHP not installed here) — but this release is CSS-only. Purge LiteSpeed and hard-refresh
-  so the updated `order-tracking.css` loads.
+## Release 3 — v3.10.52 — Customer WhatsApp handoff button
+_Pending._
+
+## Release 4 — v3.10.53 — Manual MoMo up-front placement
+_Pending._
+
+## Release 5 — v3.10.54 — Dynamic QR + iOS copy fallback
+_Pending._
+
+## Release 6 — v3.10.55 — Single-tap "I have paid"
+_Pending._

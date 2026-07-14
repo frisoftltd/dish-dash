@@ -96,6 +96,11 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_minimum_order_amount', absint( $_POST['dd_minimum_order_amount'] ?? 10000 ) );
     update_option( 'dd_fees_enabled',         isset( $_POST['dd_fees_enabled']          ) ? '1' : '0' );
 
+    // Order Handling
+    update_option( 'dish_dash_order_notify_dashboard', isset( $_POST['dish_dash_order_notify_dashboard'] ) ? '1' : '0' );
+    update_option( 'dish_dash_order_handoff_whatsapp',  isset( $_POST['dish_dash_order_handoff_whatsapp']  ) ? '1' : '0' );
+    update_option( 'dish_dash_momo_merchant_code',      preg_replace( '/\D/', '', (string) ( $_POST['dish_dash_momo_merchant_code'] ?? '' ) ) );
+
     echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 
     do_action( 'dd_log_activity', [
@@ -750,6 +755,60 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                             </span>
                         </span>
                     </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 📦 Order Handling -->
+        <div class="dd-settings-card">
+            <h2 class="dd-section-heading">📦 Order Handling</h2>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">Dashboard Notifications
+                    <span class="dd-label-hint">In-dashboard order alerts</span>
+                </div>
+                <div class="dd-field-control">
+                    <label class="dd-check-label">
+                        <input type="checkbox" name="dish_dash_order_notify_dashboard" value="1"
+                            <?php checked( '1', get_option( 'dish_dash_order_notify_dashboard', '1' ) ); ?>>
+                        <span>
+                            Show new orders in the dashboard
+                            <span class="dd-check-desc">
+                                Show new orders in the dashboard with sound + browser alerts.
+                                Best for restaurants that keep the dashboard open.
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">WhatsApp Handoff
+                    <span class="dd-label-hint">Customer sends order to you</span>
+                </div>
+                <div class="dd-field-control">
+                    <label class="dd-check-label">
+                        <input type="checkbox" name="dish_dash_order_handoff_whatsapp" value="1"
+                            <?php checked( '1', get_option( 'dish_dash_order_handoff_whatsapp', '0' ) ); ?>>
+                        <span>
+                            Send the order to your WhatsApp after checkout
+                            <span class="dd-check-desc">
+                                After ordering, the customer sends their order to your WhatsApp.
+                                Best for busy restaurants that don't watch a dashboard.
+                            </span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">MoMo Merchant Code</div>
+                <div class="dd-field-control">
+                    <input type="text" name="dish_dash_momo_merchant_code"
+                           inputmode="numeric" pattern="[0-9]*"
+                           value="<?php echo esc_attr( get_option( 'dish_dash_momo_merchant_code', '' ) ); ?>"
+                           class="dd-input dd-input--medium" />
+                    <p class="description">Your MTN MoMo merchant code, used for the payment QR. Digits only.</p>
                 </div>
             </div>
         </div>
