@@ -114,6 +114,61 @@
                 '</div>';
             drawer.appendChild( pp );
             panelPesaPal = pp;
+
+            // Inject Scan-&-pay MoMo QR panel (momo_manual). Order is already placed
+            // (claimed_pending, R4); this screen only shows how to pay. Populated by
+            // renderMomoManualPanel() at confirmation time.
+            var mq        = document.createElement( 'div' );
+            mq.id         = 'ddPanelMomoManual';
+            mq.className  = 'dd-cart-panel dd-cart-panel--hidden';
+            mq.setAttribute( 'data-panel', 'momo-manual' );
+            mq.innerHTML =
+                '<div class="dd-checkout-panel__header">' +
+                    '<span class="dd-checkout-panel__title">Scan and pay with MoMo</span>' +
+                '</div>' +
+                '<div class="dd-momoqr">' +
+                    '<p class="dd-momoqr__ordernum" id="ddMomoQrOrderNum"></p>' +
+                    '<p class="dd-momoqr__instruction" id="ddMomoQrInstruction"></p>' +
+                    '<div class="dd-momoqr__code" id="ddMomoQrCode"></div>' +
+                    '<a class="dd-momoqr__dial" id="ddMomoQrDial" href="#" hidden>Dial to pay now</a>' +
+                    '<div class="dd-momoqr__details">' +
+                        '<button type="button" class="dd-momoqr__row" id="ddMomoQrMerchantRow" data-copy="" hidden>' +
+                            '<span class="dd-momoqr__label">Merchant code</span>' +
+                            '<span class="dd-momoqr__value" id="ddMomoQrMerchant"></span>' +
+                        '</button>' +
+                        '<button type="button" class="dd-momoqr__row" id="ddMomoQrAmountRow" data-copy="">' +
+                            '<span class="dd-momoqr__label">Amount (RWF)</span>' +
+                            '<span class="dd-momoqr__value" id="ddMomoQrAmount"></span>' +
+                        '</button>' +
+                        '<button type="button" class="dd-momoqr__row" id="ddMomoQrRefRow" data-copy="">' +
+                            '<span class="dd-momoqr__label">Order reference</span>' +
+                            '<span class="dd-momoqr__value" id="ddMomoQrRef"></span>' +
+                        '</button>' +
+                    '</div>' +
+                    '<p class="dd-momoqr__note" id="ddMomoQrCopyHint">Tap any detail above to copy.</p>' +
+                    '<button class="dd-confirm-panel__close" id="ddMomoQrDone" type="button">Done</button>' +
+                '</div>';
+            drawer.appendChild( mq );
+            panelMomoManual = mq;
+
+            // Tap-to-copy on each detail row (iOS fallback + reconciliation).
+            var mqDetails = mq.querySelector( '.dd-momoqr__details' );
+            if ( mqDetails ) {
+                mqDetails.addEventListener( 'click', function ( e ) {
+                    var row = e.target.closest ? e.target.closest( '.dd-momoqr__row' ) : null;
+                    if ( ! row ) return;
+                    copyText( row.getAttribute( 'data-copy' ) || '', row );
+                } );
+            }
+
+            // Done → close drawer, back to cart.
+            var mqDone = document.getElementById( 'ddMomoQrDone' );
+            if ( mqDone ) {
+                mqDone.addEventListener( 'click', function () {
+                    closeCart();
+                    showPanel( panelCart );
+                } );
+            }
         }
 
         fetchCart( false ); // silent fetch on load to update badges only
@@ -511,16 +566,118 @@
     var panelMomo         = null; // injected into DOM at DOMContentLoaded
     var panelIremboPay    = null; // injected into DOM at DOMContentLoaded
     var panelPesaPal      = null; // injected into DOM at DOMContentLoaded
+    var panelMomoManual   = null; // injected into DOM at DOMContentLoaded (Scan-&-pay QR)
 
     var currentOrderId     = null;
     var currentOrderNumber = null;
     var currentReferenceId = null;
 
     function showPanel( panelEl ) {
-        [ panelCart, panelCheckout, panelConfirmation, panelMomo, panelIremboPay, panelPesaPal ].forEach( function ( p ) {
+        [ panelCart, panelCheckout, panelConfirmation, panelMomo, panelIremboPay, panelPesaPal, panelMomoManual ].forEach( function ( p ) {
             if ( p ) p.classList.add( 'dd-cart-panel--hidden' );
         } );
         if ( panelEl ) panelEl.classList.remove( 'dd-cart-panel--hidden' );
+    }
+
+    /* ── SCAN & PAY (momo_manual) QR ────────────────────────────
+       Renders a per-order MTN MoMo USSD QR + copyable details. The
+       order is already placed up front (claimed_pending, R4); this
+       screen only shows the customer how to pay. */
+    function makeQrDataUrl( text ) {
+        if ( typeof qrcode === 'undefined' ) return '';
+        try {
+            var qr = qrcode( 0, 'M' );       // 0 = auto-size, M = error correction
+            qr.addData( text );
+            qr.make();
+            return qr.createDataURL( 6, 8 ); // cellSize 6px, quiet-zone margin 8
+        } catch ( e ) {
+            return '';
+        }
+    }
+
+    function legacyCopy( text ) {
+        try {
+            var ta = document.createElement( 'textarea' );
+            ta.value = text;
+            ta.setAttribute( 'readonly', '' );
+            ta.style.position = 'absolute';
+            ta.style.left     = '-9999px';
+            document.body.appendChild( ta );
+            ta.select();
+            document.execCommand( 'copy' );
+            document.body.removeChild( ta );
+        } catch ( e ) {}
+    }
+
+    function copyText( text, rowEl ) {
+        if ( ! text ) return;
+        function feedback() {
+            if ( ! rowEl ) return;
+            rowEl.classList.add( 'is-copied' );
+            setTimeout( function () { rowEl.classList.remove( 'is-copied' ); }, 1200 );
+        }
+        if ( navigator.clipboard && navigator.clipboard.writeText ) {
+            navigator.clipboard.writeText( text ).then( feedback, function () { legacyCopy( text ); feedback(); } );
+        } else {
+            legacyCopy( text );
+            feedback();
+        }
+    }
+
+    function renderMomoManualPanel( data ) {
+        var merchant = ( window.ddCartData && window.ddCartData.momoMerchantCode )
+            ? String( window.ddCartData.momoMerchantCode ) : '';
+        var amount   = Math.round( Number( data.total ) || 0 ); // integer RWF, no decimals/commas
+        var ref      = data.order_number || '';
+
+        var orderNumEl = document.getElementById( 'ddMomoQrOrderNum' );
+        var instrEl    = document.getElementById( 'ddMomoQrInstruction' );
+        var codeEl     = document.getElementById( 'ddMomoQrCode' );
+        var dialEl     = document.getElementById( 'ddMomoQrDial' );
+        var merchEl    = document.getElementById( 'ddMomoQrMerchant' );
+        var amtEl      = document.getElementById( 'ddMomoQrAmount' );
+        var refEl      = document.getElementById( 'ddMomoQrRef' );
+        var merchRow   = document.getElementById( 'ddMomoQrMerchantRow' );
+        var amtRow     = document.getElementById( 'ddMomoQrAmountRow' );
+        var refRow     = document.getElementById( 'ddMomoQrRefRow' );
+
+        if ( orderNumEl ) orderNumEl.textContent = ref ? ( 'Order #' + ref ) : '';
+
+        // Amount + reference are ALWAYS shown and copyable. The reference is NOT
+        // encoded in the QR (the USSD string has no field for it) — display only.
+        if ( amtEl )  amtEl.textContent = formatPrice( amount );
+        if ( amtRow ) amtRow.setAttribute( 'data-copy', String( amount ) );
+        if ( refEl )  refEl.textContent = ref;
+        if ( refRow ) refRow.setAttribute( 'data-copy', ref );
+
+        if ( merchant ) {
+            // USSD payment string with the amount pre-filled; # encoded as %23 for tel:.
+            var payload = 'tel:*182*8*1*' + merchant + '*' + amount + '%23';
+            var url     = makeQrDataUrl( payload );
+
+            if ( codeEl ) {
+                codeEl.innerHTML = url
+                    ? '<img src="' + url + '" alt="Scan to pay with MoMo" class="dd-momoqr__img">'
+                    : '';
+                codeEl.style.display = url ? '' : 'none';
+            }
+            if ( dialEl ) {
+                dialEl.href   = payload;
+                dialEl.hidden = false;
+            }
+            if ( merchEl )  merchEl.textContent = merchant;
+            if ( merchRow ) { merchRow.setAttribute( 'data-copy', merchant ); merchRow.hidden = false; }
+            if ( instrEl )  instrEl.textContent =
+                'Scan the code to pay, or dial *182*8*1*' + merchant + '*' + amount + '# on your phone.';
+        } else {
+            // No merchant code configured — graceful fallback: no QR, no dial link,
+            // just the copyable amount + reference and a plain instruction.
+            if ( codeEl )  { codeEl.innerHTML = ''; codeEl.style.display = 'none'; }
+            if ( dialEl )  dialEl.hidden = true;
+            if ( merchRow ) merchRow.hidden = true;
+            if ( instrEl )  instrEl.textContent =
+                'Pay via MTN MoMo, then share your order reference with the restaurant.';
+        }
     }
 
     /* ── PHONE PICKER (intl-tel-input, v3.10.33) ────────────────
@@ -855,6 +1012,12 @@
                     return; // stop — no confirmation panel for online payments
                 }
 
+                if ( payment === 'momo_manual' ) {
+                    // Scan & pay: show the per-order MoMo QR screen instead of the
+                    // generic confirmation. Order is already placed (claimed_pending, R4).
+                    renderMomoManualPanel( data );
+                    showPanel( panelMomoManual );
+                } else {
                 // Populate confirmation panel
                 var numEl2 = document.getElementById( 'ddConfirmOrderNum' );
                 var etaEl2 = document.getElementById( 'ddConfirmEta' );
@@ -878,6 +1041,7 @@
                 }
 
                 showPanel( panelConfirmation );
+                }
                 updateBadges( 0 );
 
                 // Set customer ID cookie — used by birthday WhatsApp trigger (2 min later)

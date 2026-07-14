@@ -288,8 +288,79 @@ button. No QR (R7). No "I have paid" (R8).
 **Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before the QR
 release.
 
-## Release 7 — v3.10.56 — Dynamic QR + iOS copy fallback
-_Pending._
+## Release 7 — v3.10.56 — Dynamic MoMo QR + iOS copy fallback ✅
+
+**Goal:** A `momo_manual` order (already placed up front, `claimed_pending`) now lands on a dedicated
+Scan-&-pay QR screen instead of the generic confirmation panel.
+
+**Investigation (reported before coding):**
+- **Branch point:** cart.js offline/COD confirmation success handler (the `data.eta` path). `payment`
+  (the selected method id) is in scope (`var payment = pmEl ? pmEl.value : …`), so branching on
+  `payment === 'momo_manual'` selects the QR screen.
+- **Data available at confirmation:** the offline response is `array_merge($result, [...])` →
+  `data.order_number`, `data.order_id`, `data.total` (order total), `data.eta`, `data.whatsapp_url`
+  (R3), `data.customer_id`. So amount (`data.total`) and reference (`data.order_number`) are both
+  present client-side. **Merchant code was NOT exposed** → added `momoMerchantCode` to `ddCartData`.
+- **QR library vendored?** No — searched `assets/`, none present.
+
+**QR library chosen:** **`qrcode-generator` by Kazuhiko Arase (MIT)** — vendored at
+`assets/vendor/qrcode/qrcode.js` (56 KB, one file). Chosen because it is a single self-contained file
+with **no jQuery and no build step**, exposes a global `qrcode`, and its `createDataURL(cellSize, margin)`
+returns a ready-to-use `data:` URI I can drop straight into an `<img>` (no canvas/container dance).
+`qrcode(0, 'M')` auto-sizes the symbol (its `make()` auto-selects the type when `typeNumber < 1`), which
+suits our short payload. `.gitignore` whitelists `assets/vendor/**`, so it ships in the zip.
+
+**Exact QR payload built (sample order — merchant `888444`, total `12000` RWF):**
+```
+tel:*182*8*1*888444*12000%23
+```
+(`amount = Math.round(data.total)` → integer RWF, no decimals/commas; `#` encoded as `%23` for the
+`tel:` URI. The order reference is NOT in the payload.)
+
+**Files changed:**
+- `assets/vendor/qrcode/qrcode.js` — **new** vendored MIT QR library (single file).
+- `modules/template/class-dd-template-module.php` — enqueue `dd-qrcode` (before cart.js) and add it to
+  `dish-dash-cart`'s deps; expose `'momoMerchantCode' => preg_replace('/\D/','', get_option('dish_dash_momo_merchant_code',''))`
+  in `ddCartData` (read-only display).
+- `assets/js/cart.js` —
+  - inject a new drawer panel `#ddPanelMomoManual` at DOMContentLoaded; register it in `showPanel()`;
+  - helpers `makeQrDataUrl()` (guarded `typeof qrcode === 'undefined'` + try/catch), `copyText()` /
+    `legacyCopy()` (clipboard API + textarea fallback + "Copied" feedback), and `renderMomoManualPanel()`;
+  - branch the offline confirmation handler: `if ( payment === 'momo_manual' )` → render QR panel; else
+    the generic confirmation (R3 WhatsApp button stays on the generic path only).
+- `assets/css/cart.css` — `.dd-momoqr*` styles (QR `<img>`, `tel:` dial CTA using `var(--dd-accent)`,
+  tap-to-copy rows with "Copied" state).
+- `dish-dash.php` — version `3.10.56`. `CLAUDE.md` — Current State + release row.
+
+**What the screen shows (merchant code set):** order number, an instruction line, the QR `<img>`, a
+tappable **"Dial to pay now"** `tel:` link (Android dials the USSD; iOS may not), and three tap-to-copy
+rows — **Merchant code**, **Amount (RWF)** (copies the raw integer), **Order reference** (the order
+number). The reference is display/reconciliation only, never in the QR.
+
+**iOS fallback:** iOS blocks `tel:` USSD auto-dial by design, so the copyable merchant code + amount +
+reference ARE the fallback (always present). The QR is scannable from another device/camera.
+
+**Empty-merchant-code behavior (chosen):** graceful fallback — **no QR, no dial link, merchant row
+hidden**; still show the copyable **Amount** and **Order reference** plus a plain note "Pay via MTN MoMo,
+then share your order reference with the restaurant." I did **not** add an admin-side "merchant code
+unset" notice (the brief marked it optional) to keep this release's scope tight — can be added later if
+wanted.
+
+**Scope guard (untouched):** order placement / the R4 `claimed_pending` stamp (order is already placed;
+this only renders the pay screen); the "I have paid" claim + WhatsApp combine (that is R8); PesaPal, COD,
+Collections MoMo, R2 notifications. No live-network calls added (QR is generated client-side).
+
+**Test steps (developer, after deploy):**
+1. Settings → Order Handling → set MoMo Merchant Code (e.g. `888444`) → Save → purge LiteSpeed.
+2. Place a "Scan and pay with MoMo" order → QR screen renders. Scanning the QR on Android opens the
+   dialer with `*182*8*1*888444*{amount}#` pre-filled (amount = order total).
+3. Merchant code, amount, and order reference are shown and copy on tap ("Copied" feedback).
+4. On iPhone: QR/tel may not auto-dial — confirm the copyable details are present and usable.
+5. Clear the merchant code → place an order → no broken QR; graceful fallback (amount + reference + note).
+6. Order still placed up front (`payment_status='claimed_pending'`) — unchanged.
+
+**Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before Release 8
+("I have paid").
 
 ## Release 8 — v3.10.57 — Single-tap "I have paid"
 _Pending._

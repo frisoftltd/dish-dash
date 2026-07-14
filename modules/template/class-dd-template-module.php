@@ -242,8 +242,19 @@ class DD_Template_Module extends DD_Module {
             'utilsUrl'  => $itl_base . '/js/utils.js',
         ] );
 
+        // ── QR generator (self-hosted, vendored) ──────────────────────
+        // Single-file MIT lib (qrcode-generator by Kazuhiko Arase). Exposes a
+        // global `qrcode`; cart.js uses it to render the Scan-&-pay MoMo QR.
+        wp_enqueue_script(
+            'dd-qrcode',
+            DD_ASSETS_URL . 'vendor/qrcode/qrcode.js',
+            [],
+            DD_VERSION,
+            true
+        );
+
         wp_enqueue_script( 'dish-dash-menu',     $this->asset_url( 'js', 'menu.js' ),     [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [ 'dd-intl-tel-input' ], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [ 'dd-intl-tel-input', 'dd-qrcode' ], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-search',   $this->asset_url( 'js', 'search.js' ),   [], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search' ], DD_VERSION, true );
         wp_enqueue_script(
@@ -268,6 +279,9 @@ class DD_Template_Module extends DD_Module {
             // Order Handling: opt-in customer WhatsApp handoff on the confirmation
             // screen (default off). JS reveals the tap-only button when this is true.
             'whatsappHandoff'       => get_option( 'dish_dash_order_handoff_whatsapp', '0' ) === '1',
+            // MoMo merchant code (digits only) for the Scan-&-pay QR/USSD string.
+            // Read-only display use on the frontend; empty → graceful QR fallback.
+            'momoMerchantCode'      => preg_replace( '/\D/', '', (string) get_option( 'dish_dash_momo_merchant_code', '' ) ),
             'pluginUrl'             => plugins_url( '/', DD_PLUGIN_FILE ),
             'paymentGateways'       => (function() {
                 if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];

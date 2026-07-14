@@ -993,6 +993,104 @@ body.dd-cart-open .dd-bottom-nav {
     display: none;
 }
 
+/* ── Scan & pay (momo_manual) QR screen ───────────────────── */
+.dd-momoqr {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 28px 20px 32px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+.dd-momoqr__ordernum {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111;
+    margin: 0 0 4px;
+}
+.dd-momoqr__instruction {
+    font-size: 13px;
+    color: #777;
+    line-height: 1.4;
+    margin: 0 0 18px;
+    max-width: 320px;
+}
+.dd-momoqr__code {
+    margin: 0 0 16px;
+}
+.dd-momoqr__img {
+    width: 220px;
+    height: 220px;
+    max-width: 62vw;
+    image-rendering: pixelated; /* keep QR modules crisp when scaled */
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background: #fff;
+}
+.dd-momoqr__dial {
+    display: inline-block;
+    background: var(--dd-accent, #E8832A);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 10px;
+    padding: 11px 28px;
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0 0 20px;
+}
+.dd-momoqr__dial[hidden] {
+    display: none;
+}
+.dd-momoqr__details {
+    width: 100%;
+    max-width: 340px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 0 12px;
+}
+.dd-momoqr__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    background: #f7f7f7;
+    border: 1px solid #ececec;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    text-align: left;
+}
+.dd-momoqr__row[hidden] {
+    display: none;
+}
+.dd-momoqr__row.is-copied {
+    border-color: #157A46;
+    background: rgba(21,122,70,0.08);
+}
+.dd-momoqr__label {
+    color: #888;
+    font-size: 12px;
+    font-weight: 500;
+}
+.dd-momoqr__value {
+    color: #111;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.dd-momoqr__row.is-copied .dd-momoqr__label::after {
+    content: ' · Copied';
+    color: #157A46;
+}
+.dd-momoqr__note {
+    font-size: 12px;
+    color: #999;
+    margin: 0 0 20px;
+}
+
 /* Scroll fade hint — shows content continues below */
 .dd-checkout-panel__body {
     position: relative;
