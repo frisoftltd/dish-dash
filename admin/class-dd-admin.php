@@ -180,6 +180,10 @@ class DD_Admin extends DD_Module {
             'pollNonce'      => wp_create_nonce( 'dish_dash_admin' ),
             'restaurantName' => esc_js( get_option( 'dish_dash_restaurant_name', 'Restaurant' ) ),
             'pollInterval'   => 30000,
+            // Order Handling setting (default '1' = on). Gates the notification
+            // polling/alerts in admin.js at enqueue time. Regenerated every page
+            // load, so a cached admin.js still receives the current value.
+            'notifyEnabled'  => get_option( 'dish_dash_order_notify_dashboard', '1' ) === '1',
             'i18n'           => [
                 'confirmDelete' => __( 'Are you sure you want to delete this?', 'dish-dash' ),
                 'saved'         => __( 'Saved successfully.', 'dish-dash' ),

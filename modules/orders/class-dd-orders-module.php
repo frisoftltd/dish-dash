@@ -1413,6 +1413,19 @@ class DD_Orders_Module extends DD_Module {
             $this->json_error( 'Permission denied.', 403 );
         }
 
+        // Dashboard notification alerts are gated by the Order Handling setting
+        // (default '1' = on). When off, the bell/poll returns nothing so there is
+        // no beep, browser alert, or badge. Backstops the enqueue-time JS guard in
+        // case a stale/cached admin.js still polls. The Orders page, order data,
+        // statuses, and the reservations admin's own system are unaffected.
+        if ( get_option( 'dish_dash_order_notify_dashboard', '1' ) !== '1' ) {
+            $this->json_success( [
+                'pending_items' => [],
+                'pending_count' => 0,
+            ] );
+            return;
+        }
+
         global $wpdb;
 
         // ALL pending orders — actionable, restaurant-wide.

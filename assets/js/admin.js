@@ -58,8 +58,11 @@
 
     // Panel is rebuilt authoritatively from the server on each poll — no localStorage restore.
 
-    // Start polling immediately
-    initPolling();
+    // Start polling immediately — gated by the dashboard-notify setting (default on).
+    // Only an explicit false (setting saved off) suppresses it; a missing flag polls.
+    if ( config.notifyEnabled !== false ) {
+        initPolling();
+    }
 
     function initPolling() {
         if ( ! localStorage.getItem( LS_NOTIF_INIT ) ) {

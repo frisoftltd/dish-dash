@@ -44,8 +44,51 @@ path, PesaPal, and `dd_momo_check_status` are untouched (Option B boundary intac
 
 ---
 
-## Release 2 — v3.10.51 — Gate dashboard notifications
-_Pending — starts after Release 1 is deployed._
+## Release 2 — v3.10.51 — Gate dashboard notification alerts ✅
+
+**Goal:** `dish_dash_order_notify_dashboard` (default `'1'`) controls ONLY the interrupting
+notification alerts. Orders page + order data + statuses remain fully functional.
+
+**Key finding:** The notification polling is NOT a standalone script. It lives inside the shared
+`assets/js/admin.js`, which is enqueued on ALL Dish Dash admin pages and also powers confirm-delete,
+auto-fade notices, and the Orders modal. So admin.js cannot be skipped without breaking the Orders page.
+The "enqueue-guard" is therefore implemented as an **enqueue-time config flag** that prevents the poll
+from initializing — `wp_localize_script` regenerates on every page load, so even a browser-cached
+admin.js receives the current flag value (equivalent to not shipping the poll).
+
+**Files changed:**
+- `admin/class-dd-admin.php` (`enqueue_admin_assets()`): added
+  `'notifyEnabled' => get_option( 'dish_dash_order_notify_dashboard', '1' ) === '1'` to the
+  `dishDashAdmin` localize array.
+- `assets/js/admin.js`: wrapped the top-level `initPolling();` call in
+  `if ( config.notifyEnabled !== false ) { initPolling(); }`. Explicit-false-only, so a missing flag
+  still polls (default-on safety). No other JS touched — the 60s bell-timestamp refresher and the
+  bell-click handler are harmless no-ops with an empty list (not polls/alerts).
+- `modules/orders/class-dd-orders-module.php` (`ajax_poll_notifications()`): after the permission
+  check, early-return `{ pending_items: [], pending_count: 0 }` when the option `!== '1'`. Backstops a
+  stale cached script.
+- `dish-dash.php` — version `3.10.51` (header + `DD_VERSION`).
+- `CLAUDE.md` — Current State + release row.
+
+**Behavior:**
+- OFF ⇒ no `dd_poll_notifications` requests, no beep, no browser Notification, no bell badge (the badge
+  is only ever set inside `poll()`).
+- ON / default / fresh install (no saved option) ⇒ polls as before (`get_option` fallback `'1'`).
+
+**Scope guard (untouched):** Orders page render/queries/modal, status-transition logic, the customer
+`/track-order/` page (its flag-gating is a later release), and the reservations admin's OWN notification
+system. Confirmed repo-wide that only the orders module + admin.js reference `dd_poll_notifications`, so
+the reservations admin is unaffected.
+
+**Test steps (developer, after deploy):**
+1. Settings → Order Handling → **uncheck** Dashboard Notifications → Save → purge LiteSpeed → reload
+   dashboard. Network tab: no `dd_poll_notifications` requests. Place a test order → no beep, no browser
+   alert, no bell badge. Orders page: list, search, filters, pagination, order modal all still work.
+2. **Re-check** Dashboard Notifications → Save → purge → reload. Polling resumes; a new test order
+   triggers alert + bell badge.
+3. `wp option get dish_dash_order_notify_dashboard` reflects the saved value (`0` / `1`).
+
+**Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before Release 3.
 
 ## Release 3 — v3.10.52 — Customer WhatsApp handoff button
 _Pending._
