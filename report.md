@@ -362,5 +362,78 @@ Collections MoMo, R2 notifications. No live-network calls added (QR is generated
 **Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before Release 8
 ("I have paid").
 
-## Release 8 — v3.10.57 — Single-tap "I have paid"
-_Pending._
+## Release 8 — v3.10.57 — Single-tap "I have paid", sticky panel, mobile-safe close ✅ (FINAL)
+
+**Goal:** One "I have paid — notify restaurant" button on the Scan-&-pay panel (claim always, WhatsApp if
+handoff on); panel persists until the customer taps X; always-reachable pinned X fixes the R7 mobile
+cutoff.
+
+**Claim endpoint added (route + guard):**
+- Route: `dd_momo_claim_paid` → `DD_Orders_Module::ajax_momo_claim_paid()`, registered with
+  `DD_Ajax::register( 'dd_momo_claim_paid', …, true )` (`nopriv = true` — customers may be guests, same as
+  `dd_momo_check_status`). Nonce via `DD_Ajax::verify_nonce()` (field `nonce`, action `dish_dash_frontend`
+  = `ddCartData.nonce`).
+- Server-side guard: reads the order row; **404s if it doesn't exist**; **rejects if
+  `payment_method !== 'momo_manual'`**; then **only flips `payment_status` from `claimed_pending` →
+  `claimed`** (idempotent — a double-tap / replay on an already-`claimed` or other-state order is a
+  harmless no-op success). It **never sets `paid`** — this is a customer attestation; the restaurant
+  reconciles against their MoMo statement using the order reference. Free-text VARCHAR → no schema change.
+
+**Auto-close behaviors found on the drawer, and what was disabled for this panel:**
+Investigated cart.js for `blur` / `visibilitychange` / `pagehide` / focus-loss / timeout / outside-click /
+Escape. **Found only two auto-close paths**, both now suppressed *only while the QR panel is up*
+(`momoManualLocked`, set by `showPanel()` = true iff the visible panel is `#ddPanelMomoManual`):
+1. **Overlay / outside-click** — the `#ddCartOverlay` `touchend` handler AND the document click-delegation
+   `.dd-cart-drawer-overlay` branch. I split the old combined `#ddCartClose, .dd-cart-drawer-overlay`
+   handler so the overlay is guarded by `momoManualLocked` while the drawer's own explicit `#ddCartClose`
+   still closes (explicit dismissal is allowed).
+2. **Escape keydown** — guarded with `&& ! momoManualLocked`.
+**No `blur` / `visibilitychange` / `pagehide` / timeout close exists anywhere** — so backgrounding the
+browser to pay in MoMo and returning already keeps the panel (nothing to disable there). Scope: the lock
+is per-this-panel; other drawers/panels' close behavior is unchanged.
+
+**Persistence across visibilitychange/blur — how ensured:** the panel is a normal DOM element inside the
+drawer; nothing in the codebase closes it on tab/app backgrounding (confirmed by the search above), and
+the two events that *would* dismiss it (overlay tap, Escape) are locked out while it's shown. So switching
+to the MoMo app and back leaves the panel — QR, dial link, copy rows, button — exactly as it was.
+
+**Single-tap button behavior:**
+- Tap → disable immediately (double-tap guard) → "Recording…".
+- If `dish_dash_order_handoff_whatsapp` on AND the order has a restaurant `whatsapp_url`: open it via an
+  in-gesture `<a target="_blank" rel="noopener">` click (popup-safe; reuses THIS order's R3 ticket). If
+  off (or no restaurant number): no WhatsApp.
+- Fire `dd_momo_claim_paid { order_id }`. On success → button hidden, "Payment recorded — you can close
+  this." shown, **panel stays open** (no auto-close). On failure → re-enable for retry (server idempotent;
+  WhatsApp already opened). The button checks ONLY the handoff flag, never the dashboard-notify flag.
+
+**Mobile-safe close / R7 cutoff fix:** `#ddPanelMomoManual` is now `display:flex; flex-direction:column;
+flex:1; min-height:0` (fills the fixed-height drawer, like `#ddPanelCart`); the header
+(`.dd-momoqr__header`, `flex-shrink:0`) is pinned with an always-visible **X** (`#ddMomoQrClose` →
+`closeCart()`), and `.dd-momoqr` is the `flex:1; min-height:0; overflow-y:auto` scroll body — so both the X
+and the action button are reachable at ~380px.
+
+**Files changed:**
+- `modules/orders/class-dd-orders-module.php` — register + add `ajax_momo_claim_paid()`.
+- `assets/js/cart.js` — `momoManualLocked` lock (set in `showPanel`), guard overlay `touchend` +
+  click-delegation (split) + Escape; panel markup (header X, claim button + recorded note, removed Done);
+  X + claim handlers; `markMomoClaimed()`; `renderMomoManualPanel()` stashes order id / whatsapp url and
+  resets claim UI.
+- `assets/css/cart.css` — `#ddPanelMomoManual` flex-fill, `.dd-momoqr__header` / `.dd-momoqr__close`,
+  `.dd-momoqr` as scroll body, `.dd-momoqr__claim`, `.dd-momoqr__recorded`.
+- `dish-dash.php` — version `3.10.57`. `CLAUDE.md` — Current State + release row (track marked complete).
+
+**Scope guard (untouched):** order placement / R4 `claimed_pending` stamp; R7 QR payload / rendering /
+dial link / copy rows; other drawers' close behavior; PesaPal, COD, Collections MoMo, R2 notifications,
+R3 generic-panel button.
+
+**Test steps (developer, after deploy):**
+1. Handoff ON: scan & pay order → tap "I have paid" → DB `payment_status` = `claimed` AND WhatsApp opens
+   with this order's ticket; panel stays open with the confirmation.
+2. Handoff OFF: same tap → status `claimed`, NO WhatsApp, confirmation shown.
+3. Persistence (mobile): open panel → switch app/tab → back → panel still there with all details.
+4. Mobile close: narrow phone → X visible/reachable, button reachable via scroll; X closes.
+5. Double-tap: tapping twice does not double-claim (server idempotent) / does not double-open.
+6. No regressions: PesaPal/COD/Collections unchanged; generic confirmation panel (non-momo_manual)
+   unchanged; overlay/Escape still close OTHER panels.
+
+**Status:** Implemented, committed, pushed. FINAL release of the track — awaiting developer verify.

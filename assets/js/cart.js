@@ -123,8 +123,9 @@
             mq.className  = 'dd-cart-panel dd-cart-panel--hidden';
             mq.setAttribute( 'data-panel', 'momo-manual' );
             mq.innerHTML =
-                '<div class="dd-checkout-panel__header">' +
+                '<div class="dd-checkout-panel__header dd-momoqr__header">' +
                     '<span class="dd-checkout-panel__title">Scan and pay with MoMo</span>' +
+                    '<button type="button" class="dd-momoqr__close" id="ddMomoQrClose" aria-label="Close">&times;</button>' +
                 '</div>' +
                 '<div class="dd-momoqr">' +
                     '<p class="dd-momoqr__ordernum" id="ddMomoQrOrderNum"></p>' +
@@ -146,7 +147,8 @@
                         '</button>' +
                     '</div>' +
                     '<p class="dd-momoqr__note" id="ddMomoQrCopyHint">Tap any detail above to copy.</p>' +
-                    '<button class="dd-confirm-panel__close" id="ddMomoQrDone" type="button">Done</button>' +
+                    '<button class="dd-momoqr__claim" id="ddMomoQrClaim" type="button">I have paid — notify restaurant</button>' +
+                    '<p class="dd-momoqr__recorded" id="ddMomoQrRecorded" hidden>Payment recorded — you can close this.</p>' +
                 '</div>';
             drawer.appendChild( mq );
             panelMomoManual = mq;
@@ -161,12 +163,47 @@
                 } );
             }
 
-            // Done → close drawer, back to cart.
-            var mqDone = document.getElementById( 'ddMomoQrDone' );
-            if ( mqDone ) {
-                mqDone.addEventListener( 'click', function () {
+            // X → explicit dismissal (the only thing that closes this sticky panel,
+            // besides recording the claim). closeCart() resets to the cart panel.
+            var mqClose = document.getElementById( 'ddMomoQrClose' );
+            if ( mqClose ) {
+                mqClose.addEventListener( 'click', function () {
                     closeCart();
-                    showPanel( panelCart );
+                } );
+            }
+
+            // "I have paid — notify restaurant": claim always, WhatsApp if handoff on.
+            var mqClaim = document.getElementById( 'ddMomoQrClaim' );
+            if ( mqClaim ) {
+                mqClaim.addEventListener( 'click', function () {
+                    if ( mqClaim.disabled ) return;   // guard against double-tap
+                    mqClaim.disabled    = true;
+                    mqClaim.textContent = 'Recording…';
+
+                    // WhatsApp handoff (opt-in) — open in-gesture so it isn't popup-blocked.
+                    // Reuses THIS order's restaurant ticket (R3 whatsapp_url). App-switch is
+                    // fine: the panel is sticky and is still here when the customer returns.
+                    var handoffOn = !!( window.ddCartData && window.ddCartData.whatsappHandoff );
+                    if ( handoffOn && momoManualWhatsappUrl ) {
+                        var a = document.createElement( 'a' );
+                        a.href   = momoManualWhatsappUrl;
+                        a.target = '_blank';
+                        a.rel    = 'noopener noreferrer';
+                        document.body.appendChild( a );
+                        a.click();
+                        document.body.removeChild( a );
+                    }
+
+                    // Claim (always) — flip claimed_pending → claimed. Server is idempotent.
+                    ajax( 'dd_momo_claim_paid', { order_id: momoManualOrderId }, function () {
+                        markMomoClaimed();
+                    }, function ( message ) {
+                        // Allow a retry (claim is idempotent; WhatsApp already opened).
+                        mqClaim.disabled    = false;
+                        mqClaim.textContent = 'I have paid — notify restaurant';
+                        var hint = document.getElementById( 'ddMomoQrCopyHint' );
+                        if ( hint ) hint.textContent = message || 'Could not record. Please try again.';
+                    } );
                 } );
             }
         }
@@ -189,6 +226,7 @@
         var overlay = document.getElementById( 'ddCartOverlay' );
         if ( overlay ) {
             overlay.addEventListener( 'touchend', function ( e ) {
+                if ( momoManualLocked ) return; // sticky QR panel: outside tap must not close
                 e.preventDefault();
                 closeCart();
             }, { passive: false } );
@@ -209,8 +247,16 @@
                 return;
             }
 
-            // Close triggers
-            if ( e.target.closest( '#ddCartClose, .dd-cart-drawer-overlay' ) ) {
+            // Close triggers.
+            // Overlay (outside-click) is suppressed while the sticky QR panel is up,
+            // so a customer leaving to pay in MoMo and tapping back doesn't lose it.
+            if ( e.target.closest( '.dd-cart-drawer-overlay' ) ) {
+                if ( momoManualLocked ) return;
+                closeCart();
+                return;
+            }
+            // The drawer's own close control stays an explicit dismissal (always works).
+            if ( e.target.closest( '#ddCartClose' ) ) {
                 closeCart();
                 return;
             }
@@ -218,9 +264,9 @@
             // Disabled checkout: button[disabled] handles this natively
         } );
 
-        // Keyboard close
+        // Keyboard close (suppressed while the sticky QR panel is up)
         document.addEventListener( 'keydown', function ( e ) {
-            if ( e.key === 'Escape' ) closeCart();
+            if ( e.key === 'Escape' && ! momoManualLocked ) closeCart();
         } );
 
         // Qty increase
@@ -572,7 +618,14 @@
     var currentOrderNumber = null;
     var currentReferenceId = null;
 
+    // Scan-&-pay (momo_manual) panel state.
+    var momoManualOrderId     = 0;
+    var momoManualWhatsappUrl = '';
+    var momoManualLocked      = false; // true while the QR panel is shown → sticky (no outside-click / Escape close)
+
     function showPanel( panelEl ) {
+        // Sticky lock is true only while the Scan-&-pay QR panel is the visible one.
+        momoManualLocked = ( panelEl !== null && panelEl === panelMomoManual );
         [ panelCart, panelCheckout, panelConfirmation, panelMomo, panelIremboPay, panelPesaPal, panelMomoManual ].forEach( function ( p ) {
             if ( p ) p.classList.add( 'dd-cart-panel--hidden' );
         } );
@@ -624,11 +677,32 @@
         }
     }
 
+    function markMomoClaimed() {
+        var claimBtn = document.getElementById( 'ddMomoQrClaim' );
+        var recorded = document.getElementById( 'ddMomoQrRecorded' );
+        if ( claimBtn ) { claimBtn.disabled = true; claimBtn.hidden = true; }
+        if ( recorded ) recorded.hidden = false;
+    }
+
     function renderMomoManualPanel( data ) {
         var merchant = ( window.ddCartData && window.ddCartData.momoMerchantCode )
             ? String( window.ddCartData.momoMerchantCode ) : '';
         var amount   = Math.round( Number( data.total ) || 0 ); // integer RWF, no decimals/commas
         var ref      = data.order_number || '';
+
+        // Stash this order's identifiers for the claim button.
+        momoManualOrderId     = data.order_id || 0;
+        momoManualWhatsappUrl = data.whatsapp_url || '';
+
+        // Reset the claim UI (the panel is reused across orders in one session).
+        var claimBtn = document.getElementById( 'ddMomoQrClaim' );
+        var recorded = document.getElementById( 'ddMomoQrRecorded' );
+        if ( claimBtn ) {
+            claimBtn.disabled    = false;
+            claimBtn.hidden      = false;
+            claimBtn.textContent = 'I have paid — notify restaurant';
+        }
+        if ( recorded ) recorded.hidden = true;
 
         var orderNumEl = document.getElementById( 'ddMomoQrOrderNum' );
         var instrEl    = document.getElementById( 'ddMomoQrInstruction' );

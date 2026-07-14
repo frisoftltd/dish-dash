@@ -81,6 +81,7 @@ class DD_Orders_Module extends DD_Module {
         // uses the separately-gated dd_update_status. Method kept as dead code.
         DD_Ajax::register( 'dd_update_status',     [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_momo_check_status',   [ $this, 'ajax_momo_check_status' ],   true );
+        DD_Ajax::register( 'dd_momo_claim_paid',     [ $this, 'ajax_momo_claim_paid' ],     true );
         DD_Ajax::register( 'dd_irembopay_confirm',   [ $this, 'ajax_irembopay_confirm' ],   true );
         DD_Ajax::register( 'dd_pesapal_check_status', [ $this, 'ajax_pesapal_check_status' ], false );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
@@ -1265,6 +1266,55 @@ class DD_Orders_Module extends DD_Module {
 
         // Still PENDING
         wp_send_json_success( [ 'paid' => false, 'status' => 'PENDING' ] );
+    }
+
+    /**
+     * Customer taps "I have paid" on the Scan-&-pay (momo_manual) screen.
+     * Flips payment_status claimed_pending → claimed. This is a customer
+     * ATTESTATION, not a verified settlement — the restaurant reconciles against
+     * their MoMo statement using the order reference. Never sets 'paid'.
+     *
+     * Guard: the order must exist and be a momo_manual order. Idempotent — only
+     * flips from claimed_pending, so a double-tap or replay is a harmless no-op.
+     */
+    public function ajax_momo_claim_paid(): void {
+        DD_Ajax::verify_nonce();
+
+        $order_id = absint( $_POST['order_id'] ?? 0 );
+        if ( ! $order_id ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        global $wpdb;
+        $order = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, payment_method, payment_status
+             FROM {$wpdb->prefix}dishdash_orders WHERE id = %d LIMIT 1",
+            $order_id
+        ) );
+
+        if ( ! $order ) {
+            wp_send_json_error( [ 'message' => 'Order not found.' ] );
+            return;
+        }
+
+        if ( $order->payment_method !== 'momo_manual' ) {
+            wp_send_json_error( [ 'message' => 'This order cannot be claimed.' ] );
+            return;
+        }
+
+        // Only advance from the up-front claimed_pending state.
+        if ( $order->payment_status === 'claimed_pending' ) {
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_orders',
+                [ 'payment_status' => 'claimed' ],
+                [ 'id'             => $order_id ],
+                [ '%s' ],
+                [ '%d' ]
+            );
+        }
+
+        wp_send_json_success( [ 'claimed' => true, 'order_id' => $order_id ] );
     }
 
     public function ajax_pesapal_check_status(): void {
