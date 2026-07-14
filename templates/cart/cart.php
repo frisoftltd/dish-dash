@@ -203,6 +203,13 @@ if ( ! isset( $dd_cart_count ) ) {
             <h2 class="dd-confirm-panel__title"><?php esc_html_e( 'Order Confirmed!', 'dish-dash' ); ?></h2>
             <p class="dd-confirm-panel__order-num" id="ddConfirmOrderNum"></p>
             <p class="dd-confirm-panel__eta" id="ddConfirmEta"></p>
+            <!-- Opt-in WhatsApp handoff button (dish_dash_order_handoff_whatsapp).
+                 Hidden by default; JS reveals + sets href only when handoff is on
+                 AND the server returned a restaurant WhatsApp URL. Tap only. -->
+            <a class="dd-confirm-panel__whatsapp" id="ddConfirmWhatsapp"
+               href="#" target="_blank" rel="noopener noreferrer" hidden>
+                <?php esc_html_e( 'Send my order to the restaurant on WhatsApp', 'dish-dash' ); ?>
+            </a>
             <button class="dd-confirm-panel__close" id="ddConfirmClose" type="button">
                 <?php esc_html_e( 'Done', 'dish-dash' ); ?>
             </button>

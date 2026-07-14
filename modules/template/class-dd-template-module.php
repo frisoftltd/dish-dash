@@ -265,6 +265,9 @@ class DD_Template_Module extends DD_Module {
             'deliveryFee'           => (int) get_option( 'dd_delivery_fee',            1500  ),
             'deliveryEta'           => get_option( 'dd_delivery_eta', '30–45 minutes' ),
             'whatsappAdmin'         => get_option( 'dd_whatsapp_admin', '' ),
+            // Order Handling: opt-in customer WhatsApp handoff on the confirmation
+            // screen (default off). JS reveals the tap-only button when this is true.
+            'whatsappHandoff'       => get_option( 'dish_dash_order_handoff_whatsapp', '0' ) === '1',
             'pluginUrl'             => plugins_url( '/', DD_PLUGIN_FILE ),
             'paymentGateways'       => (function() {
                 if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];

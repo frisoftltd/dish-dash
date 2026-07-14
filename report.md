@@ -90,8 +90,59 @@ the reservations admin is unaffected.
 
 **Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before Release 3.
 
-## Release 3 — v3.10.52 — Customer WhatsApp handoff button
-_Pending._
+## Release 3 — v3.10.52 — Customer WhatsApp handoff button (opt-in, tap-only) ✅
+
+**Goal:** Restore the customer-facing "send my order to the restaurant on WhatsApp" button on the
+order-confirmation screen — ONLY when `dish_dash_order_handoff_whatsapp` is on, and ONLY as a manual tap
+(never auto-open, which is what v3.5.25 removed).
+
+**Which URL targets the restaurant (confirmed):** `data.whatsapp_url` = `build_admin_whatsapp_url()` →
+the `dd_whatsapp_admin` number, `rawurlencode`d. Its message already contains order number, items,
+quantities, and total. `data.whatsapp_customer_url` goes to the customer's own phone — NOT used here.
+Server URL builders were **not modified**.
+
+**Files changed (JS/CSS/markup + one localize, no server URL change):**
+- `modules/template/class-dd-template-module.php` — `ddCartData` localize gains
+  `'whatsappHandoff' => get_option( 'dish_dash_order_handoff_whatsapp', '0' ) === '1'`.
+- `templates/cart/cart.php` — confirmation panel gains a hidden anchor
+  `<a id="ddConfirmWhatsapp" target="_blank" rel="noopener noreferrer" hidden>…</a>` between the ETA line
+  and the Done button. Plain `<a>` = genuine tap; there is no scripted click anywhere.
+- `assets/css/cart.css` — `.dd-confirm-panel__whatsapp` (WhatsApp green `#25D366` — the WhatsApp service
+  color, already used in `reservations.js`, not the restaurant brand) + a `.dd-confirm-panel__whatsapp[hidden]`
+  author guard so the `hidden` attribute wins over the class `display` (author rules beat the UA
+  `[hidden]` rule, so the guard is required).
+- `assets/js/cart.js`:
+  - Offline confirmation handler (the `data.eta` branch): reveal the button
+    (`waBtn.href = data.whatsapp_url; waBtn.hidden = false`) **only** when `ddCartData.whatsappHandoff`
+    is true AND `data.whatsapp_url` is non-empty; otherwise keep it hidden.
+  - Done/close handler: reset the button to `hidden` + `href = '#'` so no stale URL carries into a later
+    order in the same session (also covers the confirmation panel being reused by online gateways).
+- `dish-dash.php` — version `3.10.52` (header + `DD_VERSION`).
+- `CLAUDE.md` — Current State + release row.
+
+**Edge case (handoff ON but empty/missing WhatsApp URL — e.g. no restaurant number configured):**
+chosen behavior = **hide the button** (no dead button). The confirmation screen shows its normal
+order-received state (order # + ETA + Done). No URL is rebuilt.
+
+**Tap-only guarantee:** the button is an `<a target="_blank">` the user must tap. No `.click()`,
+no `window.open`, no `setTimeout` auto-open anywhere — the intrusive auto-open from pre-v3.5.25 is not
+reintroduced.
+
+**Scope guard (untouched):** payment flow, order placement, all gateways; the online-gateway
+(MoMo/IremboPay/PesaPal) success handlers (they don't return `whatsapp_url`, so the button never appears
+there); the Release-2 dashboard notification code; `build_admin_whatsapp_url()` / server URL builders;
+no "I have paid" combine logic (that is Release 6).
+
+**Test steps (developer, after deploy):**
+1. Settings → Order Handling → **check** WhatsApp Handoff → Save → purge LiteSpeed. Place a test COD
+   order → confirmation screen shows the WhatsApp button → tapping opens WhatsApp with a ticket
+   containing order #, items, quantities, total, addressed to the RESTAURANT number. It must NOT open by
+   itself.
+2. **Uncheck** WhatsApp Handoff → Save → purge → place a test order → confirmation screen unchanged, no
+   button.
+3. Confirm dashboard notifications still behave as Release 2 left them (toggle independent).
+
+**Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before Release 4.
 
 ## Release 4 — v3.10.53 — Manual MoMo up-front placement
 _Pending._

@@ -861,6 +861,22 @@
                 if ( numEl2 ) numEl2.textContent = 'Order #' + data.order_number;
                 if ( etaEl2 ) etaEl2.textContent = '\uD83D\uDEF5 Estimated delivery: ' + ( data.eta || '30\u201345 minutes' );
 
+                // Opt-in WhatsApp handoff button \u2014 tap only, never auto-opened.
+                // Reveal it only when the setting is on AND the server returned a
+                // restaurant ticket URL (data.whatsapp_url, already rawurlencoded).
+                // If the URL is empty (no restaurant number configured), stay hidden.
+                var waBtn = document.getElementById( 'ddConfirmWhatsapp' );
+                if ( waBtn ) {
+                    var handoffOn = !!( window.ddCartData && window.ddCartData.whatsappHandoff );
+                    if ( handoffOn && data.whatsapp_url ) {
+                        waBtn.href   = data.whatsapp_url;
+                        waBtn.hidden = false;
+                    } else {
+                        waBtn.href   = '#';
+                        waBtn.hidden = true;
+                    }
+                }
+
                 showPanel( panelConfirmation );
                 updateBadges( 0 );
 
@@ -901,6 +917,9 @@
     var confirmCloseBtn = document.getElementById( 'ddConfirmClose' );
     if ( confirmCloseBtn ) {
         confirmCloseBtn.addEventListener( 'click', function () {
+            // Reset the handoff button so it never carries a stale URL into a later order.
+            var waBtn = document.getElementById( 'ddConfirmWhatsapp' );
+            if ( waBtn ) { waBtn.hidden = true; waBtn.href = '#'; }
             closeCart();
             showPanel( panelCart );
         } );
