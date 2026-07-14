@@ -255,8 +255,41 @@ notifications, R3 button. No QR yet (R6). No "I have paid" (R7).
 **Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before the QR
 release.
 
-## Release 6 — v3.10.55 — Dynamic QR + iOS copy fallback
+## Release 6 — v3.10.55 — Scan & pay first in the payment list ✅
+
+**Goal:** Ordering only. "Scan and pay with MoMo" (`momo_manual`) renders FIRST at checkout, ahead of
+PesaPal and Cash on delivery. No behavior change.
+
+**How order is determined (as requested):** `assets/js/cart.js` (~L605–617) renders the payment options
+by `.map()`-ing `ddCartData.paymentGateways` in plain array order (no sort/reorder), and marks the first
+entry (`i === 0`) as `checked`. So the array order IS the visual order, and index 0 is the default
+selection.
+
+**File changed:**
+- `modules/template/class-dd-template-module.php` — the synthetic `momo_manual` entry is now added with
+  `array_unshift( $out, [ … ] )` instead of `$out[] = [ … ]`, placing it at index 0 (before the WC
+  gateways). Same title/logo as R5 (`$icon_urls['mtn_momo']`).
+- `dish-dash.php` — version `3.10.55`. `CLAUDE.md` — Current State + release row.
+
+**Consequence to note:** because cart.js checks index 0, `momo_manual` is now not only first but also the
+**default-selected** method. This is the natural, intended result of being first (the brief asks for it
+to be the first option). Which methods appear is unchanged — only their order.
+
+**Scope guard (untouched):** payment behavior, order placement, the R4 `claimed_pending` stamp,
+`$is_online`; the R5 logo + title; PesaPal, COD, Collections `mtn_momo` code, R2 notifications, R3
+button. No QR (R7). No "I have paid" (R8).
+
+**Test steps (developer, after deploy):**
+1. Checkout: "Scan and pay with MoMo" is the FIRST payment option (and pre-selected); PesaPal and COD
+   follow.
+2. Select + place an order with it → still works (row created immediately, `payment_status='claimed_pending'`).
+   No behavior change.
+
+**Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before the QR
+release.
+
+## Release 7 — v3.10.56 — Dynamic QR + iOS copy fallback
 _Pending._
 
-## Release 7 — v3.10.56 — Single-tap "I have paid"
+## Release 8 — v3.10.57 — Single-tap "I have paid"
 _Pending._

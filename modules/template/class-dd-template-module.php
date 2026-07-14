@@ -303,12 +303,14 @@ class DD_Template_Module extends DD_Module {
                 // NOT a WooCommerce gateway: no Collections API, no Option B transient.
                 // Reuses the official MTN MoMo logo asset (same as Collections) — the
                 // renderer shows iconUrl as an <img>, falling back to the emoji.
-                $out[] = [
+                // array_unshift → it renders FIRST in the checkout list (cart.js maps
+                // the array in order and checks index 0), ahead of the WC gateways.
+                array_unshift( $out, [
                     'id'      => 'momo_manual',
                     'title'   => __( 'Scan and pay with MoMo', 'dish-dash' ),
                     'icon'    => '📲',
                     'iconUrl' => $icon_urls['mtn_momo'],
-                ];
+                ] );
                 return $out;
             })(),
         ] );
