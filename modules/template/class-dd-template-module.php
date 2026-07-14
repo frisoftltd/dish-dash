@@ -301,12 +301,13 @@ class DD_Template_Module extends DD_Module {
                 // like COD (payment_status=claimed_pending). Intentionally distinct
                 // from the Collections 'mtn_momo' gateway so they are never confused.
                 // NOT a WooCommerce gateway: no Collections API, no Option B transient.
-                // QR render + merchant-code gating arrive in R5.
+                // Reuses the official MTN MoMo logo asset (same as Collections) — the
+                // renderer shows iconUrl as an <img>, falling back to the emoji.
                 $out[] = [
                     'id'      => 'momo_manual',
-                    'title'   => __( 'MoMo (scan & pay)', 'dish-dash' ),
+                    'title'   => __( 'Scan and pay with MoMo', 'dish-dash' ),
                     'icon'    => '📲',
-                    'iconUrl' => '',
+                    'iconUrl' => $icon_urls['mtn_momo'],
                 ];
                 return $out;
             })(),

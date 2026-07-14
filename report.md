@@ -216,8 +216,47 @@ the frontend to the QR screen.
 **Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + the PesaPal abandon
 regression check before Release 5.
 
-## Release 5 — v3.10.54 — Dynamic QR + iOS copy fallback
+## Release 5 — v3.10.54 — MTN MoMo logo + title on the scan & pay method ✅
+
+**Goal:** Presentation only. The `momo_manual` method (from R4) shows the official MTN MoMo logo and
+reads "Scan and pay with MoMo". No behavior change.
+
+**Investigation findings (as requested):**
+- **Collections logo asset:** `class-dd-template-module.php` builds `$icon_urls['mtn_momo'] =
+  plugins_url( 'assets/images/mtn-momo-logo.jpg', DD_PLUGIN_FILE )`. The file `assets/images/mtn-momo-logo.jpg`
+  already exists (vendored) — reused as-is, no new file added.
+- **Synthetic `momo_manual` entry** lives in the same `paymentGateways` closure (appended after the WC
+  gateway loop). That is where title + icon are set.
+- **How the renderer picks logo vs emoji:** `assets/js/cart.js` (~L606–613) does
+  `var iconUrl = gw.iconUrl || '';` then renders `iconUrl ? '<img … class="dd-payment-option__logo">' :
+  gw.icon`. So a non-empty **`iconUrl`** shows the image; otherwise it falls back to the emoji `icon`.
+  The synthetic entry previously had `iconUrl => ''` (so it showed 📲) — setting `iconUrl` fixes it.
+
+**Files changed:**
+- `modules/template/class-dd-template-module.php` — synthetic `momo_manual` entry: `title` →
+  `'Scan and pay with MoMo'`; `iconUrl` → `$icon_urls['mtn_momo']` (reuses the exact Collections asset
+  path already in scope — DRY, guaranteed identical). Emoji `'📲'` kept as a harmless fallback.
+- `dishdash-core/class-dd-helpers.php` — `dd_format_payment_method()` map:
+  `'momo_manual' => 'Scan and pay with MoMo'`.
+- `assets/js/admin.js` — `ddFormatPaymentMethod()` map: same label.
+- `dish-dash.php` — version `3.10.54`. `CLAUDE.md` — Current State + release row.
+
+**Scope guard (untouched):** payment flow, order placement, the R4 `claimed_pending` stamp, `$is_online`
+routing; the Collections `mtn_momo` gateway code (the developer has hidden it from live checkout — this
+release does NOT manage that visibility, only restyles the scan & pay entry); PesaPal, COD, R2
+notifications, R3 button. No QR yet (R6). No "I have paid" (R7).
+
+**Test steps (developer, after deploy):**
+1. Checkout: the scan & pay method shows the MTN MoMo logo (not 📲) and reads "Scan and pay with MoMo".
+2. Place an order with it → still works exactly as R4 (row created immediately,
+   `payment_status='claimed_pending'`). No behavior change.
+3. Admin order view / notification panel shows the updated label "Scan and pay with MoMo".
+
+**Status:** Implemented, committed, pushed. Awaiting developer publish + deploy + verify before the QR
+release.
+
+## Release 6 — v3.10.55 — Dynamic QR + iOS copy fallback
 _Pending._
 
-## Release 6 — v3.10.55 — Single-tap "I have paid"
+## Release 7 — v3.10.56 — Single-tap "I have paid"
 _Pending._
