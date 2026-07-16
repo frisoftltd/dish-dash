@@ -752,3 +752,67 @@ in env) — verified by inspection.
 **Status:** Implemented, committed, pushed — awaiting developer verify on a NON-PRODUCTION site
 (scan QR on Android → dialer shows *182*8*1*{merchant}*{deposit}#; copy rows; empty-merchant fallback;
 deposit OFF unchanged; ORDERS QR still identical; ~380px).
+
+---
+
+## v3.10.65 — Single-tap "I have paid" for deposits + sticky panel (FINAL, reservation track)
+
+**Claim endpoint — route + server guard:**
+- Route: AJAX action `dd_reservation_claim_deposit` → `DD_Reservations_Module::ajax_claim_deposit()`.
+  Registered via `DD_Ajax::register( 'dd_reservation_claim_deposit', [...], true )` — **nopriv**
+  (guests book/claim). Nonce: `DD_Ajax::verify_nonce()` (action `dish_dash_frontend`, field `nonce`)
+  — the same nonce the reservation submit already sends (`ddRes.nonce`).
+- Keyed on `booking_ref` (no reservation id is available client-side — only `data.booking_ref`
+  comes back from submit). Guards: booking must EXIST; `deposit_required` must be `1`.
+- **Idempotent:** updates `deposit_status` only when it is currently `'pending'` (→ `'claimed'`).
+  Double-tap / replay = no-op. **NEVER sets `'paid'`** — `paid` means restaurant-confirmed; this is
+  only an unverified customer attestation. Fires `deposit_claimed` tracking on the first flip.
+
+**Close behaviors found on `#dd-res-overlay` and what was locked:**
+Exactly three closers exist (bindOpenClose): (1) the header X `#dd-res-close` → `closeModal`;
+(2) overlay outside-click (`e.target === #dd-res-overlay`) → `closeModal`; (3) `Escape` keydown →
+`closeModal`. There is **no** `blur` / `visibilitychange` / `pagehide` / focus-loss / timeout close
+anywhere — so app-switching to the MoMo app and returning already survives; only the two auto-closers
+were a risk. Added `depositPanelLocked` (set true in `renderDepositPanel()`, reset false in
+`closeModal()`): the overlay-click and Escape handlers now early-return while it's true. The header X
+(`#dd-res-close`) is deliberately left UNGATED so it remains the explicit dismissal. Scoped to the
+deposit panel only — the booking modal's other steps close exactly as before.
+
+**Always-reachable X / mobile:** no restructure or CSS needed — the reservation modal already pins its
+header (`.dd-res-modal__header`, `flex-shrink:0`, contains `#dd-res-close`) above a scrollable body
+(`.dd-res-modal__body`, `flex:1; overflow-y:auto`). So the X stays visible and the claim button is
+reachable by scrolling the body at ~380px. (This is why, unlike orders R8, no panel restructure was
+required.)
+
+**EXPLICIT: a claimed booking still auto-cancels.**
+`run_autocancel()` (v3.10.63) was NOT touched this release — its query is still
+`WHERE id=%d AND deposit_required=1 AND deposit_status IN ('pending','claimed')` (verified by grep,
+lines 484–485). So a booking a customer has `claimed` (without restaurant confirmation) still matches
+and is cancelled on schedule → `status='auto_cancelled', deposit_status='failed'`. Only a
+restaurant-set `deposit_status='paid'` (which the claim endpoint never writes) is safe from cancel.
+No unschedule-on-claim, no claim-aware exemption was added anywhere.
+
+**Frontend (reservations.js):** the deposit panel's bottom action changed from a "Close" button to
+`#dd-res-momo-claim` (`.dd-momoqr__claim`) + a hidden `.dd-momoqr__recorded` note. On tap: guard
+double-tap → (opt-in, in-gesture `<a target=_blank>`) open `depositWhatsappUrl` if `ddRes.whatsappHandoff`
+→ `claimDeposit(booking_ref)` (FormData `fetch` to the claim action) → on success hide the button +
+reveal the recorded note (panel stays open); on error re-enable for retry. `renderDepositPanel()` now
+stashes `depositBookingRef` + `depositWhatsappUrl` (the R1 restaurant `admin_url`) and locks the panel.
+
+**CSS added:** none — reused `.dd-momoqr__claim` + `.dd-momoqr__recorded` (cart.css, already enqueued
+on the reservation surface).
+
+**Boundaries respected:** auto-cancel (read-only), the QR payload / shared PHP helper / dial link /
+copy rows (v3.10.64), deposit amount logic (v3.10.62), booking flow, country picker, PesaPal, orders,
+cart.js, and the WhatsApp URL builders — all untouched.
+
+**Operational note (surfaced for the developer):** there is currently no admin UI to set a booking's
+`deposit_status='paid'` (the only state that stops auto-cancel). A restaurant confirming a real deposit
+payment would need that. Flagged as a possible follow-up (not in this track's scope).
+
+**Verification done here:** grep confirms `depositPanelLocked` gates both auto-closers and resets on
+close; the claim endpoint is nopriv + booking_ref-keyed + pending-only; `run_autocancel` still cancels
+'claimed'. PHP lint not run (no PHP binary) — verified by inspection.
+
+**Status:** Implemented, committed, pushed — FINAL release of the reservation track; awaiting developer
+verify on a NON-PROD site (esp. verify step 4: a claimed booking still auto-cancels).

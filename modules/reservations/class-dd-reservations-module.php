@@ -25,6 +25,7 @@ class DD_Reservations_Module extends DD_Module {
 
         DD_Ajax::register( 'dd_submit_reservation',        [ $this, 'ajax_submit_reservation' ] );
         DD_Ajax::register( 'dd_reservation_availability',  [ $this, 'ajax_check_availability' ] );
+        DD_Ajax::register( 'dd_reservation_claim_deposit', [ $this, 'ajax_claim_deposit'    ], true );
         DD_Ajax::register( 'dd_reservation_update_status', [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_res_bulk_action',           [ $this, 'ajax_bulk_action'    ], false );
 
@@ -377,6 +378,57 @@ class DD_Reservations_Module extends DD_Module {
         $amount = (int) get_option( 'dd_reservation_deposit_amount', 2000 );
         // Percentage type reserved for future — needs a base order value not available at booking time
         return $amount;
+    }
+
+    // ── AJAX: Customer deposit claim ("I have paid") ───────────────────────
+    // Records an UNVERIFIED customer attestation that they paid the deposit.
+    // Flips deposit_status 'pending' → 'claimed'. Keyed on booking_ref (no
+    // reservation id is available client-side). Idempotent (only advances from
+    // 'pending'); NEVER sets 'paid' (that means restaurant-confirmed). This does
+    // NOT stop auto-cancel — run_autocancel() still cancels 'claimed' (v3.10.63):
+    // only a restaurant-confirmed 'paid' saves the booking.
+    public function ajax_claim_deposit(): void {
+        DD_Ajax::verify_nonce();
+
+        $booking_ref = sanitize_text_field( wp_unslash( $_POST['booking_ref'] ?? '' ) );
+        if ( '' === $booking_ref ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        global $wpdb;
+        $reservation = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, deposit_required, deposit_status
+             FROM {$wpdb->prefix}dishdash_reservations WHERE booking_ref = %s LIMIT 1",
+            $booking_ref
+        ) );
+
+        if ( ! $reservation ) {
+            wp_send_json_error( [ 'message' => 'Booking not found.' ] );
+            return;
+        }
+
+        if ( (int) $reservation->deposit_required !== 1 ) {
+            wp_send_json_error( [ 'message' => 'This booking has no deposit to claim.' ] );
+            return;
+        }
+
+        // Only advance from the up-front 'pending' state (idempotent; double-tap = no-op).
+        if ( 'pending' === $reservation->deposit_status ) {
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_reservations',
+                [ 'deposit_status' => 'claimed' ],
+                [ 'id'             => (int) $reservation->id ],
+                [ '%s' ],
+                [ '%d' ]
+            );
+
+            do_action( 'dd_track_event', 'deposit_claimed', null, null, [
+                'booking_ref' => $booking_ref,
+            ] );
+        }
+
+        wp_send_json_success( [ 'claimed' => true, 'booking_ref' => $booking_ref ] );
     }
 
     // ── AJAX: Bulk action ──────────────────────────────────────────────────

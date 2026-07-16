@@ -33,9 +33,17 @@
 
   const ddRes = window.ddReservations || {};
   // Fixed deposits are live. Reads the real setting; when on, the booking form shows
-  // the informational "deposit required" notice on screen 1. No payment UI here — the
-  // QR + "I have paid" claim button arrive in later releases.
+  // the informational "deposit required" notice on screen 1, and the confirmation
+  // step renders the MoMo scan-&-pay QR + "I have paid" claim button.
   const depositActive = !!ddRes.depositEnabled;
+
+  // Deposit panel state. When the deposit QR panel is shown it becomes "locked":
+  // outside-tap + Escape must NOT close it, so a customer can leave to their MoMo
+  // app to pay and return to find the QR still on screen. Only the pinned header X
+  // (#dd-res-close) and the panel's own "Payment recorded" flow dismiss it.
+  let depositPanelLocked = false;
+  let depositBookingRef  = '';
+  let depositWhatsappUrl = '';
 
   // ── Init ──────────────────────────────────────────────────
   function init() {
@@ -138,14 +146,18 @@
       openModal();
     }, true);
 
+    // The header X always closes (explicit dismissal — works even when locked).
     $('#dd-res-close')?.addEventListener('click', closeModal);
 
+    // Outside-tap: suppressed while the deposit panel is locked (sticky).
     $('#dd-res-overlay')?.addEventListener('click', e => {
+      if (depositPanelLocked) return;
       if (e.target === $('#dd-res-overlay')) closeModal();
     });
 
+    // Escape: suppressed while the deposit panel is locked (sticky).
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape' && !depositPanelLocked) closeModal();
     });
   }
 
@@ -175,6 +187,7 @@
   function closeModal() {
     const overlay = $('#dd-res-overlay');
     if (!overlay) return;
+    depositPanelLocked = false; // unlock so a fresh booking isn't stuck sticky
     overlay.classList.remove('dd-res-overlay--open');
     overlay.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
@@ -601,6 +614,11 @@
     var area = document.querySelector( '.dd-res-confirm-area' );
     if ( ! area ) return;
 
+    // Lock the panel (sticky) + stash this booking's identifiers for the claim.
+    depositPanelLocked = true;
+    depositBookingRef  = data.booking_ref || '';
+    depositWhatsappUrl = data.admin_url  || ''; // restaurant ticket (v3.10.58)
+
     var merchant = ddRes.momoMerchantCode ? String( ddRes.momoMerchantCode ) : '';
     var amount   = Math.round( Number( ddRes.depositAmount ) || 0 ); // integer RWF
     var ref      = data.booking_ref || '';
@@ -641,7 +659,8 @@
     html += '</div>';
 
     html += '<p class="dd-momoqr__note">Tap any detail above to copy.</p>';
-    html += '<button id="dd-res-close-confirm" type="button" class="dd-confirm-panel__close">Close</button>';
+    html += '<button id="dd-res-momo-claim" type="button" class="dd-momoqr__claim">I have paid — notify restaurant</button>';
+    html += '<p class="dd-momoqr__recorded" id="dd-res-momo-recorded" hidden>Payment recorded — you can close this.</p>';
     html += '</div>';
 
     area.innerHTML = html;
@@ -656,8 +675,57 @@
       } );
     }
 
-    var closeBtn = document.getElementById( 'dd-res-close-confirm' );
-    if ( closeBtn ) closeBtn.addEventListener( 'click', function () { closeModal(); } );
+    // "I have paid — notify restaurant": ALWAYS records the claim (pending → claimed);
+    // opens the booking's WhatsApp ticket too IF handoff is on. Panel stays open.
+    var claimBtn = document.getElementById( 'dd-res-momo-claim' );
+    if ( claimBtn ) {
+      claimBtn.addEventListener( 'click', function () {
+        if ( claimBtn.disabled ) return;      // guard against double-tap
+        claimBtn.disabled    = true;
+        claimBtn.textContent = 'Recording…';
+
+        // WhatsApp handoff (opt-in) — open in-gesture so it isn't popup-blocked.
+        // App-switch is fine: the panel is sticky and still here on return.
+        if ( ddRes.whatsappHandoff && depositWhatsappUrl ) {
+          var a = document.createElement( 'a' );
+          a.href   = depositWhatsappUrl;
+          a.target = '_blank';
+          a.rel    = 'noopener noreferrer';
+          document.body.appendChild( a );
+          a.click();
+          document.body.removeChild( a );
+        }
+
+        // Claim (always) — flip pending → claimed. Server is idempotent; NEVER 'paid'.
+        claimDeposit( depositBookingRef, function () {
+          if ( claimBtn ) { claimBtn.disabled = true; claimBtn.hidden = true; }
+          var recorded = document.getElementById( 'dd-res-momo-recorded' );
+          if ( recorded ) recorded.hidden = false;
+        }, function ( message ) {
+          // Allow a retry (claim is idempotent; any WhatsApp already opened).
+          claimBtn.disabled    = false;
+          claimBtn.textContent = 'I have paid — notify restaurant';
+          var hint = area.querySelector( '.dd-momoqr__note' );
+          if ( hint ) hint.textContent = message || 'Could not record. Please try again.';
+        } );
+      } );
+    }
+  }
+
+  function claimDeposit( bookingRef, onSuccess, onError ) {
+    if ( ! bookingRef ) { if ( onError ) onError(); return; }
+    var fd = new FormData();
+    fd.append( 'action',      'dd_reservation_claim_deposit' );
+    fd.append( 'nonce',       ddRes.nonce || '' );
+    fd.append( 'booking_ref', bookingRef );
+
+    fetch( ddRes.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: fd } )
+      .then( function ( r ) { return r.json(); } )
+      .then( function ( res ) {
+        if ( res && res.success ) { if ( onSuccess ) onSuccess(); }
+        else { if ( onError ) onError( res && res.data && res.data.message ); }
+      } )
+      .catch( function () { if ( onError ) onError(); } );
   }
 
   // ── Run ───────────────────────────────────────────────────
