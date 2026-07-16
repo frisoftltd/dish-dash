@@ -102,6 +102,8 @@ $dd_show_track_order = get_option( 'dd_header_show_track_order', '1' ) === '1';
 $dd_show_cart        = get_option( 'dd_header_show_cart', '1' ) === '1';
 
 // 2. Hero
+$dd_pill_show  = get_option( 'dd_hero_pill_show', '1' ) === '1';
+$dd_pill_text  = get_option( 'dd_hero_pill_text', '' );
 $dd_h_title    = get_option( 'dish_dash_hero_title', 'Best Indian Flavor in Kigali' );
 $dd_h_sub      = get_option( 'dish_dash_hero_subtitle', 'Come as customer Leave as family !' );
 $dd_h_img      = get_option( 'dish_dash_hero_image', '' );
@@ -289,7 +291,9 @@ $hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
     <div class="dd-container dd-hero__grid">
 
         <div class="dd-hero__content">
-            <span class="dd-pill">Authentic Indian Dining</span>
+            <?php if ( $dd_pill_show && '' !== trim( (string) $dd_pill_text ) ) : ?>
+            <span class="dd-pill"><?php echo esc_html( $dd_pill_text ); ?></span>
+            <?php endif; ?>
             <h1 class="dd-hero__title dd-serif"><?php echo wp_kses_post( $dd_h_title ); ?></h1>
             <p class="dd-hero__copy"><?php echo esc_html( $dd_h_sub ); ?></p>
             <div class="dd-hero__actions">

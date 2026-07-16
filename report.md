@@ -1120,3 +1120,66 @@ field, the copyright renders the full old string (`Khana Khazana - The Authentic
 7. Header + emails reflect the shortened name.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.71 — Editable hero pill
+
+**Task:** Replace the hardcoded "Authentic Indian Dining" hero pill with an editable text field + visibility toggle.
+
+**Scope:** 2 files.
+
+### Files changed
+
+1. **`modules/homepage/class-dd-homepage-module.php`** (Hero Section form + save)
+   - `$fields` allowlist: added `'dd_hero_pill_show' => 'checkbox'` and `'dd_hero_pill_text' => 'sanitize_text_field'`
+     (in the `// 2. Hero` block, before `dish_dash_hero_title`). The existing save loop handles them:
+     `checkbox` → `isset($_POST[$key]) ? '1' : '0'` (unchecked saves '0'); text → `sanitize_text_field($_POST[$key] ?? '')`.
+   - Markup: a **Hero Pill** field placed **before** Hero Title in the Hero Section body — an inline "Show" toggle
+     (`dd_hero_pill_show`, via the existing `checked()` helper, mirroring the Feature Chips toggle pattern) plus a
+     wide text input (`dd_hero_pill_text`) and the hint "Small badge shown above the hero title."
+
+2. **`templates/page-dishdash.php`** (read side)
+   - Added to the `// 2. Hero` reads: `$dd_pill_show = get_option('dd_hero_pill_show','1') === '1'` and
+     `$dd_pill_text = get_option('dd_hero_pill_text','')`.
+   - Deleted the literal `<span class="dd-pill">Authentic Indian Dining</span>`.
+   - Replaced with:
+     ```php
+     <?php if ( $dd_pill_show && '' !== trim( (string) $dd_pill_text ) ) : ?>
+     <span class="dd-pill"><?php echo esc_html( $dd_pill_text ); ?></span>
+     <?php endif; ?>
+     ```
+
+### How the two conditions compose (as requested)
+
+The pill renders **iff BOTH**: `$dd_pill_show` (the `dd_hero_pill_show` toggle, default on) is true **AND**
+`trim($dd_pill_text)` is non-empty. A single `&&`:
+- toggle **off** → no pill (regardless of text);
+- toggle **on** but text **empty/whitespace** → no pill (avoids an empty badge);
+- toggle **on** + non-empty text → pill renders with `esc_html($dd_pill_text)`.
+
+The `.dd-pill` markup and class are byte-identical to before; `theme.css:603` untouched. **No new CSS.**
+
+### No data migration
+No option values written from code. `dd_hero_pill_text` defaults to `''`, so **on deploy the pill disappears until
+the developer types the text** — expected, and called out in the release description below.
+
+### Not touched
+- Dead footer/social/hours variable block in page-dishdash.php (`:94-96, :160-167, :232`) — separate release.
+- Hero Title / Subtitle / Feature Chips / CTA buttons.
+- Brand Identity tagline (`dish_dash_restaurant_tagline`, v3.10.70) — independent field/value.
+- Notification hardcodes.
+
+### Verification
+- By inspection (no PHP linter in this environment; developer smoke-tests live).
+- Version bumped 3.10.70 → 3.10.71 (both spots in `dish-dash.php`); CLAUDE.md updated (Last updated, Current State, changelog).
+
+**Smoke test (developer, after deploy — purge LiteSpeed first):**
+1. Homepage → Hero Section shows the new Hero Pill toggle (checked) + empty text field.
+2. Before typing: no pill on the homepage, hero otherwise unchanged, no layout gap.
+3. Type "Authentic Indian Dining", save, purge → pill renders exactly as before.
+4. Clear the text → pill gone.
+5. Text present, toggle off → pill gone.
+6. `curl -s https://dishdash.khanakhazana.rw | grep -c dd-pill` → 1 when set, 0 when not.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

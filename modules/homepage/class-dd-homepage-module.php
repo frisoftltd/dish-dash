@@ -90,6 +90,8 @@ class DD_Homepage_Module extends DD_Module {
             'dd_header_show_cart'        => 'checkbox',
 
             // 2. Hero
+            'dd_hero_pill_show'          => 'checkbox',
+            'dd_hero_pill_text'          => 'sanitize_text_field',
             'dish_dash_hero_title'       => 'wp_kses_post',
             'dish_dash_hero_subtitle'    => 'sanitize_text_field',
             'dish_dash_hero_image'       => 'esc_url_raw',
@@ -404,6 +406,22 @@ class DD_Homepage_Module extends DD_Module {
                             <h2><?php esc_html_e( '2. Hero Section', 'dish-dash' ); ?></h2>
                         </div>
                         <div class="dd-hp-section__body">
+                            <div class="dd-hp-grid-2">
+                                <div class="dd-hp-field">
+                                    <label>
+                                        <?php esc_html_e( 'Hero Pill', 'dish-dash' ); ?>
+                                        <label class="dd-hp-toggle dd-hp-toggle--inline">
+                                            <input type="checkbox" name="dd_hero_pill_show" value="1" <?php $this->checked( 'dd_hero_pill_show' ); ?>>
+                                            <span><?php esc_html_e( 'Show', 'dish-dash' ); ?></span>
+                                        </label>
+                                    </label>
+                                    <input type="text" name="dd_hero_pill_text"
+                                        value="<?php echo esc_attr( $this->get( 'dd_hero_pill_text' ) ); ?>"
+                                        placeholder="Authentic Indian Dining"
+                                        class="dd-hp-input dd-hp-input--wide">
+                                    <span class="dd-hp-hint">Small badge shown above the hero title.</span>
+                                </div>
+                            </div>
                             <div class="dd-hp-grid-2">
                                 <div class="dd-hp-field">
                                     <label><?php esc_html_e( 'Hero Title', 'dish-dash' ); ?></label>
