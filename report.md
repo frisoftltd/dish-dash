@@ -917,3 +917,43 @@ Section (textarea intact); edit + save Homepage hours; reload a frontend page an
 shows the Homepage value.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.68 — Wire the dead footer column visibility toggles
+
+**Five toggle keys → save handler → footer part (all map cleanly; nothing ambiguous):**
+
+| Option key | Save handler (homepage-module.php) | Field | Footer part now gated |
+|---|---|---|---|
+| `dd_footer_show_description` | :153 (map), applied :162-169 | :913 | Brand column description `<p class="dd-footer__copy">` |
+| `dd_footer_show_social` | :155 | :926 | Brand column social-icons row `<div class="dd-footer__social">` |
+| `dd_footer_show_explore` | :157 | :930 | Explore grid column |
+| `dd_footer_show_contact` | :158 | :934 | Contact grid column |
+| `dd_footer_show_hours` | :159 | :938 | Opening Hours grid column |
+
+**Default when unset = SHOW.** Verified against the form: `DD_Homepage_Module::checked()`
+(`homepage-module.php:222-225`) reads `get_option($key, '1')` → a fresh install renders every box
+**checked**. The footer now uses the same default: `get_option('dd_footer_show_*', '1') === '1'`. So on a
+fresh install the footer shows all columns and the form UI agrees.
+
+**Fix — read-side only, `modules/template/class-dd-template-module.php` `inject_global_footer()`:**
+- Added five `$show_*` reads just before the `<footer>` markup.
+- Wrapped each part in `<?php if ( $show_* ) : ?> … <?php endif; ?>`:
+  description `<p>`, social `<div>` (both inside the brand column), and the Explore / Contact / Hours
+  grid `<div>`s.
+
+**Point 4 — empty-shell check (decision):** the grid wrapper is **kept, not gated**. The brand
+column's logo/name (`if($dd_logo)/else` badge — no toggle) and the copyright bar (`.dd-footer__bottom`
+— no toggle) always render, so even with all five toggles OFF the footer still shows the brand + © line
+— never an empty shell. Gating the wrapper would risk hiding the copyright, which is out of scope.
+
+**Not touched (per brief):** the Homepage form (read-side wiring only); the copyright line (no toggle);
+Explore column literals; hero pill; notification hardcodes; the baked-in tagline; the `dd_opening_hours`
+JSON key. **No option values written in code.**
+
+**Smoke test (developer, after deploy — purge LiteSpeed first):** all five on → footer identical to now;
+toggle each off one at a time → only that part disappears, no layout break; brand logo/name + copyright
+remain even with all off; toggle all back on → footer restored.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
