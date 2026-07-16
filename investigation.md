@@ -1,220 +1,171 @@
-# INVESTIGATION — `templates/page-dishdash.php`: dead or live?
+# INVESTIGATION — notification + orders hardcode scoping (v3.10.72 pre-work)
 
-**Phase 1, read-only.** Every claim carries `file:line`. Live-DB / live-file facts I cannot see from
-the repo are marked **PENDING (server)** with the exact command to run.
+**Phase 1, read-only.** Every claim carries `file:line`. Live-DB facts I cannot read are marked
+**PENDING (server)** with the exact command.
 
 ---
 
 ## TL;DR
 
-- `page-dishdash.php` lives in the **plugin** (`templates/`), not the theme. It is **not** part of the
-  WordPress theme template hierarchy by filename.
-- It is reachable by **exactly one** mechanism: a page whose `_wp_page_template` meta equals the literal
-  `page-dishdash.php`, routed by the plugin's `template_include` filter
-  (`class-dd-template-module.php:149-166`). It is offered as a selectable "Dish Dash Full Page" template via
-  `theme_page_templates` (`:143-144`).
-- **It is the only hero renderer in the entire repo.** No shortcode, no other template, and no code in the
-  homepage module produces a `.dd-hero` / `.dd-pill` / hero-chips block. So *if the live homepage shows that
-  hero, page-dishdash.php is what renders it* — and then the hardcoded pill **would** show.
-- Whether it is currently **assigned** to any page (including the front page) is a DB fact I cannot read.
-  **This is the single question that decides the verdict.** Commands are in §1 and §3.
-- The footer/social/hours variables the file reads (`:94-96, :160-167, :232`) are **provably dead**: the file
-  contains no footer markup — the footer is injected globally by `inject_global_footer()`.
+- The brief's 7 sites are **all confirmed** and are the **only** restaurant-name hardcodes in the order/
+  notification path: `class-dd-notifications.php:183, 207, 227, 233, 263, 293` + `class-dd-orders-module.php:151`.
+  Nothing missed; every **other** name usage in these modules already reads `dish_dash_restaurant_name`.
+- They split into **two atomic fixes**: (R1) the **order notification** name — 6 sites in one file, one logical
+  change — and (R2) the **birthday WhatsApp** name — 1 site in a different file/flow.
+- **Beyond the name:** the order email's From-**address** is already dynamic (WC option); only the From-**name**
+  is hardcoded. Two things are hardcoded but are a **different fix class**, not the name: the email **brand hex
+  `#65040d`** (2 sites) and the product word **"Dish Dash"** in email footers (white-label decision).
+- **Separate bug found (not a hardcode, flag only):** the customer `order-confirmation` and `status-update`
+  emails route through `templates/emails/*.php` files that **do not exist in the repo** → they send empty bodies.
+  `notify_restaurant()` is **dead code** (never called). Out of scope for this white-label track — its own ticket.
 
 ---
 
-## 1. Is the file reachable via the WP template hierarchy?
+## 1. Every restaurant-name hardcode site (confirmed)
 
-**Location.** `templates/page-dishdash.php` — plugin root `templates/` dir (Glob), **not** the theme
-(`theme/dish-dash-theme/` contains only `footer.php, functions.php, header.php, index.php, page.php,
-singular.php` — no `front-page.php`, no `page-dishdash.php`). Because it is not in the active theme, WordPress
-core never discovers it through the normal hierarchy or the `Template Name:` scan (core scans only the active
-theme's directory). Its `Template Name: DishDash` header (`page-dishdash.php:4`) is therefore inert on its own —
-registration is done explicitly by the plugin instead.
+| # | `file:line` | Literal | Surface | Where in the message |
+|---|---|---|---|---|
+| 1 | `class-dd-notifications.php:183` | `[Khana Khazana] New Order %s — %s RWF` | **Order admin email** | **Subject** |
+| 2 | `class-dd-notifications.php:207` | `Khana Khazana &mdash; {date}` | Order admin email | Body — header sub-line |
+| 3 | `class-dd-notifications.php:227` | `Dish Dash &mdash; Khana Khazana ordering system` | Order admin email | Body — footer strip |
+| 4 | `class-dd-notifications.php:233` | `From: Khana Khazana <…>` | Order admin email | **From name** (address is `get_option`) |
+| 5 | `class-dd-notifications.php:263` | `✅ Order Confirmed! — Khana Khazana` | **Order customer WhatsApp** | First line |
+| 6 | `class-dd-notifications.php:293` | `🔔 New Order {num} — Khana Khazana` | **Order admin WhatsApp** | First line |
+| 7 | `class-dd-orders-module.php:151` | `— Khana Khazana 🍽` | **Birthday-ask WhatsApp** | Sign-off |
 
-**How it is registered + routed (plugin, not core):**
-- `register_page_template()` adds it to the Page Attributes → Template dropdown:
-  `class-dd-template-module.php:143-144` → `$templates['page-dishdash.php'] = 'Dish Dash Full Page'`.
-  (Filter hooked at `:59`, `add_filter('theme_page_templates', …)`.)
-- `load_page_template()` swaps in the plugin file on `template_include`:
-  `class-dd-template-module.php:149-166` — **only** when `is_page()` **and**
-  `get_post_meta( get_the_ID(), '_wp_page_template', true ) === 'page-dishdash.php'` (`:150-152`), returning
-  `DD_TEMPLATES_DIR . 'page-dishdash.php'` if the file exists (`:153-156`). (Filter hooked at `:60`.)
+**No missed sites in the order/notification path.** Full-repo grep for `Khana Khazana` shows every *other*
+occurrence is either a `get_option('dish_dash_restaurant_name', 'Khana Khazana')` **default fallback** (correct —
+a shortened live value flows through) or admin-UI/template display text:
 
-So it is a **template-meta-matched, assignable page template** — *not* slug-matched. The `page-dishdash.php`
-filename prefix does **not** cause WP to auto-apply it to a page with slug `dishdash`; that convention only works
-for files inside the active theme, and this file is in the plugin. Routing is 100% driven by the
-`_wp_page_template` meta value, not by any slug (verified: no `is_page('dishdash')`, no `get_page_by_path`, no
-slug comparison anywhere in `load_page_template`).
+- Correct reads (option, only the *default* is "Khana Khazana"): notifications `:44` (reservation WA), `:328`
+  (kitchen WA), `:401` (rider WA), `:446` (on-the-way WA); reservations-module `:204`/`:300` (reservation email);
+  orders-module `:986` (PesaPal order description); menu `:321`; template `:630`/`:855`; hooks `:184`/`:324`;
+  page-dishdash `:87`; grid `:175`; auth-module (multiple).
+- Display-only literals (not sent to customers, not restaurant #2 blockers): template-settings/brand-identity
+  card mock-ups (`template-module.php:474/484`, `template-settings.php:81/92`, `brand-identity.php:120`
+  placeholder).
 
-**Does a page with slug `dishdash` exist / is any page assigned it?** — **PENDING (server).** Cannot be read
-from code. Run:
+So the offending pattern is confined to **one module pair** (orders): the **order** email + **order/birthday**
+WhatsApp builders never read the option, while the **reservation** and **kitchen/rider/on-the-way** builders
+already do. The fix = make the order path do what the reservation path already does.
 
+---
+
+## 2. What each email is (inventory)
+
+| Sender `file:line` | Trigger | Recipient | Subject | Name in it? |
+|---|---|---|---|---|
+| `DD_Notifications::notify_admin_email` `:179` (`wp_mail` `:236`) | Order created (offline via `on_order_created`; online via `on_payment_complete`) | **Restaurant/admin** (`dd_admin_email` ⁄ `admin_email`) | `[Khana Khazana] New Order …` (`:183`, **hardcoded**) | Subject `:183`, body `:207`, footer `:227`, From-name `:233` — all **hardcoded** |
+| `DD_Reservations_Module::send_admin_email` `:198` (`wp_mail` `:302`) | Reservation submitted | Restaurant/admin | `[{restaurant}] New Reservation — {ref}` (`:209`, **reads option ✓**) | From `:300` ✓, footer `:289` ✓ — **dynamic** (the good model) |
+| `DD_Orders_Module::send_order_confirmation` `:705` (`wp_mail` `:717`, called `:410`) | Order confirmed | **Customer** (`customer_email`) | `Order Confirmed — {num}` (generic, no name) | Body ← `emails/order-confirmation.php` **← FILE MISSING (empty body)** |
+| `DD_Orders_Module::send_status_update` `:741` (`wp_mail` `:756`, called `:586`) | Status change | Customer | `Your Order {num} is now {status}` (generic) | Body ← `emails/order-status-update.php` **← FILE MISSING** |
+| `DD_Orders_Module::notify_restaurant` `:725` | — | — | — | **DEAD — never called** (admin email goes via `notify_admin_email`) |
+| `DD_Auth_Module` welcome/test `:1032/1107` | New staff user / SMTP test | Staff | reads options | dynamic (SMTP + name options) |
+
+**Order path has exactly one working email** — the admin one (`notify_admin_email`), and it is the one carrying
+4 of the 7 hardcodes. The two *customer* order emails are a separate, apparently-broken system (§6 note).
+
+---
+
+## 3. Beyond the name — other restaurant-specific data in the email path
+
+| Concern | `file:line` | State |
+|---|---|---|
+| **From address** (order email) | `class-dd-notifications.php:233` | `get_option('woocommerce_email_from_address', $admin_email)` — **dynamic** (WC option). NOT the DD SMTP option. |
+| **From address** (reservation email) | `class-dd-reservations-module.php:297` | Same WC option — dynamic. |
+| **From address** (auth emails) | `class-dd-auth-module.php:982/1025/1101` | `get_option('dd_smtp_from_email', 'noreply@khanakhazana.rw')` — **different system**, dynamic, restaurant-specific *default*. |
+| **From name** (order email) | `class-dd-notifications.php:233` | **Hardcoded** "Khana Khazana" (site #4). |
+| **From name** (reservation/auth) | reservations `:300`, auth `:983/1024/1100` | Dynamic (`$restaurant` / `dd_smtp_from_name`). |
+| **Reply-To** | — | None set anywhere → WP default. Not restaurant-specific. |
+| **Signature / footer** | notifications `:227`, reservations `:289` | Both read `"Dish Dash — {restaurant} …"`. Reservation's restaurant part is dynamic; order's is hardcoded. **Both hardcode the product word "Dish Dash".** |
+| **URL → khanakhazana.rw** | none in email **bodies** | Only appears as SMTP **defaults** (`noreply@`/`mail.khanakhazana.rw`, auth `:186/196/982/1025/1101`) and admin-UI copy (`:172/177/179/971`). Not baked into sent mail unless SMTP is left unconfigured. |
+| **Logo / image in email** | — | None. Order email uses a text header, no logo. |
+| **Phone / address in body** | notifications `:96/222/223/301`, etc. | Dynamic (order data / `dish_dash_phone`). |
+| **Brand hex `#65040d`** | notifications `:205, :215`; reservations `:207` | **Hardcoded brand color** (violates CLAUDE.md "never hardcode hex"). Separate fix class from the name. |
+
+**SMTP-default cross-reference:** `dd_smtp_from_email` (`noreply@khanakhazana.rw`), `dd_smtp_host`
+(`mail.khanakhazana.rw`), `dd_smtp_from_name` (defaults to the restaurant-name option) are all
+`get_option($k, 'default')` — functional but seeded with **khanakhazana-specific defaults**, so a fresh restaurant
+#2 install defaults to those addresses until the SMTP page is filled in. **The order email's From-address (`:233`)
+is SEPARATE from these** — it uses `woocommerce_email_from_address`, not `dd_smtp_from_email`. So fixing the SMTP
+defaults would *not* touch the order email, and fixing the order email would *not* touch SMTP. They are independent.
+
+---
+
+## 4. Is `dish_dash_restaurant_name` the right source?
+
+**Yes.** It is already the established source everywhere else in these modules (reservation email `:204`, kitchen
+`:328`, rider `:401`, on-the-way `:446`, PesaPal `:986`). The order path is the lone outlier that hardcodes
+instead of reading it. **The order email currently reads the name option ZERO times** (`:179-236` is all
+literals) — that is the whole defect.
+
+**Tagline (v3.10.70):** none of the 7 sites should use the tagline. Subject `[{name}]`, From-name `{name}`,
+WhatsApp sign-off `— {name}`, and the footer `{name} ordering system` all want the **bare name**. After the
+v3.10.70 split, `dish_dash_restaurant_name` is exactly that bare name → correct source, tagline not wanted here.
+**No email needs the tagline.**
+
+**PENDING (server)** — confirm the live value the fix will render, and the from-address wiring:
 ```bash
-# Every page currently assigned the Full Page template:
-wp post list --post_type=page --post_status=any \
-  --meta_key=_wp_page_template --meta_value=page-dishdash.php \
-  --fields=ID,post_title,post_status,post_name
+wp option get dish_dash_restaurant_name           # expect the shortened "Khana Khazana" post-v3.10.70
+wp option get woocommerce_email_from_address       # what the order/reservation From address resolves to
+wp option get dd_admin_email ; wp option get admin_email
 ```
 
-An empty result ⇒ the template is assigned to nothing ⇒ **the file never loads** (wholly dead).
-A non-empty result ⇒ it renders for those page(s).
+---
+
+## 5. `orders-module.php:151` — what it is
+
+Inside `DD_Orders_Module::send_birthday_whatsapp()` (`:123`), fired by **WP-Cron ~2 min after a customer's first
+order** (guarded by `dd_birthday_asked`, fires once per customer). It builds a **customer-facing** wa.me message
+inviting them to share their birthday, signed `— Khana Khazana 🍽` (`:151`). Stored as a transient (`:157`), opened
+client-side. **Same fix class** as the email/WhatsApp name hardcodes (swap literal → `get_option
+('dish_dash_restaurant_name', …)`), but a **different file, different module, different trigger** (birthday flow,
+not order notification) → cleanly **separable** from the order-notification fix.
 
 ---
 
-## 2. Is it reachable via code (include / require / locate_template / filters)?
+## 6. Release decomposition (ranked by how hard it blocks restaurant #2)
 
-Full-repo grep for `page-dishdash`, `get_template_part`, `locate_template`, `include`, `require`,
-`template_include`, `page_template`:
+**R1 — Order-notification restaurant name (HIGHEST blocker). One atomic fix, one file.**
+`class-dd-notifications.php` sites #1–#6 (`:183, 207, 227, 233, 263, 293`). Read `dish_dash_restaurant_name` once
+per method (mirroring the reservation builder at `:204`) and substitute at all six points. **Why atomic:** it is a
+single logical change — "order notifications must show the restaurant's own name" — and every order to restaurant
+#2 *right now* emails `[Khana Khazana]` and WhatsApps `— Khana Khazana`. Splitting the 6 sites would ship a
+half-branded email (e.g. correct subject, wrong footer). Model already proven in the same file.
+- **Sub-decision inside R1 (flag, don't decide):** site #3 (`:227`) is `Dish Dash — Khana Khazana ordering
+  system`. Replace the **"Khana Khazana"** part with the option now; whether to also drop/rename the **product
+  word "Dish Dash"** is a white-label product call (see R4). Recommend R1 changes only the restaurant-name token
+  and leaves "Dish Dash" for R4, to keep R1 strictly a name fix.
 
-- The **only** executable references that route to the file are the two filters above:
-  `class-dd-template-module.php:59-60`, implemented at `:143-166`.
-- `template_include` also carries `maybe_load_birthday_template` (`:88`, impl near `:1000-1001`) — it matches
-  `_wp_page_template === 'page-dishdash.php'` only to decide the **birthday** template; it does not add a second
-  route to page-dishdash.php.
-- No `include`/`require`/`get_template_part`/`locate_template` anywhere targets `page-dishdash.php`. It is never
-  pulled in as a partial.
-- No `page_template` filter and no other `template_include` handler forces it.
-- Remaining hits are documentation (`CLAUDE.md`, `ARCHITECTURE.md`, `MODULE_CONTRACT.md`, `CSS_REGISTRY.md`,
-  `AUDIT.md`), asset-file header comments (`assets/js/frontend.js:4,35`, `assets/js/search.js:37`,
-  `assets/css/theme.css:4,11`, `dishdash-core/class-dd-helpers.php:17,235`), and the file's own header — none
-  are executable routes.
+**R2 — Birthday WhatsApp restaurant name (MEDIUM). One site, separate file.**
+`orders-module.php:151`. Same swap. Lower blocker: fires once per customer, ~2 min after first order, and is a
+softer touchpoint than the order confirmation itself. Separable from R1 (different file/flow).
 
-**Conclusion:** one and only one code path can load this file — `load_page_template()` on a meta-matched page.
+**R3 — Email brand color (LOW, optional, DIFFERENT fix class). Own release.**
+Replace hardcoded `#65040d` in the order email (`:205, :215`) and reservation email (`:207`) with the brand
+option (`dish_dash_primary_color`). Not a name issue; emails render fine, just off-brand for restaurant #2. Kept
+separate because it touches color, not text, and drags in a second file (reservations) — don't bundle with R1.
 
----
+**R4 — Product white-label in email footers (LOW, DECISION-GATED). Defer.**
+The literal **"Dish Dash"** at notifications `:227` and reservations `:289`. Only actionable once there's a
+product decision on whether the SaaS product name should be hidden/renamed per tenant. Not a restaurant-#2
+blocker (it's the *platform* name, not the wrong restaurant). Defer until that decision exists.
 
-## 3. What does the live homepage actually render?
+**NOT in this track (separate ticket, flag only):** customer `send_order_confirmation` (`:705`, called `:410`)
+and `send_status_update` (`:741`, called `:586`) render bodies from `templates/emails/order-confirmation.php` /
+`order-status-update.php`, which **do not exist in the repo** — `DD_Module::render_template()` returns silently
+when the file is missing (`class-dd-module.php:146-148`), so these customer emails send with an **empty body**
+(subject only). `notify_restaurant()` (`:725`) is **dead** (no caller). This is a functional email bug, unrelated
+to hardcodes — recommend its own investigation, not folded into the white-label releases.
 
-**What serves `/` depends on three options I cannot read — PENDING (server):**
-
-```bash
-wp option get show_on_front      # 'page' (static) or 'posts'
-wp option get page_on_front      # the front page's post ID (if static)
-wp post meta get <page_on_front_id> _wp_page_template   # '' | page-dishdash.php | page-simple.php
-```
-
-**Reasoning from code:**
-- The theme has **no `front-page.php`** (Glob), so WordPress would normally fall to the theme's `page.php`
-  (`theme/dish-dash-theme/page.php`, renders only `the_content()`) for a static front page.
-- But the plugin's `load_page_template` (`:149-166`) fires on `template_include` for **any** page including the
-  front page (`is_page()` is true for a static front page), so if the front page's meta is `page-dishdash.php`,
-  the plugin serves `templates/page-dishdash.php` for `/`.
-- **page-dishdash.php is the only place in the repo that emits the hero** the user describes: the hero title
-  (`:293`, `wp_kses_post($dd_h_title)` ← `dish_dash_hero_title`) and the feature chips (`:300-306` ←
-  `dd_hero_chip_1..4`). Searched the whole repo: no shortcode (`dish_dash_menu/cart/checkout/reserve/track` are
-  the only ones — `menu-module.php:49-52`, `orders-module.php:110`; **none render a hero**), and the homepage
-  module (`class-dd-homepage-module.php`) is an **admin settings form only** — it registers no frontend
-  shortcode and injects no hero.
-
-**Therefore, from code alone:** if the live `/` shows that hero, `/` is being served by page-dishdash.php, and
-the file is **LIVE**. The `file:line` that produces the hero the user sees is
-**`templates/page-dishdash.php:288-346`** (title `:293`, chips `:300-306`).
-
-### The pill contradiction — flagged, not resolved
-
-The brief's premise is that the pill literal **"Authentic Indian Dining"** (`page-dishdash.php:292`) does **not**
-appear live. But `:292` is **unconditional** (`<span class="dd-pill">Authentic Indian Dining</span>` — no `if`
-guard) and `.dd-pill` is visible CSS (`theme.css:603-615`, `display:inline-flex`, not hidden). So **if
-page-dishdash.php renders, the pill renders.**
-
-That yields a contradiction that code cannot settle:
-- **Either** the live `/` is **not** page-dishdash.php (then *what* renders the hero? nothing in the repo does —
-  which would imply live content/templates that aren't in the repo: a page-builder, pasted hero HTML in the page
-  body, or a server-only `front-page.php`), **UNPROVEN**;
-- **or** the live `/` **is** page-dishdash.php and the pill is in fact present (overlooked), or the deployed file
-  is stale vs. the repo.
-
-**Resolve with one command** (definitive, cheap):
-
-```bash
-curl -s https://dishdash.khanakhazana.rw/ | grep -o 'dd-pill[^<]*</span>\|dd-hero__title[^<]*'
-```
-
-- Pill string present ⇒ page-dishdash.php **is** the live homepage (verdict: **LIVE**, and the brief's premise
-  was mistaken).
-- Pill absent but a hero is on screen ⇒ the hero comes from **outside the repo** — escalate before any deletion.
+**Summary:** not one atomic fix, not five — it is **two** name fixes (R1 order notifications, R2 birthday),
+plus two clearly-separate optional tracks (R3 email color, R4 product white-label) and one out-of-band bug
+(missing customer-email templates). Do **R1 first** — it is the one every restaurant-#2 order hits.
 
 ---
 
-## 4. Partial vs total death
-
-**Gate:** the whole file only executes if §1's command returns an assigned page. Assuming it does, the
-section-level breakdown is:
-
-| Section | `file:line` | Verdict | Basis |
-|---|---|---|---|
-| PHP setup: WC guard, URL/option reads, product queries | `39-253` | **LIVE** (when file loads) | Feeds the rendered sections below |
-| Social-link vars `$dd_fb/$dd_ig/$dd_wa` | `94-96` | **DEAD** | Each used exactly once (definition only); no social markup in this file — header is injected |
-| Footer toggle + text vars `$dd_footer_*`, `$dd_footer_desc` | `160-165` | **DEAD** | Read, never rendered; no `<footer>`/`dd-footer` markup in file (grep: 0) |
-| Opening-hours vars `$dd_hours` → `$dd_hours_lines`, `$dd_tiktok` | `166-167, 232` | **DEAD** | `$dd_hours_lines` defined at `:232`, never rendered; `$dd_tiktok` definition-only |
-| `<head>` + `wp_head()` | `254-268` | **LIVE** | Document head |
-| `<body>` open + `wp_body_open()` (header injected here) | `269-276` | **LIVE** | Header comes from `inject_global_header()`, not in-file (`:276` comment) |
-| **HERO** (incl. pill `:292`, title `:293`, chips `:300-306`) | `288-346` | **LIVE** | Unconditional render; the user-visible hero |
-| Mobile category list | `362-406` | **LIVE** | Rendered section |
-| Categories | `410-447` | **LIVE** | Rendered section |
-| Menu / Featured dishes | `451-502` | **LIVE** | Rendered section |
-| Reserve band | `504-516` | **LIVE** | Rendered section |
-| Selected-category | `520-564` | **LIVE** | Rendered section |
-| Google Reviews | `821-1125` (debug `819`) | **LIVE** | Rendered section |
-| `wp_footer()` (footer + cart + modals injected here) | `1127` | **LIVE** | Fires `inject_global_footer`, `inject_cart_sidebar`, `inject_product_modal`, `inject_reservation_modal` |
-
-**Provably dead even when the file loads:** the footer/social/hours variable block
-(`94-96, 160-167, 232`). These are leftovers from an era when this template rendered its own footer inline; the
-footer is now supplied by `inject_global_footer()` (`class-dd-template-module.php:852+`, hooked to `wp_footer`
-at `:75`), which reads its **own** copies of these options. Removing the dead reads from page-dishdash.php would
-change nothing on screen. **The hero pill (`:292`) is LIVE-within-the-file** — it is only "dead" in the sense of
-being a non-editable hardcoded literal, not unreachable. Do **not** conflate the two.
-
----
-
-## 5. Blast radius of deletion
-
-**If §1 + §3 prove the file is assigned to nothing (wholly dead):**
-- Nothing `include`/`require`s it (§2) → no PHP fatal from a dangling include.
-- If it is genuinely unassigned, no page routes to it → deleting it changes no rendered page.
-- Fallback safety net exists: any page that *were* assigned it would, after deletion, fall through
-  `load_page_template`'s `file_exists()` guard (`:154`) back to the passed-in `$template` (theme `page.php`) —
-  so even a mis-assigned page degrades to the theme page, not a white screen. (The dropdown entry would still
-  list "Dish Dash Full Page" via `:144` until that line is also removed — cosmetic dangling option.)
-- Admin UI: it **is** listed as a selectable template (`:143-144`), so a wholesale delete should also drop that
-  registration line to avoid offering a template that no longer exists.
-
-**If §3 proves it is the live homepage (partly live):** the removable-without-touching-the-live-path parts are
-exactly the §4 **DEAD** rows — the footer/social/hours variable reads (`94-96, 160-167, 232`). Everything from
-`254` onward is on the live render path and must not be touched in a "delete dead code" pass. The hero pill
-(`:292`) is on the live path; making it editable is a *feature* change, not dead-code removal, and is explicitly
-out of scope here.
-
----
-
-## 6. Same-class check (report only — NOT investigated deeply)
-
-Other templates that use the **same** assignment-dependent mechanism and could be unrouted if unassigned:
-
-- **`templates/page-simple.php`** — registered (`class-dd-template-module.php:145`, "Dish Dash Simple Page")
-  and routed identically (`:158-163`) via `_wp_page_template === 'page-simple.php'`. Same smell: loads only if a
-  page is assigned it. Assignment is **PENDING (server)** —
-  `wp post list --post_type=page --meta_key=_wp_page_template --meta_value=page-simple.php --fields=ID,post_title,post_status`.
-  (It renders a plain title + `the_content()` via the theme header/footer — `page-simple.php:1-25` — so unlike
-  page-dishdash.php it carries no dead footer block.)
-- **`theme/dish-dash-theme/singular.php`** — standard hierarchy fallback; reachable only if neither `page.php`
-  nor `single.php` applies. Low-priority "possibly never hit" candidate; not verified.
-
-Standard theme files `index.php`, `page.php`, `header.php`, `footer.php` are normal hierarchy/`get_header`/
-`get_footer` targets and are **not** in this suspicion class.
-
----
-
-## What needs a server check before any follow-up (consolidated)
-
-1. `wp post list --post_type=page --post_status=any --meta_key=_wp_page_template --meta_value=page-dishdash.php --fields=ID,post_title,post_status,post_name` — is the Full Page template assigned to anything?
-2. `wp option get show_on_front` / `wp option get page_on_front` / `wp post meta get <id> _wp_page_template` — what serves `/`?
-3. `curl -s https://dishdash.khanakhazana.rw/ | grep -o 'dd-pill[^<]*</span>\|dd-hero__title[^<]*'` — is the pill actually on the live homepage? (settles §3's contradiction)
-4. (same-class) `wp post list … --meta_value=page-simple.php …` — is the Simple Page template assigned to anything?
-
-**Verdict is deferred to those results.** From code: page-dishdash.php is reachable by exactly one route, is the
-repo's sole hero renderer, and carries a provably-dead footer/social/hours variable block regardless of whether
-the file as a whole is live. The follow-up remains one release — **either** delete the whole template (if the
-server proves it is assigned to nothing) **or** delete only the §4 DEAD rows from a live template — decided by
-the checks above, not a theme-wide sweep.
+## Pending server checks (consolidated)
+1. `wp option get dish_dash_restaurant_name` — the value R1/R2 will render.
+2. `wp option get woocommerce_email_from_address` — resolves the order/reservation email From address (independent of `dd_smtp_from_email`).
+3. `wp option get dd_admin_email` / `wp option get admin_email` — the order-email recipient.
+4. (context) `wp option get dd_smtp_from_email` / `dd_smtp_from_name` — confirms the auth-email From system is separate and already dynamic.
