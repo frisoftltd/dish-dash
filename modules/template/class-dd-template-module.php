@@ -260,7 +260,7 @@ class DD_Template_Module extends DD_Module {
         wp_enqueue_script(
             'dish-dash-reservations',
             $this->asset_url( 'js', 'reservations.js' ),
-            [ 'dd-intl-tel-input' ],
+            [ 'dd-intl-tel-input', 'dd-qrcode' ],
             DD_VERSION,
             true
         );
@@ -281,7 +281,9 @@ class DD_Template_Module extends DD_Module {
             'whatsappHandoff'       => get_option( 'dish_dash_order_handoff_whatsapp', '0' ) === '1',
             // MoMo merchant code (digits only) for the Scan-&-pay QR/USSD string.
             // Read-only display use on the frontend; empty → graceful QR fallback.
-            'momoMerchantCode'      => preg_replace( '/\D/', '', (string) get_option( 'dish_dash_momo_merchant_code', '' ) ),
+            // Sourced from the shared dd_momo_merchant_code() helper (same value as
+            // before — cart.js still builds the order payload itself, unchanged).
+            'momoMerchantCode'      => dd_momo_merchant_code(),
             'pluginUrl'             => plugins_url( '/', DD_PLUGIN_FILE ),
             'paymentGateways'       => (function() {
                 if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];
@@ -334,6 +336,12 @@ class DD_Template_Module extends DD_Module {
             'depositEnabled' => (bool) get_option( 'dd_reservation_deposit_enabled', 0 ),
             'depositAmount'  => (int)  get_option( 'dd_reservation_deposit_amount', 2000 ),
             'refundPolicy'   => get_option( 'dd_reservation_refund_policy_text', '' ),
+            // MoMo deposit scan-&-pay (mirrors orders R7). Merchant code + the FULL
+            // USSD payload built server-side by the shared dd_momo_ussd_payload()
+            // helper (single source of the format). Payload uses the fixed deposit
+            // amount (same value stored on the booking row); '' when no merchant code.
+            'momoMerchantCode' => dd_momo_merchant_code(),
+            'depositPayload'   => dd_momo_ussd_payload( (int) get_option( 'dd_reservation_deposit_amount', 2000 ) ),
             // Reservations: opt-in customer WhatsApp handoff on the booking confirmation
             // modal (default off). JS reveals the tap-only button when this is true.
             'whatsappHandoff' => (bool) get_option( 'dd_reservation_handoff_whatsapp', 0 ),

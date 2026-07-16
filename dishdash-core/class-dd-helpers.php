@@ -182,6 +182,35 @@ function dd_track_url( string $order_number = '' ): string {
         : $base;
 }
 
+if ( ! function_exists( 'dd_momo_merchant_code' ) ) {
+    /**
+     * Sanitized MTN MoMo merchant code (digits only) from settings.
+     * Shared by every payment surface (orders scan-&-pay, reservation deposits).
+     */
+    function dd_momo_merchant_code(): string {
+        return preg_replace( '/\D/', '', (string) get_option( 'dish_dash_momo_merchant_code', '' ) );
+    }
+}
+
+if ( ! function_exists( 'dd_momo_ussd_payload' ) ) {
+    /**
+     * Build the MTN MoMo merchant-payment USSD payload for a tel: link / QR.
+     * SINGLE SOURCE OF TRUTH for the USSD string format across orders + reservations —
+     * if this format ever changes it must change here, in one place, for both surfaces.
+     * Format (tested live): tel:*182*8*1*{merchant}*{amount}%23  (# encoded as %23).
+     *
+     * @param int $amount Integer RWF (no decimals / commas).
+     * @return string Full tel: payload, or '' when no merchant code is configured.
+     */
+    function dd_momo_ussd_payload( int $amount ): string {
+        $merchant = dd_momo_merchant_code();
+        if ( '' === $merchant ) {
+            return '';
+        }
+        return 'tel:*182*8*1*' . $merchant . '*' . $amount . '%23';
+    }
+}
+
 if ( ! function_exists( 'dd_format_payment_method' ) ) {
     function dd_format_payment_method( string $method ): string {
         $map = [

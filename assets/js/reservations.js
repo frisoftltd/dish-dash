@@ -483,7 +483,13 @@
           } catch ( e ) { console.log( 'DD tracking skipped:', e ); }
 
           if ( btn ) btn.style.display = 'none';
-          showWhatsAppButtons( data.admin_url, data.customer_url );
+          // Deposit booking → show the MoMo scan-&-pay QR panel; otherwise the
+          // normal confirmation (with the opt-in WhatsApp handoff button).
+          if ( depositActive ) {
+            renderDepositPanel( data );
+          } else {
+            showWhatsAppButtons( data.admin_url, data.customer_url );
+          }
         } catch ( e ) {
           console.log( 'DD RESERVATION — success handler error:', e );
           if ( btn ) btn.style.display = 'none';
@@ -543,6 +549,115 @@
             closeModal();
         } );
     }
+  }
+
+  // ── Deposit scan-&-pay QR (mirrors the orders R7 rendering) ─────────────────
+  // The USSD payload string is built server-side (dd_momo_ussd_payload → ddRes
+  // .depositPayload) so its format never drifts from the orders QR. These helpers
+  // are only the PRESENTATION (QR image + tap-to-copy), duplicated from cart.js on
+  // purpose — cart.js's live orders QR must not be touched.
+  function makeQrDataUrl( text ) {
+    if ( typeof qrcode === 'undefined' ) return '';
+    try {
+      var qr = qrcode( 0, 'M' );        // 0 = auto-size, M = error correction
+      qr.addData( text );
+      qr.make();
+      return qr.createDataURL( 6, 8 );  // cellSize 6px, quiet-zone margin 8
+    } catch ( e ) {
+      return '';
+    }
+  }
+
+  function legacyCopy( text ) {
+    try {
+      var ta = document.createElement( 'textarea' );
+      ta.value = text;
+      ta.setAttribute( 'readonly', '' );
+      ta.style.position = 'absolute';
+      ta.style.left     = '-9999px';
+      document.body.appendChild( ta );
+      ta.select();
+      document.execCommand( 'copy' );
+      document.body.removeChild( ta );
+    } catch ( e ) {}
+  }
+
+  function copyText( text, rowEl ) {
+    if ( ! text ) return;
+    function feedback() {
+      if ( ! rowEl ) return;
+      rowEl.classList.add( 'is-copied' );
+      setTimeout( function () { rowEl.classList.remove( 'is-copied' ); }, 1200 );
+    }
+    if ( navigator.clipboard && navigator.clipboard.writeText ) {
+      navigator.clipboard.writeText( text ).then( feedback, function () { legacyCopy( text ); feedback(); } );
+    } else {
+      legacyCopy( text );
+      feedback();
+    }
+  }
+
+  function renderDepositPanel( data ) {
+    var area = document.querySelector( '.dd-res-confirm-area' );
+    if ( ! area ) return;
+
+    var merchant = ddRes.momoMerchantCode ? String( ddRes.momoMerchantCode ) : '';
+    var amount   = Math.round( Number( ddRes.depositAmount ) || 0 ); // integer RWF
+    var ref      = data.booking_ref || '';
+    var payload  = ddRes.depositPayload || ''; // server-built; '' when no merchant code
+    var hasQr    = !!( merchant && payload );
+    var qrImg    = hasQr ? makeQrDataUrl( payload ) : '';
+
+    var html = '<div class="dd-momoqr">';
+    html += '<p class="dd-momoqr__ordernum">✅ Booking received!</p>';
+
+    if ( hasQr ) {
+      html += '<p class="dd-momoqr__instruction">Pay your ' + amount.toLocaleString()
+            + ' RWF deposit: scan the code, or dial *182*8*1*' + merchant + '*' + amount
+            + '# on your phone.</p>';
+      if ( qrImg ) {
+        html += '<div class="dd-momoqr__code"><img src="' + qrImg
+              + '" alt="Scan to pay deposit with MoMo" class="dd-momoqr__img"></div>';
+      }
+      html += '<a class="dd-momoqr__dial" href="' + payload + '">Dial to pay now</a>';
+    } else {
+      // Empty merchant code → no broken QR: copy rows + a plain MoMo note.
+      html += '<p class="dd-momoqr__instruction">Pay your ' + amount.toLocaleString()
+            + ' RWF deposit via MTN MoMo, then share your booking reference with the restaurant.</p>';
+    }
+
+    html += '<div class="dd-momoqr__details">';
+    if ( merchant ) {
+      html += '<button type="button" class="dd-momoqr__row" data-copy="' + merchant + '">'
+            + '<span class="dd-momoqr__label">Merchant code</span>'
+            + '<span class="dd-momoqr__value">' + merchant + '</span></button>';
+    }
+    html += '<button type="button" class="dd-momoqr__row" data-copy="' + amount + '">'
+          + '<span class="dd-momoqr__label">Deposit (RWF)</span>'
+          + '<span class="dd-momoqr__value">' + amount.toLocaleString() + '</span></button>';
+    html += '<button type="button" class="dd-momoqr__row" data-copy="' + ref + '">'
+          + '<span class="dd-momoqr__label">Booking reference</span>'
+          + '<span class="dd-momoqr__value">' + ref + '</span></button>';
+    html += '</div>';
+
+    html += '<p class="dd-momoqr__note">Tap any detail above to copy.</p>';
+    html += '<button id="dd-res-close-confirm" type="button" class="dd-confirm-panel__close">Close</button>';
+    html += '</div>';
+
+    area.innerHTML = html;
+
+    // Tap-to-copy on each detail row (iOS fallback + reconciliation).
+    var details = area.querySelector( '.dd-momoqr__details' );
+    if ( details ) {
+      details.addEventListener( 'click', function ( e ) {
+        var row = e.target.closest ? e.target.closest( '.dd-momoqr__row' ) : null;
+        if ( ! row ) return;
+        copyText( row.getAttribute( 'data-copy' ) || '', row );
+      } );
+    }
+
+    var closeBtn = document.getElementById( 'dd-res-close-confirm' );
+    if ( closeBtn ) closeBtn.addEventListener( 'click', function () { closeModal(); } );
   }
 
   // ── Run ───────────────────────────────────────────────────

@@ -691,3 +691,64 @@ fires or is run manually.
 **Status:** Implemented, committed, pushed — awaiting developer verify on a NON-PRODUCTION site
 (deposit booking backdated + `wp cron event run dd_reservation_autocancel` → cancelled/failed;
 `none` and `paid` bookings untouched; `wp cron event list` shows the event scheduled after a booking).
+
+---
+
+## v3.10.64 — Deposit scan & pay QR on reservation confirmation
+
+**Shared PHP helper (single source of the USSD format):**
+- `dd_momo_merchant_code(): string` and `dd_momo_ussd_payload( int $amount ): string`
+- File: `dishdash-core/class-dd-helpers.php` (both wrapped in `function_exists` guards).
+- `dd_momo_ussd_payload()` returns `tel:*182*8*1*{merchant}*{amount}%23`, or `''` when no
+  merchant code is set. This is now the ONLY place in PHP that encodes the USSD format.
+
+**Orders QR payload — byte-identical before/after (verified):**
+The only refactor touching the orders surface is `ddCartData['momoMerchantCode']`, changed from
+the inline `preg_replace( '/\D/', '', (string) get_option( 'dish_dash_momo_merchant_code', '' ) )`
+to `dd_momo_merchant_code()` — which runs that *exact* `preg_replace` on the *same* option, so the
+value cart.js receives is unchanged. **cart.js was NOT modified**; it still builds the order payload
+inline (`'tel:*182*8*1*' + merchant + '*' + amount + '%23'`) from that identical `momoMerchantCode`
+and the client-side order total. Therefore the orders QR/dial string is byte-identical to today.
+(Note: because cart.js/orders are a hard do-not-touch and the order amount is computed client-side
+at confirmation, the literal format still appears in cart.js too. I kept the PHP helper's format
+identical to it and documented this; fully unifying would require modifying cart.js, which this
+brief forbids. Reservations — the new surface — sources its format ONLY from the helper, so the two
+cannot silently drift from a reservation-side change.)
+
+**Reservation side:**
+- `ddReservations` now carries `momoMerchantCode` = `dd_momo_merchant_code()` and
+  `depositPayload` = `dd_momo_ussd_payload( (int) get_option( 'dd_reservation_deposit_amount', 2000 ) )`
+  — the fixed deposit amount, i.e. the same value stored on the booking row (v3.10.62).
+- `dish-dash-reservations` script gains a `dd-qrcode` dependency (the lib was already enqueued
+  unconditionally for cart.js; the explicit dep guarantees availability + load order on this surface).
+- `reservations.js`: submit-success branches `if (depositActive) renderDepositPanel(data)` else the
+  existing `showWhatsAppButtons(...)`. `renderDepositPanel()` builds into `.dd-res-confirm-area`,
+  reusing the orders `.dd-momoqr*` classes: QR `<img>` of the server payload, a `tel:` "Dial to pay
+  now" link, and always-copyable rows — Merchant code (hidden when none), Deposit (RWF, raw-integer
+  copy value), Booking reference (display/reconciliation only — NOT in the QR). Tap-to-copy uses
+  `navigator.clipboard` with a textarea fallback (iOS). Only these small presentation helpers
+  (`makeQrDataUrl` / `copyText` / `legacyCopy`) were duplicated from cart.js — no business logic.
+
+**Empty-merchant-code behavior chosen:** graceful fallback — NO QR image, NO dial link, the merchant
+row is omitted; the panel still shows the copyable Deposit amount + Booking reference and a plain
+"Pay your {amount} RWF deposit via MTN MoMo, then share your booking reference…" note. No broken QR.
+(Matches the orders fallback, reservation-worded.)
+
+**CSS added:** none. Reused `.dd-momoqr*` (cart.css) + `.dd-confirm-panel__close` (cart.css), both
+already enqueued on the reservation surface. The `.dd-momoqr` container's `flex:1` is inert without a
+flex parent (it just renders as a centered, padded column in `.dd-res-confirm-area`) — visually matches.
+
+**Booking ref:** stays OUT of the QR (USSD has no field for it) — display + copy only.
+
+**Boundaries respected:** cart.js / orders QR untouched (byte-identical); no claim button (R6);
+auto-cancel (v3.10.63), deposit amount logic (v3.10.62), PesaPal/orders, country picker, WhatsApp
+handoff, and phone normalization all untouched.
+
+**Verification done here:** grep confirms each duplicated helper is defined once in reservations.js
+(no collisions); the QR/dial payload comes solely from the server-built `ddRes.depositPayload`;
+`dd_momo_merchant_code()` reproduces the prior `preg_replace` exactly. PHP lint not run (no PHP binary
+in env) — verified by inspection.
+
+**Status:** Implemented, committed, pushed — awaiting developer verify on a NON-PRODUCTION site
+(scan QR on Android → dialer shows *182*8*1*{merchant}*{deposit}#; copy rows; empty-merchant fallback;
+deposit OFF unchanged; ORDERS QR still identical; ~380px).
