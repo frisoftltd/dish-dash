@@ -853,6 +853,8 @@ class DD_Template_Module extends DD_Module {
         if ( ! $this->is_global_header_page() ) return;
 
         $dd_name     = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $dd_tagline  = get_option( 'dish_dash_restaurant_tagline', '' );
+        $dd_attrib   = get_option( 'dish_dash_footer_attribution', 'frisoft' );
         $dd_logo     = get_option( 'dish_dash_logo_url', '' );
         $dd_initials = strtoupper( substr( $dd_name, 0, 2 ) );
         $dd_addr     = get_option( 'dish_dash_address', '' );
@@ -955,7 +957,18 @@ class DD_Template_Module extends DD_Module {
             </div>
             <div class="dd-footer__bottom" style="background:rgba(0,0,0,0.25);color:rgba(241,231,219,0.6);">
                 <div class="dd-container">
-                    <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?> &mdash; Built by <strong>Fri Soft Ltd</strong></p>
+                    <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?><?php
+                        // Tagline: appended after the name with a plain " - " separator (empty → nothing).
+                        if ( '' !== trim( (string) $dd_tagline ) ) {
+                            echo ' - ' . esc_html( $dd_tagline );
+                        }
+                        // Attribution: rendered string lives here, not the DB. 'none' → nothing (no separator).
+                        if ( 'dishdash' === $dd_attrib ) {
+                            echo ' &mdash; Powered by <strong>Dish Dash</strong>';
+                        } elseif ( 'none' !== $dd_attrib ) {
+                            echo ' &mdash; Built by <strong>Fri Soft Ltd</strong>';
+                        }
+                    ?></p>
                 </div>
             </div>
         </footer>

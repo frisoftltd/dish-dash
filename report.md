@@ -1029,3 +1029,94 @@ so the existing rules match the generated `<li>`/`<a>` exactly. **No new CSS wri
 4. Set the select back to "— None —" (or turn off Show Explore) → the Explore column disappears entirely (no default links).
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.70 — Split tagline from restaurant name + footer attribution selector
+
+**Task:** Give the tagline its own Brand Identity field (it was baked into the restaurant name), and make the footer attribution selectable. Year logic untouched.
+
+**Scope:** 2 files.
+
+### What the copyright markup looked like (as found)
+
+`modules/template/class-dd-template-module.php`, inside `.dd-footer__bottom` → `.dd-container`:
+```php
+<p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?> &mdash; Built by <strong>Fri Soft Ltd</strong></p>
+```
+So the **"Fri Soft Ltd" portion already sat in its own `<strong>`** — "Built by " is plain text, only the company
+name is bold. Year is `date('Y')` (dynamic). Both attribution strings in the new code keep that pattern: the prefix
+("Built by " / "Powered by ") is plain, the name ("Fri Soft Ltd" / "Dish Dash") is wrapped in `<strong>`.
+
+### Files changed
+
+1. **`admin/pages/brand-identity.php`**
+   - `$fields` allowlist: added `'dish_dash_restaurant_tagline'` (saved via `sanitize_text_field` under the existing `dd_brand_identity_save` nonce, exactly like its neighbours).
+   - **Separate** whitelist save block for attribution (NOT in `$fields`, because it must not pass raw input through):
+     ```php
+     if ( isset( $_POST['dish_dash_footer_attribution'] ) ) {
+         $attr = sanitize_text_field( wp_unslash( $_POST['dish_dash_footer_attribution'] ) );
+         if ( ! in_array( $attr, array( 'frisoft', 'dishdash', 'none' ), true ) ) {
+             $attr = 'frisoft';
+         }
+         update_option( 'dish_dash_footer_attribution', $attr );
+     }
+     ```
+   - Current-value reads: `$restaurant_tagline` (default `''`), `$footer_attribution` (default `'frisoft'`).
+   - Markup after the Restaurant Name field: a **Tagline** text input (helper: "Optional. Shown after the restaurant
+     name in the footer copyright.") and a **Footer Attribution** `<select>` with three options — Built by Fri Soft Ltd
+     (`frisoft`) / Powered by Dish Dash (`dishdash`) / None (`none`) — selected-state via `selected()`.
+
+2. **`modules/template/class-dd-template-module.php`** (`inject_global_footer()`)
+   - Added reads: `$dd_tagline = get_option('dish_dash_restaurant_tagline','')` and `$dd_attrib = get_option('dish_dash_footer_attribution','frisoft')`.
+   - Recomposed the copyright `<p>` (markup/classes/entities preserved):
+     ```php
+     <p>&copy; <?php echo date( 'Y' ); ?> <?php echo esc_html( $dd_name ); ?><?php
+         if ( '' !== trim( (string) $dd_tagline ) ) {
+             echo ' - ' . esc_html( $dd_tagline );
+         }
+         if ( 'dishdash' === $dd_attrib ) {
+             echo ' &mdash; Powered by <strong>Dish Dash</strong>';
+         } elseif ( 'none' !== $dd_attrib ) {
+             echo ' &mdash; Built by <strong>Fri Soft Ltd</strong>';
+         }
+     ?></p>
+     ```
+   - Deleted the hardcoded `Built by Fri Soft Ltd` literal.
+
+### Composition rules (as specified)
+- **Name** — `esc_html( $dd_name )`, existing read, unchanged.
+- **Tagline** — appended as ` - ` + tagline **only when non-empty** (`trim()` guard); empty → no separator, no tagline.
+- **Attribution** — the rendered strings live in the read site, DB stores only the key. `frisoft`/default →
+  `— Built by <strong>Fri Soft Ltd</strong>`; `dishdash` → `— Powered by <strong>Dish Dash</strong>`; `none` →
+  nothing (no `—` separator either).
+- The `elseif ( 'none' !== $dd_attrib )` branch renders the Fri Soft string for `frisoft` **and** any unexpected value
+  (defence-in-depth; save already whitelists so unexpected shouldn't occur).
+- Name and tagline escaped on output; the two attribution strings are fixed literals (no user data).
+
+### No data migration
+No option values written from code. Until the developer shortens Restaurant Name and moves the tagline into the new
+field, the copyright renders the full old string (`Khana Khazana - The Authentic Indian Restaurant`) as `$dd_name` —
+**cosmetically identical to now**.
+
+### Not touched
+- Year logic (`date('Y')`).
+- Hero pill, notification "Khana Khazana" hardcodes (later releases).
+- Every **other** surface reading `dish_dash_restaurant_name` (header, emails) — this release only splits the FOOTER's
+  use of the name. After the developer shortens the name, those surfaces will correctly show the shortened name (that
+  is the intended, in-scope consequence of editing the shared option — no code there was changed).
+
+### Verification
+- By inspection (no PHP linter in this environment; developer smoke-tests live).
+- Version bumped 3.10.69 → 3.10.70 (both spots in `dish-dash.php`); CLAUDE.md updated (Last updated, Current State, changelog).
+
+**Smoke test (developer, after deploy — purge LiteSpeed first):**
+1. Brand Identity shows the Tagline field + Attribution select (default "Built by Fri Soft Ltd").
+2. Before editing: copyright identical to now.
+3. Name → `Khana Khazana`, Tagline → `The Authentic Indian Restaurant`, save → copyright reads as before.
+4. Clear Tagline → `© 2026 Khana Khazana — Built by Fri Soft Ltd` (no stray dash).
+5. Attribution → Dish Dash → `— Powered by Dish Dash`.
+6. Attribution → None → line ends after name/tagline, no trailing dash.
+7. Header + emails reflect the shortened name.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

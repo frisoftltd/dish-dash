@@ -30,6 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 if ( isset( $_POST['dd_save_brand_identity'] ) && check_admin_referer( 'dd_brand_identity_save' ) ) {
     $fields = [
         'dish_dash_restaurant_name',
+        'dish_dash_restaurant_tagline',
         'dish_dash_logo_url',
         'dish_dash_primary_color',
         'dish_dash_dark_color',
@@ -48,13 +49,25 @@ if ( isset( $_POST['dd_save_brand_identity'] ) && check_admin_referer( 'dd_brand
             update_option( $field, sanitize_text_field( $_POST[ $field ] ) );
         }
     }
+
+    // Footer attribution — whitelist, never pass raw input through.
+    if ( isset( $_POST['dish_dash_footer_attribution'] ) ) {
+        $attr = sanitize_text_field( wp_unslash( $_POST['dish_dash_footer_attribution'] ) );
+        if ( ! in_array( $attr, array( 'frisoft', 'dishdash', 'none' ), true ) ) {
+            $attr = 'frisoft';
+        }
+        update_option( 'dish_dash_footer_attribution', $attr );
+    }
+
     echo '<div class="notice notice-success is-dismissible"><p>'
         . esc_html__( 'Brand identity saved!', 'dish-dash' )
         . '</p></div>';
 }
 
 // ── Current values ────────────────────────────────────────────────────────────
-$restaurant_name = get_option( 'dish_dash_restaurant_name', get_bloginfo( 'name' ) );
+$restaurant_name    = get_option( 'dish_dash_restaurant_name', get_bloginfo( 'name' ) );
+$restaurant_tagline = get_option( 'dish_dash_restaurant_tagline', '' );
+$footer_attribution = get_option( 'dish_dash_footer_attribution', 'frisoft' );
 $logo_url        = get_option( 'dish_dash_logo_url', '' );
 $primary_color   = get_option( 'dish_dash_primary_color', '#65040d' );
 $dark_color      = get_option( 'dish_dash_dark_color', '#000000' );
@@ -105,6 +118,24 @@ $font_options = [ 'Inter', 'Poppins', 'Roboto', 'Lato', 'Montserrat' ];
                         <input type="text" class="dd-hp-input" name="dish_dash_restaurant_name"
                                value="<?php echo esc_attr( $restaurant_name ); ?>"
                                placeholder="e.g. Khana Khazana" />
+                    </div>
+
+                    <div class="dd-hp-field" style="margin-bottom:20px;">
+                        <label><?php esc_html_e( 'Tagline', 'dish-dash' ); ?></label>
+                        <input type="text" class="dd-hp-input" name="dish_dash_restaurant_tagline"
+                               value="<?php echo esc_attr( $restaurant_tagline ); ?>"
+                               placeholder="e.g. The Authentic Indian Restaurant" />
+                        <p class="dd-hp-hint"><?php esc_html_e( 'Optional. Shown after the restaurant name in the footer copyright.', 'dish-dash' ); ?></p>
+                    </div>
+
+                    <div class="dd-hp-field" style="margin-bottom:20px;">
+                        <label><?php esc_html_e( 'Footer Attribution', 'dish-dash' ); ?></label>
+                        <select class="dd-hp-input" name="dish_dash_footer_attribution">
+                            <option value="frisoft" <?php selected( $footer_attribution, 'frisoft' ); ?>><?php esc_html_e( 'Built by Fri Soft Ltd', 'dish-dash' ); ?></option>
+                            <option value="dishdash" <?php selected( $footer_attribution, 'dishdash' ); ?>><?php esc_html_e( 'Powered by Dish Dash', 'dish-dash' ); ?></option>
+                            <option value="none" <?php selected( $footer_attribution, 'none' ); ?>><?php esc_html_e( 'None', 'dish-dash' ); ?></option>
+                        </select>
+                        <p class="dd-hp-hint"><?php esc_html_e( 'Shown at the end of the footer copyright line.', 'dish-dash' ); ?></p>
                     </div>
 
                     <div class="dd-hp-field">
