@@ -589,3 +589,53 @@ change verified by inspection.
 
 **Status:** Implemented, committed, pushed — awaiting developer verify (esp. the PesaPal
 ORDER place + abandon/no-ghost-row test).
+
+---
+
+## v3.10.62 — Enable fixed reservation deposits (make "Require Deposit" real; no payment UI)
+
+**`deposit_status` values / convention followed:**
+The column (`wp_dishdash_reservations.deposit_status`, VARCHAR(20), schema default `'none'`)
+already uses: `'none'` (no deposit — schema default), `'paid'` (analytics queries + the WhatsApp
+notification builder + the removed on_deposit_payment_complete set it), `'failed'` (auto-cancel,
+`run_autocancel()` line 420). There was **no** pre-existing *pending* value — the old flow put the
+pending concept in the booking `status` column as the phantom `'pending_payment'`. I set
+`deposit_status = 'pending'` for deposit-required bookings, matching the convention the track's
+R4/R6 briefs reference (progression `pending → claimed → paid`, with `failed` on auto-cancel).
+The booking `status` stays `'pending'` (unchanged).
+
+**Percent-type decision: REMOVED (not disabled).**
+The Deposit Type `<select>` now has a single `<option value="fixed">Fixed amount (RWF)</option>` —
+the `percent` option is deleted, so it can't be selected into a broken state. Rationale: a percentage
+needs a base order value that does not exist at booking time (a reservation has no cart), so it can
+compute nothing. I removed rather than disabled so there is no dead/greyed control implying a
+future capability. The `dd_reservation_deposit_type` save handler is left intact (it now always
+persists `'fixed'`), and `calculate_deposit_amount()` ignores the type regardless, returning the
+fixed `dd_reservation_deposit_amount`. Adjacent helper text that mentioned "percent type" was updated.
+
+**⚠️ Does enabling deposits make the auto-cancel bug live? YES.**
+`run_autocancel()` (class-dd-reservations-module.php) selects
+`WHERE ... status = 'pending_payment'` — a value never written anywhere. A deposit booking from this
+release has `status = 'pending'` and `deposit_status = 'pending'`, so it would never match that query.
+On top of that, **no auto-cancel event is even scheduled** — the `wp_schedule_single_event(...
+'dd_reservation_autocancel' ...)` call lived inside the PesaPal deposit block that was removed in
+v3.10.61. So an unpaid deposit booking is **never** auto-cancelled and **holds its slot indefinitely**.
+Before this release deposits were off, so this was dormant/harmless; enabling them makes it live.
+
+> **LIVE-SITE WARNING:** Require Deposit must stay **OFF** on production until R4 / v3.10.63 (which
+> re-keys auto-cancel to `deposit_status` and re-establishes scheduling). Turning it on before then
+> means unpaid deposit bookings accumulate and never release their slots. Safe to test on a
+> non-production/prospect site only. (Khana Khazana does not use deposits.)
+
+**Files changed:** `modules/reservations/class-dd-reservations-module.php` (deposit reads + amount +
+pending status), `assets/js/reservations.js` (`depositActive` reads real setting → screen-1 notice),
+`admin/pages/settings.php` (fixed-only Deposit Type + helper text). No schema change
+(`deposit_status` VARCHAR(20) sufficient). Auto-cancel, payment UI, PesaPal/orders untouched.
+
+**Verification done here:** confirmed the JS `depositActive` flag drives ONLY the informational
+`#dd-res-deposit-notice` badge (grep: `populateDepositScreen()` is defined but never called; no
+`payment_url`/`requires_payment` handling exists in reservations.js); confirmed `calculate_deposit_amount()`
+returns the fixed option value. PHP lint not run (no PHP binary in env) — verified by inspection.
+
+**Status:** Implemented, committed, pushed — awaiting developer verify (deposit OFF unchanged;
+deposit ON stores real amount + `deposit_status='pending'`; no payment screen; percent gone).

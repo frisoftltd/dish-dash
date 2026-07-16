@@ -602,9 +602,9 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                 <div class="dd-field-label">Deposit Type</div>
                 <div class="dd-field-control">
                     <select name="dd_reservation_deposit_type" class="dd-input dd-input--medium">
-                        <option value="fixed"   <?php selected( get_option( 'dd_reservation_deposit_type', 'fixed' ), 'fixed' ); ?>>Fixed amount (RWF)</option>
-                        <option value="percent" <?php selected( get_option( 'dd_reservation_deposit_type', 'fixed' ), 'percent' ); ?>>Percentage of estimated order</option>
+                        <option value="fixed" selected>Fixed amount (RWF)</option>
                     </select>
+                    <p class="description">Fixed amount only — a percentage has no order value to compute against at booking time.</p>
                 </div>
             </div>
 
@@ -614,7 +614,7 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                     <input type="number" name="dd_reservation_deposit_amount"
                            value="<?php echo esc_attr( get_option( 'dd_reservation_deposit_amount', 2000 ) ); ?>"
                            min="0" step="100" class="dd-input dd-input--short" />
-                    <p class="description">Enter RWF amount (for fixed) or percentage (for percent type).</p>
+                    <p class="description">Fixed deposit amount charged per booking, in RWF.</p>
                 </div>
             </div>
 

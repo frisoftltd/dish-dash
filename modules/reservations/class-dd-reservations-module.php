@@ -98,10 +98,16 @@ class DD_Reservations_Module extends DD_Module {
             wp_send_json_error( [ 'message' => 'Could not generate booking reference. Please try again.' ] );
         }
 
-        // 6. Deposit check — determines status and extra columns
-        $deposit_enabled = 0; // Deposit system deferred post-MVP — see CLAUDE.md
-        $deposit_amount  = 0;
-        $deposit_status  = 'none';
+        // 6. Deposit check — determines status and extra columns.
+        // Fixed deposits only (percent has no base value at booking time). When a
+        // deposit is required we store the real fixed amount and a 'pending'
+        // deposit_status (existing convention for this column: none|pending|paid|failed).
+        // NOTE: auto-cancel does NOT yet act on deposit_status — that is fixed in the
+        // next release (R4 / v3.10.63). Until then an unpaid deposit booking is never
+        // auto-cancelled, so Require Deposit should stay OFF on live sites until R4.
+        $deposit_enabled = get_option( 'dd_reservation_deposit_enabled', 0 ) ? 1 : 0;
+        $deposit_amount  = $deposit_enabled ? $this->calculate_deposit_amount() : 0;
+        $deposit_status  = $deposit_enabled ? 'pending' : 'none';
         $status          = 'pending';
 
         // 7. Insert reservation

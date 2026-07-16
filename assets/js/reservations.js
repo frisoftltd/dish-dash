@@ -32,8 +32,10 @@
   const $all = sel => [...document.querySelectorAll(sel)];
 
   const ddRes = window.ddReservations || {};
-  // Phase 4C deposit deferred — force off until payment gateway is fully integrated
-  const depositActive = false; // was: ddRes.depositEnabled
+  // Fixed deposits are live. Reads the real setting; when on, the booking form shows
+  // the informational "deposit required" notice on screen 1. No payment UI here — the
+  // QR + "I have paid" claim button arrive in later releases.
+  const depositActive = !!ddRes.depositEnabled;
 
   // ── Init ──────────────────────────────────────────────────
   function init() {
