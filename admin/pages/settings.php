@@ -90,6 +90,7 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_reservation_refund_enabled',     isset( $_POST['dd_reservation_refund_enabled'] ) ? 1 : 0 );
     update_option( 'dd_reservation_refund_hours',       absint( $_POST['dd_reservation_refund_hours'] ?? 24 ) );
     update_option( 'dd_reservation_refund_policy_text', sanitize_textarea_field( $_POST['dd_reservation_refund_policy_text'] ?? '' ) );
+    update_option( 'dd_reservation_handoff_whatsapp',   isset( $_POST['dd_reservation_handoff_whatsapp'] ) ? 1 : 0 );
 
     // Pricing & Fees
     update_option( 'dd_per_order_fee',        absint( $_POST['dd_per_order_fee']        ?? 750   ) );
@@ -662,6 +663,20 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                         echo esc_textarea( get_option( 'dd_reservation_refund_policy_text', '' ) );
                     ?></textarea>
                     <p class="description">Shown to customers on the booking review screen.</p>
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">WhatsApp Handoff
+                    <span class="dd-label-hint">Customer sends booking to you</span>
+                </div>
+                <div class="dd-field-control">
+                    <label class="dd-check-label">
+                        <input type="checkbox" name="dd_reservation_handoff_whatsapp" value="1"
+                               <?php checked( get_option( 'dd_reservation_handoff_whatsapp', 0 ), 1 ); ?>>
+                        Send the booking to your WhatsApp after confirmation
+                    </label>
+                    <p class="description">After booking, the customer taps to send their reservation to your WhatsApp. Best for busy restaurants that don't watch a dashboard.</p>
                 </div>
             </div>
         </div>

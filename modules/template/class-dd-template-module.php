@@ -334,6 +334,9 @@ class DD_Template_Module extends DD_Module {
             'depositEnabled' => (bool) get_option( 'dd_reservation_deposit_enabled', 0 ),
             'depositAmount'  => (int)  get_option( 'dd_reservation_deposit_amount', 2000 ),
             'refundPolicy'   => get_option( 'dd_reservation_refund_policy_text', '' ),
+            // Reservations: opt-in customer WhatsApp handoff on the booking confirmation
+            // modal (default off). JS reveals the tap-only button when this is true.
+            'whatsappHandoff' => (bool) get_option( 'dd_reservation_handoff_whatsapp', 0 ),
         ] );
 
         // Inject CSS variables + footer background via WordPress inline style system

@@ -504,9 +504,22 @@
   function showWhatsAppButtons( adminUrl, customerUrl ) {
     var confirmArea = document.querySelector( '.dd-res-confirm-area' );
     if ( ! confirmArea ) return;
-    confirmArea.innerHTML =
-        '<p style="color:#25D366;font-weight:600;margin:12px 0;">✅ Booking received!</p>'
-        + '<button id="dd-res-close-confirm" class="dd-res-btn dd-res-btn--outline" style="width:100%;">Close</button>';
+
+    var html = '<p style="color:#25D366;font-weight:600;margin:12px 0;">✅ Booking received!</p>';
+
+    // Opt-in restaurant WhatsApp handoff — tap only, NEVER auto-open.
+    // Uses the RESTAURANT ticket (admin_url). Hidden when the setting is
+    // off or the URL is empty/missing (no dead control).
+    if ( ddRes.whatsappHandoff && adminUrl ) {
+        html += '<a href="' + adminUrl + '" target="_blank" rel="noopener noreferrer" '
+              + 'class="dd-res-btn" '
+              + 'style="display:block;width:100%;background:#25D366;color:#fff;text-align:center;'
+              + 'text-decoration:none;box-sizing:border-box;margin-bottom:8px;">'
+              + 'Send my booking to the restaurant on WhatsApp</a>';
+    }
+
+    html += '<button id="dd-res-close-confirm" class="dd-res-btn dd-res-btn--outline" style="width:100%;">Close</button>';
+    confirmArea.innerHTML = html;
 
     var closeBtn = document.getElementById( 'dd-res-close-confirm' );
     if ( closeBtn ) {
