@@ -182,6 +182,16 @@ class DD_Notifications {
 
         $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
 
+        // Footer attribution — same option the site footer copyright uses (v3.10.70).
+        // Rendered strings live here, not the DB. 'none' drops the prefix AND the separator.
+        $attrib        = get_option( 'dish_dash_footer_attribution', 'frisoft' );
+        $attrib_prefix = '';
+        if ( 'dishdash' === $attrib ) {
+            $attrib_prefix = 'Dish Dash &mdash; ';
+        } elseif ( 'none' !== $attrib ) {
+            $attrib_prefix = 'Fri Soft Ltd &mdash; ';
+        }
+
         $subject = sprintf( '[%s] New Order %s — %s RWF',
             $restaurant,
             $order['order_number'],
@@ -227,7 +237,7 @@ class DD_Notifications {
                 </table>
             </div>
             <div style="background:#f9f5f0;padding:12px 24px;text-align:center;font-size:12px;color:#aaa;">
-                Dish Dash &mdash; ' . esc_html( $restaurant ) . ' ordering system
+                ' . $attrib_prefix . esc_html( $restaurant ) . ' ordering system
             </div>
         </div>';
 

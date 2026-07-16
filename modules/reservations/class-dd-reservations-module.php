@@ -206,6 +206,16 @@ class DD_Reservations_Module extends DD_Module {
         $guest_word = ( (int) $res['guests'] === 1 ? 'guest' : 'guests' );
         $primary    = '#65040d';
 
+        // Footer attribution — same option the site footer copyright uses (v3.10.70).
+        // Rendered strings live here, not the DB. 'none' drops the prefix AND the separator.
+        $attrib        = get_option( 'dish_dash_footer_attribution', 'frisoft' );
+        $attrib_prefix = '';
+        if ( 'dishdash' === $attrib ) {
+            $attrib_prefix = 'Dish Dash — ';
+        } elseif ( 'none' !== $attrib ) {
+            $attrib_prefix = 'Fri Soft Ltd — ';
+        }
+
         $subject = sprintf( '[%s] New Reservation — %s', $restaurant, $res['booking_ref'] );
 
         $admin_link = add_query_arg(
@@ -286,7 +296,7 @@ class DD_Reservations_Module extends DD_Module {
 
         <!-- Footer -->
         <tr><td style="background:#F0E7D8;padding:14px 28px;text-align:center;">
-          <div style="color:#6E5B4C;font-size:12px;">Dish Dash — ' . esc_html( $restaurant ) . ' reservation system</div>
+          <div style="color:#6E5B4C;font-size:12px;">' . $attrib_prefix . esc_html( $restaurant ) . ' reservation system</div>
         </td></tr>
 
       </table>

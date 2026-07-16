@@ -1263,3 +1263,69 @@ other files and were left untouched.
 - Anything else in `orders-module.php`; R3 (`#65040d`); R4 ("Dish Dash").
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.74 — R4: email footers reuse the footer attribution setting
+
+**Task:** Replace the hardcoded "Dish Dash" prefix in the order + reservation admin email footers with the
+existing `dish_dash_footer_attribution` option (v3.10.70). Two files.
+
+### Reported before editing
+- **Footer strings:** order email `class-dd-notifications.php:230` (`Dish Dash &mdash; … ordering system`, HTML
+  entity `&mdash;`); reservation email `class-dd-reservations-module.php:289` (`Dish Dash — … reservation
+  system`, literal em-dash `—`).
+- **v3.10.70 composition** (`class-dd-template-module.php`): read `:857` `get_option('dish_dash_footer_attribution','frisoft')`
+  (fallback `'frisoft'`); mapping `:966-970` `if('dishdash')… elseif('none' !== $dd_attrib)…` (so `none` → nothing),
+  `&mdash;` separator prepended.
+- **Duplicated, not shared:** the two footers are inline literals in two separate modules — no shared helper.
+  Kept duplicated (no refactor this release, per brief).
+
+### Composition (matched v3.10.70's read/fallback/branching; email-specific output strings)
+The site footer renders the **verb form** ("Powered by Dish Dash" / "Built by Fri Soft Ltd") because its grammar
+is `© {year} {name} — {attribution}`. The email grammar is `{attribution} — {name} {ordering|reservation}
+system`, so per the brief's exact targets I map to a **bare-name prefix**:
+```php
+$attrib        = get_option( 'dish_dash_footer_attribution', 'frisoft' );
+$attrib_prefix = '';
+if ( 'dishdash' === $attrib ) {
+    $attrib_prefix = 'Dish Dash {sep} ';
+} elseif ( 'none' !== $attrib ) {
+    $attrib_prefix = 'Fri Soft Ltd {sep} ';
+}
+```
+`{sep}` = `&mdash;` in the order email, `—` in the reservation email (each footer's original glyph preserved).
+Footer line becomes `' . $attrib_prefix . esc_html( $restaurant ) . ' ordering system'` (and `reservation system`).
+
+### Resulting output
+| Setting | Order email footer | Reservation email footer |
+|---|---|---|
+| `frisoft` (default) | `Fri Soft Ltd — Khana Khazana ordering system` | `Fri Soft Ltd — Khana Khazana reservation system` |
+| `dishdash` | `Dish Dash — Khana Khazana ordering system` | `Dish Dash — Khana Khazana reservation system` |
+| `none` (live) | `Khana Khazana ordering system` | `Khana Khazana reservation system` |
+
+`none` → `$attrib_prefix` is `''`, so no prefix, no separator, no leading dash, no double space.
+
+### Escaping
+Brand prefixes ("Dish Dash" / "Fri Soft Ltd") are fixed literals → no escaping (matches the site footer, which
+echoes them raw). `$restaurant` stays `esc_html()`. HTML-body context preserved.
+
+### Files changed
+- `modules/orders/class-dd-notifications.php` — `$attrib_prefix` block after the `$restaurant` read in `notify_admin_email()`; footer line `:230`.
+- `modules/reservations/class-dd-reservations-module.php` — `$attrib_prefix` block after the `$restaurant` read in `send_admin_email()`; footer line `:289`.
+
+### Not touched
+- Site footer read site in `class-dd-template-module.php` (this release only adds email consumers of the option).
+- Brand Identity form (field already exists), `#65040d` (R3), customer email path, SMTP from-name reseeding, `install.php:481`.
+- No new settings, no data migration, no option values written in code.
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.73 → 3.10.74 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer, after deploy):**
+1. Live setting is `None` → place a test order → footer `Khana Khazana ordering system` (no leading dash); trigger a test reservation → `Khana Khazana reservation system`.
+2. Set attribution → Dish Dash → both footers regain the `Dish Dash — …` prefix.
+3. Set → Fri Soft Ltd → both read `Fri Soft Ltd — …`.
+4. Confirm the site footer copyright still follows the same setting (unchanged code path).
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
