@@ -370,8 +370,22 @@ class DD_Reservations_Admin {
                                 </td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->special_requests ?? '' ); ?></td>
                                 <td style="overflow:hidden;">
-                                    <span class="dd-res-badge dd-res-badge--<?php echo esc_attr( $r->status ); ?>">
-                                        <?php echo esc_html( $statuses[ $r->status ] ?? ucfirst( str_replace( '_', ' ', $r->status ) ) ); ?>
+                                    <?php
+                                    $badge_mod   = $r->status;
+                                    $badge_label = $statuses[ $r->status ] ?? ucfirst( str_replace( '_', ' ', $r->status ) );
+                                    // A confirmed booking whose required deposit is NOT restaurant-confirmed
+                                    // ('paid') must not read as secured green. Reuse the amber "attention"
+                                    // treatment and make the money state explicit in the label. Display only —
+                                    // no data/status change; auto-cancel still keys on deposit_status.
+                                    if ( 'confirmed' === $r->status
+                                         && ! empty( $r->deposit_required )
+                                         && 'paid' !== $r->deposit_status ) {
+                                        $badge_mod   = 'pending';
+                                        $badge_label = 'Confirmed — deposit unpaid';
+                                    }
+                                    ?>
+                                    <span class="dd-res-badge dd-res-badge--<?php echo esc_attr( $badge_mod ); ?>">
+                                        <?php echo esc_html( $badge_label ); ?>
                                     </span>
                                     <?php if ( ! empty( $r->is_test ) ) : ?>
                                     <span class="dd-res-badge dd-res-badge--test">Test</span>

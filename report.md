@@ -1374,3 +1374,62 @@ raw then escapes at use); reservation email once at the assignment, valid becaus
 3. Change it back to `#65040d`.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.76 — Reservations R1: status badge reflects an unpaid deposit (display only)
+
+**Task:** When a booking is `status='confirmed'` but its required deposit isn't restaurant-confirmed
+(`paid`), the admin list badge must not read as a secured green "Confirmed". Badge render at
+`class-dd-reservations-admin.php:373` only.
+
+### Reported before editing
+- **Current badge:** `<span class="dd-res-badge dd-res-badge--{$r->status}">{label}</span>`; label from
+  `$statuses[$r->status]` (fallback `ucfirst(str_replace('_',' ',…))`); class modifier is the raw status value.
+- **Existing badge states** (`reservations-admin.css:217-222`): `--pending` amber `#fef3c7/#92400e`,
+  `--confirmed` green `#d1fae5/#065f46`, `--cancelled` grey, `--no_show` red, `--pending_payment` blue,
+  `--auto_cancelled` grey (+ `--test` `:482`).
+- **CSS support:** the amber `.dd-res-badge--pending` is an existing warning/attention class → reused, **no new
+  CSS**. Deliberately did NOT use `--pending_payment` (that touches the R3-flagged phantom label).
+
+### Change — `modules/reservations/class-dd-reservations-admin.php` (`:373` render only)
+Compute `$badge_mod`/`$badge_label` before the `<span>`; override only in the exact problem case:
+```php
+$badge_mod   = $r->status;
+$badge_label = $statuses[ $r->status ] ?? ucfirst( str_replace( '_', ' ', $r->status ) );
+if ( 'confirmed' === $r->status
+     && ! empty( $r->deposit_required )
+     && 'paid' !== $r->deposit_status ) {
+    $badge_mod   = 'pending';                       // amber attention (existing class)
+    $badge_label = 'Confirmed — deposit unpaid';
+}
+```
+Span now emits `dd-res-badge--{$badge_mod}` (`esc_attr`) and `{$badge_label}` (`esc_html`).
+
+### Cases (verified by reading the condition)
+| status | deposit_required | deposit_status | Result |
+|---|---|---|---|
+| confirmed | 1 | pending / claimed / failed | **amber "Confirmed — deposit unpaid"** (new) |
+| confirmed | 1 | paid | green "Confirmed" (unchanged) |
+| confirmed | 0 | (none) | green "Confirmed" (unchanged) |
+| pending / cancelled / no_show / auto_cancelled | any | any | unchanged |
+
+### Not touched (per brief)
+- Every writer — Confirm (`admin:55` / `module:374`), bulk (`module:527`), claim, mark-paid, auto-cancel, booking insert. No data written.
+- The separate Deposit column (`admin:380-396`) — untouched.
+- Confirmation WhatsApp gate (`admin:407`) — R2.
+- `pending_payment` / `refunded` phantom labels — R3.
+- KPI/analytics/dashboard reads (`admin:161`, `analytics-reservations.php:33/123/125`, `dashboard.php:107/358`) — **no data and no query changed**, so they hold by construction. Confirmed: the badge reads `$r->deposit_required`/`$r->deposit_status`, already SELECTed for the Deposit column → **no query change**.
+- No schema, no migration, no new settings, no new CSS.
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.75 → 3.10.76 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer — live affected count is 0, so synthesise):**
+1. Create a test reservation with a deposit required; Confirm it via the admin button **without** marking the deposit paid → badge reads amber **"Confirmed — deposit unpaid"**, not green.
+2. Mark deposit paid → badge returns to green "Confirmed".
+3. Confirm a no-deposit booking → badge unchanged (green "Confirmed").
+4. A pending booking with an unpaid deposit → badge unchanged ("Pending").
+5. Delete the test row afterwards (use the `is_test` flag / bulk).
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
