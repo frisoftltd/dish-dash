@@ -1,191 +1,220 @@
-# Investigation — Footer Dynamic / White-Label Readiness (v3.10.66)
+# INVESTIGATION — `templates/page-dishdash.php`: dead or live?
 
-READ-ONLY investigation. No code changed. All findings are `file:line`.
-
----
-
-## A. Where the footer renders
-
-**Plugin, not theme.** The visible footer is injected by the plugin, not the theme.
-
-- Renderer: `modules/template/class-dd-template-module.php:852` — `inject_global_footer()`.
-- Hook: `modules/template/class-dd-template-module.php:75` — `add_action( 'wp_footer', [ $this, 'inject_global_footer' ] )`.
-- Theme footer is a no-op for markup: `theme/dish-dash-theme/footer.php:20` is only `<?php wp_footer(); ?>` + `</body></html>`. No visible footer markup in the theme.
-- Gate: `inject_global_footer()` early-returns unless `is_global_header_page()` (`class-dd-template-module.php:853`). That method **always returns `true`** — `class-dd-template-module.php:550-555` (`return true;` at :554, comment "Show on ALL frontend pages — including the DishDash homepage template"). So the footer renders on **every** frontend page.
-
-**Single source — the others just reach `wp_footer()`:**
-- `templates/page-dishdash.php:1127` — `wp_footer()` (homepage full template) → fires the injected footer.
-- `templates/page-simple.php:24` — `get_footer()` → theme `footer.php` → `wp_footer()` → injected footer.
-- Theme `index.php` / `page.php` / `singular.php` call `get_footer()` → same path.
-
-**No footer-variant swap.** There is no conditional that renders a different footer. `page-dishdash.php` *reads* footer variables (`page-dishdash.php:160-166, 232`) but **never renders them** — a repo search for `<footer`/`dd-footer` in `page-dishdash.php` returns nothing; the only "footer" below the reads is `wp_footer()` at :1127. Those variables are **dead** (leftovers from an earlier inline footer). See the "dead toggles" note in §C.
+**Phase 1, read-only.** Every claim carries `file:line`. Live-DB / live-file facts I cannot see from
+the repo are marked **PENDING (server)** with the exact command to run.
 
 ---
 
-## B. Per-part verdicts
+## TL;DR
 
-### 1. Brand column — **OPTION** (all)
-`class-dd-template-module.php:875-891`
-- Logo: `dish_dash_logo_url` — `class-dd-template-module.php:856` (rendered :878). Empty → initials badge (`$dd_initials` = first 2 chars of name, :857, rendered :880).
-- Name: `dish_dash_restaurant_name` (default `'Khana Khazana'`) — `:855` (rendered :881).
-- Description: `dd_footer_description` (default `'Premium Indian dining and a refined digital ordering experience.'`) — `:866` (rendered :884).
-- Social icons: `dish_dash_facebook` `:862`, `dish_dash_instagram` `:863`, `dish_dash_whatsapp` `:864`, `dish_dash_tiktok` `:865` (rendered :886-889, each only if non-empty).
-
-### 2. EXPLORE column — **LITERAL markup** (labels + link structure), URLs `home_url()`-based
-`class-dd-template-module.php:893-903`. Not a WP nav menu, not page-generated — hardcoded `<li><a>`:
-- Home → `home_url('/')` (`$home_url` :868) — :896
-- Our Menu → `home_url('/restaurant-menu/')` — :897
-- Reserve Table → `home_url('/#reserve')`, class `js-open-reservation` — :898
-- Track Order → `$orders_url` = `wc_get_account_url('orders')` fallback `/my-account/orders/` (:869) — :899
-- Privacy Policy → `home_url('/privacy-policy/')` — :900
-- Refund & Returns → `home_url('/refund_returns/')` — :901
-
-The link **labels** ("Home", "Our Menu", …) are literal English strings; there is no config surface for them. The menu itself is NOT a WP nav-menu location.
-
-### 3. CONTACT column — **OPTION** (three separate options)
-`class-dd-template-module.php:905-912`. Not a blob — three distinct options, each `<li>` rendered only if non-empty:
-- Address: `dish_dash_address` — `:858` (rendered :908, `📍`)
-- Phone: `dish_dash_phone` — `:859` (rendered :909, `tel:` link)
-- Email: `dish_dash_contact_email` — `:860` (rendered :910, `mailto:` link)
-
-Registered in **Brand Identity** (see §C): `admin/pages/brand-identity.php:38-40` (save), fields `:242/250/256`.
-
-### 4. OPENING HOURS column — **OPTION with LITERAL fallback**  ⚠ see PRIORITY below
-`class-dd-template-module.php:914-924`
-- Reads `dish_dash_opening_hours` (default `''`) — `:861`; split on newlines `:870`; each line rendered `:918`.
-- **Fallback literal when the option is empty** — `:920-921`: `Mon – Fri: 10AM – 10PM` / `Sat – Sun: 9AM – 11PM`.
-
-### 5. Copyright line — **MIXED**
-`class-dd-template-module.php:929`:
-`&copy; <?php echo date('Y'); ?> <?php echo esc_html($dd_name); ?> &mdash; Built by <strong>Fri Soft Ltd</strong>`
-- Year: dynamic `date('Y')`.
-- Name: `$dd_name` = OPTION `dish_dash_restaurant_name` (:855).
-- "Built by Fri Soft Ltd": **LITERAL**, and there is **no toggle** for it anywhere.
-- The observed "- The Authentic Indian Restaurant" tagline is **NOT in the footer code** — the footer only prints `$dd_name`. So that tagline is part of the **stored value of `dish_dash_restaurant_name`** (admin typed it into the name field). There is no separate footer tagline field.
+- `page-dishdash.php` lives in the **plugin** (`templates/`), not the theme. It is **not** part of the
+  WordPress theme template hierarchy by filename.
+- It is reachable by **exactly one** mechanism: a page whose `_wp_page_template` meta equals the literal
+  `page-dishdash.php`, routed by the plugin's `template_include` filter
+  (`class-dd-template-module.php:149-166`). It is offered as a selectable "Dish Dash Full Page" template via
+  `theme_page_templates` (`:143-144`).
+- **It is the only hero renderer in the entire repo.** No shortcode, no other template, and no code in the
+  homepage module produces a `.dd-hero` / `.dd-pill` / hero-chips block. So *if the live homepage shows that
+  hero, page-dishdash.php is what renders it* — and then the hardcoded pill **would** show.
+- Whether it is currently **assigned** to any page (including the front page) is a DB fact I cannot read.
+  **This is the single question that decides the verdict.** Commands are in §1 and §3.
+- The footer/social/hours variables the file reads (`:94-96, :160-167, :232`) are **provably dead**: the file
+  contains no footer markup — the footer is injected globally by `inject_global_footer()`.
 
 ---
 
-## PRIORITY — Opening Hours discrepancy (footer shows "Monday – Friday 10 AM – 7 PM")
+## 1. Is the file reachable via the WP template hierarchy?
 
-**Verdict: candidate (d) — a hardcoded default literal that gets persisted — compounded by TWO forms writing the SAME key with different formats.** Not (a) (the footer *does* call `get_option`). Not "footer reads a different key than the Homepage form" — both use `dish_dash_opening_hours`.
+**Location.** `templates/page-dishdash.php` — plugin root `templates/` dir (Glob), **not** the theme
+(`theme/dish-dash-theme/` contains only `footer.php, functions.php, header.php, index.php, page.php,
+singular.php` — no `front-page.php`, no `page-dishdash.php`). Because it is not in the active theme, WordPress
+core never discovers it through the normal hierarchy or the `Template Name:` scan (core scans only the active
+theme's directory). Its `Template Name: DishDash` header (`page-dishdash.php:4`) is therefore inert on its own —
+registration is done explicitly by the plugin instead.
 
-The observed footer string **"Monday – Friday 10 AM – 7 PM" is byte-identical to a hardcoded default in the Template page** (`admin/pages/template-settings.php:50`).
+**How it is registered + routed (plugin, not core):**
+- `register_page_template()` adds it to the Page Attributes → Template dropdown:
+  `class-dd-template-module.php:143-144` → `$templates['page-dishdash.php'] = 'Dish Dash Full Page'`.
+  (Filter hooked at `:59`, `add_filter('theme_page_templates', …)`.)
+- `load_page_template()` swaps in the plugin file on `template_include`:
+  `class-dd-template-module.php:149-166` — **only** when `is_page()` **and**
+  `get_post_meta( get_the_ID(), '_wp_page_template', true ) === 'page-dishdash.php'` (`:150-152`), returning
+  `DD_TEMPLATES_DIR . 'page-dishdash.php'` if the file exists (`:153-156`). (Filter hooked at `:60`.)
 
-**Read side (footer):** `class-dd-template-module.php:861` — `get_option( 'dish_dash_opening_hours', '' )`. Default is empty, so an empty option would show the §B.4 fallback ("Mon – Fri: 10AM – 10PM"), NOT the observed text. Therefore the option is **not empty** — it holds "Monday – Friday 10 AM – 7 PM".
+So it is a **template-meta-matched, assignable page template** — *not* slug-matched. The `page-dishdash.php`
+filename prefix does **not** cause WP to auto-apply it to a page with slug `dishdash`; that convention only works
+for files inside the active theme, and this file is in the plugin. Routing is 100% driven by the
+`_wp_page_template` meta value, not by any slug (verified: no `is_page('dishdash')`, no `get_page_by_path`, no
+slug comparison anywhere in `load_page_template`).
 
-**Two write sides, one key (`dish_dash_opening_hours`):**
+**Does a page with slug `dishdash` exist / is any page assigned it?** — **PENDING (server).** Cannot be read
+from code. Run:
 
-1. **Homepage → Footer Section** (what the user calls "Homepage settings"):
-   - Field: `modules/homepage/class-dd-homepage-module.php:920` — `<textarea name="dish_dash_opening_hours">` (multi-line; hint "One line per entry" :921).
-   - Save/sanitize: `class-dd-homepage-module.php:156` — `'dish_dash_opening_hours' => 'sanitize_textarea_field'` (preserves newlines), applied at `:168`.
-   - This is where "Monday – Sunday 11:30 AM – 10:30 PM" was entered.
+```bash
+# Every page currently assigned the Full Page template:
+wp post list --post_type=page --post_status=any \
+  --meta_key=_wp_page_template --meta_value=page-dishdash.php \
+  --fields=ID,post_title,post_status,post_name
+```
 
-2. **Template page** (`Dish Dash → Template`):
-   - Field: `admin/pages/template-settings.php:190` — `<input type="text" name="dish_dash_opening_hours" value="<?php echo esc_attr($opening_hours); ?>">` (single line).
-   - Value pre-fill / read default: `template-settings.php:50` — `$opening_hours = get_option( 'dish_dash_opening_hours', 'Monday – Friday 10 AM – 7 PM' )`. **This literal is the observed footer text.**
-   - Save/sanitize: `template-settings.php:33` (in the allowlist) + `:37` — `update_option( $field, sanitize_text_field( $_POST[$field] ) )` (**collapses to a single line**).
-
-**Mechanism:** When the Template page is opened while the option is empty (or ever saved), its text input is pre-filled with the hardcoded default `'Monday – Friday 10 AM – 7 PM'` (`template-settings.php:50`); saving the page writes that literal into the shared `dish_dash_opening_hours` key via `sanitize_text_field` — **overwriting** the multi-line value the Homepage Footer form saved, and flattening newlines. So the footer (and `page-dishdash.php:166`) render the Template page's default, while the Homepage textarea still shows whatever it last saved. Two admin surfaces silently competing for one key is the root problem.
-
-**Also note — a THIRD, unrelated key:** `dd_opening_hours` (JSON, per-day sessions) drives the open/closed logic and is **not** used by the footer. Do not conflate it. Write: `admin/pages/settings.php:69-73`. Reads: `settings.php:115`, `admin/pages/dashboard.php:186`, `dishdash-core/class-dd-helpers.php:400`.
+An empty result ⇒ the template is assigned to nothing ⇒ **the file never loads** (wholly dead).
+A non-empty result ⇒ it renders for those page(s).
 
 ---
 
-## C. Existing settings infrastructure
+## 2. Is it reachable via code (include / require / locate_template / filters)?
 
-### Every footer-related option key already registered
+Full-repo grep for `page-dishdash`, `get_template_part`, `locate_template`, `include`, `require`,
+`template_include`, `page_template`:
 
-**Homepage → "7. Footer Section"** (`modules/homepage/class-dd-homepage-module.php`, saved in the `$fields` map :152-159, applied :162-169):
+- The **only** executable references that route to the file are the two filters above:
+  `class-dd-template-module.php:59-60`, implemented at `:143-166`.
+- `template_include` also carries `maybe_load_birthday_template` (`:88`, impl near `:1000-1001`) — it matches
+  `_wp_page_template === 'page-dishdash.php'` only to decide the **birthday** template; it does not add a second
+  route to page-dishdash.php.
+- No `include`/`require`/`get_template_part`/`locate_template` anywhere targets `page-dishdash.php`. It is never
+  pulled in as a partial.
+- No `page_template` filter and no other `template_include` handler forces it.
+- Remaining hits are documentation (`CLAUDE.md`, `ARCHITECTURE.md`, `MODULE_CONTRACT.md`, `CSS_REGISTRY.md`,
+  `AUDIT.md`), asset-file header comments (`assets/js/frontend.js:4,35`, `assets/js/search.js:37`,
+  `assets/css/theme.css:4,11`, `dishdash-core/class-dd-helpers.php:17,235`), and the file's own header — none
+  are executable routes.
 
-| Key | Field label | Type | Save / field line | Read by footer? |
-|---|---|---|---|---|
-| `dd_footer_show_description` | Show Footer Description | checkbox | :153 / :913 | **NO — dead** |
-| `dd_footer_description` | (description textarea) | textarea | :154 / :916 | ✅ footer :866 |
-| `dd_footer_show_social` | Show Social Media Icons | checkbox | :155 / :926 | **NO — dead** |
-| `dish_dash_opening_hours` | Opening Hours | textarea | :156 / :920 | ✅ footer :861 (collides w/ Template) |
-| `dd_footer_show_explore` | Show Explore Column | checkbox | :157 / :930 | **NO — dead** |
-| `dd_footer_show_contact` | Show Contact Column | checkbox | :158 / :934 | **NO — dead** |
-| `dd_footer_show_hours` | Show Opening Hours Column | checkbox | :159 / :938 | **NO — dead** |
+**Conclusion:** one and only one code path can load this file — `load_page_template()` on a meta-matched page.
 
-**Template page** (`admin/pages/template-settings.php`):
-| `dish_dash_opening_hours` | Opening Hours | text input | :33 (save), :37 (sanitize), :190 (field), :50 (default) | ✅ footer :861 (competes with Homepage) |
+---
 
-**Brand Identity** (`admin/pages/brand-identity.php`, save allowlist :38-44, fields :242-297) — feed footer Contact + Social:
-| Key | Field | Save / field | Read by footer |
+## 3. What does the live homepage actually render?
+
+**What serves `/` depends on three options I cannot read — PENDING (server):**
+
+```bash
+wp option get show_on_front      # 'page' (static) or 'posts'
+wp option get page_on_front      # the front page's post ID (if static)
+wp post meta get <page_on_front_id> _wp_page_template   # '' | page-dishdash.php | page-simple.php
+```
+
+**Reasoning from code:**
+- The theme has **no `front-page.php`** (Glob), so WordPress would normally fall to the theme's `page.php`
+  (`theme/dish-dash-theme/page.php`, renders only `the_content()`) for a static front page.
+- But the plugin's `load_page_template` (`:149-166`) fires on `template_include` for **any** page including the
+  front page (`is_page()` is true for a static front page), so if the front page's meta is `page-dishdash.php`,
+  the plugin serves `templates/page-dishdash.php` for `/`.
+- **page-dishdash.php is the only place in the repo that emits the hero** the user describes: the hero title
+  (`:293`, `wp_kses_post($dd_h_title)` ← `dish_dash_hero_title`) and the feature chips (`:300-306` ←
+  `dd_hero_chip_1..4`). Searched the whole repo: no shortcode (`dish_dash_menu/cart/checkout/reserve/track` are
+  the only ones — `menu-module.php:49-52`, `orders-module.php:110`; **none render a hero**), and the homepage
+  module (`class-dd-homepage-module.php`) is an **admin settings form only** — it registers no frontend
+  shortcode and injects no hero.
+
+**Therefore, from code alone:** if the live `/` shows that hero, `/` is being served by page-dishdash.php, and
+the file is **LIVE**. The `file:line` that produces the hero the user sees is
+**`templates/page-dishdash.php:288-346`** (title `:293`, chips `:300-306`).
+
+### The pill contradiction — flagged, not resolved
+
+The brief's premise is that the pill literal **"Authentic Indian Dining"** (`page-dishdash.php:292`) does **not**
+appear live. But `:292` is **unconditional** (`<span class="dd-pill">Authentic Indian Dining</span>` — no `if`
+guard) and `.dd-pill` is visible CSS (`theme.css:603-615`, `display:inline-flex`, not hidden). So **if
+page-dishdash.php renders, the pill renders.**
+
+That yields a contradiction that code cannot settle:
+- **Either** the live `/` is **not** page-dishdash.php (then *what* renders the hero? nothing in the repo does —
+  which would imply live content/templates that aren't in the repo: a page-builder, pasted hero HTML in the page
+  body, or a server-only `front-page.php`), **UNPROVEN**;
+- **or** the live `/` **is** page-dishdash.php and the pill is in fact present (overlooked), or the deployed file
+  is stale vs. the repo.
+
+**Resolve with one command** (definitive, cheap):
+
+```bash
+curl -s https://dishdash.khanakhazana.rw/ | grep -o 'dd-pill[^<]*</span>\|dd-hero__title[^<]*'
+```
+
+- Pill string present ⇒ page-dishdash.php **is** the live homepage (verdict: **LIVE**, and the brief's premise
+  was mistaken).
+- Pill absent but a hero is on screen ⇒ the hero comes from **outside the repo** — escalate before any deletion.
+
+---
+
+## 4. Partial vs total death
+
+**Gate:** the whole file only executes if §1's command returns an assigned page. Assuming it does, the
+section-level breakdown is:
+
+| Section | `file:line` | Verdict | Basis |
 |---|---|---|---|
-| `dish_dash_address` | Address | :38 / :242 | footer :858 |
-| `dish_dash_phone` | Phone | :39 / :250 | footer :859 |
-| `dish_dash_contact_email` | Email | :40 / :256 | footer :860 |
-| `dish_dash_facebook` | Facebook | :41 / :276 | footer :862 |
-| `dish_dash_instagram` | Instagram | :42 / :283 | footer :863 |
-| `dish_dash_whatsapp` | WhatsApp | :43 / :290 | footer :864 |
-| `dish_dash_tiktok` | TikTok | :44 / :297 | footer :865 |
-| `dish_dash_restaurant_name` | Restaurant name | field :107 | footer :855 (brand + copyright) |
+| PHP setup: WC guard, URL/option reads, product queries | `39-253` | **LIVE** (when file loads) | Feeds the rendered sections below |
+| Social-link vars `$dd_fb/$dd_ig/$dd_wa` | `94-96` | **DEAD** | Each used exactly once (definition only); no social markup in this file — header is injected |
+| Footer toggle + text vars `$dd_footer_*`, `$dd_footer_desc` | `160-165` | **DEAD** | Read, never rendered; no `<footer>`/`dd-footer` markup in file (grep: 0) |
+| Opening-hours vars `$dd_hours` → `$dd_hours_lines`, `$dd_tiktok` | `166-167, 232` | **DEAD** | `$dd_hours_lines` defined at `:232`, never rendered; `$dd_tiktok` definition-only |
+| `<head>` + `wp_head()` | `254-268` | **LIVE** | Document head |
+| `<body>` open + `wp_body_open()` (header injected here) | `269-276` | **LIVE** | Header comes from `inject_global_header()`, not in-file (`:276` comment) |
+| **HERO** (incl. pill `:292`, title `:293`, chips `:300-306`) | `288-346` | **LIVE** | Unconditional render; the user-visible hero |
+| Mobile category list | `362-406` | **LIVE** | Rendered section |
+| Categories | `410-447` | **LIVE** | Rendered section |
+| Menu / Featured dishes | `451-502` | **LIVE** | Rendered section |
+| Reserve band | `504-516` | **LIVE** | Rendered section |
+| Selected-category | `520-564` | **LIVE** | Rendered section |
+| Google Reviews | `821-1125` (debug `819`) | **LIVE** | Rendered section |
+| `wp_footer()` (footer + cart + modals injected here) | `1127` | **LIVE** | Fires `inject_global_footer`, `inject_cart_sidebar`, `inject_product_modal`, `inject_reservation_modal` |
 
-- `dish_dash_logo_url` (footer logo, read `:856`): registration line **not confirmed** this pass — only the read site was verified. Brand Identity is the likely home; reporting as unconfirmed rather than guessing.
-
-> ⚠ **Social icons memory claim — REFUTED.** Memory said social icons "already live in Template Settings." They are registered in **Brand Identity** (`brand-identity.php:41-44`, fields :276-297), **not** Template Settings. (Template Settings only manages hero fields + opening hours.)
-
-> ⚠ **Dead footer toggles.** The five `dd_footer_show_*` checkboxes are saved by the Homepage form but **never gate the rendered footer**: `inject_global_footer()` (:852-934) never reads them, and `page-dishdash.php` reads them into variables (:160-165) that are never used (that template renders no footer). So "Show Explore/Contact/Hours/Social/Description Column" currently do nothing on the live site.
-
-### One working footer option, traced end-to-end: `dd_footer_description`
-1. **Field render** — `modules/homepage/class-dd-homepage-module.php:916`:
-   `<textarea name="dd_footer_description" …><?php echo esc_textarea( $this->get( 'dd_footer_description', 'Premium Indian dining …' ) ); ?></textarea>`
-2. **Save / sanitize** — `class-dd-homepage-module.php:154` (`'dd_footer_description' => 'sanitize_textarea_field'`), applied in the loop `:162-169` → `:168` `update_option( $key, $sanitizer( $_POST[$key] ?? '' ) )`.
-3. **Read site** — `modules/template/class-dd-template-module.php:866`:
-   `$dd_footer_desc = get_option( 'dd_footer_description', 'Premium Indian dining and a refined digital ordering experience.' );` → output at `:884` (`esc_html`).
-
-Pattern new footer fields should follow: register in the Homepage `$fields` map → render field with `$this->get()` → read via `get_option` in `inject_global_footer()`.
+**Provably dead even when the file loads:** the footer/social/hours variable block
+(`94-96, 160-167, 232`). These are leftovers from an era when this template rendered its own footer inline; the
+footer is now supplied by `inject_global_footer()` (`class-dd-template-module.php:852+`, hooked to `wp_footer`
+at `:75`), which reads its **own** copies of these options. Removing the dead reads from page-dishdash.php would
+change nothing on screen. **The hero pill (`:292`) is LIVE-within-the-file** — it is only "dead" in the sense of
+being a non-editable hardcoded literal, not unreachable. Do **not** conflate the two.
 
 ---
 
-## D. Wide grep — other hardcoded restaurant data (scope check)
+## 5. Blast radius of deletion
 
-> The brief's explicit literal list did not arrive intact (text truncated after "Grep theme + plugin for these literals"). I grepped the obvious brand/locale literals: `Khana Khazana`, `Fri Soft`, `Authentic Indian`, `Kigali`, `Indian Restaurant/dining`, `Africa/Kigali`. All hits below.
+**If §1 + §3 prove the file is assigned to nothing (wholly dead):**
+- Nothing `include`/`require`s it (§2) → no PHP fatal from a dangling include.
+- If it is genuinely unassigned, no page routes to it → deleting it changes no rendered page.
+- Fallback safety net exists: any page that *were* assigned it would, after deletion, fall through
+  `load_page_template`'s `file_exists()` guard (`:154`) back to the passed-in `$template` (theme `page.php`) —
+  so even a mis-assigned page degrades to the theme page, not a white screen. (The dropdown entry would still
+  list "Dish Dash Full Page" via `:144` until that line is also removed — cosmetic dangling option.)
+- Admin UI: it **is** listed as a selectable template (`:143-144`), so a wholesale delete should also drop that
+  registration line to avoid offering a template that no longer exists.
 
-### D1 — TRUE hardcoded literals (do NOT read an option → white-label leaks)
-- `modules/orders/class-dd-orders-module.php:151` — `'— Khana Khazana 🍽'` appended to a customer-facing order message. **Hardcoded, ignores `dish_dash_restaurant_name`.**
-- `modules/orders/class-dd-notifications.php:183` — `'[Khana Khazana] New Order …'` (admin email subject). Hardcoded.
-- `class-dd-notifications.php:207` — `Khana Khazana &mdash; …` (email header HTML). Hardcoded.
-- `class-dd-notifications.php:227` — `Dish Dash &mdash; Khana Khazana ordering system` (email footer). Hardcoded.
-- `class-dd-notifications.php:233` — `'From: Khana Khazana <…>'` (email From name). Hardcoded.
-- `class-dd-notifications.php:263` — `'✅ Order Confirmed! — Khana Khazana'` (customer email subject). Hardcoded.
-- `class-dd-notifications.php:293` — `'🔔 New Order … — Khana Khazana'` (admin email subject). Hardcoded.
-- `templates/page-dishdash.php:292` — `<span class="dd-pill">Authentic Indian Dining</span>` — homepage hero pill. **Hardcoded literal**, not an option.
-- `modules/template/class-dd-template-module.php:929` — footer copyright `Built by Fri Soft Ltd` — literal, no toggle (in scope for this brief).
-- `modules/auth/class-dd-auth-module.php:843` — login page `Built with care by … Fri Soft Ltd`. Literal.
-- `modules/auth/class-dd-auth-module.php:958` — auth email footer `&copy; … <name> &mdash; Fri Soft Ltd` (name is option; "Fri Soft Ltd" literal).
-
-### D2 — Option-backed defaults (fallback only; correct pattern, but default = Khana Khazana / Indian / Kigali)
-`dish_dash_restaurant_name` default `'Khana Khazana'`:
-- `class-dd-template-module.php:630, :855`; `modules/reservations/class-dd-reservations-module.php:204`; `class-dd-reservations-admin.php:400`; `class-dd-notifications.php:44`; `modules/menu/class-dd-menu-module.php:321`; `modules/auth/class-dd-auth-module.php:376, 936, 1066` (+ `dd_smtp_from_name` fallbacks :201, 983, 1024); `templates/menu/grid.php:175, 346`; `templates/page-dishdash.php:87`.
-
-Other option defaults carrying brand/locale text:
-- `templates/page-dishdash.php:91` — `dish_dash_address` default `'Kigali, Rwanda'`.
-- `templates/page-dishdash.php:105` — `dish_dash_hero_title` default `'Best Indian Flavor in Kigali'`.
-- `templates/page-dishdash.php:119` — `dd_hero_chip_1` default `'Authentic Indian Flavors'`.
-- `class-dd-template-module.php:866` / `page-dishdash.php:161` / `homepage-module.php:916` — `dd_footer_description` default `'Premium Indian dining …'`.
-- `dd_timezone` default `'Africa/Kigali'` — `reservations-module.php:71`; `helpers.php:329, 412, 417, 458`; `settings.php:83, 120, 556`. (Locale default; reasonable.)
-
-### D3 — Admin-only placeholders / preview labels (cosmetic, not shipped to customers)
-- `modules/homepage/class-dd-homepage-module.php:411` placeholder `'Best Indian Flavor in Kigali'`; `:533` chip defaults `['Authentic Indian Flavors', …]`; `:916` placeholder.
-- `admin/pages/brand-identity.php:107` placeholder `'e.g. Khana Khazana'`.
-- `admin/pages/template-settings.php:81, 92` and `class-dd-template-module.php:474, 484` — Template-card preview labels "Khana Khazana" (admin UI only).
-- `templates/cart/cart.php:170` — address input placeholder `'Kacyiru, Kigali'`.
-
-### D4 — Legitimate authorship (leave as-is)
-- `dish-dash.php:7` — plugin header `Author: Fri Soft Ltd`.
-- `dishdash-core/class-dd-github-updater.php:142` — updater author link `Fri Soft Ltd`.
-- `modules/activity/class-dd-activity-module.php:28` — code comment.
-- `vendor/giggsey/libphonenumber-for-php/…/map_data.php:2097` — vendored library data (`250 => 'Africa/Kigali'`), not ours.
+**If §3 proves it is the live homepage (partly live):** the removable-without-touching-the-live-path parts are
+exactly the §4 **DEAD** rows — the footer/social/hours variable reads (`94-96, 160-167, 232`). Everything from
+`254` onward is on the live render path and must not be touched in a "delete dead code" pass. The hero pill
+(`:292`) is on the live path; making it editable is a *feature* change, not dead-code removal, and is explicitly
+out of scope here.
 
 ---
 
-## Summary for the fix phase (no code changed)
+## 6. Same-class check (report only — NOT investigated deeply)
 
-1. **Footer is one place:** `inject_global_footer()` (`class-dd-template-module.php:852`), on every frontend page.
-2. **Opening-hours bug:** two admin forms write `dish_dash_opening_hours` — Homepage textarea (`homepage-module.php:156/920`) vs Template text input with a hardcoded default `'Monday – Friday 10 AM – 7 PM'` (`template-settings.php:50/37/190`). The Template default is the string on the live footer. Fix = pick ONE writer (or split into distinct keys), drop the hardcoded default, and reconcile single-line vs multi-line sanitize. Read site: `class-dd-template-module.php:861`.
-3. **Dead toggles:** `dd_footer_show_*` (`homepage-module.php:153-159`) are saved but never gate the footer — wire them into `inject_global_footer()` or remove them.
-4. **Explore labels** and **"Built by Fri Soft Ltd"** are literals with no config surface (copyright has no toggle).
-5. **Hardcoded "Khana Khazana"** in order messages + all notification emails (§D1) ignore the option — white-label leaks beyond the footer.
-6. Social icons live in **Brand Identity**, not Template Settings (memory corrected).
+Other templates that use the **same** assignment-dependent mechanism and could be unrouted if unassigned:
+
+- **`templates/page-simple.php`** — registered (`class-dd-template-module.php:145`, "Dish Dash Simple Page")
+  and routed identically (`:158-163`) via `_wp_page_template === 'page-simple.php'`. Same smell: loads only if a
+  page is assigned it. Assignment is **PENDING (server)** —
+  `wp post list --post_type=page --meta_key=_wp_page_template --meta_value=page-simple.php --fields=ID,post_title,post_status`.
+  (It renders a plain title + `the_content()` via the theme header/footer — `page-simple.php:1-25` — so unlike
+  page-dishdash.php it carries no dead footer block.)
+- **`theme/dish-dash-theme/singular.php`** — standard hierarchy fallback; reachable only if neither `page.php`
+  nor `single.php` applies. Low-priority "possibly never hit" candidate; not verified.
+
+Standard theme files `index.php`, `page.php`, `header.php`, `footer.php` are normal hierarchy/`get_header`/
+`get_footer` targets and are **not** in this suspicion class.
+
+---
+
+## What needs a server check before any follow-up (consolidated)
+
+1. `wp post list --post_type=page --post_status=any --meta_key=_wp_page_template --meta_value=page-dishdash.php --fields=ID,post_title,post_status,post_name` — is the Full Page template assigned to anything?
+2. `wp option get show_on_front` / `wp option get page_on_front` / `wp post meta get <id> _wp_page_template` — what serves `/`?
+3. `curl -s https://dishdash.khanakhazana.rw/ | grep -o 'dd-pill[^<]*</span>\|dd-hero__title[^<]*'` — is the pill actually on the live homepage? (settles §3's contradiction)
+4. (same-class) `wp post list … --meta_value=page-simple.php …` — is the Simple Page template assigned to anything?
+
+**Verdict is deferred to those results.** From code: page-dishdash.php is reachable by exactly one route, is the
+repo's sole hero renderer, and carries a provably-dead footer/social/hours variable block regardless of whether
+the file as a whole is live. The follow-up remains one release — **either** delete the whole template (if the
+server proves it is assigned to nothing) **or** delete only the §4 DEAD rows from a live template — decided by
+the checks above, not a theme-wide sweep.
