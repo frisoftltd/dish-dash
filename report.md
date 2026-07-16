@@ -1183,3 +1183,52 @@ the developer types the text** — expected, and called out in the release descr
 6. `curl -s https://dishdash.khanakhazana.rw | grep -c dd-pill` → 1 when set, 0 when not.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.72 — R1: order notification emails read the restaurant name option
+
+**Task:** Replace the six hardcoded "Khana Khazana" literals in the order-notification path with the same
+`get_option` read the reservation path already uses. One file.
+
+### Pattern matched (reported before editing)
+
+The reservation builder (`class-dd-reservations-module.php`) reads **once into `$restaurant`** with fallback
+`'Khana Khazana'` (`:204`), then re-uses the variable: subject `sprintf('[%s] New Reservation — %s', $restaurant,…)`
+(`:209`, no escaping), footer `esc_html($restaurant)` (`:289`, HTML body), From `'From: ' . $restaurant . ' <…>'`
+(`:300`, raw in header). I matched this exactly — no second pattern invented.
+
+### File changed — `modules/orders/class-dd-notifications.php` (6 sites, 3 methods)
+
+**`notify_admin_email()`** — added `$restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );`
+right after the `$admin_email` guard, then:
+- `:183` subject → `sprintf( '[%s] New Order %s — %s RWF', $restaurant, … )` — **raw** (plain-text subject; mirrors reservation `:209`).
+- `:207` body sub-line → `' . esc_html( $restaurant ) . ' &mdash; …` — **`esc_html()`** (HTML body).
+- `:227` footer → `Dish Dash &mdash; ' . esc_html( $restaurant ) . ' ordering system` — **`esc_html()`** (HTML body). "Dish Dash" product word left intact (R4).
+- `:233` From-name → `'From: ' . $restaurant . ' <' . get_option( 'woocommerce_email_from_address', $admin_email ) . '>'` — **raw** in the header (mirrors reservation `:300`; from-address read untouched).
+
+**`build_customer_whatsapp_url()`** — added the same read, then `'✅ Order Confirmed! — ' . $restaurant` — **raw** (plain text inside the rawurlencoded wa.me message).
+
+**`build_admin_whatsapp_url()`** — added the same read, then `'🔔 New Order ' . $order['order_number'] . ' — ' . $restaurant` — **raw** (plain text).
+
+### Escaping rationale (as requested)
+- **Subject, From-name, WhatsApp** → raw `$restaurant`. No HTML context; the reservation path does the same, and WhatsApp text is `rawurlencode`d downstream.
+- **HTML email body** (sub-line + footer) → `esc_html( $restaurant )`, matching the reservation footer.
+
+### Verification
+- `grep "Khana Khazana"` on the file now returns **only** the four `get_option( …, 'Khana Khazana' )` fallback defaults (`:44` reservation, `:183`/`:264`/`:296` the three new reads) — zero hardcoded output literals remain.
+- By inspection (no PHP linter in this environment; developer smoke-tests live).
+- Version bumped 3.10.71 → 3.10.72 (both spots in `dish-dash.php`); CLAUDE.md updated (Last updated, Current State, changelog).
+
+### Not touched (per brief)
+- `orders-module.php:151` birthday WhatsApp — R2.
+- `#65040d` brand hex — R3.
+- "Dish Dash" product word in footers — R4 (decision-gated).
+- Customer email path / missing `templates/emails/*.php` / dead `notify_restaurant()` — separate ticket (no customer-email recipient is collected anyway).
+
+**Smoke test (developer, after deploy):**
+1. Place a test order → admin email subject, body sub-line, footer, and From-name all read "Khana Khazana" (no tagline, no stray separator).
+2. Compare to a reservation admin email — now consistent.
+3. Change Brand Identity name, place another test order → the email follows the new name.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

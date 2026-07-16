@@ -180,7 +180,10 @@ class DD_Notifications {
         $admin_email = get_option( 'dd_admin_email', get_option( 'admin_email' ) );
         if ( ! $admin_email ) return;
 
-        $subject = sprintf( '[Khana Khazana] New Order %s — %s RWF',
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+
+        $subject = sprintf( '[%s] New Order %s — %s RWF',
+            $restaurant,
             $order['order_number'],
             number_format( $order['total'] )
         );
@@ -204,7 +207,7 @@ class DD_Notifications {
         <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #eee;">
             <div style="background:#65040d;padding:20px 24px;">
                 <h2 style="color:#fff;margin:0;font-size:18px;">&#128276; New Order ' . esc_html( $order['order_number'] ) . '</h2>
-                <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px;">Khana Khazana &mdash; ' . esc_html( date( 'D j M Y, H:i' ) ) . '</p>
+                <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px;">' . esc_html( $restaurant ) . ' &mdash; ' . esc_html( date( 'D j M Y, H:i' ) ) . '</p>
             </div>
             <div style="padding:20px 24px;">
                 <table style="width:100%;border-collapse:collapse;">
@@ -224,13 +227,13 @@ class DD_Notifications {
                 </table>
             </div>
             <div style="background:#f9f5f0;padding:12px 24px;text-align:center;font-size:12px;color:#aaa;">
-                Dish Dash &mdash; Khana Khazana ordering system
+                Dish Dash &mdash; ' . esc_html( $restaurant ) . ' ordering system
             </div>
         </div>';
 
         $headers = [
             'Content-Type: text/html; charset=UTF-8',
-            'From: Khana Khazana <' . get_option( 'woocommerce_email_from_address', $admin_email ) . '>',
+            'From: ' . $restaurant . ' <' . get_option( 'woocommerce_email_from_address', $admin_email ) . '>',
         ];
 
         wp_mail( $admin_email, $subject, $body, $headers );
@@ -258,9 +261,10 @@ class DD_Notifications {
         }
 
         $admin_phone = preg_replace( '/[^0-9]/', '', get_option( 'dd_whatsapp_admin', '' ) );
+        $restaurant  = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
 
         $msg = implode( "\n", [
-            '✅ Order Confirmed! — Khana Khazana',
+            '✅ Order Confirmed! — ' . $restaurant,
             '──────────────────',
             'Order ' . $order['order_number'],
             'Estimated time: ' . get_option( 'dd_delivery_eta', '30–45 minutes' ),
@@ -289,8 +293,10 @@ class DD_Notifications {
             ? number_format( $order['delivery_fee'] ) . ' RWF'
             : 'FREE';
 
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+
         $msg = implode( "\n", [
-            '🔔 New Order ' . $order['order_number'] . ' — Khana Khazana',
+            '🔔 New Order ' . $order['order_number'] . ' — ' . $restaurant,
             '──────────────────',
             $items_text,
             '──────────────────',
