@@ -536,3 +536,56 @@ R1 handoff logic, the v3.10.59 button styling, and all server-side phone normali
 reservation buttons may render unstyled for the same reason — flagged for a future release.
 
 **Status:** Implemented, committed, pushed — awaiting developer verify.
+
+---
+
+## v3.10.61 — Remove dead PesaPal deposit path from reservations (pure removal)
+
+**What was removed** — all in `modules/reservations/class-dd-reservations-module.php`,
+all part of the never-executed deposit-via-PesaPal route (gated behind `$deposit_enabled = 0`):
+
+1. **Hook registration (was line 31):**
+   `add_action( 'woocommerce_payment_complete', [ $this, 'on_deposit_payment_complete' ] );`
+   — a reservations-only callback that always no-opped (it early-returns unless the order has
+   `_dd_is_deposit` meta, which no order ever had, since the deposit path never ran).
+2. **The `if ( $deposit_enabled ) { … }` block in `ajax_submit_reservation()` (was lines 140–174)**
+   — created the WC order via `create_deposit_wc_order()`, scheduled auto-cancel, tracked
+   `deposit_initiated`, and returned `requires_payment` / `payment_url` (the PesaPal redirect).
+3. **`create_deposit_wc_order()` (was lines 399–424)** — `wc_create_order()` + a fee item +
+   `$order->set_payment_method( 'pesapal' )` + `_dd_is_deposit` meta.
+4. **`on_deposit_payment_complete()` (was lines 428–475)** — the deposit-side payment-complete
+   handler + its `// ── Deposit payment complete ──` section comment.
+
+**What was kept (per brief):**
+- `$deposit_enabled = 0` / `$deposit_amount = 0` / `$deposit_status = 'none'` hardcodes and the
+  insert's `deposit_required` / `deposit_amount` / `deposit_status` columns — deposits stay OFF until R3.
+- `calculate_deposit_amount()` — dead (no callers, confirmed by grep) but a generic amount helper,
+  not part of the PesaPal/WC-order route; R3 wires it in. Left in place to avoid re-adding it later.
+- All deposit SETTINGS (Require Deposit, amount, type, auto-cancel hours, refunds, refund policy).
+- `run_autocancel()` and its `dd_reservation_autocancel` hook (line 31 now) — untouched (R4 territory).
+- `send_admin_email()` — shared with the free-booking path (called at the `// 9. Email admin` step);
+  only the deposit CALLER (`on_deposit_payment_complete`) was removed, not the method.
+
+**Confirmation that nothing shared with the ORDER PesaPal flow was touched:**
+- The removed `woocommerce_payment_complete` registration was the RESERVATIONS module's own callback.
+  The ORDERS module registers its OWN, separate `woocommerce_payment_complete` →
+  `DD_Notifications::on_payment_complete` — that is in a different module and was NOT touched.
+- No change to the PesaPal gateway, `class-dd-pesapal.php`, `ajax_pesapal_check_status`, the
+  order transient-then-confirm logic, or anything in the orders module.
+- `reservations.js` was NOT touched — it contains no PesaPal redirect / `payment_url` /
+  `requires_payment` handling (verified by grep). `depositActive = false` (:36) and the deposit UI
+  scaffolding stay in place per the brief.
+
+**Ambiguous/shared code:** none. `send_admin_email()` is shared but was left intact (only its dead
+caller was removed). No code used by both surfaces was modified.
+
+**Verification done here:** post-removal grep for `create_deposit_wc_order`, `on_deposit_payment_complete`,
+`_dd_is_deposit`, `WC_Order_Item_Fee`, `get_checkout_payment_url`, `requires_payment` →
+**zero matches** in the module. Control flow around the removed block reads cleanly
+(insert → build WhatsApp URLs → email → success). PHP lint not run (no PHP binary in the env);
+change verified by inspection.
+
+**Scope:** one file — `class-dd-reservations-module.php`. No schema, no `deposit_status`, no auto-cancel change.
+
+**Status:** Implemented, committed, pushed — awaiting developer verify (esp. the PesaPal
+ORDER place + abandon/no-ghost-row test).

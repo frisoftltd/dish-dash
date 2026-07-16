@@ -28,7 +28,6 @@ class DD_Reservations_Module extends DD_Module {
         DD_Ajax::register( 'dd_reservation_update_status', [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_res_bulk_action',           [ $this, 'ajax_bulk_action'    ], false );
 
-        add_action( 'woocommerce_payment_complete', [ $this, 'on_deposit_payment_complete' ] );
         add_action( 'dd_reservation_autocancel',    [ $this, 'run_autocancel' ], 10, 1 );
     }
 
@@ -136,42 +135,6 @@ class DD_Reservations_Module extends DD_Module {
         }
 
         $reservation_id = (int) $wpdb->insert_id;
-
-        // 7B. Deposit path — create WC order and return payment URL
-        if ( $deposit_enabled ) {
-            $wc_order = $this->create_deposit_wc_order(
-                [ 'id' => $reservation_id, 'booking_ref' => $booking_ref, 'name' => $name, 'whatsapp' => $whatsapp ],
-                (float) $deposit_amount
-            );
-
-            if ( is_wp_error( $wc_order ) ) {
-                $wpdb->delete( $res_table, [ 'id' => $reservation_id ], [ '%d' ] );
-                wp_send_json_error( [ 'message' => 'Payment setup failed. Please try again.' ] );
-                return;
-            }
-
-            $autocancel_hours = (int) get_option( 'dd_reservation_autocancel_hours', 2 );
-            wp_schedule_single_event(
-                time() + ( $autocancel_hours * HOUR_IN_SECONDS ),
-                'dd_reservation_autocancel',
-                [ $reservation_id ]
-            );
-
-            do_action( 'dd_track_event', 'deposit_initiated', null, null, [
-                'booking_ref'  => $booking_ref,
-                'amount'       => $deposit_amount,
-                'deposit_type' => get_option( 'dd_reservation_deposit_type', 'fixed' ),
-                'wc_order_id'  => $wc_order->get_id(),
-            ] );
-
-            wp_send_json_success( [
-                'requires_payment' => true,
-                'payment_url'      => $wc_order->get_checkout_payment_url(),
-                'booking_ref'      => $booking_ref,
-                'deposit_amount'   => $deposit_amount,
-            ] );
-            return;
-        }
 
         // 8. Build WhatsApp notification URLs (free booking path)
         $wa_urls = DD_Notifications::on_reservation_created( [
@@ -394,84 +357,6 @@ class DD_Reservations_Module extends DD_Module {
         $amount = (int) get_option( 'dd_reservation_deposit_amount', 2000 );
         // Percentage type reserved for future — needs a base order value not available at booking time
         return $amount;
-    }
-
-    private function create_deposit_wc_order( array $reservation, float $deposit_amount ): WC_Order|WP_Error {
-        $order = wc_create_order();
-        if ( is_wp_error( $order ) ) return $order;
-
-        $fee = new WC_Order_Item_Fee();
-        $fee->set_name( 'Table Reservation Deposit — ' . $reservation['booking_ref'] );
-        $fee->set_amount( $deposit_amount );
-        $fee->set_total( $deposit_amount );
-        $fee->set_tax_status( 'none' );
-        $order->add_item( $fee );
-
-        $order->set_billing_first_name( $reservation['name'] );
-        $order->set_billing_phone( $reservation['whatsapp'] );
-        $order->set_billing_email( get_option( 'admin_email' ) );
-
-        $order->set_payment_method( 'pesapal' );
-        $order->calculate_totals();
-        $order->set_status( 'pending' );
-
-        $order->update_meta_data( '_dd_reservation_id', $reservation['id'] );
-        $order->update_meta_data( '_dd_booking_ref',    $reservation['booking_ref'] );
-        $order->update_meta_data( '_dd_is_deposit',     1 );
-
-        $order->save();
-        return $order;
-    }
-
-    // ── Deposit payment complete ───────────────────────────────────────────
-
-    public function on_deposit_payment_complete( int $wc_order_id ): void {
-        $order = wc_get_order( $wc_order_id );
-        if ( ! $order ) return;
-
-        $is_deposit     = $order->get_meta( '_dd_is_deposit' );
-        $reservation_id = (int) $order->get_meta( '_dd_reservation_id' );
-        if ( ! $is_deposit || ! $reservation_id ) return;
-
-        global $wpdb;
-        $wpdb->update(
-            $wpdb->prefix . 'dishdash_reservations',
-            [
-                'deposit_status'  => 'paid',
-                'deposit_paid_at' => current_time( 'mysql' ),
-                'payment_ref'     => (string) $wc_order_id,
-                'status'          => 'confirmed',
-            ],
-            [ 'id' => $reservation_id ],
-            [ '%s', '%s', '%s', '%s' ],
-            [ '%d' ]
-        );
-
-        $reservation = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}dishdash_reservations WHERE id = %d",
-                $reservation_id
-            ),
-            ARRAY_A
-        );
-        if ( ! $reservation ) return;
-
-        do_action( 'dd_track_event', 'deposit_paid', null, null, [
-            'booking_ref' => $reservation['booking_ref'],
-            'wc_order_id' => $wc_order_id,
-        ] );
-
-        $this->send_admin_email( [
-            'booking_ref'      => $reservation['booking_ref'],
-            'date'             => $reservation['date'],
-            'time'             => $reservation['time'],
-            'session'          => $reservation['session'],
-            'guests'           => $reservation['guests'],
-            'table_pref'       => '',
-            'name'             => $reservation['name'],
-            'whatsapp'         => $reservation['whatsapp'],
-            'special_requests' => $reservation['special_requests'] ?? '',
-        ] );
     }
 
     // ── AJAX: Bulk action ──────────────────────────────────────────────────
