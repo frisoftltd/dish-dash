@@ -816,3 +816,63 @@ close; the claim endpoint is nopriv + booking_ref-keyed + pending-only; `run_aut
 
 **Status:** Implemented, committed, pushed — FINAL release of the reservation track; awaiting developer
 verify on a NON-PROD site (esp. verify step 4: a claimed booking still auto-cancels).
+
+---
+
+## v3.10.66 — Admin "Mark deposit paid" control (closes the deposit loop)
+
+**Endpoint / route + capability check:**
+- AJAX action `dd_reservation_mark_deposit_paid` → `DD_Reservations_Module::ajax_mark_deposit_paid()`.
+  Registered `DD_Ajax::register( 'dd_reservation_mark_deposit_paid', [...], false )` — **not nopriv**
+  (logged-in only; there is no `wp_ajax_nopriv_` hook).
+- Auth: `DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' )` (the admin nonce the Reservations page
+  already prints) **plus** `current_user_can( 'dd_manage_reservations' )`.
+- Capability chosen: `dd_manage_reservations` — this is exactly what the Reservations submenu itself
+  requires (`add_submenu_page( …, 'dd_manage_reservations', 'dd-reservations', … )`) and what
+  `ajax_bulk_action()` already checks. (Note: `ajax_update_status()` is nonce-only with no
+  `current_user_can` — I used the stronger, explicit capability check to match the page + bulk action.)
+- Keyed on reservation `id`. Guards: booking must EXIST and `deposit_required = 1`. Idempotent —
+  updates only when `deposit_status IN ('pending','claimed')` (→ `'paid'`, also stamps
+  `deposit_paid_at`); re-tap on an already-`paid` booking is a no-op. Fires `deposit_confirmed_paid`
+  tracking. Does NOT unschedule the cron (per brief) — `run_autocancel()` already skips `'paid'`.
+
+**How the deposit state is surfaced in the list:**
+The Reservations table already had a **Deposit column** (rendered when `deposit_required` is set) showing
+a labelled `deposit_status` + the amount. I extended its label map to include `claimed` →
+"🙋 Claimed (unverified)" (previously `claimed` fell through to the raw string). So the restaurant sees
+`⏳ Awaiting` / `🙋 Claimed (unverified)` / `✅ Paid` / `✗ Failed` at a glance, and the new
+"✅ Mark deposit paid" button appears in the row Actions exactly for the `pending`/`claimed` rows.
+The button is gated **per booking** — `deposit_required = 1 AND deposit_status IN ('pending','claimed')`
+— NOT on `dd_reservation_deposit_enabled`, so turning deposits off never strands an existing unconfirmed
+deposit. `none` / `paid` / `failed` rows show no action. Wired by an inline JS handler that mirrors the
+existing `.dd-res-status-btn` pattern (fetch → toast → reload). New amber `.dd-res-action-btn--deposit`
+CSS modifier (both action-button blocks in reservations-admin.css).
+
+**Where `status='confirmed'` is written on claim (KNOWN ISSUE — flagged, NOT fixed):**
+Investigation finding: **there is NO on-claim code path that writes `status='confirmed'`.** The customer
+claim endpoint `ajax_claim_deposit()` (v3.10.65) writes ONLY `deposit_status='claimed'` and never touches
+the booking `status`; reservations.js writes no status either. A repo-wide search for reservation
+`status` being set to `'confirmed'` finds only:
+  - `ajax_update_status()` — the admin "Confirm" button (`data-status="confirmed"`), and
+  - `ajax_bulk_action()` — bulk "Confirm".
+  (The old `on_deposit_payment_complete()` used to set `status='confirmed'` + `deposit_status='paid'`,
+   but it was removed in v3.10.61 and never ran.)
+So the observed `status='confirmed'` on a merely-`claimed` booking (RES-20260720-2BA5) was written by a
+human clicking Confirm (or bulk-confirm), independent of the deposit state — the UI conflates the
+booking-workflow `status` with the payment `deposit_status`. Auto-cancel ignores `status`, so there's no
+exploit; but the display is misleading. **Flagged for a future release** (e.g. don't show "Confirmed"
+until `deposit_status='paid'`, or relabel/decouple the two). Not changed here, per the brief.
+
+**Boundaries respected:** `run_autocancel()` / the auto-cancel query untouched (read-only); customer
+claim endpoint (v3.10.65), deposit QR (v3.10.64), deposit amount logic (v3.10.62), booking flow,
+WhatsApp handoff, country picker, PesaPal, orders, cart.js all untouched. No reservation fees added; no
+manual cancel/refund actions (both explicitly out of scope).
+
+**Verification done here:** confirmed the row query is `SELECT *` (so `deposit_status`/`deposit_required`
+are available for the gate + label); the new endpoint uses the same admin nonce + a stronger capability
+than `ajax_update_status`; `deposit_paid_at` column exists (install.php:237). PHP lint not run (no PHP
+binary in env) — verified by inspection.
+
+**Status:** Implemented, committed, pushed — awaiting developer verify on a NON-PROD site (esp. verify
+step 3: a paid booking does NOT auto-cancel; and step 5: the action still shows after Require Deposit
+is turned OFF).

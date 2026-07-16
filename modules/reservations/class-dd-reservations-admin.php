@@ -382,6 +382,7 @@ class DD_Reservations_Admin {
                                         $deposit_labels = [
                                             'none'     => '—',
                                             'pending'  => '⏳ Awaiting',
+                                            'claimed'  => '🙋 Claimed (unverified)',
                                             'paid'     => '✅ Paid',
                                             'failed'   => '✗ Failed',
                                             'refunded' => '↩ Refunded',
@@ -483,6 +484,17 @@ class DD_Reservations_Admin {
                                         <button class="dd-res-action-btn dd-res-action-btn--noshow dd-res-status-btn"
                                                 data-id="<?php echo esc_attr( $r->id ); ?>"
                                                 data-status="no_show">No-show</button>
+                                        <?php endif; ?>
+                                        <?php
+                                        // "Mark deposit paid" — gated PER BOOKING (row), not on the
+                                        // deposit setting: this booking required a deposit and it is
+                                        // still unconfirmed (pending|claimed). Setting 'paid' is the
+                                        // only thing that stops auto-cancel. Turning deposits off in
+                                        // settings must not strand existing unconfirmed deposits.
+                                        if ( ! empty( $r->deposit_required )
+                                             && in_array( $r->deposit_status, [ 'pending', 'claimed' ], true ) ) : ?>
+                                        <button class="dd-res-action-btn dd-res-action-btn--deposit dd-res-deposit-paid-btn"
+                                                data-id="<?php echo esc_attr( $r->id ); ?>">✅ Mark deposit paid</button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -604,6 +616,40 @@ class DD_Reservations_Admin {
                             setTimeout(function () { location.reload(); }, 800);
                         } else {
                             var msg = (data.data && data.data.message) ? data.data.message : 'Error updating status';
+                            showToast(msg, 'error');
+                            self.classList.remove('loading');
+                        }
+                    })
+                    .catch(function () {
+                        showToast('Network error — please try again', 'error');
+                        self.classList.remove('loading');
+                    });
+                });
+            });
+
+            // Mark deposit paid (restaurant-confirmed → stops auto-cancel)
+            document.querySelectorAll('.dd-res-deposit-paid-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var id   = this.dataset.id;
+                    var self = this;
+                    self.classList.add('loading');
+
+                    fetch(ajaxurl, {
+                        method:  'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body:    new URLSearchParams({
+                            action: 'dd_reservation_mark_deposit_paid',
+                            id:     id,
+                            nonce:  nonce
+                        })
+                    })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.success) {
+                            showToast('Deposit marked paid', 'success');
+                            setTimeout(function () { location.reload(); }, 800);
+                        } else {
+                            var msg = (data.data && data.data.message) ? data.data.message : 'Error marking deposit paid';
                             showToast(msg, 'error');
                             self.classList.remove('loading');
                         }

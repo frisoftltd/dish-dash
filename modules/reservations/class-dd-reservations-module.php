@@ -26,6 +26,7 @@ class DD_Reservations_Module extends DD_Module {
         DD_Ajax::register( 'dd_submit_reservation',        [ $this, 'ajax_submit_reservation' ] );
         DD_Ajax::register( 'dd_reservation_availability',  [ $this, 'ajax_check_availability' ] );
         DD_Ajax::register( 'dd_reservation_claim_deposit', [ $this, 'ajax_claim_deposit'    ], true );
+        DD_Ajax::register( 'dd_reservation_mark_deposit_paid', [ $this, 'ajax_mark_deposit_paid' ], false );
         DD_Ajax::register( 'dd_reservation_update_status', [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_res_bulk_action',           [ $this, 'ajax_bulk_action'    ], false );
 
@@ -370,6 +371,62 @@ class DD_Reservations_Module extends DD_Module {
         do_action( 'dish_dash_reservation_status_changed', $id, $old_status_row, $status );
 
         wp_send_json_success( [ 'status' => $status ] );
+    }
+
+    // ── AJAX: Admin — mark a deposit as PAID (restaurant-confirmed) ─────────
+    // The ONLY state that stops auto-cancel (v3.10.63). A human at the restaurant
+    // confirms real money landed (checked their MTN MoMo SMS against the booking
+    // reference) — there is no API to verify it (the manual QR path exists to avoid
+    // the Collections fee). Idempotent: only pending|claimed → paid; re-tap = no-op.
+    // Does NOT unschedule the cron — run_autocancel() already skips 'paid', so the
+    // event fires and harmlessly no-ops (the guard stays the single source of truth).
+    public function ajax_mark_deposit_paid(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_reservations' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+            return;
+        }
+
+        $id = intval( $_POST['id'] ?? 0 );
+        if ( $id < 1 ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        global $wpdb;
+        $reservation = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, deposit_required, deposit_status
+             FROM {$wpdb->prefix}dishdash_reservations WHERE id = %d LIMIT 1",
+            $id
+        ) );
+
+        if ( ! $reservation ) {
+            wp_send_json_error( [ 'message' => 'Booking not found.' ] );
+            return;
+        }
+
+        if ( (int) $reservation->deposit_required !== 1 ) {
+            wp_send_json_error( [ 'message' => 'This booking has no deposit.' ] );
+            return;
+        }
+
+        // Only confirm from pending|claimed (idempotent; re-tap on 'paid' = no-op).
+        if ( in_array( $reservation->deposit_status, [ 'pending', 'claimed' ], true ) ) {
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_reservations',
+                [ 'deposit_status' => 'paid', 'deposit_paid_at' => current_time( 'mysql' ) ],
+                [ 'id'             => (int) $reservation->id ],
+                [ '%s', '%s' ],
+                [ '%d' ]
+            );
+
+            do_action( 'dd_track_event', 'deposit_confirmed_paid', null, null, [
+                'reservation_id' => (int) $reservation->id,
+            ] );
+        }
+
+        wp_send_json_success( [ 'deposit_status' => 'paid', 'id' => (int) $reservation->id ] );
     }
 
     // ── Deposit helpers ────────────────────────────────────────────────────
