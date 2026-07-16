@@ -1232,3 +1232,34 @@ right after the `$admin_email` guard, then:
 3. Change Brand Identity name, place another test order → the email follows the new name.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.73 — R2: birthday WhatsApp sign-off reads the restaurant name
+
+**Task:** Replace the last hardcoded "Khana Khazana" output literal in the orders module —
+`orders-module.php:151`, the birthday-ask WhatsApp sign-off (WP-Cron ~2 min after a customer's first order).
+
+### Pattern matched (reported before editing)
+`class-dd-notifications.php:264`/`:296` (the R1 WhatsApp builders):
+`$restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );` — read once, used **raw** in the
+wa.me message (rawurlencoded downstream).
+
+### File changed — `modules/orders/class-dd-orders-module.php` (`send_birthday_whatsapp()`)
+- Added `$restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );` immediately before the `$msg` build.
+- Sign-off line: `'— Khana Khazana 🍽'` → `'— ' . $restaurant . ' 🍽'` (emoji unchanged), raw per the WhatsApp pattern.
+
+### Verification
+- `grep -rn "Khana Khazana" modules/orders/` → only `get_option( …, 'Khana Khazana' )` fallback defaults remain
+  (`class-dd-notifications.php:44/183/264/296` + `orders-module.php:146`). **Zero output literals left in the module.**
+- By inspection (no PHP linter; cron-triggered so not directly observable — developer may place a first order from a new number and watch ~2 min later).
+- Version bumped 3.10.72 → 3.10.73 (both spots); CLAUDE.md updated.
+
+### Other hardcodes spotted (reported, NOT fixed — per Rule 1a)
+None new in `send_birthday_whatsapp()`. The already-known R3 (`#65040d`) and R4 ("Dish Dash" product word) live in
+other files and were left untouched.
+
+### Not touched
+- Anything else in `orders-module.php`; R3 (`#65040d`); R4 ("Dish Dash").
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

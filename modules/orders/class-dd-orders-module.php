@@ -143,12 +143,13 @@ class DD_Orders_Module extends DD_Module {
         $first_name   = explode( ' ', trim( $name ) )[0] ?: $name;
 
         // Build message
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
         $msg = implode( "\n", [
             '🎁 One more thing, ' . $first_name . '!',
             'We\'d love to surprise you on your birthday.',
             'Share it here (10 sec):',
             '👉 ' . $birthday_url,
-            '— Khana Khazana 🍽',
+            '— ' . $restaurant . ' 🍽',
         ] );
 
         $wa_url = 'https://wa.me/' . $phone . '?text=' . rawurlencode( $msg );
