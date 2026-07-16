@@ -876,3 +876,44 @@ binary in env) — verified by inspection.
 **Status:** Implemented, committed, pushed — awaiting developer verify on a NON-PROD site (esp. verify
 step 3: a paid booking does NOT auto-cancel; and step 5: the action still shows after Require Deposit
 is turned OFF).
+
+---
+
+## v3.10.67 — Fix opening-hours two-writer collision (footer)
+
+**Root cause:** `dish_dash_opening_hours` had two writers. The Homepage module textarea
+(`modules/homepage/class-dd-homepage-module.php:156/920`, multi-line — the correct surface) and a
+Template Settings text input (`admin/pages/template-settings.php`) whose hardcoded default
+`'Monday – Friday 10 AM – 7 PM'` (formerly template-settings.php:50) was persisted on **every**
+Template Settings save via `sanitize_text_field`, silently overwriting the Homepage value. The footer
+reads the key at `modules/template/class-dd-template-module.php:861`.
+
+**Fix (Homepage owns the key; Template Settings no longer writes it) — one file,
+`admin/pages/template-settings.php`:**
+1. Removed the field markup — the `<label>Opening Hours</label>` + `<input type="text"
+   name="dish_dash_opening_hours" …>` block (was ~:188-193).
+2. Removed the read that pre-filled it — `$opening_hours = get_option( 'dish_dash_opening_hours',
+   'Monday – Friday 10 AM – 7 PM' )` (was :50).
+3. Removed `'dish_dash_opening_hours'` from the save `$fields` allowlist (was :33). The other three
+   keys — `dish_dash_hero_title`, `dish_dash_hero_subtitle`, `dish_dash_hero_image` — are untouched;
+   the save loop is otherwise unchanged.
+4. Updated the two now-stale "4 keys" comments (header docblock + save-handler comment) to "3 keys"
+   and noted why the key was removed.
+
+**Not touched (per brief):** `modules/homepage/class-dd-homepage-module.php`; the footer read site
+`class-dd-template-module.php:861`; the unrelated `dd_opening_hours` JSON key; the dead
+`dd_footer_show_*` toggles (v3.10.68). **No option value written in code** — no data migration this release.
+
+**Live-value check — could NOT run here.** This is the local repo with no live DB/WP-CLI access.
+The developer must run `wp option get dish_dash_opening_hours` on the server:
+- If it returns `Monday – Friday 10 AM – 7 PM` → Template Settings won last; the Homepage value is
+  gone and must be **re-entered** in Homepage → Footer Section after deploy.
+- If it returns the Homepage value → nothing to restore.
+The code fix is identical either way.
+
+**Smoke test after deploy (no PHP linter available here):** open Template Settings (opening-hours field
+gone; page saves without error and does not alter `dish_dash_opening_hours`); open Homepage → Footer
+Section (textarea intact); edit + save Homepage hours; reload a frontend page and confirm the footer
+shows the Homepage value.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

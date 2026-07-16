@@ -13,9 +13,8 @@
  * Dependents (files that need this):
  *   - modules/template/class-dd-template-module.php (loaded via a render method)
  *
- * WP options written (4 keys only):
- *   dish_dash_hero_title, dish_dash_hero_subtitle,
- *   dish_dash_hero_image, dish_dash_opening_hours
+ * WP options written (3 keys only):
+ *   dish_dash_hero_title, dish_dash_hero_subtitle, dish_dash_hero_image
  *
  * Nonce action: dd_template_settings_save
  *
@@ -24,13 +23,15 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-// ── Save handler — 4 keys only ────────────────────────────────────────────
+// ── Save handler — 3 keys only ────────────────────────────────────────────
+// Opening hours removed in v3.10.67: it is owned exclusively by the Homepage
+// module now (dish_dash_opening_hours). This page must not write that key —
+// its hardcoded default used to clobber the Homepage value on every save.
 if ( isset( $_POST['dd_save_template_settings'] ) && check_admin_referer( 'dd_template_settings_save' ) ) {
     $fields = [
         'dish_dash_hero_title',
         'dish_dash_hero_subtitle',
         'dish_dash_hero_image',
-        'dish_dash_opening_hours',
     ];
     foreach ( $fields as $field ) {
         if ( isset( $_POST[ $field ] ) ) {
@@ -47,7 +48,6 @@ $primary       = esc_attr( get_option( 'dish_dash_primary_color', '#65040d' ) );
 $hero_title    = get_option( 'dish_dash_hero_title',    'Hello Dear,' );
 $hero_subtitle = get_option( 'dish_dash_hero_subtitle', "Hungry? You're in the right place..." );
 $hero_image    = get_option( 'dish_dash_hero_image',    '' );
-$opening_hours = get_option( 'dish_dash_opening_hours', 'Monday – Friday 10 AM – 7 PM' );
 ?>
 <div class="wrap dd-admin-wrap">
 
@@ -183,13 +183,6 @@ $opening_hours = get_option( 'dish_dash_opening_hours', 'Monday – Friday 10 AM
                     <img src="<?php echo esc_url( $hero_image ); ?>"
                          style="max-height:80px;margin-top:8px;border-radius:8px;object-fit:cover;" />
                     <?php endif; ?>
-                </div>
-
-                <div class="dd-hp-field">
-                    <label><?php esc_html_e( 'Opening Hours', 'dish-dash' ); ?></label>
-                    <input type="text" class="dd-hp-input" name="dish_dash_opening_hours"
-                           value="<?php echo esc_attr( $opening_hours ); ?>"
-                           placeholder="Monday – Friday 10 AM – 7 PM" />
                 </div>
 
                 <div class="dd-hp-save-bar">
