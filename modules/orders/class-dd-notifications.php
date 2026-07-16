@@ -180,7 +180,8 @@ class DD_Notifications {
         $admin_email = get_option( 'dd_admin_email', get_option( 'admin_email' ) );
         if ( ! $admin_email ) return;
 
-        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $restaurant    = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $primary_color = get_option( 'dish_dash_primary_color', '#65040d' );
 
         // Footer attribution — same option the site footer copyright uses (v3.10.70).
         // Rendered strings live here, not the DB. 'none' drops the prefix AND the separator.
@@ -215,7 +216,7 @@ class DD_Notifications {
 
         $body = '
         <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #eee;">
-            <div style="background:#65040d;padding:20px 24px;">
+            <div style="background:' . esc_attr( $primary_color ) . ';padding:20px 24px;">
                 <h2 style="color:#fff;margin:0;font-size:18px;">&#128276; New Order ' . esc_html( $order['order_number'] ) . '</h2>
                 <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px;">' . esc_html( $restaurant ) . ' &mdash; ' . esc_html( date( 'D j M Y, H:i' ) ) . '</p>
             </div>
@@ -225,7 +226,7 @@ class DD_Notifications {
                     ' . $delivery_row . '
                     <tr>
                         <td style="padding:10px 0 4px;font-weight:bold;font-size:16px;">Total</td>
-                        <td style="padding:10px 0 4px;text-align:right;font-weight:bold;font-size:16px;color:#65040d;">' . number_format( $order['total'] ) . ' RWF</td>
+                        <td style="padding:10px 0 4px;text-align:right;font-weight:bold;font-size:16px;color:' . esc_attr( $primary_color ) . ';">' . number_format( $order['total'] ) . ' RWF</td>
                     </tr>
                 </table>
                 <hr style="border:none;border-top:1px solid #f0e8e0;margin:16px 0;">

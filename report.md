@@ -1329,3 +1329,48 @@ echoes them raw). `$restaurant` stays `esc_html()`. HTML-body context preserved.
 4. Confirm the site footer copyright still follows the same setting (unchanged code path).
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.75 — R3: email brand color reads the primary color option
+
+**Task:** Replace the hardcoded `#65040d` brand color in the email path with `dish_dash_primary_color`. Two
+independent modules, no shared helper.
+
+### Reported before editing
+- **Sites:** order email `class-dd-notifications.php:218` (header-bar `background`) + `:228` (Total-amount
+  `color`); reservation email `class-dd-reservations-module.php:207` (`$primary = '#65040d'`, reused at `:249`
+  header bg, `:257` booking-ref accent, `:292` CTA button bg).
+- **Brand Identity read pattern** (`brand-identity.php:72`): `get_option( 'dish_dash_primary_color', '#65040d' )`
+  — fallback `'#65040d'`. Matched exactly.
+- **Escaping:** all occurrences are inside inline `style="…"` attributes → `esc_attr()`.
+
+### Files changed
+- `modules/orders/class-dd-notifications.php` — added `$primary_color = get_option( 'dish_dash_primary_color', '#65040d' );`
+  next to the `$restaurant` read; both inline literals now embed `' . esc_attr( $primary_color ) . '`.
+- `modules/reservations/class-dd-reservations-module.php` — `$primary = '#65040d';` → `$primary = esc_attr( get_option( 'dish_dash_primary_color', '#65040d' ) );`
+  (one line; covers all three `$primary` usages, each a style-attribute context).
+
+### Escaping used (as requested)
+`esc_attr()` in both files — order email at each of the 2 embed sites (mirrors how the file reads `$restaurant`
+raw then escapes at use); reservation email once at the assignment, valid because `$primary` is used **only** in
+`style="…"` attributes (`:249/:257/:292`).
+
+### Verification
+- `grep "#65040d"` on both files now returns **only** the two `get_option( …, '#65040d' )` fallback defaults — zero hardcoded output literals.
+- By inspection (no PHP linter). Version bumped 3.10.74 → 3.10.75 (both spots); CLAUDE.md updated.
+
+### Other hardcoded hex found (reported, NOT fixed — per brief; none is the primary `#65040d`)
+- Order email: `#f0e8e0, #777, #27ae60, #eee, #fff, #128276, #f9f5f0, #aaa`.
+- Reservation email: `#6E5B4C, #221B19, #F5EFE6, #FBF7F1, #E6C9CC, #EADFCE, #FBE8C8, #b45309, #F0E7D8`.
+
+### Not touched
+- Any non-`#65040d` color; dark/background color options; customer email path; SMTP reseeding; `install.php:481`.
+- No new settings, no data migration, no option values written in code.
+
+**Smoke test (developer, after deploy):**
+1. Place a test order → email renders identically to now (option value equals the old literal).
+2. Change Brand Identity primary color to green → place another test order → email header + Total follow; trigger a test reservation → header/accent/CTA follow.
+3. Change it back to `#65040d`.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

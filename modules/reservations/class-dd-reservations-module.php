@@ -204,7 +204,7 @@ class DD_Reservations_Module extends DD_Module {
         $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
         $date_fmt   = date( 'l, d M Y', strtotime( $res['date'] ) );
         $guest_word = ( (int) $res['guests'] === 1 ? 'guest' : 'guests' );
-        $primary    = '#65040d';
+        $primary    = esc_attr( get_option( 'dish_dash_primary_color', '#65040d' ) );
 
         // Footer attribution — same option the site footer copyright uses (v3.10.70).
         // Rendered strings live here, not the DB. 'none' drops the prefix AND the separator.
