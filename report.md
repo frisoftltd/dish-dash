@@ -437,3 +437,51 @@ R3 generic-panel button.
    unchanged; overlay/Escape still close OTHER panels.
 
 **Status:** Implemented, committed, pushed. FINAL release of the track — awaiting developer verify.
+
+---
+
+## v3.10.59 — Match reservation WhatsApp button styling to order confirmation (styling only)
+
+**Decision: SHARED CLASS (not a duplicated rule).**
+Both surfaces load the same stylesheets, so no duplication is needed:
+- `.dd-confirm-panel__whatsapp` and `.dd-confirm-panel__close` live in **cart.css**.
+- cart.css is enqueued **unconditionally** in `class-dd-template-module.php`
+  `enqueue_frontend_assets()` — the same block that enqueues `reservations.js`. So
+  wherever the reservation modal/JS runs, cart.css is present and both classes resolve.
+- `--dd-accent` (used by `.dd-confirm-panel__close`) is set at `:root` in **frontend.css**,
+  also loaded on this surface → the Close pill renders the identical accent (#e8832a).
+- Result: zero new CSS. Reused the existing rules verbatim.
+
+**Exact rule reused (cart.css:975 — unchanged, applied to the reservation button):**
+```
+.dd-confirm-panel__whatsapp {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: #25D366; color: #fff; text-decoration: none;
+    border-radius: 10px; padding: 12px 28px;
+    font-size: 15px; font-weight: 700; line-height: 1.3;
+    cursor: pointer; margin: 0 0 12px;
+}
+```
+Close reuses `.dd-confirm-panel__close` (cart.css:963 — accent pill, radius 10px, padding 12px 40px, 16px/700).
+
+**Investigation findings:**
+- ORDER button (reference): `.dd-confirm-panel__whatsapp` in cart.css; sits inside the
+  centered flex column `.dd-confirm-panel`, with `.dd-confirm-panel__close` (accent) below.
+- RESERVATION button (before): built in `reservations.js` `showWhatsAppButtons()` with
+  `class="dd-res-btn"` + inline `display:block;width:100%;background:#25D366;…` and a Close
+  `class="dd-res-btn dd-res-btn--outline"` with inline `width:100%`. Crucially,
+  `.dd-res-btn` / `.dd-res-btn--outline` have **no CSS rule anywhere** → both rendered as
+  flat, full-width, sharp-cornered, flush browser-default controls. That's the "unfinished" look.
+- Stylesheets: order = cart.css; reservation JS-built buttons = (none). Since cart.css also
+  loads on the reservation surface, sharing is valid → shared-class chosen.
+
+**Change (JS only — `assets/js/reservations.js`):** `showWhatsAppButtons()` now builds a
+centered inline flex-column wrapper (mirrors the order panel's stacked layout), applies
+`.dd-confirm-panel__whatsapp` to the WhatsApp `<a>` and `.dd-confirm-panel__close` to Close,
+and gives "Booking received!" 16px breathing room. Inline styles used only for layout glue
+(centering/spacing), never for button appearance — appearance comes entirely from the reused classes.
+
+**Untouched:** admin_url ticket, `dd_reservation_handoff_whatsapp` gating, tap-only/no-auto-open,
+hidden-when-off/empty; the ORDER confirmation panel + its CSS (reference only); deposit chain; PesaPal.
+
+**Status:** Implemented, committed, pushed — awaiting developer verify.

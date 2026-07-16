@@ -505,20 +505,25 @@
     var confirmArea = document.querySelector( '.dd-res-confirm-area' );
     if ( ! confirmArea ) return;
 
-    var html = '<p style="color:#25D366;font-weight:600;margin:12px 0;">✅ Booking received!</p>';
+    // Reuse the ORDER confirmation's button styling verbatim — the same
+    // classes the checkout drawer uses (.dd-confirm-panel__whatsapp green
+    // pill + .dd-confirm-panel__close accent pill, both in cart.css, which
+    // loads on this surface). A centered flex column mirrors the order
+    // panel's stacked layout so the two look identical. No new CSS.
+    var html = '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0;">'
+             + '<p style="color:#25D366;font-weight:700;font-size:16px;margin:0 0 16px;">✅ Booking received!</p>';
 
     // Opt-in restaurant WhatsApp handoff — tap only, NEVER auto-open.
     // Uses the RESTAURANT ticket (admin_url). Hidden when the setting is
     // off or the URL is empty/missing (no dead control).
     if ( ddRes.whatsappHandoff && adminUrl ) {
         html += '<a href="' + adminUrl + '" target="_blank" rel="noopener noreferrer" '
-              + 'class="dd-res-btn" '
-              + 'style="display:block;width:100%;background:#25D366;color:#fff;text-align:center;'
-              + 'text-decoration:none;box-sizing:border-box;margin-bottom:8px;">'
+              + 'class="dd-confirm-panel__whatsapp">'
               + 'Send my booking to the restaurant on WhatsApp</a>';
     }
 
-    html += '<button id="dd-res-close-confirm" class="dd-res-btn dd-res-btn--outline" style="width:100%;">Close</button>';
+    html += '<button id="dd-res-close-confirm" type="button" class="dd-confirm-panel__close">Close</button>'
+          + '</div>';
     confirmArea.innerHTML = html;
 
     var closeBtn = document.getElementById( 'dd-res-close-confirm' );
