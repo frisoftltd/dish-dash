@@ -101,10 +101,9 @@ class DD_Reservations_Module extends DD_Module {
         // 6. Deposit check — determines status and extra columns.
         // Fixed deposits only (percent has no base value at booking time). When a
         // deposit is required we store the real fixed amount and a 'pending'
-        // deposit_status (existing convention for this column: none|pending|paid|failed).
-        // NOTE: auto-cancel does NOT yet act on deposit_status — that is fixed in the
-        // next release (R4 / v3.10.63). Until then an unpaid deposit booking is never
-        // auto-cancelled, so Require Deposit should stay OFF on live sites until R4.
+        // deposit_status (convention for this column: none|pending|claimed|paid|failed).
+        // Unpaid deposit bookings ('pending'/'claimed') are auto-cancelled after the
+        // Auto-Cancel window (scheduled below in step 7B; see run_autocancel()).
         $deposit_enabled = get_option( 'dd_reservation_deposit_enabled', 0 ) ? 1 : 0;
         $deposit_amount  = $deposit_enabled ? $this->calculate_deposit_amount() : 0;
         $deposit_status  = $deposit_enabled ? 'pending' : 'none';
@@ -141,6 +140,21 @@ class DD_Reservations_Module extends DD_Module {
         }
 
         $reservation_id = (int) $wpdb->insert_id;
+
+        // 7B. Schedule auto-cancel for unpaid deposit bookings. Per-booking single
+        // event, matching the run_autocancel( int $reservation_id ) hook signature: it
+        // fires after the Auto-Cancel window (dd_reservation_autocancel_hours, default 2),
+        // and run_autocancel() then cancels the booking UNLESS the restaurant has since
+        // confirmed the deposit as paid. A customer's "I have paid" claim does NOT stop
+        // this — only deposit_status='paid' is safe (see run_autocancel()).
+        if ( $deposit_enabled ) {
+            $autocancel_hours = (int) get_option( 'dd_reservation_autocancel_hours', 2 );
+            wp_schedule_single_event(
+                time() + ( $autocancel_hours * HOUR_IN_SECONDS ),
+                'dd_reservation_autocancel',
+                [ $reservation_id ]
+            );
+        }
 
         // 8. Build WhatsApp notification URLs (free booking path)
         $wa_urls = DD_Notifications::on_reservation_created( [
@@ -405,9 +419,18 @@ class DD_Reservations_Module extends DD_Module {
     public function run_autocancel( int $reservation_id ): void {
         global $wpdb;
 
+        // Cancel only if this booking still requires a deposit that is NOT restaurant-
+        // confirmed. deposit_status IN ('pending','claimed') → cancel; 'none' (no deposit),
+        // 'paid' (confirmed) and 'failed' (already cancelled) are safe. A customer claim
+        // ('claimed') is an unverified attestation and therefore still cancels on schedule —
+        // only 'paid' stops the timer. No time check needed: the single event's fire time
+        // is the window (and reading the current window here would mis-handle a changed setting).
         $reservation = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}dishdash_reservations WHERE id = %d AND status = 'pending_payment'",
+                "SELECT * FROM {$wpdb->prefix}dishdash_reservations
+                  WHERE id = %d
+                    AND deposit_required = 1
+                    AND deposit_status IN ( 'pending', 'claimed' )",
                 $reservation_id
             ),
             ARRAY_A

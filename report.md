@@ -639,3 +639,55 @@ returns the fixed option value. PHP lint not run (no PHP binary in env) — veri
 
 **Status:** Implemented, committed, pushed — awaiting developer verify (deposit OFF unchanged;
 deposit ON stores real amount + `deposit_status='pending'`; no payment screen; percent gone).
+
+---
+
+## v3.10.63 — Fix reservation auto-cancel (re-key on deposit state + restore scheduling)
+
+**Investigation:**
+- `run_autocancel()` (class-dd-reservations-module.php:405, pre-fix) queried
+  `SELECT * ... WHERE id = %d AND status = 'pending_payment'` — `pending_payment` is written
+  nowhere (bookings are `status='pending'`), so it matched nothing. On a match it set
+  `status='auto_cancelled', deposit_status='failed'` and fired `booking_auto_cancelled` tracking.
+- Hook signature: `run_autocancel( int $reservation_id )` — takes ONE booking id. Registered
+  `add_action('dd_reservation_autocancel', [$this,'run_autocancel'], 10, 1)` (line 31, present).
+- Removed scheduling (git 9a7135c:153–158, inside the deleted PesaPal deposit block):
+  `wp_schedule_single_event( time() + ($hours * HOUR_IN_SECONDS), 'dd_reservation_autocancel', [$reservation_id] )`.
+  A per-booking single event — sound and PesaPal-independent (it just happened to live in that block).
+- Slot release: `ajax_check_availability()` is a **stub** — it returns `available:true` unconditionally.
+  There is no DB capacity engine, so "releasing a slot" means the booking leaves the active/pending
+  set (admin list + analytics exclude `auto_cancelled`). Marking the status is all that's needed.
+- WP-Cron reliability call: a **per-booking single event** is adequate here — the window is hours,
+  restaurant sites get regular traffic (WP-Cron fires on visits), and a missed/late event only
+  DELAYS slot release; there's no data-integrity risk. I did NOT add a recurring sweep: it would
+  change the hook to no-arg and expand scope against "match the existing design." Recommend a sweep
+  later only if the developer observes events not firing on this host.
+
+**Fix (one file — class-dd-reservations-module.php):**
+1. **Re-keyed the query** in `run_autocancel()`:
+   `WHERE id = %d AND deposit_required = 1 AND deposit_status IN ('pending','claimed')`.
+   - Cancels: `pending` (unpaid) and `claimed` (customer attested, unverified) — per the governing
+     rule, a claim does NOT stop the timer.
+   - Safe: `paid` (restaurant-confirmed), `none` (no deposit), `failed` (already cancelled).
+   - No time predicate: the single event's fire time IS the window. (Deliberately avoided a
+     `created_at`-vs-current-option check — if the admin lengthens the window after scheduling, an
+     already-fired event with a current-window check could skip and the booking would never cancel.)
+   - On cancel: unchanged — `status='auto_cancelled', deposit_status='failed'` (convention), slot released.
+2. **Restored scheduling** in `ajax_submit_reservation()` (new step 7B, immediately after the insert,
+   guarded `if ($deposit_enabled)`): re-added the exact per-booking pattern above. No PesaPal code.
+
+**Option key:** `dd_reservation_autocancel_hours` (default 2) — read at schedule time, per the original design.
+
+**Boundaries respected:** no PesaPal/orders change; deposit AMOUNT logic (v3.10.62) untouched; the
+claim endpoint (R6) is not built and not referenced; schema unchanged (`deposit_status` VARCHAR(20));
+booking flow / confirmation modal / WhatsApp handoff / country picker untouched.
+
+**Verification done here:** grep confirms zero remaining `pending_payment` references in the module;
+the cancel-write still stamps `auto_cancelled`/`failed`; scheduling uses the same event name + single-id
+arg the hook expects. PHP lint not run (no PHP binary in env) — verified by inspection. The live test
+booking RES-20260718-733D (`deposit_status='pending'`) is now cancellable as expected once its event
+fires or is run manually.
+
+**Status:** Implemented, committed, pushed — awaiting developer verify on a NON-PRODUCTION site
+(deposit booking backdated + `wp cron event run dd_reservation_autocancel` → cancelled/failed;
+`none` and `paid` bookings untouched; `wp cron event list` shows the event scheduled after a booking).
