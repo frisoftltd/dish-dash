@@ -51,7 +51,11 @@
     bindNavigation();
     bindInputSync();
     initDepositBadge();
-    initPhonePicker();
+    // NB: initPhonePicker() is NOT called here. The WhatsApp field lives on
+    // screen 3 (Details), which is display:none at page load — initialising
+    // intl-tel-input on a hidden element mis-measures the separate dial code.
+    // Instead we init when screen 3 becomes visible (goToScreen), mirroring the
+    // checkout picker, which inits only after its field is shown.
   }
 
   // ── Phone picker (intl-tel-input, v3.10.33) ───────────────
@@ -336,6 +340,11 @@
     }
 
     if (n === 4) populateConfirm();
+
+    // Init the country-code picker the moment its field (screen 3) is visible,
+    // matching checkout's init-when-shown timing. Guarded once-init in
+    // initPhonePicker() makes re-entry to screen 3 a no-op.
+    if (n === 3) initPhonePicker();
 
     const body = $('.dd-res-modal__body');
     if (body) body.scrollTop = 0;

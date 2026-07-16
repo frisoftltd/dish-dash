@@ -485,3 +485,54 @@ and gives "Booking received!" 16px breathing room. Inline styles used only for l
 hidden-when-off/empty; the ORDER confirmation panel + its CSS (reference only); deposit chain; PesaPal.
 
 **Status:** Implemented, committed, pushed — awaiting developer verify.
+
+---
+
+## v3.10.60 — Fix country-code picker on the reservation form
+
+**Root cause (evidenced): z-index / stacking-context burial.**
+The picker attaches its country list to `<body>` (`dropdownContainer: document.body` on all
+surfaces) as `.iti--container`. That element's shared z-index was `10050 !important` (cart.css),
+chosen only to clear the cart DRAWER (desktop 9200 / mobile 10001). The reservation modal
+`.dd-res-overlay` sits in the app's **99999 modal tier** (confirmed: `reservations.css:60`
+`z-index:99999`; `.dd-closed-overlay` in frontend.css:487 is also 99999). Both the modal and
+the body-attached dropdown are `wp_footer`-injected body-level, position:fixed siblings, so they
+compete in the root stacking context: `99999 > 10050` → the list opens **behind** the modal
+(invisible/unusable). On CHECKOUT the picker lives in the drawer tier (≤10001), which 10050
+clears → checkout works. That single environmental difference explains "identical library,
+one surface works, the other doesn't."
+
+**Exact diff between the two inits (before the fix):**
+- Init OPTIONS: **byte-identical** — both `initialCountry:'rw'`, `countryOrder:['rw','ke','ug','tz','bi']`,
+  `nationalMode:false`, `separateDialCode:true`, `dropdownContainer:document.body`, same `loadUtils`.
+  → Rules OUT "missing options" (countrySearch/separateDialCode etc. are the same).
+- Init TIMING: checkout calls `initPhonePicker()` right after `showPanel(panelCheckout)` — i.e. when
+  `#ddFieldWhatsapp` is VISIBLE (cart.js:896-899, comment "now that the field is visible").
+  The reservation called it in `init()` at page load (reservations.js:54), when its field
+  `#dd-res-whatsapp` is on screen 3 (Details), which is `display:none`
+  (`.dd-res-screen--hidden{display:none}`, reservations.css:182). → init-while-hidden.
+- Re-render check: the Details step is NOT re-rendered/re-created between init and use — `goToScreen()`
+  only toggles the `--hidden` class; the input node persists, so the instance is not wiped
+  (double-init is not the cause; a once-guard exists regardless).
+
+The z-index burial is the PRIMARY cause (makes the list unusable). Init-while-hidden is a real but
+secondary issue (mis-measures the separate dial code on a `display:none` node — cosmetic; the field
+is still typeable today, which is why only the dropdown was reported).
+
+**Fix (match checkout on both axes):**
+1. `assets/css/cart.css` — raised the shared `.iti--container` z-index `10050 → 100050 !important`
+   so it clears the 99999 modal tier as well as the drawer. Behaviour-neutral for checkout
+   (still far above its ≤10001 drawer); also benefits the My Profile picker (same body-attached list).
+2. `assets/js/reservations.js` — removed `initPhonePicker()` from `init()`; call it in `goToScreen()`
+   under `if (n === 3)` so it inits when the Details field first becomes visible, mirroring checkout's
+   init-when-shown. The existing `if (itiWhatsapp) return;` once-guard makes back/forward re-entry a no-op.
+
+**Untouched:** checkout picker / cart.js init (reference), the vendored intl-tel-input library/assets,
+R1 handoff logic, the v3.10.59 button styling, and all server-side phone normalization/validation
+(`dd_phone_format`=e164, libphonenumber) — this is a UI-picker fix only.
+
+**Known issue recorded for later (do NOT fix here):** the reservation surface has orphan
+`.dd-res-btn` / `.dd-res-btn--outline` classes with NO CSS rule anywhere (found in v3.10.59). Other
+reservation buttons may render unstyled for the same reason — flagged for a future release.
+
+**Status:** Implemented, committed, pushed — awaiting developer verify.

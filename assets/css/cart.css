@@ -84,14 +84,18 @@ body.dd-cart-open {
    (we pass document.body on all three surfaces; v25 also does this automatically
    in mobile fullscreen mode). The vendored .iti--container is z-index 1060, which
    sits BEHIND the cart drawer (desktop z-index 9200; mobile 10001 !important) — so
-   the list renders buried/unclickable. Raise it above the drawer on every surface.
+   the list renders buried/unclickable. Raise it above every DishDash overlay tier.
+   The value must clear BOTH the cart drawer (≤10001) AND the app modal tier (99999 —
+   the reservation modal .dd-res-overlay and .dd-closed-overlay both live there); the
+   old 10050 cleared the drawer but was BELOW the reservation modal, so on that surface
+   the list opened behind the modal (invisible/unusable) while checkout worked. 100050
+   clears both, and is behaviour-neutral for checkout (still far above its 10001 drawer).
    NOT media-scoped: desktop (body-detached dropdown) and mobile (fullscreen popup)
-   both need it, and it must clear the mobile drawer's 10001. !important is required:
-   the vendored intlTelInput.min.css sets .iti--container{z-index:1060} at identical
-   specificity and is enqueued AFTER cart.css, so without !important it wins the tie
-   by load order and the dropdown stays buried. */
+   both need it. !important is required: the vendored intlTelInput.min.css sets
+   .iti--container{z-index:1060} at identical specificity and is enqueued AFTER cart.css,
+   so without !important it wins the tie by load order and the dropdown stays buried. */
 .iti--container {
-    z-index: 10050 !important;
+    z-index: 100050 !important;
 }
 
 /* ── Header ─────────────────────────────────────────────────── */
