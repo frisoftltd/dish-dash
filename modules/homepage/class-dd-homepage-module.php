@@ -155,6 +155,7 @@ class DD_Homepage_Module extends DD_Module {
             'dd_footer_show_social'      => 'checkbox',
             'dish_dash_opening_hours'    => 'sanitize_textarea_field',
             'dd_footer_show_explore'     => 'checkbox',
+            'dd_footer_explore_menu'     => 'absint',
             'dd_footer_show_contact'     => 'checkbox',
             'dd_footer_show_hours'       => 'checkbox',
         ];
@@ -938,6 +939,16 @@ class DD_Homepage_Module extends DD_Module {
                                     <input type="checkbox" name="dd_footer_show_hours" value="1" <?php $this->checked( 'dd_footer_show_hours' ); ?>>
                                     <span><?php esc_html_e( 'Show Opening Hours Column', 'dish-dash' ); ?></span>
                                 </label>
+                            </div>
+                            <div class="dd-hp-field" style="margin-top:16px;">
+                                <label><?php esc_html_e( 'Explore Column Menu', 'dish-dash' ); ?></label>
+                                <select name="dd_footer_explore_menu" class="dd-hp-select">
+                                    <option value="0" <?php $this->select( 'dd_footer_explore_menu', 0, 0 ); ?>><?php esc_html_e( '— None —', 'dish-dash' ); ?></option>
+                                    <?php foreach ( wp_get_nav_menus() as $dd_menu ) : ?>
+                                        <option value="<?php echo (int) $dd_menu->term_id; ?>" <?php $this->select( 'dd_footer_explore_menu', $dd_menu->term_id, 0 ); ?>><?php echo esc_html( $dd_menu->name ); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="dd-hp-note"><?php esc_html_e( 'Manage menus in Appearance → Menus.', 'dish-dash' ); ?></p>
                             </div>
                             <p class="dd-hp-note">Social media links are managed in <a href="<?php echo admin_url('admin.php?page=dish-dash-template'); ?>">Template Settings</a>.</p>
                         </div>

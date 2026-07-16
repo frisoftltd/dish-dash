@@ -957,3 +957,75 @@ toggle each off one at a time → only that part disappears, no layout break; br
 remain even with all off; toggle all back on → footer restored.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.69 — Footer Explore column reads a selectable WP nav menu
+
+**Task:** Replace the footer's hardcoded Explore link list with a selectable WordPress nav menu.
+
+**Scope:** 2 files.
+
+### Files changed
+
+1. **`modules/homepage/class-dd-homepage-module.php`** (admin form + save)
+   - Save `$fields` map: added `'dd_footer_explore_menu' => 'absint',` (right after `'dd_footer_show_explore' => 'checkbox',`).
+   - Footer Section markup: added an "Explore Column Menu" `<select name="dd_footer_explore_menu" class="dd-hp-select">`
+     under the "Show Explore Column" checkbox row. First option `— None —` value `0`; then one `<option>` per
+     `wp_get_nav_menus()` (`term_id` / `name`). Selected state via the existing `$this->select('dd_footer_explore_menu', …, 0)`
+     helper. Helper note: "Manage menus in Appearance → Menus."
+
+2. **`modules/template/class-dd-template-module.php`** (`inject_global_footer()`, read side)
+   - Deleted the hardcoded Explore `<ul><li><a>` list (Home / Our Menu / Reserve Table / Track Order / Privacy Policy / Refund & Returns).
+   - Added, next to the `$show_*` reads:
+     ```php
+     $explore_menu_id   = absint( get_option( 'dd_footer_explore_menu', 0 ) );
+     $explore_menu_html = '';
+     if ( $show_explore && $explore_menu_id && is_nav_menu( $explore_menu_id ) ) {
+         $explore_menu_html = wp_nav_menu( [
+             'menu'        => $explore_menu_id,
+             'container'   => false,
+             'echo'        => false,
+             'fallback_cb' => false,
+             'depth'       => 1,
+             'menu_class'  => 'dd-footer__list',
+         ] );
+     }
+     ```
+   - Explore column now gated on `if ( $explore_menu_html ) :` and echoes `$explore_menu_html` (phpcs-ignore — wp_nav_menu returns safe escaped markup).
+
+### Composed condition (as required by the brief)
+
+The Explore column renders **iff `$explore_menu_html` is non-empty**, which is true only when **all** of:
+- `$show_explore` (the `dd_footer_show_explore` toggle) is ON, **and**
+- `$explore_menu_id` is truthy (a menu was picked, not 0/None), **and**
+- `is_nav_menu( $explore_menu_id )` (the menu still exists), **and**
+- `wp_nav_menu()` actually produced markup (`fallback_cb => false` → empty string if the menu has no items).
+
+**No fallback:** 0 / empty / a deleted menu / toggle off → `$explore_menu_html` stays `''` → the entire Explore
+column (heading + list) is skipped. The old hardcoded links never appear.
+
+### CSS — which classes, how applied
+
+Existing footer CSS in `theme.css` uses **descendant selectors**: `.dd-footer__list li` (~:1587) and `.dd-footer__list a` (~:1593).
+`wp_nav_menu` outputs `<ul class="dd-footer__list"><li ...><a ...>…</a></li></ul>` when passed `menu_class => 'dd-footer__list'`,
+so the existing rules match the generated `<li>`/`<a>` exactly. **No new CSS written**, no per-link class needed, no
+`nav_menu_link_attributes` filter. The `<div class="dd-footer__heading">Explore</div>` label is unchanged.
+
+### Not touched
+- No new theme menu **location** registered (uses an existing menu directly by term ID).
+- `dd_footer_show_explore` toggle kept — both the toggle and a valid menu must pass.
+- Other footer columns / copyright / v3.10.68 toggle wiring / v3.10.67 opening-hours fix.
+- No option values written from code.
+
+### Verification
+- By inspection (no PHP linter in this environment; developer smoke-tests live).
+- Version bumped 3.10.68 → 3.10.69 in both locations in `dish-dash.php`; CLAUDE.md updated (Last updated, Current State, changelog).
+
+**Smoke test (developer, after deploy — purge LiteSpeed first):**
+1. Appearance → Menus: create a menu (e.g. "Footer Explore") with a few items.
+2. Dish Dash → Homepage → Footer Section: pick it in "Explore Column Menu", ensure "Show Explore Column" is on, save.
+3. Front end: footer Explore column shows the menu's items, styled like before.
+4. Set the select back to "— None —" (or turn off Show Explore) → the Explore column disappears entirely (no default links).
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

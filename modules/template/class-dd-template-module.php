@@ -879,6 +879,21 @@ class DD_Template_Module extends DD_Module {
         $show_explore = get_option( 'dd_footer_show_explore',     '1' ) === '1';
         $show_contact = get_option( 'dd_footer_show_contact',     '1' ) === '1';
         $show_hours   = get_option( 'dd_footer_show_hours',       '1' ) === '1';
+
+        // Explore column now renders a selectable WP nav menu (v3.10.69).
+        // No fallback: 0 / empty / a menu that no longer exists → render nothing.
+        $explore_menu_id   = absint( get_option( 'dd_footer_explore_menu', 0 ) );
+        $explore_menu_html = '';
+        if ( $show_explore && $explore_menu_id && is_nav_menu( $explore_menu_id ) ) {
+            $explore_menu_html = wp_nav_menu( [
+                'menu'        => $explore_menu_id,
+                'container'   => false,
+                'echo'        => false,
+                'fallback_cb' => false,
+                'depth'       => 1,
+                'menu_class'  => 'dd-footer__list',
+            ] );
+        }
         ?>
         <footer class="dd-footer dd-global-footer" id="ddGlobalFooter">
             <div class="dd-container dd-footer__grid">
@@ -905,17 +920,10 @@ class DD_Template_Module extends DD_Module {
                     <?php endif; ?>
                 </div>
 
-                <?php if ( $show_explore ) : ?>
+                <?php if ( $explore_menu_html ) : ?>
                 <div>
                     <div class="dd-footer__heading">Explore</div>
-                    <ul class="dd-footer__list">
-                        <li><a href="<?php echo esc_url( $home_url ); ?>">Home</a></li>
-                        <li><a href="<?php echo esc_url( home_url('/restaurant-menu/') ); ?>">Our Menu</a></li>
-                        <li><a href="<?php echo esc_url( home_url('/#reserve') ); ?>" class="js-open-reservation">Reserve Table</a></li>
-                        <li><a href="<?php echo esc_url( $orders_url ); ?>">Track Order</a></li>
-                        <li><a href="<?php echo esc_url( home_url('/privacy-policy/') ); ?>">Privacy Policy</a></li>
-                        <li><a href="<?php echo esc_url( home_url('/refund_returns/') ); ?>">Refund &amp; Returns</a></li>
-                    </ul>
+                    <?php echo $explore_menu_html; // phpcs:ignore WordPress.Security.EscapingOutput.OutputNotEscaped — wp_nav_menu returns safe, escaped markup ?>
                 </div>
                 <?php endif; ?>
 
