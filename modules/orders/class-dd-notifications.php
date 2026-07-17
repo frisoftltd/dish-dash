@@ -431,7 +431,9 @@ class DD_Notifications {
 
             $lines[] = $line;
             if ( ! empty( $item['special_note'] ) ) {
-                $lines[] = '   Note: ' . $item['special_note'];
+                // stripslashes: wp_magic_quotes()/sanitize_textarea_field store the note
+                // slash-escaped (e.g. it\'s), so strip before display (mirrors variation_lines()).
+                $lines[] = '   Note: ' . stripslashes( $item['special_note'] );
             }
         }
 

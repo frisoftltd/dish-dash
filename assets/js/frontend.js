@@ -1014,6 +1014,8 @@
                 pmAdd.textContent = 'Adding…';
                 pmAdd.disabled = true;
 
+                var pmNotes = ($('ddPmNotes') || {}).value || '';
+
                 fetch(ajaxUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1023,6 +1025,7 @@
                         product_id: productId,
                         quantity:   qty,
                         variation:  JSON.stringify(ddPmSelected),
+                        note:       pmNotes,
                     }),
                 })
                 .then(function(r) { return r.json(); })

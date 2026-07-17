@@ -1623,3 +1623,51 @@ and a mobile order of the same dish store an identical `variation`; a no-attribu
 immediately; mobile unchanged.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.81 — Notes R1: capture special instructions + clean the kitchen display
+
+**Task:** Wire the desktop/homepage modal's `#ddPmNotes` textarea into the order (never read today) and
+`stripslashes` the kitchen reader so the first captured note displays cleanly. Two inseparable parts.
+
+### Reported before editing
+- **Sibling wiring** (v3.10.80): `variation: JSON.stringify(ddPmSelected)` in the modal Add handler's
+  `body: new URLSearchParams({...})` (`frontend.js:1025`). The `note` field is added right beside it.
+- **Server field name:** `class-dd-cart.php:242` — `'note' => sanitize_textarea_field($_POST['note'] ?? '')`.
+  POST field = **`note`**. Matched.
+- **Kitchen reader verbatim:** `notifications.php:434` — `$lines[] = '   Note: ' . $item['special_note'];`
+  (guarded by `:433`).
+
+### Part 1 — capture (`assets/js/frontend.js`, modal Add handler)
+Added `var pmNotes = ($('ddPmNotes') || {}).value || '';` before the fetch, and `note: pmNotes` in the POST body
+directly under the `variation:` line. Empty textarea → `''` (same as the prior hardcoded behaviour on the mobile
+app). The write path (`dd_cart_add` → cart `:99` → `insert_order_items` `special_note` `orders-module.php:447`)
+already persists it; no server change needed to store it.
+
+### Part 2 — clean display (`modules/orders/class-dd-notifications.php`, kitchen builder)
+`'   Note: ' . $item['special_note']` → `'   Note: ' . stripslashes( $item['special_note'] )`. `wp_magic_quotes()`
+slashes `$_POST` and `sanitize_textarea_field` doesn't strip them, so a note with an apostrophe/quote stores as
+`\'`/`\"`; `stripslashes` on display removes the artifact (same root cause fixed for `variation` in v3.10.79).
+Guard and format otherwise unchanged; raw after stripping (plain wa.me text, `rawurlencode`d downstream).
+
+### Why together
+The kitchen WhatsApp is the **only** reader of `special_note` today. Shipping capture without the stripslashes fix
+would mean the very first captured note reaches the kitchen with stray backslashes. Both parts land in one release.
+
+### Not touched (per brief)
+- The variation path (v3.10.80) — only a sibling POST field was added; `ddPmSelected` wiring untouched.
+- Admin WhatsApp / order email / admin modal — **R2**: they don't carry `special_note` (the two notification
+  producers would need it, same additive shape as v3.10.78 did for `variation`).
+- The `/restaurant-menu/` mobile app (`grid.php` has no notes field; `menu-page.js:719` still sends `note:''`) — **R3**, additive.
+- The per-order `dishdash_orders.special_instructions` field — different writer, not the modal note.
+- No schema, settings, or migration (column `special_note` already exists).
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.80 → 3.10.81 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer):** homepage modal → type `no onions - it's for an allergy` (apostrophe) → add → order →
+kitchen WhatsApp shows it with **no** backslash before the apostrophe; `SELECT special_note … ORDER BY id DESC
+LIMIT 1` shows the note stored; empty textarea → no change/artifacts; spice still captures + displays everywhere.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
