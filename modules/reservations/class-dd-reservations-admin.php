@@ -418,7 +418,28 @@ class DD_Reservations_Admin {
                                         $session_fmt = ucfirst( $r->session );
                                         $lines       = [];
 
-                                        if ( $r->status === 'confirmed' ) {
+                                        if ( $r->status === 'confirmed'
+                                             && ! empty( $r->deposit_required )
+                                             && 'paid' !== $r->deposit_status ) {
+                                            // Deposit owed but not restaurant-confirmed: the table is HELD, not
+                                            // secured. Do not tell the customer their table is booked.
+                                            $lines[] = 'RESERVATION HELD — DEPOSIT PENDING ⏳';
+                                            $lines[] = $restaurant;
+                                            $lines[] = '';
+                                            $lines[] = "Hi {$r->name}, we've reserved your table — it's held pending your deposit.";
+                                            $lines[] = '';
+                                            $lines[] = "Ref: {$r->booking_ref}";
+                                            $lines[] = "Date: {$date_fmt}";
+                                            $lines[] = "Time: {$r->time} ({$session_fmt})";
+                                            $lines[] = "Guests: {$r->guests} {$guest_word}";
+                                            $lines[] = '';
+                                            $lines[] = 'Deposit required: ' . number_format( (int) $r->deposit_amount ) . ' RWF';
+                                            $lines[] = 'Your booking is secured once we receive it. Until then, the table may be released.';
+                                            if ( $admin_phone ) {
+                                                $lines[] = '';
+                                                $lines[] = "Questions? Call us: {$admin_phone}";
+                                            }
+                                        } elseif ( $r->status === 'confirmed' ) {
                                             $lines[] = 'RESERVATION CONFIRMED ✅';
                                             $lines[] = $restaurant;
                                             $lines[] = '';

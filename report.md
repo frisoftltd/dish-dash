@@ -1433,3 +1433,53 @@ Span now emits `dd-res-badge--{$badge_mod}` (`esc_attr`) and `{$badge_label}` (`
 5. Delete the test row afterwards (use the `is_test` flag / bulk).
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.77 — Reservations R2: confirmation WhatsApp reflects an unpaid deposit
+
+**Task:** When a confirmed booking's required deposit isn't `paid`, the "💬 Send Confirmation" WhatsApp must not
+promise a secured table. Message text only; button stays enabled.
+
+### Change — `modules/reservations/class-dd-reservations-admin.php` (`:421` confirmed block)
+Branched the existing `if ( $r->status === 'confirmed' )` on the **same condition as v3.10.76's badge**:
+`status==='confirmed' && ! empty($r->deposit_required) && 'paid' !== $r->deposit_status`.
+
+- **Unpaid required deposit** → new variant:
+  ```
+  RESERVATION HELD — DEPOSIT PENDING ⏳
+  {restaurant}
+
+  Hi {name}, we've reserved your table — it's held pending your deposit.
+
+  Ref: {booking_ref}
+  Date: {date_fmt}
+  Time: {time} ({session_fmt})
+  Guests: {guests} {guest_word}
+
+  Deposit required: {number_format((int)$r->deposit_amount)} RWF
+  Your booking is secured once we receive it. Until then, the table may be released.
+
+  Questions? Call us: {admin_phone}      ← only if admin_phone set
+  ```
+- **Paid or no deposit** → `elseif ( $r->status === 'confirmed' )` → the original "RESERVATION CONFIRMED ✅ …
+  your table is booked! 🎉" message, **byte-for-byte** unchanged.
+
+The one approved wording change vs my draft was applied: the closing line is
+"Your booking is secured once we receive it. Until then, the table may be released."
+
+### Conformance to the reported patterns
+- Same `$restaurant` read (`:414`, v3.10.72 pattern); same Ref/Date/Time/Guests block shape.
+- Raw lines → `implode("\n")` → `rawurlencode` downstream (`:472-473`), matching the sibling cancelled/no_show variants.
+- Deposit amount via `number_format( (int) $r->deposit_amount )` — the same currency format as the admin Deposit column.
+- Button unchanged: `💬 Send Confirmation` (`:475`), enabled in both cases; no disable, no confirm dialog.
+
+### Not touched
+- The v3.10.76 badge (condition reused, not modified); every writer (Confirm/bulk/claim/mark-paid/auto-cancel/booking insert); the customer WhatsApp; the cancelled/no_show branches; the Deposit column. No schema/migration/settings.
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.76 → 3.10.77 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer):** synthetic deposit booking (live affected count 0) — confirm without marking paid → Send Confirmation produces the HELD variant with the correct amount; mark paid → original message; no-deposit confirmed → original message unchanged.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
