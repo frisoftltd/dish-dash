@@ -77,14 +77,22 @@ class DD_Ajax {
             wp_send_json_error( 'Not found' ); return;
         }
 
+        // Expose VISIBLE product attributes for any product type (simple included),
+        // mirroring DD_API::map_product() exactly so desktop and mobile normalize
+        // to an identical { name, options[] } shape → identical stored `variation`.
+        // Generic over any attribute (no pa_spiciness-level special-casing).
         $attributes = [];
-        if ( $product->is_type( 'variable' ) ) {
-            foreach ( $product->get_variation_attributes() as $name => $options ) {
-                $attributes[] = [
-                    'name'    => wc_attribute_label( $name ),
-                    'options' => $options,
-                ];
+        foreach ( $product->get_attributes() as $attr ) {
+            if ( ! $attr->get_visible() ) {
+                continue;
             }
+            $options = $attr->is_taxonomy()
+                ? wc_get_product_terms( $product->get_id(), $attr->get_name(), [ 'fields' => 'names' ] )
+                : $attr->get_options();
+            $attributes[] = [
+                'name'    => wc_attribute_label( $attr->get_name(), $product ),
+                'options' => array_values( (array) $options ),
+            ];
         }
 
         wp_send_json_success( [

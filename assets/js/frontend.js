@@ -893,6 +893,12 @@
        Basic data from DOM is shown immediately; attributes and
        ratings are fetched via dd_get_product AJAX and injected.
     ══════════════════════════════════════════════════════════ */
+    // Shared selection state for the desktop product modal. Written by the pill
+    // handler in fetchProductEnrichment(), read by the modal's Add-to-Cart handler
+    // in renderModal() (sibling closures — this module-level var bridges them).
+    // Reset on each modal open. Matches mobile's selectedAttributes shape exactly.
+    var ddPmSelected = {};
+
     function openProductModal(productId) {
         var modal   = $('ddProductModal');
         var content = $('ddProductModalContent');
@@ -933,6 +939,9 @@
         var modal   = $('ddProductModal');
         var content = $('ddProductModalContent');
         if (!modal || !content) return;
+
+        // Fresh selection for this open (no-attribute products keep {} → sent as "{}").
+        ddPmSelected = {};
 
         // Fire tracking event on open
         if (typeof DDTrack !== 'undefined') {
@@ -1013,6 +1022,7 @@
                         nonce:      nonce,
                         product_id: productId,
                         quantity:   qty,
+                        variation:  JSON.stringify(ddPmSelected),
                     }),
                 })
                 .then(function(r) { return r.json(); })
@@ -1106,16 +1116,17 @@
                     html += '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#7A6558;margin-bottom:0.35rem;">' + escHtml(attr.name) + '</div>';
                     html += '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
                     (attr.options || []).forEach(function(opt) {
-                        html += '<button type="button" class="dd-pm__attr-pill" data-attr="' + escHtml(attr.name) + '" data-val="' + escHtml(opt) + '">' + escHtml(opt) + '</button>';
+                        html += '<button type="button" class="dd-pm__attr-pill dd-chip" data-attr="' + escHtml(attr.name) + '" data-val="' + escHtml(opt) + '">' + escHtml(opt) + '</button>';
                     });
                     html += '</div></div>';
                 });
 
                 if (attrsEl) attrsEl.innerHTML = html;
 
-                // Enable Add to Cart when all attribute groups have a selection
-                var selected = {};
-                var total    = p.attributes.length;
+                // Enable Add to Cart when all attribute groups have a selection.
+                // Writes to the module-level ddPmSelected so renderModal's Add handler
+                // can read it (reset to {} on each open in renderModal).
+                var total = p.attributes.length;
 
                 if (attrsEl) {
                     attrsEl.addEventListener('click', function(e) {
@@ -1125,8 +1136,8 @@
                         attrsEl.querySelectorAll('.dd-pm__attr-pill[data-attr="' + attrName + '"]')
                             .forEach(function(p) { p.classList.remove('active'); });
                         pill.classList.add('active');
-                        selected[attrName] = pill.dataset.val;
-                        if (Object.keys(selected).length >= total && addBtn) {
+                        ddPmSelected[attrName] = pill.dataset.val;
+                        if (Object.keys(ddPmSelected).length >= total && addBtn) {
                             var _ddState = window.DD && window.DD.hours_state;
                             if (_ddState !== 'closed' && _ddState !== 'break') {
                                 addBtn.disabled = false;

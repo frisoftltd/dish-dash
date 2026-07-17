@@ -1555,3 +1555,71 @@ correct because the PHP `variation_lines()` `stripslashes()` first.
 **Smoke test (developer):** open an existing order with a spice/`{"Size":"Half"}` variation in the admin modal → shows `Spice Level: Hot` / `Size: Half`, correctly decoded, indented; WhatsApp + email unchanged; an order with no variation → no extra line.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.80 — Spice R2: desktop product modal captures the variation choice
+
+**Task:** Wire the desktop modal's existing-but-dead attribute pills — data source, add-to-cart, and CSS — so
+desktop orders capture the spice/variation choice like mobile. Three inseparable parts.
+
+### Reported before editing
+- **`map_product()` normalization** (`class-dd-api.php:560-571`): skip `!get_visible()`; options = taxonomy →
+  `wc_get_product_terms($id, $attr->get_name(), ['fields'=>'names'])` else `$attr->get_options()`; emit
+  `['name' => wc_attribute_label($attr->get_name(), $product), 'options' => array_values((array)$options)]`.
+- **What `frontend.js` expects** (`:1116-1120`): `attr.name` (label) + `attr.options[]` → one pill per option.
+  **Shapes match** — no adaptation needed.
+- **Payload equivalence:** mobile `selectedAttributes[label] = pill.textContent` (`menu-page.js:397/717`) and
+  desktop `ddPmSelected[attrName] = pill.dataset.val` both produce `{"<attr.name>":"<option>"}`, so
+  `JSON.stringify` is identical for identical choices (given `attr.name` from the same `wc_attribute_label`).
+- **Blast radius:** `dd_get_product` is called only by `frontend.js` (`:921` no-card fetch, `:1069` enrichment) —
+  confirmed; mobile uses `map_product`, untouched.
+- **CSS reuse:** `.dd-chip` (`theme.css:1005-1021`) is a pill with a ready `.dd-chip.active` state and loads on
+  every DishDash page → reused; **zero new CSS**. (`.dd-pm__attr-pill` had no rule; `.dd-mobile-attr-pill` lives
+  in `menu-page.css`, not loaded on all desktop surfaces.)
+
+### Part 1 — data source (`dishdash-core/class-dd-ajax.php` `ajax_get_product`)
+Replaced the `is_type('variable')`-gated block with `map_product()`'s exact visible-attribute loop, so simple
+products now return their attributes. Generic — no `pa_spiciness-level` special-casing.
+
+### Part 2 — wiring (`assets/js/frontend.js`)
+- New module-scoped `var ddPmSelected = {};` (`:900`) bridges `fetchProductEnrichment` (module-level) and the Add
+  handler (inside `renderModal`) — the smallest change; no modal refactor.
+- Reset `ddPmSelected = {}` at each `renderModal()` open (`:944`) — fresh per product; no-attribute products keep `{}`.
+- Pill click writes `ddPmSelected[attrName] = pill.dataset.val` (replaced the local `selected`; the "enable Add
+  when all groups chosen" logic now reads `ddPmSelected`).
+- Modal Add POST gains `variation: JSON.stringify(ddPmSelected)` (`:1025`).
+
+### Part 3 — CSS (reuse, no new rule)
+Added `dd-chip` to the pill class (`:1119` → `class="dd-pm__attr-pill dd-chip"`). Base pill styling + selected
+highlight come from the existing `.dd-chip` / `.dd-chip.active` (which matches the `active` class the modal
+already toggles at `:1137`).
+
+### Validation (free — confirmed matches mobile)
+The desktop enrichment already disables Add and re-enables only when every attribute group has a selection
+(`:1106-1145`); mobile does the same (`menu-page.js:400-402`). No new validation added. No-attribute products:
+Add stays enabled, `ddPmSelected` stays `{}` → `variation` sent as `"{}"` (identical to mobile; `variation_lines()`
+guards `'{}'` → nothing displayed).
+
+### Not touched
+- Mobile path / `DD_API::map_product()` — the shared normalization was **mirrored, not modified**.
+- Display (v3.10.78/79), kitchen builder, customer WhatsApp, the 900 variations (R3), write-path slash-escaping (parked).
+- No schema, settings, or migration.
+
+### ⚠️ Still open — separate releases (re-flagged so they stay visible)
+- **Desktop `#ddPmNotes` dropped:** the same modal Add handler still does not send the special-instructions
+  textarea (`frontend.js:955`) — desktop `note` is never captured. Same bug class as this fix, different field;
+  **own release**, deliberately not touched here.
+- **Card quick-add** (`.dd-add-btn`, `frontend.js:191`) bypasses the modal, so it can never capture attributes —
+  a UX decision (leave as a flat fast-add, or route attribute-bearing products through the modal). Flagged, not designed.
+
+### Verification
+- By inspection (no PHP linter). `grep` confirms only `ddPmSelected` remains (no stray `selected`), `variation`
+  in the modal POST, and `dd-chip` on the pill. Version bumped 3.10.79 → 3.10.80 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer):** desktop → open a spice product → styled pills, none pre-selected, Add disabled until a
+pick; choose Extra Hot + add + order → admin WhatsApp/email/modal show `Spice Level: Extra Hot`; a desktop order
+and a mobile order of the same dish store an identical `variation`; a no-attribute product → no pills, Add works
+immediately; mobile unchanged.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
