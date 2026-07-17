@@ -1,203 +1,206 @@
-# INVESTIGATION — Reservations: `status` vs `deposit_status` conflation
+# INVESTIGATION — Product price storage & read paths (bulk +100 RWF pre-work)
 
-**Phase 1, read-only.** Every claim carries `file:line`. Live-DB facts are marked **PENDING (server)** with the
-exact command.
+**Phase 1, read-only. No code, no data changes.** Every claim carries `file:line`. Live-DB facts are marked
+**PENDING (server)** with the exact WP-CLI/SQL.
+
+Goal context: a bulk **+100 RWF on all regular prices except category 135** (Roti Ka Khazana, 19 products).
+This doc establishes where prices live and who reads them — it does **not** perform or design the update.
 
 ---
 
 ## TL;DR
 
-- Two **independent** columns encode two **different** things: `status` = booking workflow state
-  (pending/confirmed/cancelled/no_show/auto_cancelled), `deposit_status` = money state
-  (none/pending/claimed/paid/failed).
-- **No writer conflates them.** Each writer sets its own column; the two just aren't correlated. The conflation
-  is entirely on the **display + human-semantics** side: the prominent **status badge reads only `status`**
-  (`class-dd-reservations-admin.php:373`), so a booking a human "Confirmed" shows **"Confirmed"** even while the
-  separate Deposit column says **"🙋 Claimed (unverified)"** or **"⏳ Awaiting"**. To a restaurant, "Confirmed"
-  reads as "paid & secured" — it isn't. → **candidate (a)**.
-- **Money amplifier:** the "Send Confirmation" WhatsApp is gated **only** on `status==='confirmed'`
-  (`:407`) — it tells the customer *"your table is booked! 🎉"* regardless of whether the deposit landed.
-- **Auto-cancel is decoupled** — it keys on `deposit_status` and **never reads `status`**
-  (`class-dd-reservations-module.php:547-556`). So a "Confirmed" booking with an unpaid deposit is **still
-  auto-cancelled** on schedule, silently flipping to `auto_cancelled`. "Confirmed" is therefore not just
-  misleading, it's non-durable.
-- This is **not one fix**. Display (make "Confirmed" tell the truth) and message-gating (don't promise a table on
-  an unpaid deposit) are separable. Proposed split in §7.
+- **Prices live in WooCommerce core meta only.** Simple product → `_regular_price` / `_sale_price` / `_price`
+  postmeta; each variation (a `product_variation` post) has its **own** trio. The plugin **never** stores a
+  product regular price — grep for `wc_product_meta_lookup` / direct `_price` meta writes / `set_regular_price` in
+  the plugin returns **NONE**.
+- **Dish Dash is a pure reader.** Every price it shows comes from `wc_get_product()->get_price()` /
+  `get_regular_price()` at read time. The one persisted copy is the **order-item snapshot** (`unit_price` /
+  `line_total`), which is correct and must not be back-dated.
+- **One plugin-owned cache matters:** DD_API's 5-minute transients (`_transient_dd_api_*`) carry `price`/
+  `regular_price` and are auto-cleared **only** on `save_post_product` / `woocommerce_update_product`
+  (`class-dd-api.php:512-514`). A **direct meta write bypasses those hooks** → stale up to 5 min.
+- **Recommended write path (not executed): `wc_get_product() + set_regular_price() + save()`.** `save()` drives the
+  WC datastore, which recomputes `_price`, updates `wp_wc_product_meta_lookup`, busts WC variation-price
+  transients, and fires `woocommerce_update_product` → `DD_API::clear_cache()`. Direct `update_post_meta` does
+  none of that. After the batch you still flush **LiteSpeed + object cache** manually. **Variable products need
+  per-variation handling** — setting the parent's regular price does not touch variation prices.
 
 ---
 
-## 1. The schema (`install.php:209-250`, table `dishdash_reservations`)
+## 1. Where WooCommerce stores price on this install
 
-State-encoding columns:
+**Storage is WC core — the plugin touches none of it (grep: NONE).**
 
-| Column | `install.php:` | Type | Default | Meaning |
-|---|---|---|---|---|
-| `status` | `:219` | `VARCHAR(20)` | `'pending'` | Booking workflow state |
-| `deposit_required` | `:234` | `TINYINT(1)` | `0` | Whether THIS booking owes a deposit |
-| `deposit_amount` | `:235` | `INT UNSIGNED` | `0` | Fixed deposit owed (RWF) |
-| `deposit_status` | `:236` | `VARCHAR(20)` | `'none'` | Money state |
-| `deposit_paid_at` | `:237` | `DATETIME` | `NULL` | When restaurant marked paid |
-| `payment_ref` | `:238` | `VARCHAR(100)` | `NULL` | Unused by the deposit flow (no writer found) |
-
-**`status` value set** (VARCHAR, not ENUM — values are convention, not DB-enforced):
-- Written in code: `pending` (booking insert `module:112`), `confirmed` / `cancelled` / `no_show` (admin actions,
-  allow-lists `admin:50`, `module:362`, bulk `module:525`), `auto_cancelled` (cron `module:562`).
-- Labelled in the admin map `admin:168-175`: adds `pending_payment => 'Awaiting Payment'` — a **phantom label**;
-  no writer ever sets `status='pending_payment'` (grep: zero writes). Dead map entry.
-
-**`deposit_status` value set** (VARCHAR; convention documented at `module:106`
-`none|pending|claimed|paid|failed`):
-- `none` (default; no deposit), `pending` (booking insert when deposit enabled, `module:111`), `claimed`
-  (customer claim `module:487`), `paid` (admin mark-paid `module:428`), `failed` (auto-cancel `module:562`).
-- Admin labels add `refunded => '↩ Refunded'` (`admin:388`) — no writer sets it; label-only.
-
-**Other confirmation/payment fields:** `deposit_required` (per-booking gate), `deposit_paid_at`, `payment_ref`
-(unused). No other column encodes confirmation/payment state.
-
----
-
-## 2. Every writer
-
-| Writer `file:line` | Trigger | writes `status` → | writes `deposit_status` → |
-|---|---|---|---|
-| Booking insert `module:115-131` | Customer submits reservation | `'pending'` (`:112`) | `'pending'` if `dd_reservation_deposit_enabled` else `'none'` (`:111`) |
-| `ajax_update_status()` `module:374` | Admin **Confirm / Cancel / No-show** button (AJAX) | `$status` ∈ {pending,confirmed,cancelled,no_show} (`:362`) | **untouched** |
-| Admin POST fallback `admin:55` | Same buttons, non-JS POST path | `$new_status` ∈ same set (`:50`) | **untouched** |
-| `ajax_bulk_action()` `module:526-527` | Admin **bulk** Confirm/Cancel/No-show | `$action` ∈ {confirmed,cancelled,no_show} | **untouched** |
-| `ajax_mark_deposit_paid()` `module:426-428` | Admin **"✅ Mark deposit paid"** (v3.10.66) | **untouched** | `'paid'` (+ `deposit_paid_at`), only from `pending`/`claimed` (`:425`) |
-| `ajax_claim_deposit()` `module:485-487` | Customer **"I have paid"** claim (v3.10.65) | **untouched** | `'claimed'`, only from `pending` (`:484`) |
-| `run_autocancel()` cron `module:560-562` | WP-Cron single event, deposit window elapsed | `'auto_cancelled'` | `'failed'` (**both**, only when `deposit_status IN (pending,claimed)`) |
-
-**Key facts:**
-- **Only the cron writes both columns together.** Every human action writes exactly one column.
-- **No code path writes `status='confirmed'` on a deposit claim or on mark-paid.** `status='confirmed'` comes
-  *solely* from the admin Confirm button / bulk-confirm (`module:374`, `admin:55`, `module:527`), which do **not**
-  look at `deposit_status`. (Confirms the CLAUDE.md flag.)
-- Conversely, marking a deposit paid does **not** advance `status` to `confirmed`. The two are orthogonal writes.
-
----
-
-## 3. Every reader
-
-| Reader `file:line` | Reads | Drives |
+| Thing | Where | Notes |
 |---|---|---|
-| **Status badge** `admin:373-375` | `status` **only** | The prominent per-row badge the user sees (`dd-res-badge--{status}` + label from `$statuses` `:168`) |
-| **Deposit column** `admin:380-396` | `deposit_status` (+ `deposit_required`, `deposit_amount`) | Separate column: `⏳ Awaiting / 🙋 Claimed (unverified) / ✅ Paid / ✗ Failed`; shows `—` when `deposit_required=0` (`:393`) |
-| **"Mark deposit paid" button gate** `admin:494-495` | `deposit_required` + `deposit_status ∈ {pending,claimed}` | Whether the amber button renders (per-row) |
-| **Confirm/Cancel/No-show button gates** `admin:473/478/483` | `status` | Hides the button matching the current status |
-| **"Send Confirmation" WhatsApp** `admin:407-471` | `status` **only** (`if $r->status==='confirmed'`) | Builds *"RESERVATION CONFIRMED ✅ … your table is booked! 🎉"* — **ignores `deposit_status`** |
-| **"Today's confirmed covers" KPI** `admin:158-164` | `status='confirmed'` | KPI number + covers sum |
-| **Filter tabs** `admin:249-262` | `status` (via `?status=`) | Tab filtering; a `confirmed` tab lists all `status='confirmed'` regardless of deposit |
-| **Reservations analytics** `analytics-reservations.php:33,123,125` | `status='confirmed'` (`:123/:125` also split by `deposit_required`, but **not** by `deposit_status`) | Confirmed-count + deposit-required/none breakdown |
-| **Main dashboard** `dashboard.php:107,358` | `status IN ('confirmed','pending')` / `status='confirmed'` | Today's reservations KPI + a confirmed metric |
-| **Auto-cancel query** `module:547-556` | `deposit_required=1 AND deposit_status IN (pending,claimed)` — **does NOT read `status`** | Whether the cron cancels |
-| **Customer-facing** | — | No live customer reservation-status page. Customer sees only the WhatsApp confirmation (admin-sent, gated on `status` `:407`) and the booking-time confirmation. |
+| Simple product regular price | `wp_postmeta` `_regular_price` | The value the bulk op edits |
+| Simple product sale price | `wp_postmeta` `_sale_price` | Independent; may be empty |
+| Simple product **active** price | `wp_postmeta` `_price` | WC-computed: `_sale_price` if a sale is active, else `_regular_price`. **Derived — do not edit directly** |
+| Variation regular/sale/active price | `wp_postmeta` on each `product_variation` post (`_regular_price` / `_sale_price` / `_price`) | Each variation is its own post with its own trio |
+
+- **`wp_wc_product_meta_lookup`** — WC core table (one row per product/variation) holding `min_price`, `max_price`,
+  `onsale`, `stock_status`, rating, etc. Populated/maintained by the WC datastore
+  (`WC_Product_Data_Store_CPT`) on every `save()`. It powers sort-by-price, price filters, and query performance.
+  **Plugin reference: none (grep: NONE)** — this is **core only**. Kept in sync by `save()`, **not** by direct
+  meta writes.
+- **Price-keyed caches/transients:**
+  - WC **variable-price cache** — a hashed transient set per variable product (busted by WC on save / a global
+    version bump). Only relevant if variable products exist (§4).
+  - WC **product object cache** (`woocommerce_get_product_*` via the object cache group).
+  - **DD_API transients** — plugin-owned (§2).
+  - **LiteSpeed page cache** — serves the rendered menu HTML (stack line in CLAUDE.md).
 
 ---
 
-## 4. Where the conflation actually is
+## 2. Does Dish Dash store prices independently?
 
-**Candidate (a) — confirmed.** With refinements:
+**No product-price column anywhere.** Schema audit of `install.php` (all 17 `CREATE TABLE` blocks) — the only
+price columns are the **order-item snapshot**:
 
-- **Write side:** the admin Confirm button writes `status='confirmed'` with **no `deposit_status` check** —
-  `ajax_update_status()` `module:374` (and its POST twin `admin:55`, bulk `module:527`). Allow-list is purely
-  workflow (`module:362`), deposit is never consulted.
-- **Read side:** the headline **status badge reads only `status`** — `admin:373-375`. So the confirmation signal
-  a human scans is blind to money state.
+- `dishdash_order_items` (`install.php:146-160`): `unit_price DECIMAL(10,2)` (`:152`) + `line_total DECIMAL(10,2)`
+  (`:156`), plus `menu_item_id` / `item_name`. **This is a correct order-time snapshot** — it freezes what the
+  customer paid and must **not** be retroactively changed by a price update. Not a problem; expected.
+- No `dishdash_products` table; no price column on any other DD table (customers, reservations, analytics,
+  user_events, etc.).
 
-**Rule the others out:**
-- **(b) mislabelled field** — *No.* Each column renders under its own correct label: the status badge says
-  "Confirmed" for `status`, the Deposit column says "Claimed (unverified)/Paid" for `deposit_status`
-  (`admin:380-396`). Neither is displayed under the other's label.
-- **(c) a writer sets both when it should set one** — *No.* Every human writer sets exactly one column (§2). The
-  only dual-write is the cron (`module:562`), which is correct (cancel + fail together).
-- **(d) a computed value collapses the two** — *No.* There is no derived/combined status; the two columns are
-  read independently in two separate cells.
+**Price reads/denormalisation in the plugin (all live from WC, none persisted):**
 
-**So the defect is: the two columns are correct and independent, but the UI presents `status` as the primary
-"is this booking good?" signal while money state lives in a second column that `status` neither reflects nor
-gates.** A restaurant reading "Confirmed" reasonably assumes secured/paid. Amplified by the confirmation WhatsApp
-(`admin:407`) promising a booked table on `status` alone, and undercut by auto-cancel (`module:547`) which can
-later flip that same "Confirmed" row to `auto_cancelled` because it only trusts `deposit_status`.
+| Site | `file:line` | Reads |
+|---|---|---|
+| DD_API `map_product()` | `class-dd-api.php:577-578` | `get_price()` / `get_regular_price()` → cached 5 min |
+| Cart add | `class-dd-cart.php:230` | `get_price()` (into the cart **session** at add-time) |
+| Product modal AJAX | `class-dd-ajax.php:93-94` | `get_price()` + `get_price_html()` |
+| Menu grid card | `templates/partials/product-card.php:43-44` | `get_price()` |
+| Homepage hero | `templates/page-dishdash.php:341` | `get_price()` |
+| Reorder / profile | `class-dd-profile-module.php:371` | `get_price()` |
+| Order placement | `class-dd-orders-module.php:187` | `wc_get_product()` (re-reads live at checkout, then snapshots) |
+| Tracking value | `class-dd-tracking-module.php:231` | `get_price()` |
 
----
-
-## 5. What SHOULD the admin see? (raw material only — not designing the fix)
-
-- **Can a booking legitimately be `confirmed` without a deposit?** **Yes.** `deposit_required` is per-booking
-  (`install.php:234`), set at insert from `dd_reservation_deposit_enabled` (`module:109`). When deposits are off
-  (or for pre-deposit-era rows) `deposit_required=0`, `deposit_status='none'`, and "Confirmed" with no deposit is
-  entirely valid — the Deposit column correctly shows `—` (`admin:393-394`). So any fix must **not** treat
-  "confirmed + no paid deposit" as wrong when `deposit_required=0`; the problem case is specifically
-  **`deposit_required=1 AND status='confirmed' AND deposit_status<>'paid'`**.
-- **Is `deposit_status` meaningful when no deposit is owed?** No — it holds `'none'` (default `install.php:236`)
-  and the Deposit column short-circuits on `deposit_required` before reading it (`admin:381`). `'none'` = N/A.
-- **Existing rows where `status='confirmed'` but the deposit is unpaid** — **PENDING (server):**
-  ```bash
-  wp db query "SELECT
-     SUM(status='confirmed' AND deposit_required=1 AND deposit_status<>'paid' AND is_test=0) AS confirmed_unpaid_deposit,
-     SUM(status='confirmed' AND deposit_required=1 AND deposit_status='claimed' AND is_test=0) AS confirmed_claimed_only,
-     SUM(status='confirmed' AND deposit_required=1 AND deposit_status='paid'   AND is_test=0) AS confirmed_paid,
-     SUM(status='confirmed' AND deposit_required=0 AND is_test=0)                             AS confirmed_no_deposit
-   FROM wp_dishdash_reservations" --skip-column-names
-  ```
-  (Adjust `wp_` prefix if different.) `confirmed_unpaid_deposit > 0` quantifies live exposure.
+The **cart session** (`class-dd-cart.php:230`) holds a per-customer price copy captured when the item was added;
+a bulk price change won't retroactively alter items already sitting in someone's cart (same principle as the
+order snapshot — acceptable, not a denormalised master copy).
 
 ---
 
-## 6. Blast radius — everything keyed off `status='confirmed'`
+## 3. What renders the customer-facing menu / cart / checkout price?
 
-If a fix changes what "confirmed" means or what gets written on Confirm, these move:
+- **Menu — server-rendered card:** `templates/partials/product-card.php:43-44` →
+  `(float) $product->get_price()` (live `wc_get_product`). Grid loop supplies products via
+  `wc_get_products()` (`grid.php:145`).
+- **Menu — mobile JS data layer:** `grid.php:334-335` → `DD_API::get_products([ 'limit' => -1 ])` (and
+  `DD_API::get_categories()`), i.e. the **5-min-cached** DD_API path. So the menu has **two** price sources: a
+  live server card **and** a cached JS dataset. After a price change the JS dataset can lag up to 5 min unless
+  DD_API cache is cleared (§5).
+- **Cart drawer:** price is set when the item is added — `class-dd-cart.php:230` `get_price()` — and stored in
+  the cart session; the drawer renders from that session copy.
+- **Checkout / order placement:** `class-dd-orders-module.php:187` re-reads `wc_get_product($item['id'])` live,
+  then writes the `unit_price`/`line_total` snapshot to `dishdash_order_items`.
 
-- **Auto-cancel** — **NOT affected.** `run_autocancel()` reads only `deposit_status`/`deposit_required`
-  (`module:547-556`); it ignores `status`. Decoupling display from money will not touch cancellation. (Good —
-  the safety net already lives on the correct column.)
-- **Availability/capacity** — **NOT affected.** `ajax_check_availability()` is a stub returning `available:true`
-  (`module:350-353`); no capacity engine reads `status`.
-- **"Today's confirmed covers" KPI** — `admin:158-164` counts `status='confirmed'`. Today it counts
-  deposit-unpaid confirmations too (may overstate covers that will auto-cancel).
-- **Reservations analytics** — `analytics-reservations.php:33` (confirmed count), `:123/:125` (confirmed split by
-  `deposit_required`, **not** by paid). A paid-vs-unpaid confirmed distinction does not exist in reporting yet.
-- **Main dashboard** — `dashboard.php:107` (today `status IN (confirmed,pending)`), `:358`
-  (`status='confirmed'`).
-- **Filter tabs** — `admin:249-262`; a `confirmed` tab currently mixes paid and unpaid deposit bookings.
-- **Confirmation WhatsApp** — `admin:407-471`; gated on `status` alone.
-- **Confirm-button visibility** — `admin:473` hides Confirm once `status='confirmed'`.
-
-Nothing safety-critical (cancel, capacity) keys off `status`, so a display/semantics fix is low-risk to the
-money mechanic. The reporting KPIs are the only numeric consumers that would shift meaning.
+**None of these read `_price` meta directly or read a Dish Dash price table** — they all go through
+`wc_get_product()` (live) or `DD_API` (WC live, 5-min cached).
 
 ---
 
-## 7. Release decomposition (one fix per release)
+## 4. Variable products on this install — **PENDING (server)**
 
-This is **not** one change. Ranked by what a prospect demo exposes first:
+Counts can't be read from the repo. Run (adjust `wp_` prefix if different):
 
-**R1 — Display: make the admin row tell the truth (HIGHEST demo exposure, lowest risk).**
-Read-side only, `class-dd-reservations-admin.php`. Surface deposit state in/next to the status badge so a
-"Confirmed" row with `deposit_required=1 AND deposit_status<>'paid'` visibly reads as *not secured* (e.g. a
-warning treatment on the status cell, or a combined indicator) — the raw material is already in the row
-(`$r->status`, `$r->deposit_required`, `$r->deposit_status`). Touches no writer, no cron, no reporting. This is
-the thing a demo sees: a green "Confirmed" beside "🙋 Claimed (unverified)". **Do first.**
+```bash
+# Product-type split (simple / variable / grouped / external) with live counts:
+wp term list product_type --fields=name,count
 
-**R2 — Money message: don't promise a table on an unpaid deposit (HIGH money-safety, separable).**
-Read-side gate on the confirmation WhatsApp (`admin:407`): when `deposit_required=1 AND deposit_status<>'paid'`,
-the "Send Confirmation" message should not assert *"your table is booked!"* (either withhold it or change wording
-— design deferred). Independent of R1: R1 changes what the admin sees, R2 changes what the customer is told.
-Separable because they touch different outputs (badge vs wa.me message) even though both live in the same file.
+# Published products (all types):
+wp post list --post_type=product --post_status=publish --format=count
 
-**R3 — Write/relabel semantics (OPTIONAL, deferred, decision-gated).**
-The deeper question of whether "Confirmed" should be *blocked* until the deposit is paid, or the workflow
-relabelled/decoupled (e.g. a derived "Secured" state), or the phantom `pending_payment`/`refunded` labels removed.
-This is a behavior + data-meaning change with reporting blast radius (§6) and needs a product decision. Do **not**
-bundle with R1/R2. Auto-cancel already protects the money regardless (`module:547`), so there is no urgency to
-change the write path — the urgency is purely that the **display and the customer message lie**.
+# Published variations:
+wp post list --post_type=product_variation --post_status=publish --format=count
 
-**Recommended order:** R1 (display truth) → R2 (message safety) → R3 (optional semantics), each its own release.
-R1 is the single change that removes the demo-visible contradiction; R2 removes the customer-facing false promise.
+# Category 135 — resolve term_id → term_taxonomy_id, count published products in it:
+wp db query "SELECT COUNT(*) FROM {$P}posts p
+  JOIN {$P}term_relationships tr ON tr.object_id = p.ID
+  JOIN {$P}term_taxonomy tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+  WHERE tt.term_id = 135 AND tt.taxonomy = 'product_cat'
+    AND p.post_type='product' AND p.post_status='publish'"
+
+# Are any category-135 products VARIABLE? (join product_type)
+wp db query "SELECT COUNT(*) FROM {$P}posts p
+  JOIN {$P}term_relationships tr  ON tr.object_id = p.ID
+  JOIN {$P}term_taxonomy tt       ON tt.term_taxonomy_id = tr.term_taxonomy_id AND tt.term_id = 135
+  JOIN {$P}term_relationships tr2 ON tr2.object_id = p.ID
+  JOIN {$P}term_taxonomy tt2      ON tt2.term_taxonomy_id = tr2.term_taxonomy_id AND tt2.taxonomy='product_type'
+  JOIN {$P}terms t2               ON t2.term_id = tt2.term_id AND t2.slug='variable'
+  WHERE p.post_type='product' AND p.post_status='publish'"
+
+# Published products with NO regular price set (would be skipped / need attention):
+wp db query "SELECT COUNT(*) FROM {$P}posts p
+  WHERE p.post_type='product' AND p.post_status='publish'
+    AND NOT EXISTS (SELECT 1 FROM {$P}postmeta m
+                    WHERE m.post_id=p.ID AND m.meta_key='_regular_price' AND m.meta_value <> '')"
+```
+(`{$P}` = the real table prefix, e.g. `wp_`.) The developer stated cat 135 has **19 products** — the query above
+verifies it and, critically, whether any are **variable** (which changes the write path — see §6).
+
+**Why this matters:** for a **simple** product the +100 edits one `_regular_price`. For a **variable** product the
+regular price lives on **each variation**, not the parent — a bulk routine must iterate variations, and "+100 on
+the product" is ambiguous (per-variation? only the parent's displayed range?). The counts decide whether the
+bulk op is simple-only or must handle variations.
+
+---
+
+## 5. What a bulk price change would miss (if written directly to meta)
+
+If `_regular_price` were updated via `update_post_meta` (bypassing WC `save()`):
+
+| Goes stale | Why | Fix / command |
+|---|---|---|
+| `_price` (active price) | WC derives it on save; direct write leaves the old active price → **menu shows old price** | Recompute via `save()`, or `wp wc tool run regenerate_product_lookup_tables` won't fix `_price` — only `save()` does |
+| `wp_wc_product_meta_lookup` (min/max) | Updated only by the datastore on `save()` | WP Admin → WooCommerce → Status → Tools → **Regenerate the product lookup tables**, or `wp wc tool run regenerate_product_lookup_tables --user=1` |
+| WC variable-price transients | Busted by WC on save | `wp transient delete --all` (or WC clears on next save) — only matters if variable products exist |
+| DD_API transients (`_transient_dd_api_*`) | Cleared only on `save_post_product`/`woocommerce_update_product` (`class-dd-api.php:512-514`); a direct meta write fires neither | `wp transient delete --all`, or call `DD_API::clear_cache()`, or wait ≤5 min |
+| LiteSpeed page cache | Serves cached menu HTML | LiteSpeed → Toolbox → **Purge All** (or `wp litespeed-purge all` if the CLI is available) |
+| Object cache (if persistent) | Cached `WC_Product` objects | `wp cache flush` |
+
+**The direct-meta route requires manually fixing every row above.** The `_price` desync alone means the customer
+menu would keep showing the **old** price after a direct `_regular_price` write.
+
+---
+
+## 6. Safest write path (report only — not executed)
+
+**Recommended: `wc_get_product( $id )` → `set_regular_price( $new )` → `save()`.**
+
+`save()` routes through `WC_Product_Data_Store_CPT`, which in one call:
+- writes `_regular_price`, **recomputes and writes `_price`** (respecting any active `_sale_price`),
+- **updates `wp_wc_product_meta_lookup`** (min/max/onsale),
+- **busts the WC variable-price transient** for variable parents,
+- fires **`woocommerce_update_product`** → `DD_API::clear_cache()` (`class-dd-api.php:514`) clearing the plugin's
+  5-min cache.
+
+So it handles **rows 1–4 of §5 automatically**. Only **LiteSpeed page cache** and (if enabled) **object cache**
+remain to flush manually after the batch — neither is reachable from a product `save()`.
+
+**Direct `update_post_meta( $id, '_regular_price', … )` is NOT recommended:** it leaves `_price`, the lookup
+table, WC transients, and DD_API cache all stale (§5), producing a menu that shows old prices and price filters
+that sort on wrong values until every cache is manually regenerated.
+
+**Caveats to carry into the write brief (not decisions for here):**
+1. **Variable products** (§4): `set_regular_price()`+`save()` on the parent does **not** change variation prices.
+   If cat-excluded set contains variables, the routine must load `$product->get_children()` and
+   `set_regular_price()`+`save()` each variation — and "+100" per variation must be an explicit decision.
+2. **Sale prices:** +100 on `_regular_price` while a `_sale_price` is active means the customer still pays the
+   (unchanged) sale price until the sale ends. Decide whether sale prices also move.
+3. **Empty regular price** (§4 query): products with no `_regular_price` should be skipped, not set to `100`.
+4. **Category 135 exclusion** must be evaluated per product (its `product_cat` terms), and for variations by the
+   **parent's** category.
+5. **Idempotency/backup:** a re-run would add another +100. Take a DB backup and record the affected IDs before
+   any write (developer step, not this phase).
 
 ---
 
 ## Pending server checks (consolidated)
-1. `wp db query "SELECT … confirmed_unpaid_deposit …"` (full query in §5) — live count of `confirmed` bookings with an unpaid/claimed required deposit.
-2. (context) `wp option get dd_reservation_deposit_enabled` — are new bookings currently requiring a deposit at all? Determines whether R1/R2 affect new inbound bookings or only the existing backlog.
+1. `wp term list product_type --fields=name,count` — simple vs variable split.
+2. `wp post list --post_type=product --post_status=publish --format=count` and `--post_type=product_variation …` — product & variation totals.
+3. The two cat-135 SQL queries in §4 — product count (verify 19) and whether any are variable.
+4. The no-regular-price SQL in §4 — products the bulk op must skip.
+5. (post-write, informational) confirm `_price` == `_regular_price` for updated simple products and that the lookup table regenerated.
