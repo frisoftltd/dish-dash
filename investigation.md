@@ -1,178 +1,170 @@
-# INVESTIGATION — Spice level: selection is not reaching the kitchen
+# INVESTIGATION — Spice R2: desktop variation capture
 
 **Phase 1, read-only.** Every claim carries `file:line`. Live-DB facts are marked **PENDING (server)** with exact
 SQL.
 
 ---
 
-## TL;DR — it's **two independent bugs**
+## TL;DR — the desktop chip UI **already exists** and is fully built; it's fed empty data and not wired to Add
 
-1. **DISPLAY (mobile orders):** the spice choice **is** captured and stored in `dishdash_order_items.variation`
-   (as JSON, e.g. `{"Spiciness Level":"Medium"}`), but **only the kitchen WhatsApp builder reads it**
-   (`class-dd-notifications.php:361-370`). The **admin order modal** (`orders.php:844-851`), the **admin order
-   WhatsApp** (`notifications.php:299-300`), and the **order email** (`notifications.php:205-208`) all render
-   `qty × name` and **ignore `variation`**. So on the surfaces the restaurant actually watches, the choice is
-   invisible — even though it's in the DB.
-2. **CAPTURE (desktop):** the desktop add-to-cart (`frontend.js:191-212`) sends only
-   `product_id` + `quantity` — **no `variation`**, and desktop renders **no spice chips at all**. So desktop
-   orders store an empty `variation`; the choice never exists.
+The desktop product **modal** (`openProductModal` → `renderModal` → `fetchProductEnrichment`, `frontend.js:896-1144`)
+has a **complete attribute-pill component** — an `#ddPmAttrs` container (`:953`), a pill renderer with
+per-attribute groups (`:1104-1120`), selection state, and Add-button gating "disabled until all attributes
+selected" (`:1095-1136`). It is dead for two reasons:
 
-The mobile write path is fully wired end-to-end; the break is on the **read/display** side (bug 1) and the
-**desktop capture** side (bug 2). These are separate files and separate fixes.
+1. **Data-source gap:** its data endpoint `dd_get_product` (`class-dd-ajax.php:80-88`) returns `attributes` **only
+   when `is_type('variable')`** — all 232 products are `simple`, so `p.attributes` is always `[]`, the
+   `if (p.attributes && p.attributes.length > 0)` guard (`frontend.js:1095`) is false, and no pills render. Mobile
+   works because it uses a **different** source, `DD_API::map_product()` (`class-dd-api.php:560-571`), which reads
+   `get_attributes()` **visible** attributes (not gated on variable type).
+2. **Wiring gap:** even if pills rendered, the modal's Add handler (`frontend.js:1011-1016`) sends only
+   `product_id` + `quantity`. The selection is captured in `fetchProductEnrichment`'s **local** `selected` object
+   (`:1119/1128`) which the Add handler — a sibling closure in `renderModal` — never reads. So the choice would
+   still not be sent.
+
+**The server already accepts it:** `dd_cart_add` reads `$_POST['variation']` from **any** caller
+(`class-dd-cart.php:240`) → stores it → `order_items.variation` (`orders-module.php:446`). Nothing downstream is
+mobile-specific or would drop it. So R2 is: (a) expose visible attributes in `dd_get_product`, (b) bridge
+`selected` into the Add POST as `variation`. Both must ship together.
 
 ---
 
-## 1. Where do the mobile chips come from?
+## 1. What is the desktop product UI?
 
-- **Render:** `assets/js/menu-page.js:581-593` — the mobile single-product screen maps `product.attributes[]`
-  into `.dd-mobile-attr-group` blocks with a `.dd-mobile-attr-pill` per option. Container is
-  `#dd-mobile-single-attrs` (`templates/menu/grid.php:301`).
-- **Data source:** **WooCommerce product attributes**, not the variation posts and not a hardcoded list.
-  `product.attributes` comes from `DD_API::map_product()` `class-dd-api.php:560-571`, which iterates
-  `$product->get_attributes()` and includes any attribute where `get_visible()` is true, emitting
-  `{ name, options[] }` (terms of `pa_spiciness-level` → Mild/Medium/Hot/Extra Hot). Supplied to the mobile JS
-  via `grid.php:335` (`DD_API::get_products`).
-- **Why mobile only:** the chip UI exists **only** in the mobile component (`menu-page.js` + the
-  `#dd-mobile-single-*` markup in `grid.php:295-301`). The **desktop** product interaction is `frontend.js`'s
-  `addToCart()` (`:191`), a **quick-add** straight from the card — there is **no desktop product-detail view and
-  no attribute/pill render anywhere in `frontend.js` / `product-card.php`** (grep: none). So desktop has no
-  equivalent; it's a missing component, not a responsive branch.
-- **On click:** `menu-page.js:383-398` — clears siblings, marks the pill `.is-active`, and stores
-  `this.currentProduct.selectedAttributes[label] = pill.textContent.trim()` (JS state, keyed by the attribute
-  label). Add button stays disabled until `selectedAttributes` count ≥ `requiredSelections` (`:400-402`).
+- **A separate JS-built modal**, not a template and not the mobile component. `openProductModal(productId)`
+  (`frontend.js:896`) → inner `renderModal()` (`:932`) injects the modal HTML into `#ddProductModalContent`, then
+  `fetchProductEnrichment()` (`:1051/1057`) fetches extras.
+- **The desktop product card** is `templates/partials/product-card.php` — `<article class="dd-dish-card"
+  data-id …>` with a title/desc/price and a quick-add `<button class="dd-add-btn" data-id data-nonce>`
+  (`:64-83`). Clicking the card opens the modal (`frontend.js:1165-1170`); the quick-add button calls
+  `addToCart()` directly (`:191`).
+- **Where a chip row goes:** the home already exists — `<div class="dd-pm__attrs" id="ddPmAttrs">` (`:953`),
+  between the description and the notes textarea. `fetchProductEnrichment` injects `.dd-pm__attr-group` /
+  `.dd-pm__attr-pill` markup into it (`:1104-1120`).
+- **Does the desktop view receive the attribute data?** It *requests* it (via `dd_get_product`, `:1069`) and is
+  *coded to render* it, but the endpoint returns `[]` for simple products (§2). So the component never fires.
 
-## 2. Does the selection reach the server? — **Mobile: yes. Desktop: never sent.**
+## 2. Why does mobile have chips and desktop not?
 
-**Mobile path (fully wired):**
-1. Sent: `menu-page.js:717` — `formData.append('variation', JSON.stringify(selectedAttributes))` to
-   `dd_cart_add` (value like `{"Spiciness Level":"Medium"}`).
-2. Cart stores it: `class-dd-cart.php:240` (`ajax_add` reads `$_POST['variation']`) → `add()` persists it into
-   the session line at `class-dd-cart.php:97` (`'variation' => sanitize_text_field(...)`). `sanitize_text_field`
-   keeps the JSON (it strips tags/newlines, not quotes/braces/colons). The line hash includes variation
-   (`:179`), so different spice = different cart line.
-3. Checkout carries it: `ajax_place_order()` reads the **server** cart — `$summary = (new DD_Cart)->summary()`
-   (`orders-module.php:796`, "never trust client items") — and passes `'items' => $summary['items']` into
-   `place_order()` (`:884` / `:1019` / `:1080` for the offline/COD/momo_manual branches).
-4. Persisted: `place_order()` → `insert_order_items()` writes
-   `'variation' => sanitize_text_field($item['variation'])` to `dishdash_order_items.variation`
-   (`orders-module.php:446`).
+- **Not responsive CSS and not one template** — they are **two separate components with two separate data
+  sources**:
+  - **Mobile:** `menu-page.js` single-product screen, fed by the **cached DD_API dataset** localized from
+    `grid.php:335` (`DD_API::get_products`), whose `map_product()` includes **visible** attributes
+    (`class-dd-api.php:560-571`). Renders `.dd-mobile-attr-pill` (`menu-page.js:588`).
+  - **Desktop:** `frontend.js` modal, fed **on demand** by the `dd_get_product` AJAX endpoint
+    (`class-dd-ajax.php:70`), which only exposes **variation** attributes (`is_type('variable')` gate, `:81`).
+    Renders `.dd-pm__attr-pill` (`frontend.js:1113`).
+- **`grid.php:335`'s cached DD_API dataset feeds mobile only.** The desktop modal does not read that dataset for
+  attributes; it fetches `dd_get_product` per-open. (`grid.php` is the `/restaurant-menu/` mobile grid;
+  `DD_MOBILE_DATA`/`ddMenuData` is the mobile layer.)
+- **Built before, or deliberately excluded?** Evidence points to **built-but-starved**, not excluded: the
+  desktop modal has the full pill renderer, selection state, and "disable Add until selected" logic
+  (`:1095-1136`) — clearly *intended* to show attributes — but it queries an endpoint that was only ever wired
+  for WooCommerce *variable* products, so it silently returns nothing for these simple products. The two data
+  sources diverged (`map_product` = visible attrs; `ajax_get_product` = variation attrs).
 
-**So for a mobile order the value lands in `dishdash_order_items.variation`.** The break is **downstream, at the
-readers** (§4).
+## 3. The add-to-cart path
 
-**Desktop path (lost at capture):** `frontend.js:191-212` `addToCart()` POSTs only `action, nonce, product_id,
-quantity` — **no `variation` field** — and no chip UI ever set one. → cart line `variation=''` → order row
-`variation=''`. **Lost before it's ever sent.**
+- **Desktop modal Add** (`frontend.js:997-1039`): POSTs `action=dd_cart_add, nonce, product_id, quantity` — **no
+  `variation`** (`:1011-1016`). (It also drops the `#ddPmNotes` textarea — desktop never sends `note` either; a
+  *separate* capture gap, out of scope, flagged below.)
+- **Desktop quick-add** (`frontend.js:191-212`): same — `product_id` + `quantity` only.
+- **Server expectation:** `dd_cart_add` (`class-dd-cart.php:217-243`) reads `product_id`/`id`, `quantity`/`qty`,
+  and **`variation`** via `sanitize_text_field($_POST['variation'] ?? '')` (`:240`) → `DD_Cart::add()` persists it
+  (`:97`) → `place_order` → `insert_order_items` writes `order_items.variation` (`orders-module.php:446`). **The
+  handler is caller-agnostic — it already accepts `variation` from any source.** If desktop sent it, nothing
+  downstream rejects or drops it (proven by mobile using the identical endpoint).
 
-**Exact break points:**
-- **Mobile:** not lost in capture; lost at **display** (admin modal `orders.php:844-851`, admin WhatsApp
-  `notifications.php:299-300`, email `notifications.php:205-208` — none read `variation`).
-- **Desktop:** lost at **capture** — `frontend.js:207-212` sends no `variation`.
+## 4. Reuse potential
 
-## 3. What is `order_items.variation` actually holding? — **PENDING (server)**
+- **The mobile chip component cannot be lifted wholesale** — it's bound to mobile-only markup
+  (`.dd-mobile-attr-*`) and the `menu-page.js` product-screen state (`this.currentProduct.selectedAttributes`).
+- **But desktop doesn't need it** — it has its **own** equivalent already (`fetchProductEnrichment`
+  `:1092-1141`, `.dd-pm__attr-*`). What must change is small and additive:
+  1. **`class-dd-ajax.php` `ajax_get_product`** — expose **visible** attributes for simple products, mirroring
+     `DD_API::map_product()`'s normalization (`class-dd-api.php:560-571`: iterate `get_attributes()`, keep
+     `get_visible()`, taxonomy → `wc_get_product_terms(..., ['fields'=>'names'])`, non-taxonomy →
+     `get_options()`, emit `{name, options[]}`). This makes `p.attributes` non-empty → the existing pill
+     renderer fires. **Blast radius: `dd_get_product` is called only by `frontend.js`** (grep: `:921` no-card
+     fetch + `:1069` enrichment — nothing else), so this touches only the desktop modal; mobile uses
+     `map_product` and is unaffected.
+  2. **`frontend.js`** — bridge the enrichment's `selected` object into the Add POST as
+     `variation: JSON.stringify(selected)`. Today `selected` (`:1119`) is scoped inside
+     `fetchProductEnrichment` and the Add handler is in `renderModal`; the two need a shared reference (hoist
+     `selected` to the `openProductModal` scope, or stash it where the Add handler can read it).
+- **Existing CSS:** the pills are **inline-styled** in `fetchProductEnrichment` (`.dd-pm__attr-pill` with inline
+  `style=` on each element, `:1113`) plus an `active` class toggled on selection (`:1127`). PENDING check: does
+  `.dd-pm__attr-pill.active` have a CSS rule (for the selected-state highlight)? If not, that's the only
+  potential styling gap — the base pills are inline-styled and will show without new CSS.
+  ```bash
+  grep -rn "dd-pm__attr-pill" assets/css/    # is there an .active rule for the selected highlight?
+  ```
+
+## 5. The "no selection" case
+
+- **Mobile requires a selection when attributes exist:** `requiredSelections = product.attributes.length`
+  (`menu-page.js:597`), Add stays disabled until `selectedAttributes` count ≥ required (`:400-402`). It sends
+  `{}` only when a product has **no** attributes (empty `selectedAttributes`) — that is what the **18 `{}` rows**
+  represent (attribute-less products), not a skipped required chip.
+- **Desktop already mirrors this:** `fetchProductEnrichment` disables Add and only re-enables once every
+  attribute group has a selection (`:1095-1136`). So once desktop is fed attributes, **the "require selection"
+  behavior comes for free** — no separate validation work, and it matches mobile.
+- *Design decision (not made here):* whether a product with attributes should ever be addable without a choice.
+  Both surfaces currently say **no** (Add gated). R2 preserving that is the low-surprise path.
+
+## 6. Scope check — **PENDING (server)** (`{$P}` = prefix)
 
 ```sql
--- how many rows carry a value, and what do they look like?
-SELECT COUNT(*)                                   AS total_rows,
-       SUM(variation IS NOT NULL AND variation<>'') AS non_empty,
-       SUM(variation LIKE '{%')                   AS json_shaped
-FROM {$P}dishdash_order_items;
+-- products carrying the spice attribute
+SELECT COUNT(DISTINCT p.ID) FROM {$P}posts p
+JOIN {$P}postmeta m ON m.post_id = p.ID AND m.meta_key = '_product_attributes'
+WHERE p.post_type='product' AND p.post_status='publish'
+  AND m.meta_value LIKE '%pa_spiciness-level%';
 
--- distinct values (spot the JSON vs plain vs empty split)
-SELECT variation, COUNT(*) AS n
-FROM {$P}dishdash_order_items
-GROUP BY variation
-ORDER BY n DESC
-LIMIT 50;
+-- products carrying ANY product attribute (serialized non-empty)
+SELECT COUNT(DISTINCT p.ID) FROM {$P}posts p
+JOIN {$P}postmeta m ON m.post_id = p.ID AND m.meta_key = '_product_attributes'
+WHERE p.post_type='product' AND p.post_status='publish'
+  AND m.meta_value <> '' AND m.meta_value <> 'a:0:{}';
+
+-- every product-attribute taxonomy in use (spice, size, …) — decides how generic R2 must be
+SELECT DISTINCT taxonomy FROM {$P}term_taxonomy WHERE taxonomy LIKE 'pa_%';
 ```
-**Interpretation:** if `non_empty` > 0 with `{...}` JSON, the mobile write path works and the bug is purely
-display (bug 1) — expected given §2. If **all empty**, either the tested orders were desktop (bug 2) or the write
-path never fired — the distinct-values query disambiguates. (Column is `VARCHAR(100)`; `{"Spiciness
-Level":"Medium"}` = 27 chars, fits — but a longer attribute label + value could truncate; worth eyeing in the
-distinct list.)
 
-## 4. Does anything read `variation`? — **Only the kitchen WhatsApp.**
+- **Which attributes should NOT be customer-selectable?** Can't be inferred from raw data; the intent signal is
+  each attribute's **visible** flag in `_product_attributes` (what `map_product`/`get_visible()` keys off). Any
+  attribute set visible will surface as a chip under the "mirror map_product" approach. If some visible attribute
+  is informational (not a choice), that's a **per-attribute editorial call** — flag for the developer; note that
+  `{"Size":"Half"}` already exists in real data, so R2 must be **generic over any attribute**, not spice-only.
 
-| Surface | `file:line` | Reads `variation`? |
-|---|---|---|
-| **Kitchen WhatsApp** | `class-dd-notifications.php:339` (SELECT) + `:361-370` (json_decode → `"Label: Value"`, plain-text fallback) | **YES** — the only reader |
-| **Admin order modal** | `admin/pages/orders.php:844-851` (`renderModal` → `qty × item_name × price`) | **NO** (ignores it, though `get_order_items()` returns the column via `SELECT *` `orders-module.php:498`) |
-| **Admin order WhatsApp** | `notifications.php:299-300` (`build_admin_whatsapp_url` items = `qty × name`) | **NO** |
-| **Order email (admin)** | `notifications.php:205-208` (`notify_admin_email` items_html = `qty × name`) | **NO** |
-| **Customer WhatsApp** | `notifications.php:262-269` (order number + ETA only, no item lines) | **NO** |
-| **Rider WhatsApp** | `notifications.php:398-433` (address/customer/total, no item detail) | **NO** |
+## 7. Release decomposition
 
-So the **display end is largely unwired** — this confirms two bugs, not one. And even the single reader (kitchen)
-only fires if a `dd_whatsapp_kitchen` number is configured and the restaurant actually uses that message; a
-restaurant working from the **admin order view** or the **admin order WhatsApp** sees nothing. Note for the fix:
-`variation` is stored as **JSON**, so any newly-wired reader must `json_decode` it (as the kitchen builder does at
-`:362`), not print it raw.
+**One release.** The two required changes are **not independently shippable**:
 
-## 5. What role do the 900 variations play? — **Dead relative to the chip UI.**
+- **Data source alone** (expose attributes in `dd_get_product`) → pills render **and gate the Add button**, but
+  the Add handler ignores `selected` → the customer is forced to pick, yet the pick is silently dropped. Worse
+  than today.
+- **Wiring alone** (send `variation` from the modal) → nothing to send; no pills exist. No effect.
 
-- **Reachable by WooCommerce?** All 232 parents are typed `simple`, so `wc_get_product($id)` returns a
-  `WC_Product_Simple`; `is_type('variable')` is false everywhere. The plugin's only variation-aware branch
-  (`class-dd-ajax.php:81` `get_variation_attributes()`) **never executes**. Nothing calls `get_children()` /
-  `get_available_variations()` in the plugin (grep: none). So the 900 `product_variation` posts are **not read by
-  any plugin code path**.
-- **Were the chips ever meant to read them?** No — the chips are built from the parent's **attributes**
-  (`get_attributes()` → `map_product` `class-dd-api.php:560-571`), and the selection is sent as a **free-text
-  label** (`menu-page.js:717`), never as a `variation_id`. There is **no code anywhere** that maps a chip
-  selection to a variation post, even if the parents were typed `variable`. The current mobile flow would still
-  send free text.
-- **Verdict (evidence, not preference):** the 900 variations are **vestigial** — authored (parents carry
-  `pa_spiciness-level` with `is_variation:1` + children) but stranded when the products were typed/inserted as
-  `simple`. They contribute nothing to capture or display today. (Cleanup is R3, decision-gated — do **not**
-  delete here.)
+So **R2 = one atomic release**: (a) `ajax_get_product` returns visible attributes for simple products (mirroring
+`map_product`), (b) `frontend.js` bridges `selected` → `variation=JSON.stringify(selected)` in the modal Add.
+The **validation** ("require a choice") is **already implemented** on both surfaces (`:1095-1136`) and needs no
+separate release — it activates for free once attributes render. Confirm the `.dd-pm__attr-pill.active` CSS
+exists (§4) — if not, a one-line style is part of the same release, not a separate one.
 
-## 6. Options (report only)
-
-**A — Dish Dash owns spice (matches the code as-built).**
-- *Mechanics:* (bug 1) wire `variation` into the three unwired readers — admin order modal (`orders.php:844-851`,
-  `json_decode` + render), admin order WhatsApp (`notifications.php:299-300`), order email
-  (`notifications.php:205-208`); (bug 2) add a desktop spice UI that renders `product.attributes` and sends
-  `variation` like mobile does.
-- *Fixes:* kitchen/restaurant sees the choice on every surface; desktop starts capturing.
-- *Leaves broken:* the 900 variations stay dead (separate cleanup, R3).
-- *Effort:* moderate — display reads are small; desktop chip parity is the larger piece (there is no desktop
-  product-detail component today, so it's a new UI, not a tweak).
-
-**B — WooCommerce owns spice (re-type parents to `variable`).**
-- *Mechanics:* convert 222 parents to `variable`, repair the 900 stale variation prices, let WC handle variation
-  selection/cart/order natively.
-- *What breaks:* the DD cart stores a **free-text** `variation`, not a `variation_id` (`cart.php:97/240`), and
-  add-to-cart never selects a variation (`menu-page.js:717`, `frontend.js:207`) — so the whole DD cart/checkout
-  would need reworking to carry `variation_id`, price-per-variation, and stock. **Pricing specifically breaks:**
-  the +100 bump was applied to **parents'** `_regular_price`; a variable product derives its price from its
-  **variations** (all stale at 4500), so the menu would show 4500 (pre-bump) and ignore the parent price.
-  The DD menu render (`product-card.php:43`, `map_product`) assumes a single `get_price()` and has no
-  variable-range handling.
-- *Effort:* high, high-risk — touches cart, checkout, pricing, and the +100 work.
-
-**C — What the code suggests:** Option **A**. Capture already works on mobile as free-text attributes; only
-display wiring and desktop parity are missing. Option B fights the entire cart/pricing model and would undo the
-+100 bump's effect. The variations are vestigial either way.
-
-## 7. Release decomposition (ranked by customer impact)
-
-Your R1 bundled "capture + display" — **splitting it**, because capture works on mobile and the two halves live
-in different files:
-
-| # | Fix | `file:line` | Impact | Verify before next |
-|---|---|---|---|---|
-| **R1 — DISPLAY (the money bug)** | Wire `variation` (json_decode) into the admin order modal, admin order WhatsApp, and order email | `orders.php:844-851`, `notifications.php:299-300`, `notifications.php:205-208` | **Highest** — the restaurant is mobile-first; mobile orders **already carry** the spice, it's just invisible on the surfaces they watch. This alone stops the wrong-spice-cooked bug for the majority path | Place a **mobile** order with spice → confirm it now shows in the order modal, the admin WhatsApp, and the email; kitchen msg unchanged |
-| **R2 — DESKTOP capture** | Add a desktop spice UI rendering `product.attributes` + send `variation` in `addToCart` | `frontend.js:191-212` (+ a desktop product-detail render) | Medium — closes the desktop hole so desktop orders capture spice; only useful **after** R1 makes it visible | Desktop order with spice → confirm `order_items.variation` populated **and** visible via R1 surfaces |
-| **R3 — variation cleanup** | Delete or convert the 900 vestigial variations (per §6 A vs B decision) | data-only (no plugin code) | Low — invisible to customers; hygiene only | Decision-gated; independent of R1/R2 |
-
-**Ranking rationale:** R1 first — it's a pure read-side wiring of data **that already exists** in the DB for
-mobile orders, so it fixes the live money bug immediately with the smallest, lowest-risk change. R2 second — it
-requires building a desktop component and is only meaningful once R1 makes captured values visible. R3 last /
-decision-gated. **Do not bundle R1 and R2** — different files, different risk (R1 tiny read-side; R2 a new UI),
-and R1 must ship first so R2 is testable.
+**Explicitly out of scope (separate tickets, flag only):**
+- **Desktop `note` gap:** the modal's `#ddPmNotes` textarea (`frontend.js:955`) is never sent to
+  `dd_cart_add` — desktop special instructions are dropped, same class of bug as variation but a different field.
+  Not spice; own release.
+- **Desktop quick-add button** (`.dd-add-btn` on the card, `frontend.js:191`): bypasses the modal entirely, so it
+  can never capture attributes. Decision needed (leave as a no-attribute fast path, or route attribute-bearing
+  products through the modal) — but that's a UX decision, not required for R2 (the modal path captures spice;
+  the quick-add stays a flat add). Flag, don't design.
+- Mobile path, display (v3.10.78/79), kitchen builder, the 900 variations (R3) — untouched.
 
 ---
 
 ## Pending server checks (consolidated)
-1. §3 two queries — is `order_items.variation` populated (JSON) for real orders, and are any values truncated at `VARCHAR(100)`?
-2. Confirm a `dd_whatsapp_kitchen` number is/ isn't configured (`wp option get dd_whatsapp_kitchen`) — determines whether the single existing reader ever reaches anyone today.
-3. (context) split recent orders by source to gauge mobile-vs-desktop mix — informs whether R1 (mobile display) or R2 (desktop capture) covers more live orders.
+1. §6 three queries — how many products carry `pa_spiciness-level`, how many carry any attribute, and the full list of `pa_*` taxonomies (decides how generic R2's render must be — it must be generic; `{"Size":"Half"}` proves it).
+2. `grep -rn "dd-pm__attr-pill" assets/css/` — does `.dd-pm__attr-pill.active` have a selected-state rule, or is a one-line style needed in R2?
+3. (informational) confirm no product has a *visible* attribute that is informational-only and should not become a chip — a per-attribute editorial check before R2 ships.
