@@ -1,190 +1,165 @@
-# INVESTIGATION — R3: orphan `product_variation` cleanup
+# INVESTIGATION — Special instructions (`#ddPmNotes`) not captured
 
-**Phase 1, read-only. No code, no data, no deletes.** Plugin facts carry `file:line`; every live-DB fact is
-**PENDING (server)** with exact SQL. WooCommerce core is **not** in this repo — `wp_delete_post()` behaviour is
-core WC and carries a **mandatory single-variation dry-run** before any batch.
+**Phase 1, read-only.** Plugin facts carry `file:line`; live-DB facts are **PENDING (server)** with exact SQL.
 
 ---
 
 ## TL;DR
 
-- **§1 re-verified against current (post-v3.10.80) code:** `class-dd-ajax.php` reads **parent** attributes only
-  (`get_attributes()` + `get_visible()` + `wc_get_product_terms()` on the *parent* id — taxonomy **terms**, not
-  variation posts). A full-plugin grep for `get_children`/`product_variation`/variation reads returns **nothing**.
-  Nothing in the plugin reads the 900 variation posts. The cleanup premise **still holds**.
-- **The R2 chips key on `get_visible()` (`class-dd-api.php:563`), NOT `is_variation`.** So deleting the
-  variations — and even the `is_variation:1` residue on the parents — is invisible to the chips.
-- **Deleting is safe *as data*, but the mechanism has one real WC unknown:** `wp_delete_post()` on a variation
-  whose parent is typed `simple` may trigger WC's parent-sync path (`WC_Product_Variable::sync()`), which assumes
-  a variable parent. Low risk (orphans, simple parent → sync is a no-op or a notice, not corruption), but
-  **unproven from the repo → dry-run one variation first.**
-- **Decomposition:** R3 = delete the orphan variations only. The `_product_attributes` `is_variation` cleanup is
-  **separable, optional, and higher-risk** (it rewrites the same serialized blob the chips read for visibility) —
-  recommend **leaving it**. Data op, **no version bump**.
+- **The column already exists** — `dishdash_order_items.special_note TEXT` (`install.php:155`), per-item. **No
+  schema change needed.**
+- **The write path already works** — `dd_cart_add` reads `$_POST['note']` (`class-dd-cart.php:242`) → cart session
+  (`:99`) → `insert_order_items` writes `special_note` (`orders-module.php:447`).
+- **Capture is broken on every surface:**
+  - **Desktop/homepage modal** (`frontend.js`): the `#ddPmNotes` textarea **exists** (`:963-964`) but the Add
+    handler (`:1011-1025`) **never reads it** — no `note` in the POST. (Same handler that dropped `variation`
+    until v3.10.80; v3.10.80 wired `variation`, left `note`.)
+  - **Mobile `/restaurant-menu/` app** (`menu-page.js` + `grid.php`): there is **no notes field at all** in the
+    mobile single-product screen (`grid.php:288-320`), and `menu-page.js:719` sends `note` **hardcoded to `''`**.
+- **One reader already shows it** — the **kitchen WhatsApp** (`class-dd-notifications.php:433-434`). The admin
+  modal, admin WhatsApp, and order email **ignore it** (same trap as spice R1).
+- **Slash-escaping bites here too:** `sanitize_textarea_field` does **not** stripslashes, so a captured note like
+  `it's spicy` would store as `it\'s spicy`; the existing kitchen reader prints it **raw** (`:434`) → a stray
+  backslash. Any note display needs `stripslashes()` (the same root cause fixed for `variation` in v3.10.79).
+- Notes are **plain text** — **no decode helper** (unlike `variation`), but they **do** need `stripslashes` +
+  per-surface escaping.
 
 ---
 
-## 1. Re-verify unreferenced, against current code
+## 1. Both platforms
 
-**Current `class-dd-ajax.php:84-96` (post-v3.10.80)** iterates `$product->get_attributes()`, skips
-`!$attr->get_visible()`, and reads options via `wc_get_product_terms( $product->get_id(), … )` (taxonomy) or
-`$attr->get_options()`. Every call targets the **parent product** and its **attribute taxonomy terms** — it never
-loads `get_children()`, `get_available_variations()`, or any `product_variation` post. **No change to the cleanup
-premise.**
+**Desktop / homepage modal** (`frontend.js` `#ddProductModal`):
+- Textarea markup: `frontend.js:963-964` — `<textarea id="ddPmNotes" placeholder="Add special instructions
+  (optional)..." rows="2" …>` inside `.dd-pm__notes-wrap`.
+- Read in Add handler: **none.** The Add POST (`:1011-1017`) sends `action, nonce, product_id, quantity,
+  variation` — **no `note`** (grep for `note`/`ddPmNotes` in `frontend.js` returns only the textarea markup).
+  **BREAK = capture: the textarea value is never read into the POST.**
+- *Note:* this modal is what appears on the homepage on **both** desktop and phones (it's the `frontend.js`
+  component, responsive). The "special instructions" field seen in the mobile screenshot is **this** textarea, not
+  a separate mobile component.
 
-**Full-plugin grep** (`modules/`, `dishdash-core/`, `templates/`) for `get_children` / `product_variation` /
-`get_available_variations` / `get_variation*` / `WC_Product_Variation` / `variation_id` / `is_type('variable')`,
-excluding the free-text `order_items.variation` field and the chip `selectedAttributes`/`ddPmSelected` state:
-**zero matches.** Nothing reads variation posts. (The `variation`/`variation_lines` references that exist are all
-the R1 free-text order-item field — unrelated to the 900 posts.)
+**Mobile `/restaurant-menu/` app** (`menu-page.js` + `templates/menu/grid.php`):
+- Field: **none.** The mobile single-product screen (`grid.php:288-320`) has attributes, description, add-to-cart,
+  related — **no notes textarea**.
+- Send: `menu-page.js:719` `formData.append('note', '')` — **hardcoded empty.** So even without a field, it
+  actively sends an empty note. **BREAK = no field + hardcoded ''.**
 
-**Reference counts to re-run — PENDING (server)** (`{$P}` = prefix):
-```sql
--- (a) DD order items pointing at a variation id (prior: 0)
-SELECT COUNT(*) FROM {$P}dishdash_order_items
-WHERE menu_item_id IN (SELECT ID FROM {$P}posts WHERE post_type='product_variation');
+**Reference implementation?** Unlike spice (mobile worked), **neither JS surface captures notes** — there is no
+working client reference. The intended design is proven instead by the **server** (write column + `dd_cart_add`
+acceptance) and the **kitchen reader** (§4).
 
--- (b) WC order itemmeta _variation_id (prior: 0)
-SELECT COUNT(*) FROM {$P}woocommerce_order_itemmeta
-WHERE meta_key='_variation_id' AND meta_value NOT IN ('','0');
+## 2. Where it breaks — full path per platform
 
--- (c) NOT yet checked — tracking/behaviour tables keyed on product_id
-SELECT COUNT(*) FROM {$P}dishdash_user_events
-WHERE product_id IN (SELECT ID FROM {$P}posts WHERE post_type='product_variation');
+**Write path (shared, works):** `dd_cart_add` → `sanitize_textarea_field($_POST['note'] ?? '')`
+(`class-dd-cart.php:242`) → `DD_Cart::add()` stores `'note'` (`:99`) → `place_order` → `insert_order_items`
+writes `'special_note' => sanitize_textarea_field($item['note'] ?? '')` (`orders-module.php:447`) →
+`dishdash_order_items.special_note`.
 
--- (d) NOT yet checked — WC product lookup rows for the variations (these WILL exist; see §2)
-SELECT COUNT(*) FROM {$P}wc_product_meta_lookup
-WHERE product_id IN (SELECT ID FROM {$P}posts WHERE post_type='product_variation');
-
--- (e) NOT yet checked — WC analytics order-product lookup (should be 0, mirrors (b))
-SELECT COUNT(*) FROM {$P}wc_order_product_lookup
-WHERE product_id IN (SELECT ID FROM {$P}posts WHERE post_type='product_variation');
-```
-`dishdash_analytics`/`dishdash_pos_sessions` store JSON/aggregates (no product-id FK column per schema
-`install.php`) and active **cart/WC sessions** are ephemeral (`{$P}woocommerce_sessions`, transient) and only ever
-hold the **parent** product id (customers never add a variation) — note both as low-risk, non-blocking. `(a)`,
-`(b)`, `(c)`, `(e)` must all be **0** before deleting; `(d)` is the lookup residue the delete must also clear (§2/§3).
-
-> **STOP condition:** if the current `class-dd-ajax.php` (or anything else) is found to call `get_children()`/
-> variation data, or if `(a)/(b)/(c)/(e)` is non-zero, the premise changes — halt and report before any delete.
-
-## 2. Full delete scope (what a delete removes, per variation) — **PENDING (server)**
-
-| Target | Rows | SQL |
-|---|---|---|
-| `wp_posts` (the variation) | 900 (publish) + any non-publish (§5) | `SELECT COUNT(*) FROM {$P}posts WHERE post_type='product_variation';` |
-| `wp_postmeta` (its `_price`, `_regular_price`, `attribute_pa_*`, `_stock*`, `_thumbnail_id`, …) | ~15–25 × 900 | `SELECT COUNT(*) FROM {$P}postmeta WHERE post_id IN (SELECT ID FROM {$P}posts WHERE post_type='product_variation');` |
-| `wp_wc_product_meta_lookup` | one per variation (~900) | see §1(d) |
-| `wp_term_relationships` | expected **0** — variation attributes live in `attribute_*` postmeta, not term rels | `SELECT COUNT(*) FROM {$P}term_relationships WHERE object_id IN (SELECT ID FROM {$P}posts WHERE post_type='product_variation');` |
-| Attachments (`_thumbnail_id`) | the referenced media are **separate posts, NOT deleted** — only the variation's meta pointer goes; confirm no shared thumbnails matter | (informational) |
-| `wp_comments` | expected 0 (no reviews on variations) | `SELECT COUNT(*) FROM {$P}comments WHERE comment_post_ID IN (SELECT ID FROM {$P}posts WHERE post_type='product_variation');` |
-
-No other DD table is keyed on a variation post id (§1). The heavy rows are **postmeta** (thousands) and the
-**lookup** table (~900) — both must be cleaned, which decides the mechanism (§3).
-
-## 3. Delete mechanism — the key unknown
-
-**`wp_delete_post( $id, true )` (force) vs raw SQL:**
-
-| | Cleans `wp_posts` | Cleans `wp_postmeta` | Cleans `wc_product_meta_lookup` | Clears WC transients | Fires WC hooks |
+| Platform | DOM read? | In POST? | Cart stores? | Order writes? | Lands in |
 |---|---|---|---|---|---|
-| `wp_delete_post($id,true)` / `wp post delete $id --force` | ✅ | ✅ (core deletes child meta) | ✅ (via WC `delete_post` hook) | ✅ | ✅ |
-| Raw `DELETE FROM wp_posts …` | ✅ | ❌ (orphaned meta left) | ❌ (orphaned lookup left) | ❌ | ❌ |
+| Desktop modal | ❌ never read (`frontend.js:1011-1017`) | ❌ | would (`:99`) | would (`:447`) | `special_note` |
+| Mobile app | ❌ no field (`grid.php:288-320`) | sends `''` (`menu-page.js:719`) | stores `''` | writes `''` | `special_note`='' |
 
-**Recommend `wp_delete_post($id, true)` / `wp post delete --force`** — it is the only path that also clears the
-postmeta and the lookup table (§2) and busts caches. Raw SQL would leave thousands of orphaned postmeta rows and
-900 stale lookup rows.
+**Exact break — capture only, on the client:**
+- Desktop: `frontend.js:1011-1017` (POST omits `note`; `#ddPmNotes.value` never read).
+- Mobile: `menu-page.js:719` (`note` hardcoded `''`) + no field in `grid.php`.
+Everything server-side (cart store, order write, column) is ready.
 
-**The WC unknown (investigate before batch):** these variations' parents are typed `simple`. On variation
-deletion WC hooks fire — notably `woocommerce_before_delete_product_variation` / the data-store `delete()` and a
-**parent sync** (`WC_Product_Variable::sync( $parent_id )` recomputes a variable parent's price range from its
-children). For a `simple` parent, `wc_get_product($parent)` returns `WC_Product_Simple`, so the variable-sync
-path is either a **no-op or emits a notice** — it does **not** rewrite a simple product's `_price`/`_regular_price`
-(those aren't derived from children for simple products). **Risk assessment: low (no data corruption expected),
-but unproven from the repo** because WC core isn't here. **Mandatory dry-run:** delete **one** variation on
-staging/live-with-backup and verify:
+## 3. Is there anywhere to put it? — **Yes, already.**
+
+- **`dishdash_order_items.special_note TEXT DEFAULT NULL`** (`install.php:155`) — **per-item**, exactly matching
+  the modal's per-item textarea. Already written by `orders-module.php:447`. **No schema change.**
+- Per-order alternative exists but is **not** this: `dishdash_orders.special_instructions TEXT` (`install.php:122`)
+  — an order-level field (grep shows no writer/reader wired to the modal notes; it's a separate, currently-unused
+  order-level slot). The modal note is per-item → `special_note` is the correct home. **Do not** repurpose the
+  per-order column.
+- Data model supports per-item: confirmed — the cart keys items individually and `special_note` is on
+  `order_items`, one row per line.
+
+## 4. Does anything already read it?
+
+| Surface | `file:line` | Reads `special_note`? |
+|---|---|---|
+| **Kitchen WhatsApp** | `class-dd-notifications.php:382` (SELECT) + `:433-434` (`'   Note: ' . $item['special_note']`) | **YES** — but printed **raw** (no `stripslashes`, no rawurlencode issue since it's a wa.me line) |
+| **Admin order modal** | `admin/pages/orders.php` | **NO** (grep: none — renders qty/name/variation_lines/price only) |
+| **Admin order WhatsApp** | `class-dd-notifications.php` `build_admin_whatsapp_url` | **NO** — and its producer `$notification_data['items']` (`orders-module.php:1123-1129`) carries name/qty/price/variation, **not** note |
+| **Order email** | `class-dd-notifications.php` `notify_admin_email` | **NO** — same producers omit note |
+| **Producers** | `orders-module.php:1123-1129` (offline) · `build_from_wc_order` `notifications.php:~155` (online) | carry name/qty/price/**variation** (added v3.10.78) — **not `special_note`** |
+
+**Same split as spice:** the value is captured-able and one reader (kitchen) shows it, but the admin surfaces
+don't — and their item arrays don't even carry it (producers strip it, exactly like `variation` pre-v3.10.78).
+The admin modal is the exception: it reads `get_order_items()` (`SELECT *`, `orders-module.php:494`), so
+`special_note` **is** in its payload already — it just isn't rendered.
+
+## 5. Live data — **PENDING (server)**
+
 ```sql
--- pick one variation of a known parent, capture BEFORE, delete, then re-run AFTER:
-SELECT p.ID, p.post_parent,
-   (SELECT meta_value FROM {$P}postmeta WHERE post_id=p.post_parent AND meta_key='_price')          AS parent_price,
-   (SELECT meta_value FROM {$P}postmeta WHERE post_id=p.post_parent AND meta_key='_regular_price')  AS parent_regular,
-   (SELECT COUNT(*)   FROM {$P}posts    WHERE post_parent=p.post_parent AND post_type='product_variation') AS siblings
-FROM {$P}posts p WHERE p.post_type='product_variation' LIMIT 1;
+SELECT COUNT(*)                                              AS total,
+       SUM(special_note IS NOT NULL AND special_note <> '')  AS non_empty
+FROM {$P}dishdash_order_items;
+
+-- if any non-empty, eyeball them (did it EVER work, and are they slash-escaped?)
+SELECT id, order_id, special_note
+FROM {$P}dishdash_order_items
+WHERE special_note IS NOT NULL AND special_note <> ''
+LIMIT 30;
 ```
-Expect after the single delete: **parent `_price`/`_regular_price` unchanged**, parent still renders on the menu,
-the variation's postmeta + lookup row gone, **no PHP error/notice in the log**. Only then batch.
+**Expectation:** `non_empty` ≈ 0 (capture broken on both surfaces since inception). Any non-empty rows would be
+test data or a historical path; the sample also reveals whether stored notes carry `\'` slash-escaping (§6).
 
-**Batch + order:** the 900 are independent orphans → **order does not matter**. Batch **50–100** per pass
-(bounds memory; each `wp_delete_post` loads the object + fires hooks + writes lookup/transients). Pause between
-passes; verify (§6) between batches.
+## 6. Reuse & escaping
 
-## 4. The `_product_attributes` residue (`is_variation:1`)
+- **The spice template applies partially.** Capture is the same shape as v3.10.80 (read a modal value → add to the
+  Add POST) — literally the same handler. But notes are **plain text**, so **no `variation_lines()`-style decode
+  helper** is needed (no JSON, no key/value parsing).
+- **Slash-escaping — same root cause, still present:** `sanitize_textarea_field($_POST['note'])`
+  (`class-dd-cart.php:242`) does **not** strip the slashes that `wp_magic_quotes()` adds to `$_POST`. So a note
+  with a quote/apostrophe stores as `\'`/`\"`. **Every reader must `stripslashes()` on display** — including the
+  **existing kitchen reader**, which currently prints raw (`notifications.php:434`) and would show a stray
+  backslash the moment notes are actually captured. (This is latent today only because no note is ever stored.)
+- **Escaping per surface** (free text is higher-risk than the controlled attribute terms):
+  - **Kitchen / admin WhatsApp:** `stripslashes()`, then raw into the `\n`-joined message (`rawurlencode`d
+    downstream). No HTML escaping (plain wa.me text).
+  - **Order email:** `stripslashes()` + **`esc_html()`** (HTML body). A free-text note **must** be escaped here —
+    unlike attribute terms, a customer can type `<`.
+  - **Admin modal:** `stripslashes()` server-side (mirror v3.10.79's approach — have PHP hand the modal a clean
+    value, e.g. attach a decoded/`stripslashes`d `special_note` in `ajax_get_order`) **and** JS-escape on insert.
+    The modal currently injects `item.item_name` unescaped; a free-text note is riskier, so escape it.
+- **Producers:** to show notes on admin WhatsApp/email, the two down-maps (`orders-module.php:1123-1129`,
+  `build_from_wc_order`) must additively carry `special_note` — same additive change v3.10.78 made for `variation`.
 
-Each parent's serialized `_product_attributes` marks `pa_spiciness-level` with `is_variation => 1` ("this
-attribute generates variations").
+## 7. Release decomposition (ranked by what the customer loses)
 
-- **Does anything read `is_variation`?** **The chips do NOT.** `map_product()` (mobile) and `ajax_get_product`
-  (desktop) both key on **`get_visible()`** (`class-dd-api.php:563`; and the mirrored desktop loop
-  `class-dd-ajax.php:86`) — the attribute's **`is_visible`** flag, a *different* field in the same serialized
-  array. `is_variation` is only consulted by WC when a product is **`variable`**; for a **`simple`** product WC
-  **ignores it**. → after the variations are gone, `is_variation:1` is **inert residue**, not harmful.
-- **⚠️ If clearing it were attempted, it could break R2's chips.** `is_visible` and `is_variation` live in the
-  **same** `_product_attributes` blob. A cleanup that rewrites that blob and accidentally drops `is_visible`
-  (or drops the whole `pa_spiciness-level` entry) would make `get_visible()` false → **the chips would stop
-  rendering** on both surfaces. So clearing `is_variation` is **not safe to do casually** and must never touch
-  `is_visible`/the attribute entry.
-- **Recommendation (report, not choose):** **leave `is_variation` as-is.** It is inert, and the only downside of
-  keeping it is a cosmetic WC-admin note if a product is later edited. Clearing it buys nothing and risks the
-  chips. If ever cleared, it must be a *surgical* edit that flips only `is_variation`→0 and preserves
-  `is_visible` and the attribute options — a separate, carefully-scoped op, not part of the delete.
+The customer types a note and **nothing captures it** — the primary loss is **capture**. One reader (kitchen)
+already displays notes, so capture immediately delivers value **if** the display is clean.
 
-## 5. Non-published variations — **PENDING (server)**
+- **Schema:** none (column exists). Not a release.
 
-The "900" is `post_status='publish'`. Drafts/private/trashed/auto-drafts may exist (the private parent **100608**
-is a known case — a private parent's variations may be `private`/`publish`/inherit).
-```sql
-SELECT post_status, COUNT(*) FROM {$P}posts
-WHERE post_type='product_variation' GROUP BY post_status;
--- and specifically the known private parent:
-SELECT ID, post_status FROM {$P}posts WHERE post_type='product_variation' AND post_parent=100608;
-```
-All statuses are orphans by the same logic (nothing references any variation id) → the delete should target
-**every** `product_variation` regardless of status, not just `publish`. The reference-count queries in §1 already
-match on `post_type` (status-agnostic), so they cover these too.
+- **R1 — Capture + clean the existing display (the money fix).**
+  Wire the desktop/homepage modal's Add handler to read `#ddPmNotes` and send `note` (identical to the v3.10.80
+  `variation` wiring, same handler), **and** `stripslashes()` the kitchen reader (`notifications.php:434`) so the
+  captured note shows without a backslash. This is a coherent shippable unit — capture **with** a working, clean
+  display (kitchen). Not "capture without display."
+  - *Scope note:* this fixes the `frontend.js` modal, which serves the homepage on desktop **and** phones. The
+    `/restaurant-menu/` mobile app has **no** notes field — see R3.
 
-## 6. Reversibility
+- **R2 — Admin display parity.**
+  Carry `special_note` through the two notification producers (additive, like v3.10.78) and render it — with
+  `stripslashes()` + per-surface escaping (§6) — on the **admin order WhatsApp**, **order email**, and **admin
+  modal** (the modal already has the value via `SELECT *`, just needs rendering). For restaurants that work off
+  the admin surfaces rather than the kitchen message.
 
-- **Restore:** a full DB backup + `wp db import`. Take a **fresh** dump immediately before R3 (the existing
-  `~/backup-before-price-bump-20260716-1624.sql` predates the +100 bump and v3.10.77-80 — do **not** rely on it
-  for R3 rollback; it would revert unrelated work).
-- **Trash as an intermediate:** `wp_delete_post($id, false)` / `wp post delete $id` (no `--force`) sets
-  `post_status='trash'` — reversible via untrash, and a genuinely useful safety step: trash a batch, leave the
-  site running, confirm menu/orders/chips are unaffected, then **force-delete the trashed set**. Cost: a second
-  pass, and trashed rows still occupy `wp_posts`/postmeta/lookup until force-deleted (so trashing alone does
-  **not** achieve the cleanup — it's a staging step, not the end state). Reasonable for the first batch;
-  optional thereafter once the dry-run + first batch prove clean.
-- **Verify between batches:** (a) a spot parent's `_price`/`_regular_price` unchanged; (b) the menu renders and
-  the R2 chips still show on a spice product (mobile + desktop); (c) `wc_product_meta_lookup` variation-row count
-  dropped by the batch size; (d) order history intact (`dishdash_order_items` untouched); (e) no new PHP
-  errors/notices in the log.
+- **R3 — Mobile `/restaurant-menu/` notes field (feature add, optional).**
+  The mobile app has no textarea at all; adding one (`grid.php` markup + read it in `menu-page.js` instead of the
+  hardcoded `''`) is an additive feature, separable from R1/R2. Only needed if that surface should offer notes.
 
-## 7. Decomposition
-
-- **R3 (this operation): delete the orphan `product_variation` posts** — all statuses (§5), via
-  `wp_delete_post(true)` / `wp post delete --force`, batched 50–100, **after** a single-variation dry-run (§3) and
-  a fresh backup (§6). One coherent data operation.
-- **`_product_attributes` `is_variation` cleanup: SEPARATE and, recommended, NOT done.** It is inert residue (§4)
-  and touching the serialized blob risks the R2 chips (which read `is_visible` from the same array). Keep it out
-  of R3 entirely; if ever pursued, it's its own surgical, chip-preserving op with its own dry-run.
-
-So: **one delete operation**, plus an explicitly-deferred (and discouraged) attribute-flag tidy. No plugin code,
-**no version bump**.
+**Must ship together:** capture must land with at least one **clean** display. Because the kitchen reader already
+exists, **R1 = capture + kitchen `stripslashes`** satisfies that on its own. R2 and R3 are independent extensions.
+**Do not** ship capture while leaving the kitchen reader printing raw slashes (that regresses the one surface that
+works).
 
 ---
 
-## Pending server checks (consolidated — all must pass before deleting)
-1. §1 (a)(b)(c)(e) reference counts → **all 0** (halt if any non-zero); §1 (d) = the lookup residue the delete clears.
-2. §2 scope counts (posts / postmeta / lookup / term-rels / comments) — sizes the operation.
-3. §5 status breakdown (incl. parent 100608) — confirm the delete targets all statuses.
-4. §3 **single-variation dry-run** — parent `_price`/`_regular_price` unchanged, postmeta+lookup gone, no PHP error — the gate before batching.
-5. Fresh DB backup taken immediately before R3 (not the pre-bump dump).
+## Pending server checks (consolidated)
+1. §5 — `special_note` non-empty count + sample (did it ever work; are stored notes slash-escaped?).
+2. (context) confirm `dishdash_orders.special_instructions` has no live writer/reader tied to the modal (grep shows none in-repo) — so R1 correctly targets the per-item `special_note`, not the per-order field.
