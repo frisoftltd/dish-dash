@@ -1183,9 +1183,18 @@ class DD_Orders_Module extends DD_Module {
             }
         }
 
+        // Attach pre-decoded variation display lines per item so the modal renders
+        // them directly (single source of truth = DD_Notifications::variation_lines(),
+        // which stripslashes() the escaped column value before json_decode). Additive —
+        // no existing field is changed.
+        $items = $this->get_order_items( $order_id );
+        foreach ( $items as $item ) {
+            $item->variation_lines = DD_Notifications::variation_lines( $item->variation ?? '' );
+        }
+
         $this->json_success( [
             'order' => $order,
-            'items' => $this->get_order_items( $order_id ),
+            'items' => $items,
         ] );
     }
 

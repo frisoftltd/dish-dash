@@ -275,7 +275,7 @@ class DD_Notifications {
      * @param  string $variation Raw value from dishdash_order_items.variation.
      * @return string[]          One content line per key/value pair (or plain).
      */
-    private static function variation_lines( $variation ): array {
+    public static function variation_lines( $variation ): array {
         $out = [];
         if ( empty( $variation ) || $variation === '{}' ) {
             return $out;

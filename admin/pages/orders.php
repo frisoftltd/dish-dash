@@ -819,24 +819,6 @@ window.ddOrdersData = {
         };
     }
 
-    // Decode an order item's `variation` JSON into display content lines.
-    // Mirrors the kitchen builder's PHP decode (the '{}' guard + malformed-JSON
-    // plain-text fallback); returns un-indented "Key: Value" strings, [] if none.
-    function ddVariationLines( variation ) {
-        var out = [];
-        if ( ! variation || variation === '{}' ) { return out; }
-        var decoded = null;
-        try { decoded = JSON.parse( variation ); } catch ( e ) { decoded = null; }
-        if ( decoded && typeof decoded === 'object' && ! Array.isArray( decoded ) && Object.keys( decoded ).length ) {
-            Object.keys( decoded ).forEach( function ( k ) { out.push( k + ': ' + decoded[ k ] ); } );
-        } else {
-            var plain = String( variation ).replace( /<[^>]*>/g, '' )
-                .replace( /^[{}\[\]"'\\\s]+|[{}\[\]"'\\\s]+$/g, '' ).trim();
-            if ( plain ) { out.push( plain ); }
-        }
-        return out;
-    }
-
     function renderModal( order, items ) {
         currentOrder = order;
         currentItems = items;
@@ -867,7 +849,7 @@ window.ddOrdersData = {
                 + '<span class="dd-modal-item-name">' + item.item_name + '</span>'
                 + '<span class="dd-modal-item-price">' + formatRwf( lineTotal ) + '</span>'
                 + '</div>';
-            ddVariationLines( item.variation ).forEach( function ( vl ) {
+            ( item.variation_lines || [] ).forEach( function ( vl ) {
                 itemsHtml += '<div style="padding-left:16px;color:#777;font-size:12px;margin:-2px 0 4px;">' + vl + '</div>';
             } );
         } );

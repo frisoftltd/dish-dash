@@ -1527,3 +1527,31 @@ Decode logic is shared/identical to the kitchen builder across all readers; only
 **Smoke test (developer):** mobile order with Extra Hot → indented line in WhatsApp + email + modal, matching the kitchen; mobile order with no chip tapped → no blank line; desktop order (no variation sent) → unchanged; existing `{"Size":"Half"}` order → renders `Size: Half`.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.79 — Spice R1-fix: modal decodes variation via the PHP helper (Option B)
+
+**Bug:** the v3.10.78 admin order **modal** showed `Spice Level\":\"Hot` instead of `Spice Level: Hot`. Its JS
+`ddVariationLines()` reimplemented the decode but didn't `stripslashes()` before `JSON.parse`; the column stores
+slash-escaped JSON (`{\"Spice Level\":\"Hot\"}` — WP `wp_magic_quotes` at POST + `sanitize_text_field` doesn't
+strip slashes), so `JSON.parse` threw → plain-text fallback left the interior escaped quotes. WhatsApp + email were
+correct because the PHP `variation_lines()` `stripslashes()` first.
+
+**Fix (Option B — single source of truth):**
+1. `modules/orders/class-dd-notifications.php` — `variation_lines()` visibility `private static` → **`public static`**. **Body unchanged** → WhatsApp/email output byte-for-byte identical.
+2. `modules/orders/class-dd-orders-module.php` `ajax_get_order()` — after the `SELECT *` fetch, attach **additively** `$item->variation_lines = DD_Notifications::variation_lines( $item->variation ?? '' )` per item; no other returned field changed.
+3. `admin/pages/orders.php` — **deleted** `ddVariationLines()` entirely; the item loop now renders `( item.variation_lines || [] )` into the same indented `<div style="padding-left:16px;color:#777;font-size:12px;margin:-2px 0 4px;">` per line. Identical visual to v3.10.78, correctly decoded.
+
+**Result:** one proven decode implementation (the PHP helper, shared by WhatsApp/email/modal); the JS duplicate that drifted is gone.
+
+**Edge cases** (via the shared helper): empty / `{}` / malformed → `variation_lines()` returns `[]` → `.forEach` renders nothing, no blank line or artifact. `( item.variation_lines || [] )` guards an undefined property.
+
+**Not touched:** `variation_lines()` body; the WhatsApp/email readers + producers (v3.10.78); the kitchen builder; customer WhatsApp; the write-path slash-escaping (parked — the helper handles it at read time); desktop capture (R2); the 900 variations (R3). No schema/settings.
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.78 → 3.10.79 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer):** open an existing order with a spice/`{"Size":"Half"}` variation in the admin modal → shows `Spice Level: Hot` / `Size: Half`, correctly decoded, indented; WhatsApp + email unchanged; an order with no variation → no extra line.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
