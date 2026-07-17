@@ -1483,3 +1483,47 @@ The one approved wording change vs my draft was applied: the closing line is
 **Smoke test (developer):** synthetic deposit booking (live affected count 0) — confirm without marking paid → Send Confirmation produces the HELD variant with the correct amount; mark paid → original message; no-deposit confirmed → original message unchanged.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.78 — Spice R1: show the variation choice on admin surfaces
+
+**Task:** Admin order WhatsApp, order email, and order modal ignored `order_items.variation`; wire all three to
+decode + render it (indented continuation line), reusing the kitchen builder's decode. Additive producer fix so
+the readers receive the data.
+
+### Shared decode helper (new) — `class-dd-notifications.php` `variation_lines()`
+Mirrors the kitchen builder's decode (`stripslashes`, `'{}'` guard, `json_decode` → `is_array` pairs, else the
+plain-text fallback stripping `{}[]"'\`), but returns **un-indented** content lines (`"Spice Level: Extra Hot"`),
+`[]` for empty/`{}`/malformed-empty — so each surface indents per its medium. **The kitchen builder is untouched**
+(reference only); this is a new sibling method.
+
+### Producers (additive — required, they stripped `variation`)
+Both down-maps built items as name/qty/price only, so the readers had no data. Added `'variation' => $item['variation'] ?? ''`:
+- `modules/orders/class-dd-orders-module.php:1123-1129` — offline `$notification_data['items']` (source has it via `$summary['items']`).
+- `modules/orders/class-dd-notifications.php` `build_from_wc_order()` — online (`SELECT *` already returns it).
+Nothing else changed at either site.
+
+### Readers — indented continuation line per key/value pair (§2 format, NOT kitchen inline parens)
+- **Admin WhatsApp** (`build_admin_whatsapp_url`): items loop emits `qty× name`, then `'   ' . $vl` (3-space indent, matching the kitchen `'   Note:'` convention) per pair. Raw, `rawurlencode`d downstream.
+- **Order email** (`notify_admin_email`): per pair appends `<br><span style="color:#777;font-size:12px;padding-left:16px;">esc_html($vl)</span>` inside the existing name `<td>` — inline style (email convention), **no new CSS**, `esc_html` each pair.
+- **Admin modal** (`admin/pages/orders.php`): new JS `ddVariationLines()` replicates the decode (`JSON.parse` in try/catch = malformed fallback; `'{}'` guard; regex strips stray braces/quotes for the plain fallback), rendering one `<div style="padding-left:16px;color:#777;font-size:12px;margin:-2px 0 4px;">` per pair under the item row. `item.variation` is present because `get_order_items()` does `SELECT *`.
+
+### Edge cases (all three)
+- empty/NULL → helper returns `[]` → nothing rendered, no blank line.
+- `{}` → guard → `[]` → nothing.
+- malformed JSON → not an array (PHP) / `JSON.parse` throws (JS) → plain-text fallback; if empty after stripping → nothing.
+- unknown keys → rendered generically (`{"Size":"Half"}` → `Size: Half`); no special-casing of "Spice Level".
+
+### Not touched
+- Kitchen WhatsApp builder (its inline-parens format stays); customer WhatsApp; the capture path (desktop chips = R2); the 900 variations (R3). No schema, migration, or settings.
+
+### Escaping / decode vs render
+Decode logic is shared/identical to the kitchen builder across all readers; only the render format differs (indented, per §2) — decode and render kept as separate concerns per the brief. Email uses `esc_html`; modal matches the surrounding markup (item values are `sanitize_text_field`-sanitized at storage, so no tags survive); WhatsApp raw.
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.77 → 3.10.78 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer):** mobile order with Extra Hot → indented line in WhatsApp + email + modal, matching the kitchen; mobile order with no chip tapped → no blank line; desktop order (no variation sent) → unchanged; existing `{"Size":"Half"}` order → renders `Size: Half`.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

@@ -153,9 +153,10 @@ class DD_Notifications {
             ), ARRAY_A );
             foreach ( $raw_items as $item ) {
                 $items[] = [
-                    'name'  => $item['item_name'],
-                    'qty'   => (int) $item['quantity'],
-                    'price' => (float) $item['unit_price'],
+                    'name'      => $item['item_name'],
+                    'qty'       => (int) $item['quantity'],
+                    'price'     => (float) $item['unit_price'],
+                    'variation' => $item['variation'] ?? '',
                 ];
             }
         }
@@ -202,10 +203,16 @@ class DD_Notifications {
         $items_html = '';
         foreach ( $order['items'] as $item ) {
             $line_total  = number_format( $item['price'] * $item['qty'] );
+            $var_html    = '';
+            foreach ( self::variation_lines( $item['variation'] ?? '' ) as $vl ) {
+                $var_html .= '<br><span style="color:#777;font-size:12px;padding-left:16px;">'
+                    . esc_html( $vl ) . '</span>';
+            }
             $items_html .= sprintf(
-                '<tr><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;">%d&times; %s</td><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;text-align:right;">%s RWF</td></tr>',
+                '<tr><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;">%d&times; %s%s</td><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;text-align:right;">%s RWF</td></tr>',
                 (int) $item['qty'],
                 esc_html( $item['name'] ),
+                $var_html,
                 $line_total
             );
         }
@@ -259,6 +266,37 @@ class DD_Notifications {
     }
 
     /**
+     * Decode an order item's `variation` value into display content lines.
+     * Reuses the kitchen builder's decode logic (stripslashes, '{}' guard,
+     * malformed-JSON plain-text fallback) but returns UN-indented content
+     * ("Spice Level: Extra Hot") so each caller can indent per its medium.
+     * Returns [] for empty / '{}' / malformed-empty — callers render nothing.
+     *
+     * @param  string $variation Raw value from dishdash_order_items.variation.
+     * @return string[]          One content line per key/value pair (or plain).
+     */
+    private static function variation_lines( $variation ): array {
+        $out = [];
+        if ( empty( $variation ) || $variation === '{}' ) {
+            return $out;
+        }
+        $decoded = json_decode( stripslashes( $variation ), true );
+        if ( is_array( $decoded ) && ! empty( $decoded ) ) {
+            foreach ( $decoded as $k => $v ) {
+                $out[] = $k . ': ' . $v;
+            }
+        } else {
+            // Plain-text fallback — strip any stray braces/quotes.
+            $plain = trim( strip_tags( stripslashes( $variation ) ) );
+            $plain = trim( $plain, '{}[]"\'\\' );
+            if ( $plain !== '' ) {
+                $out[] = $plain;
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Build customer wa.me URL with order confirmation message.
      * Sent to the customer's own WhatsApp number.
      */
@@ -296,9 +334,14 @@ class DD_Notifications {
         $admin_phone = preg_replace( '/[^0-9]/', '', get_option( 'dd_whatsapp_admin', '' ) );
         if ( ! $admin_phone ) return '';
 
-        $items_text = implode( "\n", array_map( function ( $i ) {
-            return $i['qty'] . '× ' . $i['name'];
-        }, $order['items'] ) );
+        $item_lines = [];
+        foreach ( $order['items'] as $i ) {
+            $item_lines[] = $i['qty'] . '× ' . $i['name'];
+            foreach ( self::variation_lines( $i['variation'] ?? '' ) as $vl ) {
+                $item_lines[] = '   ' . $vl;
+            }
+        }
+        $items_text = implode( "\n", $item_lines );
 
         $delivery_text = $order['delivery_fee'] > 0
             ? number_format( $order['delivery_fee'] ) . ' RWF'

@@ -1122,9 +1122,10 @@ class DD_Orders_Module extends DD_Module {
             'total'            => $result['total'],
             'items'            => array_values( array_map( function ( $item ) {
                 return [
-                    'name'  => $item['name'],
-                    'qty'   => (int) ( $item['qty'] ?? 1 ),
-                    'price' => (float) $item['price'],
+                    'name'      => $item['name'],
+                    'qty'       => (int) ( $item['qty'] ?? 1 ),
+                    'price'     => (float) $item['price'],
+                    'variation' => $item['variation'] ?? '',
                 ];
             }, $summary['items'] ) ),
         ];
