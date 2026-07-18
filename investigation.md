@@ -1,165 +1,139 @@
-# INVESTIGATION — Special instructions (`#ddPmNotes`) not captured
+# INVESTIGATION — Cart dedup drops per-item notes
 
-**Phase 1, read-only.** Plugin facts carry `file:line`; live-DB facts are **PENDING (server)** with exact SQL.
+**Phase 1, read-only.** Plugin facts carry `file:line`. This is a **code** design question, not data — the one
+data note (active cart transients) is marked **PENDING** with a check.
 
 ---
 
 ## TL;DR
 
-- **The column already exists** — `dishdash_order_items.special_note TEXT` (`install.php:155`), per-item. **No
-  schema change needed.**
-- **The write path already works** — `dd_cart_add` reads `$_POST['note']` (`class-dd-cart.php:242`) → cart session
-  (`:99`) → `insert_order_items` writes `special_note` (`orders-module.php:447`).
-- **Capture is broken on every surface:**
-  - **Desktop/homepage modal** (`frontend.js`): the `#ddPmNotes` textarea **exists** (`:963-964`) but the Add
-    handler (`:1011-1025`) **never reads it** — no `note` in the POST. (Same handler that dropped `variation`
-    until v3.10.80; v3.10.80 wired `variation`, left `note`.)
-  - **Mobile `/restaurant-menu/` app** (`menu-page.js` + `grid.php`): there is **no notes field at all** in the
-    mobile single-product screen (`grid.php:288-320`), and `menu-page.js:719` sends `note` **hardcoded to `''`**.
-- **One reader already shows it** — the **kitchen WhatsApp** (`class-dd-notifications.php:433-434`). The admin
-  modal, admin WhatsApp, and order email **ignore it** (same trap as spice R1).
-- **Slash-escaping bites here too:** `sanitize_textarea_field` does **not** stripslashes, so a captured note like
-  `it's spicy` would store as `it\'s spicy`; the existing kitchen reader prints it **raw** (`:434`) → a stray
-  backslash. Any note display needs `stripslashes()` (the same root cause fixed for `variation` in v3.10.79).
-- Notes are **plain text** — **no decode helper** (unlike `variation`), but they **do** need `stripslashes` +
-  per-surface escaping.
+- **`item_key()` is called in exactly one place — `add()` (`class-dd-cart.php:86`).** It's `private`. Nothing
+  else computes it; `update()`/`remove()` address `$cart[$key]` using the key **echoed back** to the client via
+  `summary()['key']`. So changing the key formula is **contained** — no caller breaks.
+- **The dedup branch (`:88-89`) drops only `note` in practice.** The key = `md5(id + variation + addons)`, so a
+  key match means `variation` and `addons` are **identical** by definition — they can never differ across a
+  collision. Only `note` (absent from the key) can differ between two same-key adds, and it's the note that's
+  silently discarded. My earlier "variation too" was imprecise — variation is never actually lost here.
+- **`addons` is vestigial in the current UI** (always `[]`), like the variations were — so today the key is
+  effectively `md5(id + variation)`.
+- **Note's absence from the key is an oversight, not a decision** — notes were never captured until v3.10.81, so
+  no one ever hit this branch with a note.
+- **The three options are all contained to `class-dd-cart.php`;** none touches `variation`'s existing behaviour
+  (it stays in the key in all three). Product decision required (§6) — reported, not chosen.
 
 ---
 
-## 1. Both platforms
+## 1. `item_key()` and the dedup branch — verbatim
 
-**Desktop / homepage modal** (`frontend.js` `#ddProductModal`):
-- Textarea markup: `frontend.js:963-964` — `<textarea id="ddPmNotes" placeholder="Add special instructions
-  (optional)..." rows="2" …>` inside `.dd-pm__notes-wrap`.
-- Read in Add handler: **none.** The Add POST (`:1011-1017`) sends `action, nonce, product_id, quantity,
-  variation` — **no `note`** (grep for `note`/`ddPmNotes` in `frontend.js` returns only the textarea markup).
-  **BREAK = capture: the textarea value is never read into the POST.**
-- *Note:* this modal is what appears on the homepage on **both** desktop and phones (it's the `frontend.js`
-  component, responsive). The "special instructions" field seen in the mobile screenshot is **this** textarea, not
-  a separate mobile component.
-
-**Mobile `/restaurant-menu/` app** (`menu-page.js` + `templates/menu/grid.php`):
-- Field: **none.** The mobile single-product screen (`grid.php:288-320`) has attributes, description, add-to-cart,
-  related — **no notes textarea**.
-- Send: `menu-page.js:719` `formData.append('note', '')` — **hardcoded empty.** So even without a field, it
-  actively sends an empty note. **BREAK = no field + hardcoded ''.**
-
-**Reference implementation?** Unlike spice (mobile worked), **neither JS surface captures notes** — there is no
-working client reference. The intended design is proven instead by the **server** (write column + `dd_cart_add`
-acceptance) and the **kitchen reader** (§4).
-
-## 2. Where it breaks — full path per platform
-
-**Write path (shared, works):** `dd_cart_add` → `sanitize_textarea_field($_POST['note'] ?? '')`
-(`class-dd-cart.php:242`) → `DD_Cart::add()` stores `'note'` (`:99`) → `place_order` → `insert_order_items`
-writes `'special_note' => sanitize_textarea_field($item['note'] ?? '')` (`orders-module.php:447`) →
-`dishdash_order_items.special_note`.
-
-| Platform | DOM read? | In POST? | Cart stores? | Order writes? | Lands in |
-|---|---|---|---|---|---|
-| Desktop modal | ❌ never read (`frontend.js:1011-1017`) | ❌ | would (`:99`) | would (`:447`) | `special_note` |
-| Mobile app | ❌ no field (`grid.php:288-320`) | sends `''` (`menu-page.js:719`) | stores `''` | writes `''` | `special_note`='' |
-
-**Exact break — capture only, on the client:**
-- Desktop: `frontend.js:1011-1017` (POST omits `note`; `#ddPmNotes.value` never read).
-- Mobile: `menu-page.js:719` (`note` hardcoded `''`) + no field in `grid.php`.
-Everything server-side (cart store, order write, column) is ready.
-
-## 3. Is there anywhere to put it? — **Yes, already.**
-
-- **`dishdash_order_items.special_note TEXT DEFAULT NULL`** (`install.php:155`) — **per-item**, exactly matching
-  the modal's per-item textarea. Already written by `orders-module.php:447`. **No schema change.**
-- Per-order alternative exists but is **not** this: `dishdash_orders.special_instructions TEXT` (`install.php:122`)
-  — an order-level field (grep shows no writer/reader wired to the modal notes; it's a separate, currently-unused
-  order-level slot). The modal note is per-item → `special_note` is the correct home. **Do not** repurpose the
-  per-order column.
-- Data model supports per-item: confirmed — the cart keys items individually and `special_note` is on
-  `order_items`, one row per line.
-
-## 4. Does anything already read it?
-
-| Surface | `file:line` | Reads `special_note`? |
-|---|---|---|
-| **Kitchen WhatsApp** | `class-dd-notifications.php:382` (SELECT) + `:433-434` (`'   Note: ' . $item['special_note']`) | **YES** — but printed **raw** (no `stripslashes`, no rawurlencode issue since it's a wa.me line) |
-| **Admin order modal** | `admin/pages/orders.php` | **NO** (grep: none — renders qty/name/variation_lines/price only) |
-| **Admin order WhatsApp** | `class-dd-notifications.php` `build_admin_whatsapp_url` | **NO** — and its producer `$notification_data['items']` (`orders-module.php:1123-1129`) carries name/qty/price/variation, **not** note |
-| **Order email** | `class-dd-notifications.php` `notify_admin_email` | **NO** — same producers omit note |
-| **Producers** | `orders-module.php:1123-1129` (offline) · `build_from_wc_order` `notifications.php:~155` (online) | carry name/qty/price/**variation** (added v3.10.78) — **not `special_note`** |
-
-**Same split as spice:** the value is captured-able and one reader (kitchen) shows it, but the admin surfaces
-don't — and their item arrays don't even carry it (producers strip it, exactly like `variation` pre-v3.10.78).
-The admin modal is the exception: it reads `get_order_items()` (`SELECT *`, `orders-module.php:494`), so
-`special_note` **is** in its payload already — it just isn't rendered.
-
-## 5. Live data — **PENDING (server)**
-
-```sql
-SELECT COUNT(*)                                              AS total,
-       SUM(special_note IS NOT NULL AND special_note <> '')  AS non_empty
-FROM {$P}dishdash_order_items;
-
--- if any non-empty, eyeball them (did it EVER work, and are they slash-escaped?)
-SELECT id, order_id, special_note
-FROM {$P}dishdash_order_items
-WHERE special_note IS NOT NULL AND special_note <> ''
-LIMIT 30;
+```php
+// class-dd-cart.php:178-180
+private function item_key( array $item ): string {
+    return md5( $item['id'] . ( $item['variation'] ?? '' ) . wp_json_encode( $item['addons'] ?? [] ) );
+}
 ```
-**Expectation:** `non_empty` ≈ 0 (capture broken on both surfaces since inception). Any non-empty rows would be
-test data or a historical path; the sample also reveals whether stored notes carry `\'` slash-escaping (§6).
+```php
+// class-dd-cart.php:86-101 (add())
+$key = $this->item_key( $item );
+if ( isset( $cart[ $key ] ) ) {
+    $cart[ $key ]['qty'] += absint( $item['qty'] ?? 1 );          // ← only qty; note NOT written
+} else {
+    $cart[ $key ] = [
+        'id' => …, 'name' => …, 'price' => …, 'qty' => …, 'image' => …,
+        'variation' => sanitize_text_field( $item['variation'] ?? '' ),
+        'addons'    => $this->sanitize_addons( $item['addons'] ?? [] ),
+        'note'      => sanitize_textarea_field( $item['note'] ?? '' ),   // ← only set on a NEW line
+    ];
+}
+```
 
-## 6. Reuse & escaping
+**Fields currently in the key:** `id`, `variation`, `addons` (JSON). **Not** in the key: `name`, `price`, `qty`,
+`image`, **`note`**.
 
-- **The spice template applies partially.** Capture is the same shape as v3.10.80 (read a modal value → add to the
-  Add POST) — literally the same handler. But notes are **plain text**, so **no `variation_lines()`-style decode
-  helper** is needed (no JSON, no key/value parsing).
-- **Slash-escaping — same root cause, still present:** `sanitize_textarea_field($_POST['note'])`
-  (`class-dd-cart.php:242`) does **not** strip the slashes that `wp_magic_quotes()` adds to `$_POST`. So a note
-  with a quote/apostrophe stores as `\'`/`\"`. **Every reader must `stripslashes()` on display** — including the
-  **existing kitchen reader**, which currently prints raw (`notifications.php:434`) and would show a stray
-  backslash the moment notes are actually captured. (This is latent today only because no note is ever stored.)
-- **Escaping per surface** (free text is higher-risk than the controlled attribute terms):
-  - **Kitchen / admin WhatsApp:** `stripslashes()`, then raw into the `\n`-joined message (`rawurlencode`d
-    downstream). No HTML escaping (plain wa.me text).
-  - **Order email:** `stripslashes()` + **`esc_html()`** (HTML body). A free-text note **must** be escaped here —
-    unlike attribute terms, a customer can type `<`.
-  - **Admin modal:** `stripslashes()` server-side (mirror v3.10.79's approach — have PHP hand the modal a clean
-    value, e.g. attach a decoded/`stripslashes`d `special_note` in `ajax_get_order`) **and** JS-escape on insert.
-    The modal currently injects `item.item_name` unescaped; a free-text note is riskier, so escape it.
-- **Producers:** to show notes on admin WhatsApp/email, the two down-maps (`orders-module.php:1123-1129`,
-  `build_from_wc_order`) must additively carry `special_note` — same additive change v3.10.78 made for `variation`.
+- **Why `variation` is in / `note` is out:** `variation` was added deliberately — a variant (spice level) must
+  produce a distinct line, so it's part of identity. `note` was simply never part of it because **notes were
+  never captured** before v3.10.81; the branch was never exercised with a real note. Oversight, surfaced only now.
+- **`addons` — vestigial (like the variations).** No UI populates it: `menu-page.js:718` sends
+  `addons: JSON.stringify([])`; the desktop modal sends none (`ajax_add` defaults `'[]'`, `class-dd-cart.php`).
+  `cart.js:447` only *reads* `item.addons` for a display subtotal. So `addons` is always `[]` →
+  `wp_json_encode([])` = `"[]"` for every item → a **constant** contribution → the key is effectively
+  `md5(id + variation)` today. (Plumbing is live — `order_items.addons` is written and the kitchen reads it at
+  `notifications.php:423-426` — but nothing produces addons, so it never varies.)
 
-## 7. Release decomposition (ranked by what the customer loses)
+## 2. Everywhere `item_key` is used — blast radius
 
-The customer types a note and **nothing captures it** — the primary loss is **capture**. One reader (kitchen)
-already displays notes, so capture immediately delivers value **if** the display is clean.
+- **Only caller:** `add()` (`:86`). Grep for `item_key` returns exactly the definition (`:178`) and this one call.
+- **`update()` (`:110-121`) and `remove()` (`:126-131`)** operate on `$cart[$key]` with a `$key` that arrives
+  from the client (`$_POST['key']`, `:251/:260`) — they **never call `item_key()`**. The key is opaque: `add()`
+  computes it, stores the line under it, and `summary()` echoes it as `['key' => $key]` (`:159`); `cart.js`
+  renders each line with `data-key="…"` (`:451`) and the qty stepper / remove button send that same key back
+  (`cart.js:276/301/326` → `dd_cart_update`/`dd_cart_remove`).
+- **Therefore, if `note` enters the key:** a new add of the same dish with a **different** note computes a
+  **different** key → a **second cart line**. Each line carries its **own** key in `summary()`, so:
+  - the **qty stepper** on either line targets that line's key → works;
+  - **remove** targets that line's key → works;
+  - identical dish+variation+**same** note still collapses (same key) → qty bump, as today.
+- **Blast radius: small and contained.** No caller recomputes the key, so changing the formula shifts **only**
+  `add()`'s merge decision. `update`/`remove`/`summary` are formula-agnostic. **Nothing downstream breaks.**
 
-- **Schema:** none (column exists). Not a release.
+## 3. The re-add path in full
 
-- **R1 — Capture + clean the existing display (the money fix).**
-  Wire the desktop/homepage modal's Add handler to read `#ddPmNotes` and send `note` (identical to the v3.10.80
-  `variation` wiring, same handler), **and** `stripslashes()` the kitchen reader (`notifications.php:434`) so the
-  captured note shows without a backslash. This is a coherent shippable unit — capture **with** a working, clean
-  display (kitchen). Not "capture without display."
-  - *Scope note:* this fixes the `frontend.js` modal, which serves the homepage on desktop **and** phones. The
-    `/restaurant-menu/` mobile app has **no** notes field — see R3.
+`ajax_add` (`:200`) → `add()` (`:83`) → `item_key()` (`:86/178`) → **branch**:
+- **key exists** (`:88-89`) → `qty += n`; **the new `note` is discarded** (the else-block that writes `note`
+  never runs). → `summary()` (`:104/143`) → `place_order` passes `$summary['items']` (`orders-module.php:884/…`)
+  → `insert_order_items` writes `special_note` from `$item['note']` (`:447`) — which is the **first** add's note.
+- **key new** (`:91-100`) → full line incl. `note` stored → flows through correctly (order 199 proved this).
 
-- **R2 — Admin display parity.**
-  Carry `special_note` through the two notification producers (additive, like v3.10.78) and render it — with
-  `stripslashes()` + per-surface escaping (§6) — on the **admin order WhatsApp**, **order email**, and **admin
-  modal** (the modal already has the value via `SELECT *`, just needs rendering). For restaurants that work off
-  the admin surfaces rather than the kitchen message.
+**Exact fields lost in the dedup branch:** **`note` only.** `variation` and `addons` **cannot** differ across a
+key collision (they're *in* the key — a match means they're identical), so the qty-bump keeps the already-correct
+variation. So the branch drops nothing on the variation path — the loss is exclusively the note.
 
-- **R3 — Mobile `/restaurant-menu/` notes field (feature add, optional).**
-  The mobile app has no textarea at all; adding one (`grid.php` markup + read it in `menu-page.js` instead of the
-  hardcoded `''`) is an additive feature, separable from R1/R2. Only needed if that surface should offer notes.
+## 4. Existing cart behaviour
 
-**Must ship together:** capture must land with at least one **clean** display. Because the kitchen reader already
-exists, **R1 = capture + kitchen `stripslashes`** satisfies that on its own. R2 and R3 are independent extensions.
-**Do not** ship capture while leaving the kitchen reader printing raw slashes (that regresses the one surface that
-works).
+- **The cart drawer already has a quantity stepper** — `cart.js:276/301` send `dd_cart_update` with the line's
+  key to set qty **without re-adding**. So dedup-on-re-add (bump qty on a repeat Add) is a **convenience that
+  overlaps** the stepper; a customer can already raise quantity in the drawer. This weakens the case for silent
+  merging: re-adding is not the only (or primary) way to increase qty.
+- **Mobile `/restaurant-menu/` shares the same cart backend** — `menu-page.js` posts `dd_cart_add` → the same
+  `DD_Cart::ajax_add` → same `item_key`/dedup. There is **no separate mobile cart.** Mobile has **no note field**
+  and always sends `note: ''` (`menu-page.js:719`), so mobile adds never carry a note to lose — mobile is
+  unaffected by the bug and by any of the fixes (empty note = same behaviour under all three options).
+
+## 5. Live/data safety — key-format change mid-session
+
+- The cart is a **transient** (`set_transient($this->cart_key, $cart, DAY_IN_SECONDS*3)`, `:175`), an associative
+  array **keyed by the md5 keys**. Keys are **stored**, never recomputed on read.
+- **Changing the `item_key` formula does not corrupt in-flight carts.** An existing line stays under its old key;
+  a new add of the "same" item computes a **new-formula** key → the two **won't merge** → the customer
+  transiently sees **two lines** for what would previously have merged. `update`/`remove` still work on both
+  (they use stored keys); a stale client holding an old key still targets the still-present old line. Worst case
+  is a cosmetic non-merge for carts that span the deploy — **no data loss, no corruption**, and it self-heals as
+  the 3-day transients expire / carts are checked out.
+- **No SQL migration** (transient data, ephemeral). Optional visibility check — **PENDING (server)**:
+  ```sql
+  SELECT COUNT(*) FROM {$P}options WHERE option_name LIKE '_transient_dd_cart_%';
+  ```
+  (how many carts are currently in flight — bounds the number of sessions that could see a one-time non-merge).
+
+## 6. Decomposition & the three options (report, do not decide)
+
+All three are **contained to `class-dd-cart.php`** (no caller changes, §2). None alters `variation`'s current
+behaviour — it stays in the key in every option (same dish + different spice → different line, as today).
+
+| Option | Mechanics | Files/lines | Effect on identical re-adds | Trade-off |
+|---|---|---|---|---|
+| **1 — notes make items distinct** | append note to the key: `md5(id + variation + addons + note)` | `item_key()` `:179` (one line) | same dish + **same** note → merges (qty++); different note → new line | Clean & symmetric with variation. **But** free-text: `"no onion"` vs `"no onions"` (or trailing space/case) → separate lines. Mitigate by hashing a **normalized** note (`trim()`, maybe lowercase) — an implementation detail of this option |
+| **2 — noted items never merge** | in the dedup branch, only bump qty when the note is empty; otherwise always a new line | `add()` branch `:88` (condition change) + typically still key by note | any item **with a note** always gets its own line; no-note items merge as today | Simplest mental model for food; matches "each special request is its own line". **But** identical noted re-adds don't merge (two lines at qty 1) — usually fine |
+| **3 — last-write updates** | keep the key; in the dedup branch also refresh `note` | `add()` if-branch `:89` (add one line) | merges, overwriting the stored note with the newest | **Wrong for food** (brief): the 2nd "no onions" overwrites the 1st line's "extra spicy". Not recommended |
+
+**On variation specifically:** it is already an identity field (in the key) and **none** of the options change
+that. Option 1 makes note a peer of variation (both distinguish lines) — the most *consistent* model; Option 2
+treats note as a "never-merge" flag layered on top; Option 3 leaves the key alone and is semantically wrong here.
+
+**Decomposition:** **one fix**, one file. Option 1 is literally one line (`item_key`), plus an optional
+normalization choice. Option 2 is a small branch-condition change in `add()`. Either way it does **not** touch
+`update`/`remove`/`summary`, the R1 capture, the variation path, or the display gap (R2).
 
 ---
 
 ## Pending server checks (consolidated)
-1. §5 — `special_note` non-empty count + sample (did it ever work; are stored notes slash-escaped?).
-2. (context) confirm `dishdash_orders.special_instructions` has no live writer/reader tied to the modal (grep shows none in-repo) — so R1 correctly targets the per-item `special_note`, not the per-order field.
+1. (optional, §5) `SELECT COUNT(*) FROM {$P}options WHERE option_name LIKE '_transient_dd_cart_%';` — active in-flight carts that could see a one-time non-merge across the deploy. Not a blocker (no corruption either way).
