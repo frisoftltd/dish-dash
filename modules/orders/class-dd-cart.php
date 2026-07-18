@@ -83,7 +83,16 @@ class DD_Cart {
     public function add( array $item ): array {
         $cart = $this->get();
 
-        $key = $this->item_key( $item );
+        // Items with a note never merge: each special instruction is its own line.
+        // item_key() (unchanged) excludes note and would collide for two identical
+        // noted items, so a noted line gets a unique key suffix — the isset() check
+        // below then always falls through to a fresh line. Noteless items dedup as
+        // before. "Empty" is tested after trim() so whitespace-only = no note.
+        if ( '' !== trim( (string) ( $item['note'] ?? '' ) ) ) {
+            $key = $this->item_key( $item ) . '-' . uniqid( '', true );
+        } else {
+            $key = $this->item_key( $item );
+        }
 
         if ( isset( $cart[ $key ] ) ) {
             $cart[ $key ]['qty'] += absint( $item['qty'] ?? 1 );

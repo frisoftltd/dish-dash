@@ -1671,3 +1671,56 @@ kitchen WhatsApp shows it with **no** backslash before the apostrophe; `SELECT s
 LIMIT 1` shows the note stored; empty textarea → no change/artifacts; spice still captures + displays everywhere.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.82 — Cart dedup: items with a note never merge (Option 2)
+
+**Task:** After R1 started capturing notes, `add()`'s dedup dropped a new note when the same dish+variation was
+already in the cart (`item_key()` excludes `note`). Make noted items never merge. One file, `add()` only.
+
+### Reported before editing
+- **Merge branch verbatim** (`class-dd-cart.php:86-101`): `$key = item_key($item)` → `if (isset($cart[$key]))`
+  qty++ (`:88-89`) → else store full line incl. `note` (`:91-100`).
+- **Field & empty test:** incoming field is `$item['note']` (already `sanitize_textarea_field`'d by `ajax_add`);
+  "empty" tested **after `trim()`** so whitespace-only = no note.
+- **Uniqueness:** `item_key()` unchanged; a noted line's key = `item_key($item) . '-' . uniqid('', true)`.
+
+### Change — `modules/orders/class-dd-cart.php` `add()` (only)
+Before the dedup branch:
+```php
+if ( '' !== trim( (string) ( $item['note'] ?? '' ) ) ) {
+    $key = $this->item_key( $item ) . '-' . uniqid( '', true );  // noted → unique key → new line
+} else {
+    $key = $this->item_key( $item );                             // noteless → dedup as today
+}
+```
+The existing `if ( isset( $cart[$key] ) ) { qty++ } else { …store line incl. note… }` is unchanged. For a noted
+item the unique key can't already exist → always the else branch → a fresh line carrying the note.
+
+### Why the uniqueness is correct (the subtle part)
+`uniqid('', true)` returns a microtime-based id with an extra random suffix — unique per call, so two identical
+noted items (same id + variation + note) produce **different** keys and therefore **two** cart lines, never a
+collision. Each line is stored under its own key; `summary()` echoes it as `['key' => …]`; `cart.js` renders
+`data-key="…"`; the qty stepper (`dd_cart_update`) and remove (`dd_cart_remove`) send that key back to
+`update()`/`remove()`, which address `$cart[$key]` directly — so both work **per noted line**. The stored note
+uses the else-branch's `sanitize_textarea_field($item['note'])` (original value, not the trimmed test copy).
+
+### Not touched
+- `item_key()`'s **formula** (only the key-selection decision in `add()` changed).
+- `update()`, `remove()`, `summary()` — key-agnostic, unaffected.
+- The **variation** path — variation stays in the key; identical-variation **noteless** items still merge.
+- R1 note capture (`frontend.js`), the R2 display gap, and the `/restaurant-menu/` app (same backend, always
+  `note:''` → dedups as before, unaffected).
+- No schema, settings, or migration. In-flight cart transients are safe — keys are stored, not recomputed; worst
+  case a customer mid-session sees a one-time non-merge across the deploy (no corruption).
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.81 → 3.10.82 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer):** empty cart → add a dish with note "no onions" (1 line) → add the same dish with note
+"extra spicy" (**2 separate lines**, each note intact); qty-stepper the first noted line (only it changes); remove
+one noted line (only it goes); add a plain no-note dish twice (merges to qty 2); place order → both noted lines
+land in `order_items` with distinct notes; noteless spice items still merge.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
