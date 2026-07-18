@@ -1724,3 +1724,57 @@ one noted line (only it goes); add a plain no-note dish twice (merges to qty 2);
 land in `order_items` with distinct notes; noteless spice items still merge.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+
+## v3.10.83 — Notes R2: show special_note on admin WhatsApp, email, and modal
+
+**Task:** Render the captured `special_note` on the admin order WhatsApp, order email, and admin modal — mirroring
+the v3.10.78/79 variation fix (producers carry it + three readers render it, stripslashes-cleaned).
+
+### Reported before editing
+- **Producers — source-key divergence (the important find):** the two notification producers have *different*
+  source shapes. Online `build_from_wc_order` (`notifications.php`) reads a `SELECT *` DB row → the note column is
+  **`special_note`**. Offline `$notification_data` (`orders-module.php:1123-1131`) maps `$summary['items']` where
+  the **cart** stores the note under key **`note`** (`cart.php:99`), *not* `special_note`. So the output key is
+  normalized to `special_note` on both, but the **source differs** — online `$item['special_note']`, offline
+  `$item['note']`. The variation fix didn't hit this because the cart key *is* `variation` on both sides; writing
+  the brief's literal `$item['special_note']` on the offline path would have shipped an always-empty note on the
+  common (COD/offline) path.
+- **Kitchen label:** `'   Note: ' . stripslashes( $item['special_note'] )` (`notifications.php`) — label `Note:`,
+  3-space indent. All four surfaces now use `Note:`.
+- **Modal escaping:** orders.php's JS `esc()` (`:1018`) only escapes `"` — insufficient for free-text content.
+
+### Shared cleaning helper (new)
+`DD_Notifications::clean_note( $note )` (public static) = `stripslashes((string)$note)`, `''` for
+empty/whitespace. Plain text — **no JSON decode** (unlike `variation_lines`). One cleaning impl for the three new
+surfaces; the **kitchen reader is untouched** (keeps its own inline stripslashes, per brief). Escaping is
+per-surface (context-specific): WhatsApp raw, email + modal `esc_html`.
+
+### Producers (additive)
+- Online `build_from_wc_order`: `'special_note' => $item['special_note'] ?? ''`.
+- Offline `$notification_data` (`orders-module.php`): `'special_note' => $item['note'] ?? ''` (cart key).
+
+### Readers (indented `Note:` line, after the spice line, only when non-empty)
+- **Admin WhatsApp** (`build_admin_whatsapp_url`): after the variation loop, `$item_lines[] = '   Note: ' . clean_note($i['special_note'])` — raw, `rawurlencode`d downstream.
+- **Order email** (`notify_admin_email`): `$note_html = '<br><span style="…padding-left:16px;">Note: ' . esc_html( clean_note($item['special_note']) ) . '</span>'` appended after `$var_html` (added a 4th `%s` to the row sprintf). `esc_html` because a note can contain `<`/`&`.
+- **Admin modal**: `ajax_get_order` attaches `$item->special_note = esc_html( DD_Notifications::clean_note( $item->special_note ?? '' ) )` (server-side clean + escape, matching v3.10.79's PHP-single-source pattern); the modal renders `item.special_note` raw in a `<div style="padding-left:16px;…">Note: …</div>` after the variation lines.
+
+### Edge cases (all surfaces)
+- empty/NULL → `clean_note` returns `''` → nothing rendered, no blank line (`if ('' !== …)` / `if (item.special_note)`).
+- apostrophe → stripslashes-clean, no stray backslash (v3.10.79 lesson).
+- `<` / `&` → `esc_html` in email + modal (server-side); WhatsApp is plain text.
+- note but no spice → the variation loop produces nothing, so only the `Note:` line renders — no orphan spice line.
+
+### Not touched
+- Kitchen WhatsApp reader (reference only); the variation rendering (v3.10.78/79); R1 capture; dedup (v3.10.82);
+  the `/restaurant-menu/` app (Notes R3). No schema, settings, or migration.
+
+### Verification
+- By inspection (no PHP linter). Version bumped 3.10.82 → 3.10.83 (both spots); CLAUDE.md updated.
+
+**Smoke test (developer):** order with a note containing an apostrophe → admin WhatsApp + email + modal all show
+`Note: …` cleanly (no backslash); order with spice **and** note → both lines, spice then note; note-only order →
+`Note:` alone; neither → unchanged, no blank lines; kitchen WhatsApp still correct.
+
+**Status:** Implemented, committed, pushed — awaiting developer deploy + verify.

@@ -153,10 +153,11 @@ class DD_Notifications {
             ), ARRAY_A );
             foreach ( $raw_items as $item ) {
                 $items[] = [
-                    'name'      => $item['item_name'],
-                    'qty'       => (int) $item['quantity'],
-                    'price'     => (float) $item['unit_price'],
-                    'variation' => $item['variation'] ?? '',
+                    'name'         => $item['item_name'],
+                    'qty'          => (int) $item['quantity'],
+                    'price'        => (float) $item['unit_price'],
+                    'variation'    => $item['variation'] ?? '',
+                    'special_note' => $item['special_note'] ?? '',
                 ];
             }
         }
@@ -208,11 +209,16 @@ class DD_Notifications {
                 $var_html .= '<br><span style="color:#777;font-size:12px;padding-left:16px;">'
                     . esc_html( $vl ) . '</span>';
             }
+            $note      = self::clean_note( $item['special_note'] ?? '' );
+            $note_html = '' !== $note
+                ? '<br><span style="color:#777;font-size:12px;padding-left:16px;">Note: ' . esc_html( $note ) . '</span>'
+                : '';
             $items_html .= sprintf(
-                '<tr><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;">%d&times; %s%s</td><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;text-align:right;">%s RWF</td></tr>',
+                '<tr><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;">%d&times; %s%s%s</td><td style="padding:6px 0;border-bottom:1px solid #f0e8e0;text-align:right;">%s RWF</td></tr>',
                 (int) $item['qty'],
                 esc_html( $item['name'] ),
                 $var_html,
+                $note_html,
                 $line_total
             );
         }
@@ -297,6 +303,20 @@ class DD_Notifications {
     }
 
     /**
+     * Clean an order item's free-text special_note for display.
+     * wp_magic_quotes()/sanitize_textarea_field store it slash-escaped (e.g. it\'s),
+     * so stripslashes before output. Plain text — no JSON decode. Escaping is left to
+     * each surface (WhatsApp raw; email + admin modal esc_html). Returns '' for empty.
+     *
+     * @param  string $note Raw value from dishdash_order_items.special_note.
+     * @return string       Slash-stripped note ('' when empty/whitespace).
+     */
+    public static function clean_note( $note ): string {
+        $note = stripslashes( (string) $note );
+        return '' !== trim( $note ) ? $note : '';
+    }
+
+    /**
      * Build customer wa.me URL with order confirmation message.
      * Sent to the customer's own WhatsApp number.
      */
@@ -339,6 +359,10 @@ class DD_Notifications {
             $item_lines[] = $i['qty'] . '× ' . $i['name'];
             foreach ( self::variation_lines( $i['variation'] ?? '' ) as $vl ) {
                 $item_lines[] = '   ' . $vl;
+            }
+            $note = self::clean_note( $i['special_note'] ?? '' );
+            if ( '' !== $note ) {
+                $item_lines[] = '   Note: ' . $note;
             }
         }
         $items_text = implode( "\n", $item_lines );

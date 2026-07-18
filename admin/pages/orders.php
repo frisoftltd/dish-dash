@@ -852,6 +852,9 @@ window.ddOrdersData = {
             ( item.variation_lines || [] ).forEach( function ( vl ) {
                 itemsHtml += '<div style="padding-left:16px;color:#777;font-size:12px;margin:-2px 0 4px;">' + vl + '</div>';
             } );
+            if ( item.special_note ) {
+                itemsHtml += '<div style="padding-left:16px;color:#777;font-size:12px;margin:-2px 0 4px;">Note: ' + item.special_note + '</div>';
+            }
         } );
         modal.querySelector( '.dd-modal-items' ).innerHTML = itemsHtml;
 

@@ -1122,10 +1122,13 @@ class DD_Orders_Module extends DD_Module {
             'total'            => $result['total'],
             'items'            => array_values( array_map( function ( $item ) {
                 return [
-                    'name'      => $item['name'],
-                    'qty'       => (int) ( $item['qty'] ?? 1 ),
-                    'price'     => (float) $item['price'],
-                    'variation' => $item['variation'] ?? '',
+                    'name'         => $item['name'],
+                    'qty'          => (int) ( $item['qty'] ?? 1 ),
+                    'price'        => (float) $item['price'],
+                    'variation'    => $item['variation'] ?? '',
+                    // Cart items store the note under 'note'; normalize to 'special_note'
+                    // so the notification readers see the same key on both order paths.
+                    'special_note' => $item['note'] ?? '',
                 ];
             }, $summary['items'] ) ),
         ];
@@ -1190,6 +1193,9 @@ class DD_Orders_Module extends DD_Module {
         $items = $this->get_order_items( $order_id );
         foreach ( $items as $item ) {
             $item->variation_lines = DD_Notifications::variation_lines( $item->variation ?? '' );
+            // Pre-clean (stripslashes) + HTML-escape the free-text note here so the modal
+            // renders it directly and safely (orders.php's JS esc() only escapes quotes).
+            $item->special_note = esc_html( DD_Notifications::clean_note( $item->special_note ?? '' ) );
         }
 
         $this->json_success( [
