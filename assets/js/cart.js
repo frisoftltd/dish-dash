@@ -1048,9 +1048,12 @@
                         ajax( 'dd_pesapal_check_status', {
                             order_tracking_id: data.order_tracking_id,
                         }, function( res ) {
+                            // ajax() calls onSuccess( res.data ), so `res` IS the data
+                            // payload — read fields directly (res.order_number, res.status),
+                            // never res.data.*.
                             if ( res.paid ) {
                                 clearInterval( pesapalPollingTimer );
-                                currentOrderNumber = res.data.order_number;
+                                currentOrderNumber = res.order_number;
                                 var numEl4 = document.getElementById( 'ddConfirmOrderNum' );
                                 var etaEl4 = document.getElementById( 'ddConfirmEta' );
                                 if ( numEl4 ) numEl4.textContent = 'Order #' + currentOrderNumber;
@@ -1058,7 +1061,9 @@
                                 updateBadges( 0 );
                                 window.ddCartSummary = null;
                                 showPanel( panelConfirmation );
-                            } else if ( res.data.status === 'FAILED' || res.data.status === 'INVALID' ) {
+                            } else if ( res.status === 'FAILED' || res.status === 'REVERSED' ) {
+                                // Only these are terminal. INVALID / PENDING mean "not
+                                // finalized yet" — keep polling (do nothing here).
                                 clearInterval( pesapalPollingTimer );
                                 if ( pesapalStatusEl ) {
                                     pesapalStatusEl.textContent = 'Payment failed. Please try again.';

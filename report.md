@@ -2191,3 +2191,44 @@ column is absent), `POLL/IPN … EXISTING_ORDER=… payment_status=…`, `POLL/I
   `status='pending_payment'`/`payment_status='failed'` are free-text VARCHAR values).
 
 **Awaiting go-ahead to commit v3.11.2.**
+
+---
+
+## Release — v3.11.3 — cart.js PesaPal poll: reliable post-payment confirmation ✅
+
+**Scope:** `assets/js/cart.js`, the PesaPal poll callback only. Client-side half of the
+v3.11.2 backend fix. No backend/schema change. (JS — `php -l` N/A.)
+
+**Root cause (confirmed from source):** the shared `ajax()` helper calls
+`onSuccess( res.data )`, so inside the pesapal poll callback `res` is ALREADY the data
+payload. The code double-unwrapped:
+- `res.data.order_number` → `undefined` on success → blank/incorrect confirmation.
+- `res.data.status` → never matched → the FAILED/INVALID terminal branch was dead.
+Also, `INVALID` was treated as terminal, but `INVALID` = "not finalized yet" (matches the
+v3.11.2 backend), so the frontend should keep waiting, not show failure.
+
+**Fix (pesapal poll callback only):**
+1. `res.data.order_number` → `res.order_number` (success path).
+2. Terminal check `res.data.status` → `res.status`.
+3. Terminal only on `res.status === 'FAILED' || res.status === 'REVERSED'`; on
+   `INVALID` / `PENDING` do nothing → the interval keeps polling.
+4. Success path (`res.paid === true` → `clearInterval`, populate `#ddConfirmOrderNum` from
+   `res.order_number`, `showPanel( panelConfirmation )`, `updateBadges(0)`) unchanged apart
+   from the corrected field name.
+
+**MoMo poll — deliberately untouched.** It uses a raw `fetch()` (not the `ajax()` helper),
+so its `res` is the full `{success,data}` envelope and its `res.data.paid` /
+`res.data.order_number` / `res.data.status` reads are correct as-is (~L1200-1212).
+
+**Verification:** `grep "res\.data\." assets/js/cart.js` → remaining hits are only the
+`ajax()` helper's onError (`res.data.message`, full envelope — correct), the MoMo poll
+(correct), and one explanatory comment. **Zero `res.data.*` misreads left in the pesapal
+block.**
+
+**Out of scope (reported, not added):** the WhatsApp "I have paid" handoff button — a
+separate feature release. Not added here.
+
+**Not touched:** the MoMo poll, the `ajax()` helper, DD_DIAG backend logging (kept for the
+current verification cycle — separate cleanup), and all backend/PHP.
+
+**Awaiting go-ahead to commit v3.11.3.**
