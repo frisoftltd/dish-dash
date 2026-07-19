@@ -2035,3 +2035,159 @@ grep -E "DD_DIAG: (TRANSIENT MISSING|.*CREATE failed|.*stamp failed)" wp-content
 - Pre-existing `error_log('DD PesaPal IPN: …')` lines kept (DD_DIAG added alongside).
 
 **Awaiting go-ahead to commit v3.11.1.**
+
+---
+
+## Release — v3.11.2 — PesaPal durable order + correct status check ✅
+
+**Root cause (confirmed by the v3.11.1 DD_DIAG trace):** the ~5 s client poll called
+`get_transaction_status` before PesaPal finalized the payment; PesaPal returned the text
+`payment_status_description = "INVALID"`; the poll treated INVALID as terminal →
+`delete_transient` → the cart data was destroyed; the real payment then completed and the
+IPN fired, but the transient was gone → no order was created (ghost order).
+
+**Files changed (in brief scope):** `modules/payments/class-dd-pesapal.php`,
+`modules/orders/class-dd-orders-module.php`. **`php -l` clean on both.**
+
+### A. Authoritative NUMERIC status_code — `get_transaction_status()`
+
+`modules/payments/class-dd-pesapal.php`. The text `payment_status_description` lags and reads
+INVALID in the early window, so it is no longer trusted as primary. Now reads the numeric
+`status_code` and maps:
+
+| status_code | returns |
+|---|---|
+| 1 | `COMPLETED` |
+| 2 | `FAILED` |
+| 3 | `REVERSED` |
+| 0 | `INVALID` |
+
+`COMPLETED` is returned **only** on `status_code === 1`. `isset()` + `is_numeric()` guards
+(so `0` is honoured, not treated as empty). Falls back to `strtoupper(payment_status_description)`
+**only** when `status_code` is absent. `UNKNOWN` on token/HTTP failure (unchanged).
+
+### B. PERSIST AT SUBMIT — durable order row before redirect
+
+`class-dd-orders-module.php`, pesapal checkout branch. After `submit_order()` succeeds and
+before the redirect response, the DD order row is created via `place_order()` and then
+UPDATEd to `status='pending_payment'`, `payment_status='unpaid'`,
+`pesapal_tracking_id={tracking_id}`. The row now exists **independent of the transient**.
+The transient is still written (retained for the fallback create path).
+
+- **Guarded on `has_pesapal_tracking_column()`.** If the column is missing (migration not
+  run), the up-front persist is **skipped** and the flow falls back to the previous
+  transient-only create — otherwise the fallback create would produce a **duplicate** row.
+  So: migrated → durable persist+promote; un-migrated → old behaviour **plus** the A/C
+  fixes (status_code + no-delete), which is still strictly better than before.
+- `place_order()` at submit fires no customer-facing notification: it fires the
+  listener-less `dish_dash_order_placed` hook and `send_order_confirmation()` (which
+  `wp_mail`s an empty address → no-op, since checkout collects no email). `on_order_created`
+  is **not** fired here — it fires once on promotion (C).
+
+### C. IPN + poll are now PROMOTE, not CREATE
+
+`class-dd-orders-module.php`.
+
+- New `promote_pesapal_order( $order, $tracking_id )`: conditional
+  `UPDATE … SET status='pending', payment_status='paid' WHERE id=%d AND payment_status='unpaid'`.
+  The `payment_status='unpaid'` predicate is the idempotency guard — only the first caller
+  (poll or IPN) gets rows-affected=1 and fires notifications; a racing second caller gets 0
+  and skips. **`on_order_created` fires exactly once.**
+- New `fire_pesapal_notifications( $order_id )`: rebuilds the notification payload from the
+  **durable DB row + order_items** (not the transient, so it still fires if the transient
+  expired) and runs the customer upsert — mirrors the offline order path.
+- **IPN** (`handle_pesapal_ipn`): find row by tracking id → if `paid`, no-op → else verify
+  status → `COMPLETED` promotes; `FAILED`/`REVERSED` marks the row `payment_status='failed'`
+  (conditional on still-`unpaid`) **without deleting the transient**; PENDING/INVALID/UNKNOWN
+  leave it `pending_payment` for the next notification. No-row case → fallback
+  create-from-transient (unchanged, "shouldn't happen").
+- **Poll** (`ajax_pesapal_check_status`): if row already `paid`, return it → else verify
+  status → `COMPLETED` promotes the row (or fallback-creates if somehow no row);
+  `FAILED`/`REVERSED` → `{paid:false,status:<X>}`; **INVALID/PENDING/UNKNOWN →
+  `{paid:false,status:'PENDING'}` = keep polling, never terminal.**
+- `find_pesapal_order()` SELECT extended to include `payment_status` (needed by the
+  paid/unpaid promote checks).
+
+### Confirmation — no `delete_transient` remains in the poll
+
+`grep "delete_transient( 'dd_pesapal_pending_" class-dd-orders-module.php` → the **only**
+hit is in `create_pesapal_order_from_pending()` (the fallback create path, tagged
+`from=helper`), which deletes the transient it just consumed. The poll and IPN contain
+**zero** `delete_transient` for the pending key (the old `from=poll` / `from=ipn` deletes
+are gone). Transients now expire naturally (2 h TTL).
+
+### D. Dashboard exclusion of `pending_payment` — findings (reported, not silently expanded)
+
+`pending_payment` is a **new** order-status value (previously unused for orders). Audit:
+
+**Already safe (exclude by construction):**
+- Revenue / fees / AOV / revenue chart (`dashboard.php`): filter `status='delivered'`.
+- Active Orders KPI (`dashboard.php`): `status IN ('pending','confirmed','ready')`.
+- **In-scope notification poll** (`ajax_poll_notifications`): `status='pending'` only →
+  `pending_payment` never alerts; promoted orders (now `status='pending'`) alert correctly.
+  **No change needed — verified.**
+
+**Would surface / act on `pending_payment` — OUT OF SCOPE (dashboard.php / orders.php not in
+brief file list); recommend a follow-up brief:**
+- `dashboard.php`: "Total Orders" KPI (`COUNT(*)`, no status filter) and "Recent Orders"
+  list (`SELECT * … WHERE is_test=0`, no status filter) will show awaiting-payment rows.
+- `dashboard.php`: the **manual** "mark stale delivered" button
+  (`WHERE status NOT IN ('delivered','cancelled') AND updated_at < 24h`) would sweep an
+  abandoned `pending_payment` row into `delivered` → into revenue. Admin-triggered, but a
+  real hazard.
+- `orders.php`: "Total Orders" KPI and **"Total Revenue" KPI (`SUM(total)`, no status
+  filter)** include `pending_payment` (note: that revenue KPI already summed
+  pending/cancelled pre-existing — this only widens an existing imprecision); the main
+  orders list shows all statuses.
+
+**Recommended follow-up (separate release):** exclude `status='pending_payment'` from those
+count/revenue/recent/list/stale-sweep queries, and/or add a small cron to purge abandoned
+`pending_payment` rows older than ~2 h (matches the transient TTL and the "let it expire
+naturally" principle) so they don't accumulate.
+
+### Related CLIENT-SIDE defect found — OUT OF SCOPE (cart.js not in brief), reported only
+
+`assets/js/cart.js` PesaPal poll callback (~L1047-1067). `ajax()` invokes
+`onSuccess(res.data)`, so inside the callback `res` **is** the data object
+(`{paid,status,order_number,order_id}`). But the code reads `res.data.order_number` (L1053)
+and `res.data.status` (L1061) — `res.data` is `undefined`, so those lines **throw**. Also
+L1061 treats `status === 'INVALID'` as terminal ("Payment failed").
+
+Impact with this release: the **order is still durable** — persist-at-submit + the IPN
+(authoritative) create/promote it regardless of what the client does, so no ghost order.
+But the customer's on-screen confirmation is unreliable. **Therefore verify this release via
+the DB/admin + DD_DIAG logs, NOT the customer screen.** Recommended follow-up brief for
+cart.js: use `res.order_number` / `res.status`, drop `INVALID` from the terminal check (the
+server no longer emits it to the client), and add `REVERSED`.
+
+### DD_DIAG logging — kept IN for one more verification cycle (per brief)
+
+New/updated probes this release: `CHECKOUT persisted …` (or `persist SKIPPED …` when the
+column is absent), `POLL/IPN … EXISTING_ORDER=… payment_status=…`, `POLL/IPN PROMOTING …`,
+`PROMOTE unpaid->paid …` / `PROMOTE skipped (already paid / raced) …`,
+`IPN already paid …`, `IPN payment FAILED/REVERSED → mark failed …`, and the fallback
+`… CREATE (fallback) …` lines. Read with `grep "DD_DIAG:" wp-content/debug.log`.
+
+### Verification checklist (durable path)
+
+1. Ensure the `pesapal_tracking_id` column exists (v3.11.0 migration). If a checkout logs
+   `DD_DIAG: CHECKOUT persist SKIPPED …`, the column is missing → run the ALTER first.
+2. Place a PesaPal order. Expect at redirect: one row `status='pending_payment'`,
+   `payment_status='unpaid'`, `pesapal_tracking_id` populated, and
+   `DD_DIAG: CHECKOUT persisted …`.
+3. Complete payment. Expect `DD_DIAG: … get_transaction_status … status=COMPLETED`, then
+   `PROMOTE unpaid->paid` **once** (whichever of poll/IPN wins), the row flips to
+   `status='pending'`, `payment_status='paid'`, exactly one dashboard notification, and
+   **no** second/duplicate row.
+4. Early polls before completion should log `status=INVALID` (or PENDING) and the poll must
+   return `PENDING` (keep polling) — the transient must **survive** (no `DELETE TRANSIENT
+   … from=poll` anywhere).
+
+### Not changed
+- `create_pesapal_order_from_pending()` retained as the no-row fallback create path (still
+  idempotent, still fires notifications, still deletes its own consumed transient).
+- Offline/COD/MoMo/IremboPay paths, WC-order online flow, reservations — untouched.
+- No schema change (relies on the existing `pesapal_tracking_id` column;
+  `status='pending_payment'`/`payment_status='failed'` are free-text VARCHAR values).
+
+**Awaiting go-ahead to commit v3.11.2.**

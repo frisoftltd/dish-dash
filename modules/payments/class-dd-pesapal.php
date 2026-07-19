@@ -160,6 +160,22 @@ class DD_PesaPal {
         );
         if ( is_wp_error( $response ) ) return 'UNKNOWN';
         $body = json_decode( wp_remote_retrieve_body( $response ) );
+
+        // Authoritative signal is the NUMERIC status_code. The text
+        // payment_status_description lags and reads "INVALID" during the early
+        // polling window before PesaPal finalizes the payment, so we must not
+        // trust it. Numeric mapping: 0 = INVALID, 1 = COMPLETED, 2 = FAILED,
+        // 3 = REVERSED. Return COMPLETED only on status_code === 1.
+        if ( is_object( $body ) && isset( $body->status_code ) && is_numeric( $body->status_code ) ) {
+            switch ( (int) $body->status_code ) {
+                case 1: return 'COMPLETED';
+                case 2: return 'FAILED';
+                case 3: return 'REVERSED';
+                case 0: return 'INVALID';
+            }
+        }
+
+        // Fall back to the text description only when status_code is absent.
         return strtoupper( $body->payment_status_description ?? 'PENDING' );
     }
 }
