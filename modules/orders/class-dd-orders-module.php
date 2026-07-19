@@ -1002,7 +1002,7 @@ class DD_Orders_Module extends DD_Module {
             }
 
             // Store full order data in transient — no DB write yet
-            set_transient( 'dd_pesapal_pending_' . $result['order_tracking_id'], [
+            $dd_diag_pp_set = set_transient( 'dd_pesapal_pending_' . $result['order_tracking_id'], [
                 'customer_name'    => $customer_name,
                 'customer_phone'   => $whatsapp,
                 'delivery_address' => $delivery_address,
@@ -1010,6 +1010,7 @@ class DD_Orders_Module extends DD_Module {
                 'delivery_fee'     => $delivery_fee,
                 'total'            => $total,
             ], 2 * HOUR_IN_SECONDS );
+            error_log( 'DD_DIAG: CHECKOUT set_transient key=dd_pesapal_pending_' . $result['order_tracking_id'] . ' set_transient_returned=' . ( $dd_diag_pp_set ? 'true' : 'false' ) );
 
             wp_send_json_success( [
                 'pesapal'           => true,
@@ -1353,6 +1354,7 @@ class DD_Orders_Module extends DD_Module {
         // Idempotency-first: if the IPN (or an earlier poll) already created the
         // order for this tracking id, return that order — never create a second one.
         $existing = $this->find_pesapal_order( $order_tracking_id );
+        error_log( 'DD_DIAG: POLL entry tracking=' . $order_tracking_id . ' EXISTING_ORDER=' . ( $existing ? 'true' : 'false' ) );
         if ( $existing ) {
             wp_send_json_success( [
                 'paid'         => true,
@@ -1364,25 +1366,31 @@ class DD_Orders_Module extends DD_Module {
         }
 
         $pending = get_transient( 'dd_pesapal_pending_' . $order_tracking_id );
+        error_log( 'DD_DIAG: POLL get_transient key=dd_pesapal_pending_' . $order_tracking_id . ' FOUND=' . ( $pending ? 'true' : 'false' ) );
         if ( ! $pending ) {
+            error_log( 'DD_DIAG: TRANSIENT MISSING at POLL tracking=' . $order_tracking_id );
             wp_send_json_error( [ 'message' => 'Payment session expired. Please try again.' ] );
             return;
         }
 
         $pesapal = new DD_PesaPal();
         $status  = $pesapal->get_transaction_status( $order_tracking_id );
+        error_log( 'DD_DIAG: POLL get_transaction_status tracking=' . $order_tracking_id . ' status=' . $status );
 
         if ( $status === 'COMPLETED' ) {
             // Shared idempotent creation routine — the same one the IPN uses.
             // If the IPN raced ahead between the check above and here, this
             // returns the existing order instead of duplicating it.
+            error_log( 'DD_DIAG: POLL ATTEMPTING CREATE tracking=' . $order_tracking_id );
             $result = $this->create_pesapal_order_from_pending( $order_tracking_id, $pending );
 
             if ( is_wp_error( $result ) ) {
+                error_log( 'DD_DIAG: POLL CREATE failed tracking=' . $order_tracking_id . ' error=' . $result->get_error_message() );
                 wp_send_json_error( [ 'message' => $result->get_error_message() ] );
                 return;
             }
 
+            error_log( 'DD_DIAG: POLL CREATE ok tracking=' . $order_tracking_id . ' order_id=' . $result['order_id'] );
             wp_send_json_success( [
                 'paid'         => true,
                 'status'       => 'COMPLETED',
@@ -1393,6 +1401,7 @@ class DD_Orders_Module extends DD_Module {
         }
 
         if ( in_array( $status, [ 'FAILED', 'INVALID' ], true ) ) {
+            error_log( 'DD_DIAG: DELETE TRANSIENT dd_pesapal_pending_' . $order_tracking_id . ' from=poll' );
             delete_transient( 'dd_pesapal_pending_' . $order_tracking_id );
             wp_send_json_success( [ 'paid' => false, 'status' => $status ] );
             return;
@@ -1426,22 +1435,28 @@ class DD_Orders_Module extends DD_Module {
             $_REQUEST['OrderMerchantReference'] ?? ( $_REQUEST['orderMerchantReference'] ?? '' )
         );
 
+        error_log( 'DD_DIAG: IPN entry OrderTrackingId=' . $tracking_id . ' OrderMerchantReference=' . $merchant_ref );
+
         if ( ! $tracking_id ) {
             $this->pesapal_ipn_respond( 400, '', '' );
             return;
         }
 
         // Idempotency: order already created for this tracking id → acknowledge.
-        if ( $this->find_pesapal_order( $tracking_id ) ) {
+        $dd_diag_ipn_existing = $this->find_pesapal_order( $tracking_id );
+        error_log( 'DD_DIAG: IPN find_pesapal_order tracking=' . $tracking_id . ' EXISTING_ORDER=' . ( $dd_diag_ipn_existing ? 'true' : 'false' ) . ' skipped_as_dup=' . ( $dd_diag_ipn_existing ? 'true' : 'false' ) );
+        if ( $dd_diag_ipn_existing ) {
             $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
             return;
         }
 
         $pending = get_transient( 'dd_pesapal_pending_' . $tracking_id );
+        error_log( 'DD_DIAG: IPN get_transient key=dd_pesapal_pending_' . $tracking_id . ' FOUND=' . ( $pending ? 'true' : 'false' ) );
         if ( ! $pending ) {
             // No order and no pending data — the transient expired (2h TTL) before
             // any confirmation landed. Nothing we can create; flag for manual
             // reconciliation and acknowledge so PesaPal stops retrying.
+            error_log( 'DD_DIAG: TRANSIENT MISSING at IPN tracking=' . $tracking_id );
             error_log( 'DD PesaPal IPN: reconcile-needed — no order and no pending transient for tracking id ' . $tracking_id );
             $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
             return;
@@ -1450,21 +1465,26 @@ class DD_Orders_Module extends DD_Module {
         // Verify the real status server-side. Never trust the IPN payload for this.
         $pesapal = new DD_PesaPal();
         $status  = $pesapal->get_transaction_status( $tracking_id );
+        error_log( 'DD_DIAG: IPN get_transaction_status tracking=' . $tracking_id . ' status=' . $status );
 
         if ( $status === 'COMPLETED' ) {
+            error_log( 'DD_DIAG: IPN ATTEMPTING CREATE tracking=' . $tracking_id );
             $result = $this->create_pesapal_order_from_pending( $tracking_id, $pending );
             if ( is_wp_error( $result ) ) {
                 // Transient failure (lock contention / DB error). Answer non-200 so
                 // PesaPal retries; a later attempt will find the order and 200.
+                error_log( 'DD_DIAG: IPN CREATE failed tracking=' . $tracking_id . ' error=' . $result->get_error_message() );
                 error_log( 'DD PesaPal IPN: creation failed for ' . $tracking_id . ' — ' . $result->get_error_message() );
                 $this->pesapal_ipn_respond( 500, $tracking_id, $merchant_ref );
                 return;
             }
+            error_log( 'DD_DIAG: IPN CREATE ok tracking=' . $tracking_id . ' order_id=' . $result['order_id'] );
             $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
             return;
         }
 
         if ( in_array( $status, [ 'FAILED', 'INVALID' ], true ) ) {
+            error_log( 'DD_DIAG: DELETE TRANSIENT dd_pesapal_pending_' . $tracking_id . ' from=ipn' );
             delete_transient( 'dd_pesapal_pending_' . $tracking_id );
             $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
             return;
@@ -1550,8 +1570,11 @@ class DD_Orders_Module extends DD_Module {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_orders';
 
+        error_log( 'DD_DIAG: HELPER entry tracking=' . $tracking_id );
+
         // 1. Already created?
         $existing = $this->find_pesapal_order( $tracking_id );
+        error_log( 'DD_DIAG: HELPER find_pesapal_order tracking=' . $tracking_id . ' EXISTING_ORDER=' . ( $existing ? 'true' : 'false' ) );
         if ( $existing ) {
             return [ 'order_id' => (int) $existing->id, 'order_number' => $existing->order_number ];
         }
@@ -1561,6 +1584,7 @@ class DD_Orders_Module extends DD_Module {
         if ( false === add_option( $lock_key, time(), '', 'no' ) ) {
             // Someone else is mid-create. Re-check for the finished row.
             $existing = $this->find_pesapal_order( $tracking_id );
+            error_log( 'DD_DIAG: HELPER lock-contended re-check tracking=' . $tracking_id . ' EXISTING_ORDER=' . ( $existing ? 'true' : 'false' ) );
             if ( $existing ) {
                 return [ 'order_id' => (int) $existing->id, 'order_number' => $existing->order_number ];
             }
@@ -1568,6 +1592,7 @@ class DD_Orders_Module extends DD_Module {
         }
 
         // From here we own the lock — always release it before returning.
+        error_log( 'DD_DIAG: HELPER ATTEMPTING CREATE (place_order) tracking=' . $tracking_id );
         $result = $this->place_order( [
             'customer_name'    => $pending['customer_name'],
             'customer_phone'   => $pending['customer_phone'],
@@ -1580,12 +1605,14 @@ class DD_Orders_Module extends DD_Module {
         ] );
 
         if ( is_wp_error( $result ) ) {
+            error_log( 'DD_DIAG: HELPER place_order failed tracking=' . $tracking_id . ' error=' . $result->get_error_message() );
             delete_option( $lock_key );
             return $result;
         }
 
         $order_id     = (int) $result['order_id'];
         $order_number = $result['order_number'];
+        error_log( 'DD_DIAG: HELPER place_order ok tracking=' . $tracking_id . ' order_id=' . $order_id );
 
         // 3. Stamp paid + the idempotency key. When the column exists the UNIQUE
         //    index makes a duplicate stamp fail — that failure means another path
@@ -1603,6 +1630,7 @@ class DD_Orders_Module extends DD_Module {
                 // Duplicate-key (or DB) failure: the tracking id is already stamped
                 // on another row. Discard this just-created row and return the winner.
                 $winner = $this->find_pesapal_order( $tracking_id );
+                error_log( 'DD_DIAG: HELPER stamp failed (dup tracking_id) tracking=' . $tracking_id . ' discarded_order_id=' . $order_id . ' winner_order_id=' . ( $winner ? (int) $winner->id : 'none' ) );
                 $wpdb->delete( $table, [ 'id' => $order_id ], [ '%d' ] );
                 $wpdb->delete( $wpdb->prefix . 'dishdash_order_items', [ 'order_id' => $order_id ], [ '%d' ] );
                 delete_option( $lock_key );
@@ -1655,9 +1683,11 @@ class DD_Orders_Module extends DD_Module {
         DD_Notifications::on_order_created( $notification_data );
 
         // Done — clear the pending transient and release the lock.
+        error_log( 'DD_DIAG: DELETE TRANSIENT dd_pesapal_pending_' . $tracking_id . ' from=helper' );
         delete_transient( 'dd_pesapal_pending_' . $tracking_id );
         delete_option( $lock_key );
 
+        error_log( 'DD_DIAG: HELPER create complete tracking=' . $tracking_id . ' order_id=' . $order_id );
         return [ 'order_id' => $order_id, 'order_number' => $order_number ];
     }
 

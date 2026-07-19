@@ -1924,3 +1924,114 @@ one row in `wp_dishdash_orders` with `payment_status='paid'` and a populated
 - **Release housekeeping not done** (no explicit instruction): `DD_VERSION` bump in
   `dish-dash.php` (both spots) + CLAUDE.md `Last updated`/Current State per Rule 0, and
   the `git add/commit/push`. Awaiting release instructions.
+
+---
+
+## Release — v3.11.1 — DIAGNOSTIC: instrument PesaPal IPN create path (LOGGING ONLY) ✅
+
+**Site:** nyarutarama. **Goal:** trace the ghost-order failure (payment taken, no order
+created) end-to-end without changing behaviour.
+
+**Scope:** LOGGING ONLY. No logic/flow changes.
+**File touched:** `modules/orders/class-dd-orders-module.php`.
+**Version:** bumped to **v3.11.1** (`dish-dash.php` header line 6 + `DD_VERSION` line 47;
+`CLAUDE.md` `Last updated` + Current State + changelog row).
+**Syntax:** `php -l` → *No syntax errors detected*.
+
+All probes emit via `error_log('DD_DIAG: …')` → the site's PHP `error_log` target
+(`wp-content/debug.log` when `WP_DEBUG_LOG` is on, else the PHP/cPanel error log).
+
+> Note on "no flow change": two call results were captured into local vars purely so
+> their value could be logged — `$dd_diag_pp_set` for the checkout `set_transient`, and
+> `$dd_diag_ipn_existing` for the IPN dup check. Call count and control flow are identical
+> to before (the value was previously used inline in the same statement/`if`).
+
+### Every DD_DIAG log line (code order)
+
+**A) Checkout — transient write (`ajax_place_order`, pesapal branch)**
+| Line | Log |
+|---|---|
+| 1013 | `DD_DIAG: CHECKOUT set_transient key=dd_pesapal_pending_<tid> set_transient_returned=<true\|false>` |
+
+**B) Poll — `ajax_pesapal_check_status()`**
+| Line | Log |
+|---|---|
+| 1357 | `DD_DIAG: POLL entry tracking=<tid> EXISTING_ORDER=<t/f>` |
+| 1369 | `DD_DIAG: POLL get_transient key=dd_pesapal_pending_<tid> FOUND=<t/f>` |
+| 1371 | `DD_DIAG: TRANSIENT MISSING at POLL tracking=<tid>` (only when FOUND=false) |
+| 1378 | `DD_DIAG: POLL get_transaction_status tracking=<tid> status=<STRING>` |
+| 1384 | `DD_DIAG: POLL ATTEMPTING CREATE tracking=<tid>` |
+| 1388 | `DD_DIAG: POLL CREATE failed tracking=<tid> error=<msg>` |
+| 1393 | `DD_DIAG: POLL CREATE ok tracking=<tid> order_id=<id>` |
+| 1404 | `DD_DIAG: DELETE TRANSIENT dd_pesapal_pending_<tid> from=poll` |
+
+**C) IPN — `handle_pesapal_ipn()`** (brief points A–F)
+| Line | Log | Brief |
+|---|---|---|
+| 1438 | `DD_DIAG: IPN entry OrderTrackingId=<tid> OrderMerchantReference=<ref>` | A |
+| 1447 | `DD_DIAG: IPN find_pesapal_order tracking=<tid> EXISTING_ORDER=<t/f> skipped_as_dup=<t/f>` | C |
+| 1454 | `DD_DIAG: IPN get_transient key=dd_pesapal_pending_<tid> FOUND=<t/f>` | B |
+| 1459 | `DD_DIAG: TRANSIENT MISSING at IPN tracking=<tid>` | B (FOUND=false) |
+| 1468 | `DD_DIAG: IPN get_transaction_status tracking=<tid> status=<STRING>` | D |
+| 1471 | `DD_DIAG: IPN ATTEMPTING CREATE tracking=<tid>` | E |
+| 1476 | `DD_DIAG: IPN CREATE failed tracking=<tid> error=<msg>` | E |
+| 1481 | `DD_DIAG: IPN CREATE ok tracking=<tid> order_id=<id>` | E |
+| 1487 | `DD_DIAG: DELETE TRANSIENT dd_pesapal_pending_<tid> from=ipn` | F |
+
+**D) Shared helper — `create_pesapal_order_from_pending()`** (both poll & IPN delegate here)
+| Line | Log |
+|---|---|
+| 1573 | `DD_DIAG: HELPER entry tracking=<tid>` |
+| 1577 | `DD_DIAG: HELPER find_pesapal_order tracking=<tid> EXISTING_ORDER=<t/f>` (C) |
+| 1587 | `DD_DIAG: HELPER lock-contended re-check tracking=<tid> EXISTING_ORDER=<t/f>` |
+| 1595 | `DD_DIAG: HELPER ATTEMPTING CREATE (place_order) tracking=<tid>` (E) |
+| 1608 | `DD_DIAG: HELPER place_order failed tracking=<tid> error=<msg>` (E) |
+| 1615 | `DD_DIAG: HELPER place_order ok tracking=<tid> order_id=<id>` (E) |
+| 1633 | `DD_DIAG: HELPER stamp failed (dup tracking_id) tracking=<tid> discarded_order_id=<id> winner_order_id=<id\|none>` |
+| 1686 | `DD_DIAG: DELETE TRANSIENT dd_pesapal_pending_<tid> from=helper` (F) |
+| 1690 | `DD_DIAG: HELPER create complete tracking=<tid> order_id=<id>` |
+
+**Every `delete_transient('dd_pesapal_pending_*')` site is tagged (3 total):**
+`from=poll` (1405), `from=ipn` (1488), `from=helper` (1687).
+
+### Grep to read the logs
+
+```bash
+# WP_DEBUG_LOG on → wp-content/debug.log:
+grep "DD_DIAG:" /home/imitjsiy/dishdash.khanakhazana.rw/wp-content/debug.log
+
+# Live during a test payment:
+tail -f wp-content/debug.log | grep "DD_DIAG:"
+
+# One payment end-to-end by tracking id:
+grep "DD_DIAG:" wp-content/debug.log | grep "<OrderTrackingId>"
+
+# Who deleted the pending transient (the ghost-order smoking gun):
+grep "DD_DIAG: DELETE TRANSIENT" wp-content/debug.log
+
+# Failure signatures:
+grep -E "DD_DIAG: (TRANSIENT MISSING|.*CREATE failed|.*stamp failed)" wp-content/debug.log
+```
+
+> If `WP_DEBUG_LOG` is **not** on, `error_log()` goes to the server PHP error log — check
+> cPanel → Metrics → Errors or the domain `error_log` file. Recommend enabling
+> `WP_DEBUG_LOG` (with `WP_DEBUG_DISPLAY` off) so the trace lands in `wp-content/debug.log`.
+
+### What the trace will confirm/deny
+1. **Poll consumes the transient before the IPN** — the `from=<ipn|poll|helper>` tag on
+   every delete + `TRANSIENT MISSING at IPN` pinpoints the consumer/order-of-arrival.
+2. **Transient never written** — `CHECKOUT … returned=false` (object cache / TTL / size).
+3. **Status string mismatch** — `get_transaction_status … status=<X>` shows the literal
+   value (e.g. case/whitespace) that would skip the COMPLETED branch.
+4. **Create attempted but aborted** — `ATTEMPTING CREATE` → `CREATE failed` /
+   `place_order failed` / `stamp failed` shows the failing layer.
+5. **Transient expired before confirmation** — `TRANSIENT MISSING at IPN` + reconcile-needed
+   with no `ATTEMPTING CREATE`.
+
+### Not changed
+- No behaviour/flow altered; no schema, options, settings, or endpoints.
+- `pesapal_ipn_respond`, `find_pesapal_order`, `has_pesapal_tracking_column`,
+  `place_order`, `submit_order`, and all non-PesaPal paths untouched.
+- Pre-existing `error_log('DD PesaPal IPN: …')` lines kept (DD_DIAG added alongside).
+
+**Awaiting go-ahead to commit v3.11.1.**
