@@ -1778,3 +1778,149 @@ per-surface (context-specific): WhatsApp raw, email + modal `esc_html`.
 `Note:` alone; neither → unchanged, no blank lines; kitchen WhatsApp still correct.
 
 **Status:** Implemented, committed, pushed — awaiting developer deploy + verify.
+
+---
+---
+
+# Report — PesaPal server-side IPN order creation
+
+**Brief:** Create the DD order from PesaPal's server-to-server IPN, not from the
+client-side poll. Poll stays as a fast-path but is no longer load-bearing. Creation
+must be idempotent: poll + IPN (+ retries) must never create duplicates.
+
+**Status:** Implemented, PHP-lint clean (`php -l` — no syntax errors). NOT committed,
+NOT version-bumped (awaiting release instructions). Requires a manual `ALTER TABLE`
+after deploy (below).
+
+## Files changed
+
+- `modules/orders/class-dd-orders-module.php` — all changes here.
+- `modules/payments/class-dd-pesapal.php` — **NOT changed.** The callback URL
+  (`home_url('/wc-api/wc_pesapal_gateway/')`) is already sent to PesaPal in
+  `submit_order()`, and `get_transaction_status()` already exists. Nothing in the
+  client class needed to change, so it was left untouched (Rule 1a).
+
+## Change 1 — register the IPN listener
+
+`init()` (beside the other `add_action` calls):
+
+```php
+add_action( 'woocommerce_api_wc_pesapal_gateway', [ $this, 'handle_pesapal_ipn' ] );
+```
+
+WooCommerce routes any request to `/wc-api/{request}/` to the action
+`woocommerce_api_{strtolower(request)}`. The already-registered callback URL uses
+`wc_pesapal_gateway`, so this hook fires without changing the URL (the brief's
+preferred option — no REST fallback needed).
+
+## Change 2 — `handle_pesapal_ipn()`
+
+Runs **unauthenticated** (server-to-server; no nonce). Trust comes from re-verifying
+the status against PesaPal's API, never from the request payload.
+
+Flow:
+1. Read `OrderTrackingId` (GET; POST accepted defensively). Missing → **HTTP 400**, exit.
+2. `find_pesapal_order(tracking_id)` — already created? → **200** (idempotent ack).
+3. Load `dd_pesapal_pending_{tracking_id}`. Absent **and** no existing order →
+   `error_log()` a reconcile-needed notice, **200** (nothing to create; stop retries).
+4. `get_transaction_status(tracking_id)` — the authoritative check:
+   - `COMPLETED` → `create_pesapal_order_from_pending()`; success → **200**,
+     transient creation failure (lock/DB) → **500** so PesaPal retries.
+   - `FAILED`/`INVALID` → delete transient, **200**.
+   - `PENDING`/`UNKNOWN` → **200** (PesaPal will re-notify).
+5. Every acknowledgement is a JSON body (`orderNotificationType`, `orderTrackingId`,
+   `orderMerchantReference`, `status`) via `pesapal_ipn_respond()`.
+
+Rationale for status codes: PesaPal retries until it gets a 200, so 200 covers every
+*handled* outcome; non-200 is reserved for "please retry" (400 malformed, 500 transient
+creation failure).
+
+## Change 3 — client poll made idempotent
+
+`ajax_pesapal_check_status()`:
+- **Before** touching the transient it calls `find_pesapal_order()`. If the IPN already
+  created the order, it returns that `order_number`/`order_id` with
+  `paid=true, status=COMPLETED` and creates nothing. (This also fixes the previous
+  "Payment session expired" error the poll returned when the IPN had already consumed
+  the transient.)
+- The `COMPLETED` branch now calls the **same** `create_pesapal_order_from_pending()`
+  helper as the IPN, so a poll↔IPN race between the check and the create still yields
+  one order.
+
+## Idempotency mechanism (three layers)
+
+1. **`pesapal_tracking_id` column** on `wp_dishdash_orders` (new, nullable, UNIQUE).
+   `find_pesapal_order()` looks up by it; the create path stamps it. The UNIQUE index
+   is the hard DB backstop — a duplicate stamp fails.
+2. **`add_option()` lock** (`dd_pesapal_lock_{tracking_id}`): `add_option` is an atomic
+   INSERT on the unique `option_name`, so only one concurrent request wins; the loser
+   re-checks for the finished row and bails. Lock is always released before return.
+3. **Duplicate-key recovery**: if `place_order()` runs but the stamp UPDATE fails
+   (another path stamped first), the just-created row **and its items** are deleted and
+   the canonical (winner) order is returned — no orphan, no duplicate.
+
+`create_pesapal_order_from_pending()` is the single creation routine used by both paths.
+It: checks existing → locks → `place_order()` → stamps `status=pending`,
+`payment_status=paid`, `pesapal_tracking_id` → `DD_Customer_Manager::upsert()` →
+**fires `DD_Notifications::on_order_created()`** (dashboard + email/WhatsApp; NOT via
+`woocommerce_payment_complete`, since Option B creates no WC order) → deletes the
+transient → releases the lock.
+
+**Graceful pre-migration degradation:** `has_pesapal_tracking_column()` (cached
+`SHOW COLUMNS`) gates every reference to the new column. If the ALTER has not been run,
+`find_pesapal_order()` returns null and the create path marks the order paid *without*
+the tracking stamp — i.e. exactly the old behaviour, no fatal. Full idempotency turns
+on the moment the column exists.
+
+**Note — behaviour change (intentional, for parity):** the old poll `COMPLETED` path did
+**not** fire `on_order_created()`, so PesaPal orders never triggered a WhatsApp/email/bell
+notification (Option B makes no WC order, so `woocommerce_payment_complete` never fires
+either). Routing both paths through the shared helper means whichever path creates the
+order now fires notifications exactly once. This is required by the brief's goal ("puts
+it on the dashboard + email/WhatsApp").
+
+## MIGRATION — developer runs after deploy
+
+`dbDelta()` does not alter existing tables, so run this once (adjust `wp_` prefix if
+different):
+
+```sql
+ALTER TABLE wp_dishdash_orders
+  ADD COLUMN pesapal_tracking_id VARCHAR(64) NULL AFTER payment_status,
+  ADD UNIQUE KEY uq_pesapal_tracking (pesapal_tracking_id);
+```
+
+Or via WP-CLI:
+
+```bash
+wp db query "ALTER TABLE wp_dishdash_orders ADD COLUMN pesapal_tracking_id VARCHAR(64) NULL AFTER payment_status, ADD UNIQUE KEY uq_pesapal_tracking (pesapal_tracking_id);"
+```
+
+Verify:
+
+```bash
+wp db query "SHOW COLUMNS FROM wp_dishdash_orders LIKE 'pesapal_tracking_id';"
+wp db query "SHOW INDEX FROM wp_dishdash_orders WHERE Key_name='uq_pesapal_tracking';"
+```
+
+(Multiple `NULL` values are allowed under a MySQL UNIQUE index, so pre-existing and
+non-PesaPal orders are unaffected.)
+
+End-to-end check after migration: place a PesaPal order and pay it. Expected — exactly
+one row in `wp_dishdash_orders` with `payment_status='paid'` and a populated
+`pesapal_tracking_id`, one dashboard notification, and the poll returns that same
+`order_number` (never a second order) whether the IPN or the poll landed first.
+
+## Out of scope — reported, not fixed
+
+- **Fresh-install schema:** `install.php` `CREATE TABLE dishdash_orders` does not include
+  `pesapal_tracking_id`, and it is out of the brief's file scope. New installs will run
+  with idempotency **off** (safe, via the column-existence guard) until the column is
+  added. Recommend adding the column to `install.php` in a follow-up so fresh installs
+  get idempotency automatically without a manual ALTER.
+- **Poll nonce/cache 400** (`dd_pesapal_check_status`): harmless now that the IPN is the
+  primary creator — the poll is purely a UX fast-path. Not chased (per brief).
+- **PesaPal keys in `debug.log`**: security, handled out-of-band. Not touched.
+- **Release housekeeping not done** (no explicit instruction): `DD_VERSION` bump in
+  `dish-dash.php` (both spots) + CLAUDE.md `Last updated`/Current State per Rule 0, and
+  the `git add/commit/push`. Awaiting release instructions.

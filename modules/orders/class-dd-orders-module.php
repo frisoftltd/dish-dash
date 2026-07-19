@@ -97,6 +97,13 @@ class DD_Orders_Module extends DD_Module {
         // Online gateway notifications — fires after Pesapal/DPO payment confirmed
         add_action( 'woocommerce_payment_complete', [ 'DD_Notifications', 'on_payment_complete' ] );
 
+        // PesaPal server-to-server IPN — authoritative order creation.
+        // PesaPal posts to callback_url = home_url('/wc-api/wc_pesapal_gateway/'),
+        // which WooCommerce routes to this action. The client-side status poll
+        // (dd_pesapal_check_status) remains as a fast-path but is no longer
+        // load-bearing; both share one idempotent creation routine.
+        add_action( 'woocommerce_api_wc_pesapal_gateway', [ $this, 'handle_pesapal_ipn' ] );
+
         // Branded thank-you page for online gateway orders
         add_action( 'woocommerce_thankyou', [ $this, 'on_order_received_page' ] );
 
@@ -1343,6 +1350,19 @@ class DD_Orders_Module extends DD_Module {
             return;
         }
 
+        // Idempotency-first: if the IPN (or an earlier poll) already created the
+        // order for this tracking id, return that order — never create a second one.
+        $existing = $this->find_pesapal_order( $order_tracking_id );
+        if ( $existing ) {
+            wp_send_json_success( [
+                'paid'         => true,
+                'status'       => 'COMPLETED',
+                'order_number' => $existing->order_number,
+                'order_id'     => (int) $existing->id,
+            ] );
+            return;
+        }
+
         $pending = get_transient( 'dd_pesapal_pending_' . $order_tracking_id );
         if ( ! $pending ) {
             wp_send_json_error( [ 'message' => 'Payment session expired. Please try again.' ] );
@@ -1353,39 +1373,15 @@ class DD_Orders_Module extends DD_Module {
         $status  = $pesapal->get_transaction_status( $order_tracking_id );
 
         if ( $status === 'COMPLETED' ) {
-            $result = $this->place_order( [
-                'customer_name'    => $pending['customer_name'],
-                'customer_phone'   => $pending['customer_phone'],
-                'customer_email'   => '',
-                'order_type'       => 'delivery',
-                'items'            => $pending['items'],
-                'delivery_fee'     => $pending['delivery_fee'],
-                'payment_method'   => 'pesapal',
-                'delivery_address' => $pending['delivery_address'],
-            ] );
+            // Shared idempotent creation routine — the same one the IPN uses.
+            // If the IPN raced ahead between the check above and here, this
+            // returns the existing order instead of duplicating it.
+            $result = $this->create_pesapal_order_from_pending( $order_tracking_id, $pending );
 
             if ( is_wp_error( $result ) ) {
                 wp_send_json_error( [ 'message' => $result->get_error_message() ] );
                 return;
             }
-
-            global $wpdb;
-            $wpdb->update(
-                $wpdb->prefix . 'dishdash_orders',
-                [ 'status' => 'pending', 'payment_status' => 'paid' ],
-                [ 'id'     => $result['order_id'] ],
-                [ '%s', '%s' ],
-                [ '%d' ]
-            );
-
-            delete_transient( 'dd_pesapal_pending_' . $order_tracking_id );
-
-            DD_Customer_Manager::upsert(
-                $pending['customer_phone'],
-                $pending['customer_name'],
-                $pending['delivery_address'],
-                (float) $pending['total']
-            );
 
             wp_send_json_success( [
                 'paid'         => true,
@@ -1403,6 +1399,266 @@ class DD_Orders_Module extends DD_Module {
         }
 
         wp_send_json_success( [ 'paid' => false, 'status' => 'PENDING' ] );
+    }
+
+    /**
+     * PesaPal server-to-server IPN handler (GET, ipn_notification_type='GET').
+     *
+     * Fired by WooCommerce for the /wc-api/wc_pesapal_gateway/ callback URL that
+     * PesaPal calls on payment completion. Runs unauthenticated (server-to-server)
+     * — trust is established by re-verifying the status against PesaPal's API
+     * (get_transaction_status), never by trusting the request payload.
+     *
+     * This is the AUTHORITATIVE order-creation path; the client poll is a fast-path
+     * backup. Both funnel through create_pesapal_order_from_pending(), which is
+     * idempotent, so poll + IPN (+ PesaPal retries) never produce a duplicate.
+     *
+     * PesaPal keeps retrying until it receives HTTP 200, so we answer 200 for every
+     * handled outcome (created / already-created / terminal / pending) and reserve
+     * non-200 for "please retry" (missing id → 400, transient creation failure → 500).
+     */
+    public function handle_pesapal_ipn(): void {
+        // PesaPal sends OrderTrackingId (GET). Accept POST too, defensively.
+        $tracking_id = sanitize_text_field(
+            $_REQUEST['OrderTrackingId'] ?? ( $_REQUEST['orderTrackingId'] ?? '' )
+        );
+        $merchant_ref = sanitize_text_field(
+            $_REQUEST['OrderMerchantReference'] ?? ( $_REQUEST['orderMerchantReference'] ?? '' )
+        );
+
+        if ( ! $tracking_id ) {
+            $this->pesapal_ipn_respond( 400, '', '' );
+            return;
+        }
+
+        // Idempotency: order already created for this tracking id → acknowledge.
+        if ( $this->find_pesapal_order( $tracking_id ) ) {
+            $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+            return;
+        }
+
+        $pending = get_transient( 'dd_pesapal_pending_' . $tracking_id );
+        if ( ! $pending ) {
+            // No order and no pending data — the transient expired (2h TTL) before
+            // any confirmation landed. Nothing we can create; flag for manual
+            // reconciliation and acknowledge so PesaPal stops retrying.
+            error_log( 'DD PesaPal IPN: reconcile-needed — no order and no pending transient for tracking id ' . $tracking_id );
+            $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+            return;
+        }
+
+        // Verify the real status server-side. Never trust the IPN payload for this.
+        $pesapal = new DD_PesaPal();
+        $status  = $pesapal->get_transaction_status( $tracking_id );
+
+        if ( $status === 'COMPLETED' ) {
+            $result = $this->create_pesapal_order_from_pending( $tracking_id, $pending );
+            if ( is_wp_error( $result ) ) {
+                // Transient failure (lock contention / DB error). Answer non-200 so
+                // PesaPal retries; a later attempt will find the order and 200.
+                error_log( 'DD PesaPal IPN: creation failed for ' . $tracking_id . ' — ' . $result->get_error_message() );
+                $this->pesapal_ipn_respond( 500, $tracking_id, $merchant_ref );
+                return;
+            }
+            $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+            return;
+        }
+
+        if ( in_array( $status, [ 'FAILED', 'INVALID' ], true ) ) {
+            delete_transient( 'dd_pesapal_pending_' . $tracking_id );
+            $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+            return;
+        }
+
+        // PENDING / UNKNOWN — no order yet. Acknowledge; PesaPal will re-notify.
+        $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+    }
+
+    /**
+     * Emit the PesaPal IPN acknowledgement JSON with the given HTTP status.
+     * PesaPal treats any 200 as "received"; the JSON body echoes the ids back.
+     */
+    private function pesapal_ipn_respond( int $http_status, string $tracking_id, string $merchant_ref ): void {
+        status_header( $http_status );
+        nocache_headers();
+        header( 'Content-Type: application/json; charset=utf-8' );
+        echo wp_json_encode( [
+            'orderNotificationType'  => 'IPNCHANGE',
+            'orderTrackingId'        => $tracking_id,
+            'orderMerchantReference' => $merchant_ref,
+            'status'                 => $http_status,
+        ] );
+        exit;
+    }
+
+    /**
+     * Return the dishdash_orders row already created for a PesaPal tracking id,
+     * or null. The pesapal_tracking_id column is the idempotency key. If the
+     * column has not been added yet (migration not run), this returns null so the
+     * code degrades to the pre-idempotency behaviour without erroring.
+     */
+    private function find_pesapal_order( string $tracking_id ): ?object {
+        if ( ! $tracking_id || ! $this->has_pesapal_tracking_column() ) {
+            return null;
+        }
+        global $wpdb;
+        return $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, order_number FROM {$wpdb->prefix}dishdash_orders
+             WHERE pesapal_tracking_id = %s LIMIT 1",
+            $tracking_id
+        ) );
+    }
+
+    /**
+     * Does dishdash_orders have the pesapal_tracking_id column yet?
+     * Cached per-request. The column is added by the manual ALTER TABLE
+     * documented in the release notes (dbDelta does not alter live tables).
+     */
+    private function has_pesapal_tracking_column(): bool {
+        static $exists = null;
+        if ( null !== $exists ) {
+            return $exists;
+        }
+        global $wpdb;
+        $col    = $wpdb->get_var( $wpdb->prepare(
+            "SHOW COLUMNS FROM {$wpdb->prefix}dishdash_orders LIKE %s",
+            'pesapal_tracking_id'
+        ) );
+        $exists = ! empty( $col );
+        return $exists;
+    }
+
+    /**
+     * Idempotently create a paid PesaPal order from its pending transient payload.
+     * Shared by the IPN handler and the client status poll so the two can never
+     * create duplicates regardless of which arrives first.
+     *
+     * Guards (in order):
+     *   1. If a row already exists for this tracking id → return it (no create).
+     *   2. Acquire a short-lived add_option() lock (atomic INSERT on the unique
+     *      option_name) — a concurrent request re-checks (1) then bails.
+     *   3. place_order() → stamp status=pending / payment_status=paid /
+     *      pesapal_tracking_id (the UNIQUE index is the hard backstop against a
+     *      duplicate stamp; a dup-key failure is treated as already-created).
+     *   4. Customer upsert + fire DD_Notifications::on_order_created() (dashboard +
+     *      email/WhatsApp — NOT via woocommerce_payment_complete, since no WC order
+     *      exists on this Option-B path) + delete the pending transient.
+     *
+     * @return array{order_id:int,order_number:string}|WP_Error
+     */
+    private function create_pesapal_order_from_pending( string $tracking_id, array $pending ): array|WP_Error {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_orders';
+
+        // 1. Already created?
+        $existing = $this->find_pesapal_order( $tracking_id );
+        if ( $existing ) {
+            return [ 'order_id' => (int) $existing->id, 'order_number' => $existing->order_number ];
+        }
+
+        // 2. Acquire creation lock (atomic — add_option fails if the row exists).
+        $lock_key = 'dd_pesapal_lock_' . $tracking_id;
+        if ( false === add_option( $lock_key, time(), '', 'no' ) ) {
+            // Someone else is mid-create. Re-check for the finished row.
+            $existing = $this->find_pesapal_order( $tracking_id );
+            if ( $existing ) {
+                return [ 'order_id' => (int) $existing->id, 'order_number' => $existing->order_number ];
+            }
+            return new WP_Error( 'dd_pesapal_locked', 'Order creation already in progress.' );
+        }
+
+        // From here we own the lock — always release it before returning.
+        $result = $this->place_order( [
+            'customer_name'    => $pending['customer_name'],
+            'customer_phone'   => $pending['customer_phone'],
+            'customer_email'   => '',
+            'order_type'       => 'delivery',
+            'items'            => $pending['items'],
+            'delivery_fee'     => $pending['delivery_fee'],
+            'payment_method'   => 'pesapal',
+            'delivery_address' => $pending['delivery_address'],
+        ] );
+
+        if ( is_wp_error( $result ) ) {
+            delete_option( $lock_key );
+            return $result;
+        }
+
+        $order_id     = (int) $result['order_id'];
+        $order_number = $result['order_number'];
+
+        // 3. Stamp paid + the idempotency key. When the column exists the UNIQUE
+        //    index makes a duplicate stamp fail — that failure means another path
+        //    already created the canonical order, so we adopt it and drop this one.
+        if ( $this->has_pesapal_tracking_column() ) {
+            $stamped = $wpdb->update(
+                $table,
+                [ 'status' => 'pending', 'payment_status' => 'paid', 'pesapal_tracking_id' => $tracking_id ],
+                [ 'id'     => $order_id ],
+                [ '%s', '%s', '%s' ],
+                [ '%d' ]
+            );
+
+            if ( false === $stamped ) {
+                // Duplicate-key (or DB) failure: the tracking id is already stamped
+                // on another row. Discard this just-created row and return the winner.
+                $winner = $this->find_pesapal_order( $tracking_id );
+                $wpdb->delete( $table, [ 'id' => $order_id ], [ '%d' ] );
+                $wpdb->delete( $wpdb->prefix . 'dishdash_order_items', [ 'order_id' => $order_id ], [ '%d' ] );
+                delete_option( $lock_key );
+                if ( $winner ) {
+                    return [ 'order_id' => (int) $winner->id, 'order_number' => $winner->order_number ];
+                }
+                return new WP_Error( 'dd_pesapal_stamp_failed', 'Could not finalize the PesaPal order.' );
+            }
+        } else {
+            // Pre-migration: no idempotency column. Mark paid only (legacy behaviour).
+            $wpdb->update(
+                $table,
+                [ 'status' => 'pending', 'payment_status' => 'paid' ],
+                [ 'id'     => $order_id ],
+                [ '%s', '%s' ],
+                [ '%d' ]
+            );
+        }
+
+        // 4. Customer upsert.
+        DD_Customer_Manager::upsert(
+            $pending['customer_phone'],
+            $pending['customer_name'],
+            $pending['delivery_address'],
+            (float) ( $pending['total'] ?? $result['total'] )
+        );
+
+        // Fire notifications (dashboard + email/WhatsApp). Build the payload the
+        // same way the offline path does (mirrors ajax_place_order's section 6).
+        $totals   = $this->calculate_totals( $pending['items'], (float) ( $pending['delivery_fee'] ?? 0 ) );
+        $notification_data = [
+            'order_number'     => $order_number,
+            'customer_name'    => $pending['customer_name'],
+            'customer_phone'   => $pending['customer_phone'],
+            'delivery_address' => $pending['delivery_address'],
+            'payment_method'   => 'pesapal',
+            'subtotal'         => $totals['subtotal'],
+            'delivery_fee'     => (float) ( $pending['delivery_fee'] ?? 0 ),
+            'total'            => (float) $result['total'],
+            'items'            => array_values( array_map( function ( $item ) {
+                return [
+                    'name'         => $item['name'],
+                    'qty'          => (int) ( $item['qty'] ?? 1 ),
+                    'price'        => (float) $item['price'],
+                    'variation'    => $item['variation'] ?? '',
+                    'special_note' => $item['note'] ?? '',
+                ];
+            }, $pending['items'] ) ),
+        ];
+        DD_Notifications::on_order_created( $notification_data );
+
+        // Done — clear the pending transient and release the lock.
+        delete_transient( 'dd_pesapal_pending_' . $tracking_id );
+        delete_option( $lock_key );
+
+        return [ 'order_id' => $order_id, 'order_number' => $order_number ];
     }
 
     public function ajax_irembopay_confirm(): void {
