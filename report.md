@@ -2277,3 +2277,88 @@ otherwise the button would silently not appear whenever the IPN promotes before 
 (common). Still PesaPal-only, no other path touched.
 
 **Awaiting go-ahead to commit v3.11.4.**
+
+---
+
+## Release — v3.11.5 — Full variable product support (variation_id-keyed) ✅
+
+Select a variation → its price is shown AND charged. Everything keyed on `variation_id`;
+price is always re-derived server-side. Simple products unchanged.
+
+### A. API — emit `variations[]`
+New shared **`DD_API::normalize_variations( WC_Product $product )`** (`class-dd-api.php`):
+- Non-variable → `[]` (parent price path unchanged).
+- Variable → one entry per `get_available_variations()`:
+  ```
+  { variation_id:int, price:float (variation get_price()),
+    attributes:{ "Size":"Half" }, in_stock:bool }
+  ```
+- `attributes` is normalized to the **same `{ label => option-name }`** the pills produce
+  (`wc_attribute_label` + term/option NAME, resolving taxonomy slugs → names) so the JS
+  matches by direct equality.
+- Wired into `normalize_product()` (`'variations' => …`) — feeds the mobile list
+  (`DD_API::get_products`) — and into the desktop endpoint `ajax_get_product()`
+  (`class-dd-ajax.php`, `'variations' => DD_API::normalize_variations($product)`).
+
+### B. Mobile display + selection (`menu-page.js`)
+- `showProductDetails`: stores `variations`, initial `selectedVariationId=0`, and shows the
+  **lowest** variation price as the default (`Math.min` of variation prices) for variable
+  products; parent price for simple.
+- Pill handler: new `findMatchingVariation(variations, selected)` (every attribute the
+  variation defines must equal the selection); on match → set `#dd-mobile-single-price` to
+  that price + store `selectedVariationId`; **gate** — for variable products the Add button
+  stays disabled unless a variation is matched (never add at parent price).
+- `addToCartById`: POSTs `variation_id` (from `currentProduct.selectedVariationId`) alongside
+  the text `variation`.
+
+### C. Cart — resolve variation server-side (`class-dd-cart.php` `ajax_add`)
+- Reads `variation_id` (int). If `> 0`: `wc_get_product`, **validate** it exists, is type
+  `variation`, and `get_parent_id() === product_id` — else **reject** ("Invalid product
+  option"). On success: `$price = $variation->get_price()` (authoritative), image from the
+  variation, and `variation` display text rebuilt from the variation's own attributes via
+  new `variation_label()` (emits the same `{"Size":"Half"}` JSON the readers already decode).
+- If `variation_id` absent **and** the product `is_type('variable')` → **reject** ("Please
+  choose an option") — a variable product is never added at the parent price, even if a
+  client bypasses the gate.
+- Simple product (no id, not variable) → parent `get_price()` path **unchanged**.
+- `variation_id` stored on the cart line (`add()`); `item_key()` unchanged (variation text
+  already differentiates lines, so two sizes never merge).
+
+### D. Desktop modal (`frontend.js`)
+Mirrors B: module vars `ddPmVariations` / `ddPmVariationId` (reset per open) + shared
+`ddFindVariation()`; enrichment stores variations and shows the lowest price (price el now
+`#ddPmPrice`); pill handler matches → updates `#ddPmPrice` + gates the Add button on a
+matched variation; the Add POST sends `variation_id`.
+
+### Validation / edge cases
+- **Variable, nothing selected** → mobile/desktop Add stays disabled; if bypassed, the
+  server rejects. Never added at parent price. ✅
+- **`variation_id` parent ≠ `product_id`** → server rejects; price never trusted from the
+  client. ✅
+- **Simple products** → `variations=[]` everywhere; JS `variationOk` stays true; server
+  takes the parent price. **Zero behavior change.** ✅ (Simple products that carry visible
+  attributes — e.g. spice level from v3.10.80 — also unchanged: not variable → parent path.)
+
+### Confirmed: simple products unaffected
+`normalize_variations()` returns `[]` for non-variable; the JS falls back to `product.price`
+and the existing "all groups selected" gate; `ajax_add` keeps `$product->get_price()` when
+no valid `variation_id` and the product isn't variable. No simple-product path was modified.
+
+### Notes for the developer
+1. **Clear the product cache after deploy.** `DD_API::get_products()` caches normalized
+   products for **5 min** (`dd_api_get_products_*` transients); until they expire (or any
+   product is saved, which auto-invalidates) the mobile list won't carry `variations`. The
+   desktop endpoint (`ajax_get_product`) is **not** cached → works immediately.
+2. **Homepage quick-add on a variable product** (`.dd-add-btn` → `frontend.js` `addToCart`,
+   posts no variation) now **safely rejects** server-side (no wrong charge) but shows no
+   user message (button just resets). The MOBILE menu quick-add button is safe — it opens
+   the single view, not a direct add. **Recommended follow-up:** route a variable-product
+   card quick-add to open the modal (and/or surface the server error as a toast). Not fixed
+   here — outside this brief's file scope.
+3. Persisting `variation_id` to `dishdash_order_items` would need a schema column — **not**
+   done (brief said don't touch order creation); the cart line carries it, and the order
+   keeps the human `variation` text as today.
+
+`php -l` clean (3 PHP files). No schema change. DD_DIAG untouched.
+
+**Awaiting go-ahead to commit v3.11.5.**

@@ -592,7 +592,74 @@ class DD_API {
             'rating'              => $rating,
             'is_simple'           => $is_simple,
             'attributes'          => $attributes,
+            'variations'          => self::normalize_variations( $product ),
         ];
+    }
+
+    /**
+     * Normalize a variable product's available variations into a match-ready shape.
+     *
+     * Each entry's `attributes` map uses the SAME { label => option-name }
+     * representation the attribute pills produce (wc_attribute_label + term/option
+     * NAME), so the frontend can match a pill selection to a variation by direct
+     * equality and read the authoritative per-variation price. Simple products (and
+     * anything non-variable) return [] — the parent price path is unchanged.
+     *
+     * @param  WC_Product $product
+     * @return array<int,array{variation_id:int,price:float,attributes:array<string,string>,in_stock:bool}>
+     */
+    public static function normalize_variations( WC_Product $product ): array {
+        if ( ! $product->is_type( 'variable' ) ) {
+            return [];
+        }
+
+        // Precompute label + variation-meta-key for each visible attribute, so each
+        // variation's chosen value can be mapped back to the pill's { label => name }.
+        $attr_meta = [];
+        foreach ( $product->get_attributes() as $attr ) {
+            if ( ! $attr->get_visible() ) {
+                continue;
+            }
+            $name        = $attr->get_name();
+            $attr_meta[] = [
+                'name'        => $name,
+                'label'       => wc_attribute_label( $name, $product ),
+                'key'         => 'attribute_' . sanitize_title( $name ),
+                'is_taxonomy' => $attr->is_taxonomy(),
+            ];
+        }
+
+        $out = [];
+        foreach ( $product->get_available_variations() as $vd ) {
+            $variation = wc_get_product( $vd['variation_id'] );
+            if ( ! $variation ) {
+                continue;
+            }
+
+            $norm = [];
+            foreach ( $attr_meta as $m ) {
+                $raw = $vd['attributes'][ $m['key'] ] ?? '';
+                if ( '' === $raw ) {
+                    continue; // "any" — leave this attribute unset for the variation
+                }
+                if ( $m['is_taxonomy'] ) {
+                    $term  = get_term_by( 'slug', $raw, $m['name'] );
+                    $value = $term ? $term->name : $raw;
+                } else {
+                    $value = $raw; // custom attribute value is already the option text
+                }
+                $norm[ $m['label'] ] = $value;
+            }
+
+            $out[] = [
+                'variation_id' => (int) $vd['variation_id'],
+                'price'        => (float) $variation->get_price(),
+                'attributes'   => $norm,
+                'in_stock'     => (bool) $vd['is_in_stock'],
+            ];
+        }
+
+        return $out;
     }
 
     /**

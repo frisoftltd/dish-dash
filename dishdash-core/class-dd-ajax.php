@@ -105,6 +105,7 @@ class DD_Ajax {
             'average_rating' => (float) $product->get_average_rating(),
             'rating_count'   => (int) $product->get_rating_count(),
             'attributes'     => $attributes,
+            'variations'     => DD_API::normalize_variations( $product ),
         ] );
     }
 }

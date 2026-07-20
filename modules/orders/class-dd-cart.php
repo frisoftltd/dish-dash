@@ -98,14 +98,15 @@ class DD_Cart {
             $cart[ $key ]['qty'] += absint( $item['qty'] ?? 1 );
         } else {
             $cart[ $key ] = [
-                'id'        => absint( $item['id'] ),
-                'name'      => sanitize_text_field( $item['name'] ),
-                'price'     => (float) $item['price'],
-                'qty'       => absint( $item['qty'] ?? 1 ),
-                'image'     => esc_url_raw( $item['image'] ?? '' ),
-                'variation' => sanitize_text_field( $item['variation'] ?? '' ),
-                'addons'    => $this->sanitize_addons( $item['addons'] ?? [] ),
-                'note'      => sanitize_textarea_field( $item['note'] ?? '' ),
+                'id'           => absint( $item['id'] ),
+                'name'         => sanitize_text_field( $item['name'] ),
+                'price'        => (float) $item['price'],
+                'qty'          => absint( $item['qty'] ?? 1 ),
+                'image'        => esc_url_raw( $item['image'] ?? '' ),
+                'variation'    => sanitize_text_field( $item['variation'] ?? '' ),
+                'variation_id' => absint( $item['variation_id'] ?? 0 ),
+                'addons'       => $this->sanitize_addons( $item['addons'] ?? [] ),
+                'note'         => sanitize_textarea_field( $item['note'] ?? '' ),
             ];
         }
 
@@ -188,6 +189,37 @@ class DD_Cart {
         return md5( $item['id'] . ( $item['variation'] ?? '' ) . wp_json_encode( $item['addons'] ?? [] ) );
     }
 
+    /**
+     * Build the cart-line display text for a resolved variation, in the same
+     * { label: value } JSON shape the frontend sends (e.g. {"Size":"Half"}) so the
+     * existing notification/admin readers decode it identically. Returns '' when the
+     * variation has no set attributes.
+     */
+    private static function variation_label( WC_Product $variation ): string {
+        $parent = wc_get_product( $variation->get_parent_id() );
+        $pairs  = [];
+
+        // WC_Product_Variation::get_attributes() → [ 'size' => 'half' ] (taxonomy key
+        // without the attribute_ prefix; value is the term slug for taxonomy
+        // attributes, or the option text for custom attributes).
+        foreach ( $variation->get_attributes() as $attr_key => $value ) {
+            if ( '' === $value ) {
+                continue; // "any" — not part of this variation's identity
+            }
+            if ( taxonomy_exists( $attr_key ) ) {
+                $term  = get_term_by( 'slug', $value, $attr_key );
+                $label = wc_attribute_label( $attr_key, $parent ?: $variation );
+                $val   = $term ? $term->name : $value;
+            } else {
+                $label = wc_attribute_label( $attr_key, $parent ?: $variation );
+                $val   = $value;
+            }
+            $pairs[ $label ] = $val;
+        }
+
+        return $pairs ? wp_json_encode( $pairs ) : '';
+    }
+
     private function sanitize_addons( array $addons ): array {
         return array_map( function ( $addon ) {
             return [
@@ -239,16 +271,47 @@ class DD_Cart {
         $price = (float) $product->get_price();
         $image = wp_get_attachment_url( $product->get_image_id() ) ?: wc_placeholder_img_src();
 
+        // Variable products: resolve the selected variation SERVER-SIDE and take its
+        // price as authoritative — the client price is never trusted. The variation
+        // display text is rebuilt from the variation's own attributes so the cart
+        // line label always matches the price charged. Simple products (no/0
+        // variation_id and not a variable product) keep the parent price unchanged.
+        $variation_id   = (int) ( $_POST['variation_id'] ?? 0 );
+        $variation_text = sanitize_text_field( $_POST['variation'] ?? '' );
+
+        if ( $variation_id > 0 ) {
+            $variation = wc_get_product( $variation_id );
+            if (
+                $variation
+                && $variation->is_type( 'variation' )
+                && (int) $variation->get_parent_id() === $product_id
+            ) {
+                $price          = (float) $variation->get_price();
+                $image          = wp_get_attachment_url( $variation->get_image_id() ) ?: $image;
+                $variation_text = self::variation_label( $variation );
+            } else {
+                // Mismatched / invalid variation → refuse rather than silently
+                // charging the parent price.
+                wp_send_json_error( [ 'message' => 'Invalid product option selected. Please try again.' ] );
+                return;
+            }
+        } elseif ( $product->is_type( 'variable' ) ) {
+            // Variable product with no variation chosen → never add at parent price.
+            wp_send_json_error( [ 'message' => 'Please choose an option before adding to cart.' ] );
+            return;
+        }
+
         $cart   = new self();
         $result = $cart->add( [
-            'id'        => $product_id,
-            'name'      => $name,
-            'price'     => $price,
-            'qty'       => $quantity,
-            'image'     => $image,
-            'variation' => sanitize_text_field( $_POST['variation'] ?? '' ),
-            'addons'    => json_decode( stripslashes( $_POST['addons'] ?? '[]' ), true ),
-            'note'      => sanitize_textarea_field( $_POST['note'] ?? '' ),
+            'id'           => $product_id,
+            'name'         => $name,
+            'price'        => $price,
+            'qty'          => $quantity,
+            'image'        => $image,
+            'variation'    => $variation_text,
+            'variation_id' => $variation_id,
+            'addons'       => json_decode( stripslashes( $_POST['addons'] ?? '[]' ), true ),
+            'note'         => sanitize_textarea_field( $_POST['note'] ?? '' ),
         ] );
         wp_send_json_success( $result );
     }

@@ -397,16 +397,37 @@ class DDMobileMenu {
                     this.currentProduct.selectedAttributes[label] = pill.textContent.trim();
                 }
 
+                // Variable products: match the current selection to a variation and
+                // show its authoritative price; store variation_id for add-to-cart.
+                const variations = this.currentProduct.variations || [];
+                let variationOk = true;
+                if (variations.length) {
+                    const match = this.findMatchingVariation(variations, this.currentProduct.selectedAttributes);
+                    if (match) {
+                        this.currentProduct.selectedVariationId = match.variation_id;
+                        this.elements.singleProduct.price.textContent = `RWF ${Number(match.price).toLocaleString()}`;
+                    } else {
+                        this.currentProduct.selectedVariationId = 0;
+                    }
+                    variationOk = this.currentProduct.selectedVariationId > 0;
+                }
+
                 const totalSelected = Object.keys(this.currentProduct.selectedAttributes).length;
+                const allSelected = totalSelected >= (this.currentProduct.requiredSelections || 0);
                 const addBtn = this.elements.singleProduct.addToCart;
-                if (addBtn && totalSelected >= (this.currentProduct.requiredSelections || 0)) {
+                if (addBtn) {
                     if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
                         addBtn.disabled = true;
                         addBtn.textContent = "We're Closed";
                         addBtn.classList.add('dd-add-btn--closed');
-                    } else {
+                    } else if (allSelected && variationOk) {
                         addBtn.disabled = false;
                         addBtn.classList.remove('is-disabled');
+                    } else {
+                        // Not all options chosen, or no matching variation → block add
+                        // (never allow adding a variable product at the parent price).
+                        addBtn.disabled = true;
+                        addBtn.classList.add('is-disabled');
                     }
                 }
             });
@@ -551,7 +572,9 @@ class DDMobileMenu {
         this.currentProduct = {
             id: parseInt(productId),
             selectedAttributes: {},
-            requiredSelections: 0
+            requiredSelections: 0,
+            variations: [],
+            selectedVariationId: 0
         };
 
         if (!this.products) return;
@@ -566,7 +589,14 @@ class DDMobileMenu {
         singleProduct.heroImg.alt = product.name;
         singleProduct.heroImg.style.display = '';
         singleProduct.name.textContent = product.name;
-        singleProduct.price.textContent = `RWF ${product.price.toLocaleString()}`;
+        // Variable products: keep the variations for match-on-select, and show the
+        // lowest variation price as the default (updated when a size is chosen).
+        // Simple products show the parent price unchanged.
+        this.currentProduct.variations = Array.isArray(product.variations) ? product.variations : [];
+        const displayPrice = this.currentProduct.variations.length
+            ? Math.min.apply(null, this.currentProduct.variations.map(v => Number(v.price)))
+            : product.price;
+        singleProduct.price.textContent = `RWF ${Number(displayPrice).toLocaleString()}`;
         singleProduct.rating.textContent = product.rating || '';
         singleProduct.prepTime.textContent = product.prep_time ? `${product.prep_time} min` : '';
         singleProduct.desc.textContent = product.description || '';
@@ -595,6 +625,7 @@ class DDMobileMenu {
             // Reset selectedAttributes — require user to select before adding
             this.currentProduct.selectedAttributes = {};
             this.currentProduct.requiredSelections = product.attributes.length;
+            this.currentProduct.selectedVariationId = 0;
 
             const addBtn = this.elements.singleProduct.addToCart;
             if (addBtn) {
@@ -702,9 +733,26 @@ class DDMobileMenu {
         qtyCount.textContent = qty;
     }
 
+    // Find the variation whose attributes all match the current pill selection.
+    // Match rule: every attribute the variation defines must equal the selected
+    // value for that label. Returns the variation object or null.
+    findMatchingVariation(variations, selected) {
+        if (!Array.isArray(variations) || !variations.length) return null;
+        return variations.find(v => {
+            const attrs = v.attributes || {};
+            const keys = Object.keys(attrs);
+            if (!keys.length) return false;
+            return keys.every(k => selected[k] === attrs[k]);
+        }) || null;
+    }
+
     addToCartById(productId, qty, selectedAttributes = {}) {
         const product = this.products.find(p => p.id === parseInt(productId));
         if (!product) return;
+
+        // variation_id is authoritative server-side; a variable product must have a
+        // matched variation here (the Add button stays disabled until it does).
+        const variationId = this.currentProduct ? (this.currentProduct.selectedVariationId || 0) : 0;
 
         const formData = new FormData();
         formData.append('action', 'dd_cart_add');
@@ -715,6 +763,7 @@ class DDMobileMenu {
         formData.append('qty', qty);
         formData.append('image', product.image_thumbnail_url || product.image_url || '');
         formData.append('variation', JSON.stringify(selectedAttributes));
+        formData.append('variation_id', variationId);
         formData.append('addons', JSON.stringify([]));
         formData.append('note', '');
 

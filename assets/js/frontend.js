@@ -898,6 +898,22 @@
     // in renderModal() (sibling closures — this module-level var bridges them).
     // Reset on each modal open. Matches mobile's selectedAttributes shape exactly.
     var ddPmSelected = {};
+    // Variable-product state for the modal: the normalized variations[] and the
+    // currently-matched variation_id (authoritative for price + add-to-cart).
+    var ddPmVariations  = [];
+    var ddPmVariationId = 0;
+
+    // Match the current pill selection to a variation (same rule as mobile):
+    // every attribute the variation defines must equal the selected value.
+    function ddFindVariation(variations, selected) {
+        if (!Array.isArray(variations) || !variations.length) return null;
+        return variations.find(function(v) {
+            var attrs = v.attributes || {};
+            var keys  = Object.keys(attrs);
+            if (!keys.length) return false;
+            return keys.every(function(k) { return selected[k] === attrs[k]; });
+        }) || null;
+    }
 
     function openProductModal(productId) {
         var modal   = $('ddProductModal');
@@ -941,7 +957,9 @@
         if (!modal || !content) return;
 
         // Fresh selection for this open (no-attribute products keep {} → sent as "{}").
-        ddPmSelected = {};
+        ddPmSelected    = {};
+        ddPmVariations  = [];
+        ddPmVariationId = 0;
 
         // Fire tracking event on open
         if (typeof DDTrack !== 'undefined') {
@@ -957,7 +975,7 @@
             '<div class="dd-pm__body">' +
                 '<h2 class="dd-pm__name dd-serif" style="font-size:1.3rem;font-weight:800;margin:0 0 0.35rem;color:#221B19;">' + escHtml(name) + '</h2>' +
                 '<div class="dd-pm__rating" id="ddPmRating" style="font-size:0.82rem;color:#7A6558;margin-bottom:0.4rem;min-height:18px;"></div>' +
-                '<div class="dd-pm__price" style="font-size:1.1rem;font-weight:800;color:#E8832A;margin-bottom:0.75rem;">' + escHtml(price) + '</div>' +
+                '<div class="dd-pm__price" id="ddPmPrice" style="font-size:1.1rem;font-weight:800;color:#E8832A;margin-bottom:0.75rem;">' + escHtml(price) + '</div>' +
                 (desc ? '<p class="dd-pm__desc" style="font-size:0.88rem;color:#7A6558;margin:0 0 1rem;line-height:1.5;">' + escHtml(desc) + '</p>' : '') +
                 '<div class="dd-pm__attrs" id="ddPmAttrs" style="margin-bottom:0.75rem;"></div>' +
                 '<div class="dd-pm__notes-wrap" style="margin-bottom:1rem;">' +
@@ -1022,10 +1040,11 @@
                     body: new URLSearchParams({
                         action:     'dd_cart_add',
                         nonce:      nonce,
-                        product_id: productId,
-                        quantity:   qty,
-                        variation:  JSON.stringify(ddPmSelected),
-                        note:       pmNotes,
+                        product_id:   productId,
+                        quantity:     qty,
+                        variation:    JSON.stringify(ddPmSelected),
+                        variation_id: ddPmVariationId,
+                        note:         pmNotes,
                     }),
                 })
                 .then(function(r) { return r.json(); })
@@ -1089,6 +1108,17 @@
             if (!res.success || !res.data) return;
             var p = res.data;
 
+            // Variable products: keep variations for match-on-select and show the
+            // lowest variation price as the default (updated when a size is chosen).
+            ddPmVariations = Array.isArray(p.variations) ? p.variations : [];
+            if (ddPmVariations.length) {
+                var _priceEl = document.getElementById('ddPmPrice');
+                if (_priceEl) {
+                    var _lowest = Math.min.apply(null, ddPmVariations.map(function(v) { return Number(v.price); }));
+                    _priceEl.textContent = 'RWF ' + Number(_lowest).toLocaleString();
+                }
+            }
+
             // Ratings
             if (p.rating_count && p.average_rating) {
                 var ratingEl = $('ddPmRating');
@@ -1140,12 +1170,38 @@
                             .forEach(function(p) { p.classList.remove('active'); });
                         pill.classList.add('active');
                         ddPmSelected[attrName] = pill.dataset.val;
-                        if (Object.keys(ddPmSelected).length >= total && addBtn) {
+
+                        // Variable products: match selection → variation, show its
+                        // authoritative price, store variation_id for add-to-cart.
+                        var variationOk = true;
+                        if (ddPmVariations.length) {
+                            var match   = ddFindVariation(ddPmVariations, ddPmSelected);
+                            var priceEl = document.getElementById('ddPmPrice');
+                            if (match) {
+                                ddPmVariationId = match.variation_id;
+                                if (priceEl) priceEl.textContent = 'RWF ' + Number(match.price).toLocaleString();
+                            } else {
+                                ddPmVariationId = 0;
+                            }
+                            variationOk = ddPmVariationId > 0;
+                        }
+
+                        var allSelected = Object.keys(ddPmSelected).length >= total;
+                        if (addBtn) {
                             var _ddState = window.DD && window.DD.hours_state;
-                            if (_ddState !== 'closed' && _ddState !== 'break') {
+                            if (_ddState === 'closed' || _ddState === 'break') {
+                                addBtn.disabled = true;
+                                addBtn.style.opacity = '0.5';
+                                addBtn.style.cursor = 'not-allowed';
+                            } else if (allSelected && variationOk) {
                                 addBtn.disabled = false;
                                 addBtn.style.opacity = '1';
                                 addBtn.style.cursor = 'pointer';
+                            } else {
+                                // Incomplete selection or no matching variation → block.
+                                addBtn.disabled = true;
+                                addBtn.style.opacity = '0.5';
+                                addBtn.style.cursor = 'not-allowed';
                             }
                         }
                     });
