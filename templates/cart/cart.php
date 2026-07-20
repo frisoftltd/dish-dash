@@ -210,6 +210,11 @@ if ( ! isset( $dd_cart_count ) ) {
                href="#" target="_blank" rel="noopener noreferrer" hidden>
                 <?php esc_html_e( 'Send my order to the restaurant on WhatsApp', 'dish-dash' ); ?>
             </a>
+            <!-- PesaPal "I have paid" handoff. Hidden by default; the pesapal poll
+                 success handler sets href (pre-encoded wa.me, assigned as-is) + label
+                 and reveals it only when the server returns whatsapp_paid_url. -->
+            <a class="dd-confirm-panel__whatsapp" id="ddConfirmPaidWhatsapp"
+               href="#" target="_blank" rel="noopener noreferrer" hidden></a>
             <button class="dd-confirm-panel__close" id="ddConfirmClose" type="button">
                 <?php esc_html_e( 'Done', 'dish-dash' ); ?>
             </button>

@@ -1058,6 +1058,20 @@
                                 var etaEl4 = document.getElementById( 'ddConfirmEta' );
                                 if ( numEl4 ) numEl4.textContent = 'Order #' + currentOrderNumber;
                                 if ( etaEl4 ) etaEl4.textContent = '🛵 Estimated delivery: ' + ( ( window.ddCartData && window.ddCartData.deliveryEta ) || '30–45 minutes' );
+                                // "I have paid" WhatsApp handoff. Reveal only when the
+                                // server returned a URL (admin number set); href is a
+                                // pre-encoded wa.me — assign AS-IS (never esc/encode it).
+                                var paidWaBtn = document.getElementById( 'ddConfirmPaidWhatsapp' );
+                                if ( paidWaBtn ) {
+                                    if ( res.whatsapp_paid_url ) {
+                                        paidWaBtn.setAttribute( 'href', res.whatsapp_paid_url );
+                                        paidWaBtn.textContent = 'I have paid with ' + ( res.payment_method || 'PesaPal' );
+                                        paidWaBtn.hidden = false;
+                                    } else {
+                                        paidWaBtn.setAttribute( 'href', '#' );
+                                        paidWaBtn.hidden = true;
+                                    }
+                                }
                                 updateBadges( 0 );
                                 window.ddCartSummary = null;
                                 showPanel( panelConfirmation );
@@ -1160,9 +1174,11 @@
     var confirmCloseBtn = document.getElementById( 'ddConfirmClose' );
     if ( confirmCloseBtn ) {
         confirmCloseBtn.addEventListener( 'click', function () {
-            // Reset the handoff button so it never carries a stale URL into a later order.
+            // Reset the handoff buttons so neither carries a stale URL into a later order.
             var waBtn = document.getElementById( 'ddConfirmWhatsapp' );
             if ( waBtn ) { waBtn.hidden = true; waBtn.href = '#'; }
+            var paidWaBtn = document.getElementById( 'ddConfirmPaidWhatsapp' );
+            if ( paidWaBtn ) { paidWaBtn.hidden = true; paidWaBtn.setAttribute( 'href', '#' ); }
             closeCart();
             showPanel( panelCart );
         } );

@@ -1401,11 +1401,14 @@ class DD_Orders_Module extends DD_Module {
         $existing = $this->find_pesapal_order( $order_tracking_id );
         error_log( 'DD_DIAG: POLL entry tracking=' . $order_tracking_id . ' EXISTING_ORDER=' . ( $existing ? 'true' : 'false' ) . ' payment_status=' . ( $existing ? $existing->payment_status : 'n/a' ) );
         if ( $existing && 'paid' === $existing->payment_status ) {
+            $extra = $this->pesapal_paid_response_fields( (int) $existing->id );
             wp_send_json_success( [
-                'paid'         => true,
-                'status'       => 'COMPLETED',
-                'order_number' => $existing->order_number,
-                'order_id'     => (int) $existing->id,
+                'paid'              => true,
+                'status'            => 'COMPLETED',
+                'order_number'      => $existing->order_number,
+                'order_id'          => (int) $existing->id,
+                'whatsapp_paid_url' => $extra['whatsapp_paid_url'],
+                'payment_method'    => $extra['payment_method'],
             ] );
             return;
         }
@@ -1442,11 +1445,14 @@ class DD_Orders_Module extends DD_Module {
             }
 
             error_log( 'DD_DIAG: POLL CREATE/PROMOTE ok tracking=' . $order_tracking_id . ' order_id=' . $result['order_id'] );
+            $extra = $this->pesapal_paid_response_fields( (int) $result['order_id'] );
             wp_send_json_success( [
-                'paid'         => true,
-                'status'       => 'COMPLETED',
-                'order_number' => $result['order_number'],
-                'order_id'     => $result['order_id'],
+                'paid'              => true,
+                'status'            => 'COMPLETED',
+                'order_number'      => $result['order_number'],
+                'order_id'          => $result['order_id'],
+                'whatsapp_paid_url' => $extra['whatsapp_paid_url'],
+                'payment_method'    => $extra['payment_method'],
             ] );
             return;
         }
@@ -1667,6 +1673,37 @@ class DD_Orders_Module extends DD_Module {
             $delivery_address,
             (float) $order->total
         );
+    }
+
+    /**
+     * Build the extra fields attached to a COMPLETED PesaPal poll response: the
+     * customer "I have paid" WhatsApp handoff URL (empty when no admin number is
+     * set — the client then shows a message-only confirmation) and the
+     * human-formatted payment method label. PesaPal poll only.
+     */
+    private function pesapal_paid_response_fields( int $order_id ): array {
+        $order = $this->get_order( $order_id );
+        if ( ! $order ) {
+            return [ 'whatsapp_paid_url' => '', 'payment_method' => 'PesaPal' ];
+        }
+
+        $formatted_method = function_exists( 'dd_format_payment_method' )
+            ? dd_format_payment_method( $order->payment_method )
+            : 'PesaPal';
+
+        $whatsapp_paid_url = DD_Notifications::build_customer_paid_whatsapp_url( [
+            'id'               => (int) $order->id,
+            'order_number'     => $order->order_number,
+            'total'            => (float) $order->total,
+            'payment_method'   => $formatted_method,
+            'delivery_address' => ! empty( $order->delivery_address ) ? json_decode( $order->delivery_address, true ) : '',
+            'customer_name'    => $order->customer_name,
+        ] );
+
+        return [
+            'whatsapp_paid_url' => $whatsapp_paid_url,
+            'payment_method'    => $formatted_method,
+        ];
     }
 
     /**

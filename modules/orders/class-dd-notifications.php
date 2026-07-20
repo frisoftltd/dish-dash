@@ -475,6 +475,93 @@ class DD_Notifications {
     }
 
     /**
+     * Build the customer's "I have paid" WhatsApp handoff URL for a completed
+     * PesaPal order. Sends the paid order to the restaurant's admin WhatsApp number.
+     * Item formatting mirrors build_kitchen_whatsapp_url() exactly (qty, variation
+     * JSON/plain decode, addons JSON decode, special_note). Returns '' when no admin
+     * number is configured — the caller then falls back to a message-only screen.
+     *
+     * @param array $order Assoc: id, order_number, total, payment_method (already
+     *                     formatted, e.g. "PesaPal"), delivery_address, customer_name
+     * @return string wa.me URL or '' if dd_whatsapp_admin is empty
+     */
+    public static function build_customer_paid_whatsapp_url( array $order ): string {
+        $admin_phone = get_option( 'dd_whatsapp_admin', '' );
+        if ( empty( $admin_phone ) ) return '';
+
+        global $wpdb;
+
+        $items = $wpdb->get_results( $wpdb->prepare(
+            "SELECT item_name, quantity, variation, addons, special_note
+             FROM {$wpdb->prefix}dishdash_order_items
+             WHERE order_id = %d",
+            (int) $order['id']
+        ), ARRAY_A );
+
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
+        $order_num  = ! empty( $order['order_number'] )
+            ? $order['order_number']
+            : 'DD-' . str_pad( $order['id'], 5, '0', STR_PAD_LEFT );
+
+        $item_lines = [];
+        foreach ( $items as $item ) {
+            $line = $item['quantity'] . 'x ' . $item['item_name'];
+
+            // variation field may contain JSON addons or plain text
+            if ( ! empty( $item['variation'] ) && $item['variation'] !== '{}' ) {
+                $var_decoded = json_decode( stripslashes( $item['variation'] ), true );
+                if ( is_array( $var_decoded ) && ! empty( $var_decoded ) ) {
+                    $var_parts = [];
+                    foreach ( $var_decoded as $k => $v ) {
+                        $var_parts[] = $k . ': ' . $v;
+                    }
+                    $line .= ' (' . implode( ', ', $var_parts ) . ')';
+                } else {
+                    // Plain text fallback — strip any stray braces/quotes
+                    $plain = trim( strip_tags( stripslashes( $item['variation'] ) ) );
+                    $plain = trim( $plain, '{}[]"\'\\' );
+                    if ( $plain !== '' ) {
+                        $line .= ' (' . $plain . ')';
+                    }
+                }
+            }
+
+            // addons field — separate JSON column
+            if ( ! empty( $item['addons'] ) && $item['addons'] !== '{}' && $item['addons'] !== '[]' ) {
+                $addons = json_decode( $item['addons'], true );
+                if ( is_array( $addons ) && ! empty( $addons ) ) {
+                    foreach ( $addons as $addon_name => $addon_val ) {
+                        $line .= ' — ' . $addon_name . ': ' . $addon_val;
+                    }
+                }
+            }
+
+            $item_lines[] = $line;
+            if ( ! empty( $item['special_note'] ) ) {
+                // stripslashes: sanitize_textarea_field stores the note slash-escaped
+                // (mirrors the kitchen builder + variation_lines()).
+                $item_lines[] = '   Note: ' . stripslashes( $item['special_note'] );
+            }
+        }
+        $items_text = implode( "\n", $item_lines );
+
+        $msg = implode( "\n", [
+            '✅ I have paid — ' . $restaurant,
+            '──────────────────',
+            'Order ' . $order_num,
+            $items_text,
+            '──────────────────',
+            'Total: '   . number_format( (float) $order['total'] ) . ' RWF',
+            'Payment: ' . $order['payment_method'],
+            '📍 ' . $order['delivery_address'],
+            '👤 ' . $order['customer_name'],
+        ] );
+
+        $number = preg_replace( '/[^0-9]/', '', $admin_phone );
+        return 'https://wa.me/' . $number . '?text=' . rawurlencode( $msg );
+    }
+
+    /**
      * Build rider WhatsApp notification URL when order is Ready for pickup.
      *
      * @param array  $order          Row from wp_dishdash_orders as associative array

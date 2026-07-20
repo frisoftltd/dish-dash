@@ -2232,3 +2232,48 @@ separate feature release. Not added here.
 current verification cycle — separate cleanup), and all backend/PHP.
 
 **Awaiting go-ahead to commit v3.11.3.**
+
+---
+
+## Release — v3.11.4 — PesaPal success "I have paid" WhatsApp handoff ✅
+
+Feature, PesaPal path only. Builds on v3.11.3.
+
+**A. `DD_Notifications::build_customer_paid_whatsapp_url( array $order )`** (new,
+`class-dd-notifications.php`):
+- `dd_whatsapp_admin` empty → returns `''` (message-only fallback trigger).
+- Fetches items with the same query as `build_kitchen_whatsapp_url` and reuses its **exact**
+  item formatting (qty, variation JSON/plain decode, addons JSON decode, `special_note`
+  stripslashes).
+- Message: `✅ I have paid — {restaurant}` / `Order {num}` / items / `Total: {n} RWF` /
+  `Payment: {formatted}` / `📍 {address}` / `👤 {name}` → `https://wa.me/{digits}?text=` +
+  `rawurlencode(msg)`.
+
+**B. AJAX** (`ajax_pesapal_check_status`): new private `pesapal_paid_response_fields(int
+$order_id)` returns `whatsapp_paid_url` + formatted `payment_method`
+(`dd_format_payment_method`). Added to **both** COMPLETED responses — the promote/fallback
+success **and** the already-paid early return — so the button appears even when the IPN
+promoted first (the poll then hits the already-paid path).
+
+**C. cart.js** pesapal success handler + `cart.php`: new hidden
+`<a id="ddConfirmPaidWhatsapp">` (own element, reuses the green `.dd-confirm-panel__whatsapp`
+class — zero new CSS). On `res.whatsapp_paid_url`: `setAttribute('href', …)` **as-is**,
+label `"I have paid with " + res.payment_method`, `target=_blank`, reveal; else stay hidden
+(message-only). Reset to hidden on Done, mirroring the existing `ddConfirmWhatsapp` reset.
+
+**D. esc_url gotcha:** the pre-encoded wa.me URL never touches `esc_url` (which strips
+`%0A`). It travels in the JSON response and is assigned raw via JS `setAttribute` — no PHP
+attribute echo, no `esc_url`/`esc_attr` on it.
+
+**E. CLAUDE.md:** added the communication-style note under Workflow → Roles.
+
+**Scope / not touched:** MoMo poll (raw `fetch`, `res.data.*` correct), COD, order creation,
+and the separate offline `ddConfirmWhatsapp` handoff — all untouched. `php -l` clean on both
+PHP files. No schema change.
+
+**Note (consistency call, beyond the literal brief):** the brief said "COMPLETED + promote
+path"; I also added the fields to the already-paid early-return COMPLETED response, because
+otherwise the button would silently not appear whenever the IPN promotes before the poll
+(common). Still PesaPal-only, no other path touched.
+
+**Awaiting go-ahead to commit v3.11.4.**
