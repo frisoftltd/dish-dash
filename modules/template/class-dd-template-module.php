@@ -560,6 +560,47 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
+     * Curated font registry. Each entry: CSS stack + Google Fonts query fragment.
+     * Whitelist — only these can be selected/loaded (validation + guaranteed-loadable).
+     */
+    private static function font_registry(): array {
+        return [
+            'heading' => [
+                'Cormorant Garamond' => [ 'stack' => '"Cormorant Garamond", Georgia, serif', 'q' => 'Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600' ],
+                'Playfair Display'   => [ 'stack' => '"Playfair Display", Georgia, serif',   'q' => 'Playfair+Display:wght@500;600;700' ],
+                'Lora'               => [ 'stack' => '"Lora", Georgia, serif',                'q' => 'Lora:wght@500;600;700' ],
+                'Merriweather'       => [ 'stack' => '"Merriweather", Georgia, serif',        'q' => 'Merriweather:wght@400;700' ],
+                'EB Garamond'        => [ 'stack' => '"EB Garamond", Georgia, serif',         'q' => 'EB+Garamond:wght@500;600;700' ],
+            ],
+            'body' => [
+                'Inter'      => [ 'stack' => '"Inter", system-ui, sans-serif',      'q' => 'Inter:wght@400;500;600;700' ],
+                'Poppins'    => [ 'stack' => '"Poppins", system-ui, sans-serif',    'q' => 'Poppins:wght@400;500;600;700' ],
+                'Roboto'     => [ 'stack' => '"Roboto", system-ui, sans-serif',     'q' => 'Roboto:wght@400;500;700' ],
+                'Lato'       => [ 'stack' => '"Lato", system-ui, sans-serif',       'q' => 'Lato:wght@400;700' ],
+                'Montserrat' => [ 'stack' => '"Montserrat", system-ui, sans-serif', 'q' => 'Montserrat:wght@400;500;600;700' ],
+                'Work Sans'  => [ 'stack' => '"Work Sans", system-ui, sans-serif',  'q' => 'Work+Sans:wght@400;500;600;700' ],
+            ],
+        ];
+    }
+
+    /** Resolve a saved font name to its CSS stack, falling back to the role default. */
+    private static function font_stack( string $role, string $default ): string {
+        $sel = get_option( "dish_dash_{$role}_font", $default );
+        $reg = self::font_registry()[ $role ] ?? [];
+        return $reg[ $sel ]['stack'] ?? ( $reg[ $default ]['stack'] ?? '' );
+    }
+
+    /** Build the Google Fonts URL from the two selected families. */
+    public static function fonts_url(): string {
+        $h   = get_option( 'dish_dash_heading_font', 'Cormorant Garamond' );
+        $b   = get_option( 'dish_dash_body_font',    'Inter' );
+        $reg = self::font_registry();
+        $hq  = $reg['heading'][ $h ]['q'] ?? $reg['heading']['Cormorant Garamond']['q'];
+        $bq  = $reg['body'][ $b ]['q']    ?? $reg['body']['Inter']['q'];
+        return 'https://fonts.googleapis.com/css2?family=' . $hq . '&family=' . $bq . '&display=swap';
+    }
+
+    /**
      * Build the complete :root token block from Brand Identity options.
      * Single source of truth for all frontend CSS variables — used by BOTH the
      * P1 inline-style injection (enqueue_frontend_assets) and the P2 global-header
@@ -585,6 +626,8 @@ class DD_Template_Module extends DD_Module {
         --bg:         ' . esc_attr( $bg )      . ';
         --text:       ' . esc_attr( $text )    . ';
         --heading:    ' . esc_attr( $heading ) . ';
+        --font-heading: ' . self::font_stack( 'heading', 'Cormorant Garamond' ) . ';
+        --font-body:    ' . self::font_stack( 'body', 'Inter' ) . ';
 
         /* ── Back-compat aliases (existing surfaces read --dd-*) ── */
         --dd-brand:   var(--brand);

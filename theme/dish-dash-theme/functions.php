@@ -49,10 +49,15 @@ add_action( 'after_setup_theme', 'dish_dash_theme_setup' );
 
 // ── Enqueue Google Fonts + Base Styles ────────────────────────
 function dish_dash_theme_enqueue_styles() {
-    // Google Fonts — same as plugin template
+    // Google Fonts — dynamic from Brand Identity font options (Release α). Theme-side
+    // code may load before/without the plugin class, so guard it and keep the current
+    // Cormorant+Inter URL as the hardcoded fallback (fonts always load).
+    $dd_fonts_url = class_exists( 'DD_Template_Module' )
+        ? DD_Template_Module::fonts_url()
+        : 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap';
     wp_enqueue_style(
         'dish-dash-fonts',
-        'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap',
+        $dd_fonts_url,
         [],
         null
     );

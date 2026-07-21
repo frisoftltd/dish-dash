@@ -1,0 +1,53 @@
+########## 1. Hardcoded Google Fonts loaders (full context) ##########
+----- theme/dish-dash-theme/functions.php -----
+53-    wp_enqueue_style(
+54-        'dish-dash-fonts',
+55:        'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap',
+56-        [],
+57-        null
+58-    );
+59-
+60-    // Remove conflicting WordPress default styles
+61-    wp_dequeue_style( 'wp-block-library' );
+----- templates/page-dishdash.php -----
+258-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+259-<title><?php the_title(); ?> &#8211; <?php bloginfo( 'name' ); ?></title>
+260:<link rel="preconnect" href="https://fonts.googleapis.com">
+261-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+262:<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+263-<style>
+264-:root {
+265-    --brand:      <?php echo esc_attr( $dd_primary ); ?>;
+266-    --brand-dark: <?php echo esc_attr( $dd_dark ); ?>;
+267-}
+268-</style>
+----- modules/template/*.php -----
+----- any OTHER googleapis refs plugin-wide -----
+
+########## 2. font_options + dish_dash_font / heading / body ##########
+19: *   dish_dash_font, dish_dash_address, dish_dash_phone, dish_dash_contact_email,
+41:        'dish_dash_font',
+81:$font            = get_option( 'dish_dash_font', 'Inter' );
+90:$font_options = [ 'Inter', 'Poppins', 'Roboto', 'Lato', 'Montserrat' ];
+304:                        <select class="dd-hp-select" name="dish_dash_font" id="dd_font_select">
+305:                            <?php foreach ( $font_options as $f ) : ?>
+
+########## 3. font-family declaration count per CSS file ##########
+assets/css/admin.css:4
+assets/css/cart.css:5
+assets/css/frontend.css:10
+assets/css/menu-page.css:6
+assets/css/menu.css:4
+assets/css/profile.css:6
+assets/css/reservations-admin.css:4
+assets/css/reservations.css:9
+assets/css/theme.css:22
+
+########## 4. Families actually referenced (frequency) ##########
+     32 sans-serif
+     22 Inter
+     18 system-ui
+     18 serif
+     17 Cormorant Garamond
+      8 Georgia
+      1 Times New Roman

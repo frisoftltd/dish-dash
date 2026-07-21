@@ -2522,3 +2522,39 @@ don't point at the tokens (per-file CSS releases next); P3 (`page-dishdash.php:2
 `php -l` clean; no CSS touched; no schema change.
 
 **Awaiting go-ahead to commit v3.11.8.**
+
+---
+
+## Release — v3.11.9 — Dynamic font loader + font tokens (Release α, behavior-neutral) ✅
+
+Three files, one mechanism (font loading). Nothing changes visually — defaults reproduce the
+current Cormorant/Inter setup byte-for-byte.
+
+**1. `class-dd-template-module.php`** — curated `font_registry()` (heading: Cormorant Garamond
+default, Playfair Display, Lora, Merriweather, EB Garamond; body: Inter default, Poppins, Roboto,
+Lato, Montserrat, Work Sans), each `{stack, q}`. `font_stack($role,$default)` → CSS stack from
+`dish_dash_{role}_font`. `fonts_url()` → the Google Fonts URL from the two options.
+`build_root_tokens()` emits `--font-heading` / `--font-body`.
+
+**2. `theme/dish-dash-theme/functions.php`** — `dish-dash-fonts` enqueue URL now
+`class_exists('DD_Template_Module') ? DD_Template_Module::fonts_url() : '<hardcoded fallback>'`.
+
+**3. `templates/page-dishdash.php`** — dropped the redundant homepage `<link …css2…>` (kept
+preconnects). The theme enqueue (`wp_enqueue_scripts` pri 100, all pages) already covers the
+homepage → also fixes the homepage double-load.
+
+**Behavior-neutral proof:** default `fonts_url()` = the exact old URL; default `font_stack()` = the
+exact stacks CSS hardcodes; `--font-*` emitted but unconsumed (β wires them).
+
+**Deployment (verified, answered the brief's flag):** the plugin auto-syncs its bundled theme to the
+live theme on every `admin_init` (`DD_Theme_Installer::sync_theme_on_plugin_update` → `install_theme()`
+re-copies `plugin/theme/dish-dash-theme/*` → live theme; ungated by version, `is_active()`-guarded). So
+the functions.php edit ships with the normal plugin update — **no separate theme deployment.** Caveat:
+lands on the first WP-admin page load after deploy, and only when the DD theme is active.
+
+**Not done (β):** no BI font dropdowns; no CSS `font-family` → `var(--font-*)` swap (~39 real decls);
+defaults unchanged.
+
+`php -l` clean (3 files); no CSS touched; no schema change.
+
+**Awaiting go-ahead to commit v3.11.9.**

@@ -259,7 +259,7 @@ if ( ! function_exists( 'dd_render_dish_card' ) ) {
 <title><?php the_title(); ?> &#8211; <?php bloginfo( 'name' ); ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<?php // Fonts are enqueued dynamically by the theme (dish-dash-fonts) — no hardcoded <link> here (v3.11.9). ?>
 <style>
 :root {
     --brand:      <?php echo esc_attr( $dd_primary ); ?>;
