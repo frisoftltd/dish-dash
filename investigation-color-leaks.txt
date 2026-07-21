@@ -1,0 +1,1113 @@
+assets/css/admin.css:301:    border-left: 4px solid var(--kpi-accent, var(--dd-brand, #65040d));
+assets/css/admin.css:360:    color: var(--dd-brand, #65040d);
+assets/css/admin.css:427:    background: var(--dd-brand, #65040d);
+assets/css/admin.css:477:    border-color: var(--dd-brand, #65040d);
+assets/css/admin.css:478:    color: var(--dd-brand, #65040d);
+assets/css/birthday.css:34:    color: #65040d;
+assets/css/birthday.css:95:    background: #65040d;
+assets/css/cart.css:28:    --dd-cart-red:     #65040d;
+assets/css/cart.css:618:    color: #65040d;
+assets/css/cart.css:654:    color: #65040d;
+assets/css/frontend.css:550:    background: linear-gradient(135deg, #65040d, #a00015);
+assets/css/frontend.css:592:    border: 2px solid #65040d;
+assets/css/frontend.css:593:    color: #65040d;
+assets/css/frontend.css:727:    color: var(--brand, #65040d);
+assets/css/menu-page.css:74:    background: #65040d;
+assets/css/menu-page.css:417:    background: #65040d;
+assets/css/menu-page.css:569:    background: #65040d;
+assets/css/menu-page.css:570:    border-color: #65040d;
+assets/css/menu-page.css:602:    background: #65040d;
+assets/css/order-tracking.css:20:    --dd-track-accent: var(--brand, var(--dd-accent, var(--dd-brand, #65040d)));
+assets/css/order-tracking.css:209:    background: var(--brand, #65040d);
+assets/css/reservations-admin.css:526:    background: var(--dd-brand, #65040d);
+assets/css/reservations.css:32:  color: var(--brand, #65040d);
+assets/css/reservations.css:144:  background: var(--brand, #65040d);
+assets/css/reservations.css:164:  color: var(--brand, #65040d);
+assets/css/reservations.css:239:  color: var(--brand, #65040d);
+assets/css/reservations.css:254:  border-color: var(--brand, #65040d);
+assets/css/reservations.css:255:  background: var(--brand, #65040d);
+assets/css/reservations.css:288:.dd-res-date-pill:hover { border-color: var(--brand, #65040d); }
+assets/css/reservations.css:291:  background: var(--brand, #65040d);
+assets/css/reservations.css:292:  border-color: var(--brand, #65040d);
+assets/css/reservations.css:351:  background: var(--brand, #65040d);
+assets/css/reservations.css:377:.dd-res-slot:hover { border-color: var(--brand, #65040d); color: var(--brand, #65040d); }
+assets/css/reservations.css:380:  background: var(--brand, #65040d);
+assets/css/reservations.css:381:  border-color: var(--brand, #65040d);
+assets/css/reservations.css:402:  color: var(--brand, #65040d);
+assets/css/reservations.css:445:.dd-res-select:focus { outline: none; border-color: var(--brand, #65040d); }
+assets/css/reservations.css:462:.dd-res-input:focus { outline: none; border-color: var(--brand, #65040d); }
+assets/css/reservations.css:468:  background: linear-gradient(135deg, #65040d 0%, #3d0208 100%);
+assets/css/reservations.css:522:  background: var(--brand, #65040d);
+assets/css/reservations.css:598:  color: #65040d;
+assets/css/admin.css:26:    --dd-primary:      #E8832A;
+assets/css/admin.css:27:    --dd-dark:         #1E3A5F;
+assets/css/admin.css:28:    --dd-success:      #2e9e5b;
+assets/css/admin.css:29:    --dd-danger:       #c0392b;
+assets/css/admin.css:30:    --dd-border:       #e0e0e0;
+assets/css/admin.css:31:    --dd-bg:           #f9f9f9;
+assets/css/admin.css:48:    color: #fff;
+assets/css/admin.css:63:    color: #fff;
+assets/css/admin.css:87:    background: #fff;
+assets/css/admin.css:122:    color: #888;
+assets/css/admin.css:128:    background: #fff;
+assets/css/admin.css:167:    color: #fff;
+assets/css/admin.css:172:    background: #fff;
+assets/css/admin.css:203:.dd-checklist__item--done { color: #888; }
+assets/css/admin.css:217:    background: #fff;
+assets/css/admin.css:220:    color: #888;
+assets/css/admin.css:247:.dd-dash-title { font-size: 22px; font-weight: 600; color: #111; margin: 0; }
+assets/css/admin.css:259:.dd-status-open  { color: #166534; background: #dcfce7; }
+assets/css/admin.css:260:.dd-status-open  .dd-status-dot { background: #16a34a; }
+assets/css/admin.css:261:.dd-status-closed { color: #991b1b; background: #fee2e2; }
+assets/css/admin.css:262:.dd-status-closed .dd-status-dot { background: #dc2626; }
+assets/css/admin.css:268:    background: #f3f4f6;
+assets/css/admin.css:277:    color: #6b7280;
+assets/css/admin.css:282:.dd-filter-btn:hover { color: #111; background: #fff; }
+assets/css/admin.css:284:    background: #fff;
+assets/css/admin.css:285:    color: #111;
+assets/css/admin.css:299:    background: #fff;
+assets/css/admin.css:300:    border: 1px solid #e5e7eb;
+assets/css/admin.css:301:    border-left: 4px solid var(--kpi-accent, var(--dd-brand, #65040d));
+assets/css/admin.css:313:.dd-kpi-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+assets/css/admin.css:314:.dd-kpi-value { font-size: 24px; font-weight: 600; color: #111; line-height: 1.2; }
+assets/css/admin.css:315:.dd-kpi-value small { font-size: 12px; font-weight: 400; color: #9ca3af; }
+assets/css/admin.css:322:.dd-badge-warn { background: #fef9c3; color: #854d0e; }
+assets/css/admin.css:325:    color: #888;
+assets/css/admin.css:332:    color: #aaa;
+assets/css/admin.css:338:    background: #fff;
+assets/css/admin.css:339:    border: 1px solid #e5e7eb;
+assets/css/admin.css:350:    border-bottom: 1px solid #f3f4f6;
+assets/css/admin.css:352:.dd-card-title { font-size: 14px; font-weight: 600; color: #111; }
+assets/css/admin.css:353:.dd-card-meta  { font-size: 12px; color: #9ca3af; }
+assets/css/admin.css:356:    border-top: 1px solid #f3f4f6;
+assets/css/admin.css:360:    color: var(--dd-brand, #65040d);
+assets/css/admin.css:367:    color: #9ca3af;
+assets/css/admin.css:392:.dd-list-table tr { border-bottom: 1px solid #f3f4f6; }
+assets/css/admin.css:396:.dd-list-name { display: block; font-size: 13px; font-weight: 500; color: #111; }
+assets/css/admin.css:397:.dd-list-meta { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
+assets/css/admin.css:398:.dd-td-time { font-size: 13px; font-weight: 600; color: #111; white-space: nowrap; min-width: 52px; }
+assets/css/admin.css:400:.dd-td-amount { white-space: nowrap; font-size: 13px; font-weight: 600; color: #111; text-align: right; }
+assets/css/admin.css:401:.dd-td-amount small { font-size: 11px; font-weight: 400; color: #9ca3af; }
+assets/css/admin.css:410:    border-bottom: 1px solid #f9fafb;
+assets/css/admin.css:413:.dd-item-rank { font-size: 11px; color: #d1d5db; font-weight: 600; min-width: 20px; }
+assets/css/admin.css:418:    color: #111;
+assets/css/admin.css:424:.dd-item-bar-wrap { height: 4px; background: #f3f4f6; border-radius: 2px; overflow: hidden; }
+assets/css/admin.css:427:    background: var(--dd-brand, #65040d);
+assets/css/admin.css:431:.dd-item-count { font-size: 13px; font-weight: 600; color: #374151; min-width: 28px; text-align: right; }
+assets/css/admin.css:451:.dd-tier-name  { font-size: 12px; color: #6b7280; flex: 1; }
+assets/css/admin.css:452:.dd-tier-count { font-size: 12px; font-weight: 600; color: #111; }
+assets/css/admin.css:469:    color: #374151;
+assets/css/admin.css:470:    background: #fff;
+assets/css/admin.css:471:    border: 1px solid #e5e7eb;
+assets/css/admin.css:477:    border-color: var(--dd-brand, #65040d);
+assets/css/admin.css:478:    color: var(--dd-brand, #65040d);
+assets/css/admin.css:494:.dd-page-title { font-size: 22px; font-weight: 600; color: #111; margin: 0; }
+assets/css/admin.css:506:    background: #fff;
+assets/css/admin.css:507:    border: 1px solid #e5e7eb;
+assets/css/admin.css:513:.dd-stat-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+assets/css/admin.css:514:.dd-stat-value { font-size: 24px; font-weight: 600; color: #111; line-height: 1.2; }
+assets/css/admin.css:515:.dd-stat-value small { font-size: 12px; font-weight: 400; color: #9ca3af; }
+assets/css/admin.css:532:    color: #6b7280;
+assets/css/admin.css:533:    background: #fff;
+assets/css/admin.css:534:    border: 1px solid #e5e7eb;
+assets/css/admin.css:539:.dd-tab-btn:hover { color: #111; border-color: #d1d5db; text-decoration: none; }
+assets/css/admin.css:542:    color: #fff;
+assets/css/admin.css:559:    background: #fff;
+assets/css/admin.css:560:    border: 1px solid #e5e7eb;
+assets/css/admin.css:564:.dd-orders-empty { padding: 32px; color: #9ca3af; font-size: 13px; margin: 0; }
+assets/css/admin.css:572:    background: #f9fafb;
+assets/css/admin.css:573:    border-bottom: 1px solid #e5e7eb;
+assets/css/admin.css:580:    color: #6b7280;
+assets/css/admin.css:586:    border-bottom: 1px solid #f3f4f6;
+assets/css/admin.css:590:.dd-orders-table tbody tr:hover { background: #fafafa; }
+assets/css/admin.css:593:.dd-order-num { font-weight: 600; color: #111; }
+assets/css/admin.css:594:.dd-customer-name { display: block; font-weight: 500; color: #111; }
+assets/css/admin.css:595:.dd-customer-phone { display: block; font-size: 11px; color: #9ca3af; margin-top: 2px; }
+assets/css/admin.css:600:    background: #f3f4f6;
+assets/css/admin.css:601:    color: #374151;
+assets/css/admin.css:605:.dd-order-total { font-weight: 600; color: #111; }
+assets/css/admin.css:606:.dd-order-currency { font-size: 11px; color: #9ca3af; margin-left: 2px; }
+assets/css/admin.css:620:    color: #fff;
+assets/css/admin.css:622:.dd-action-primary:hover { opacity: .85; color: #fff; text-decoration: none; }
+assets/css/admin.css:624:    background: #fee2e2;
+assets/css/admin.css:625:    color: #991b1b;
+assets/css/admin.css:627:.dd-action-cancel:hover { background: #fecaca; color: #991b1b; text-decoration: none; }
+assets/css/admin.css:628:.dd-action-done { color: #d1d5db; }
+assets/css/admin.css:652:.dd-btn-primary   { background: var(--dd-brand); color: #fff; }
+assets/css/admin.css:653:.dd-btn-cancel    { background: #fee2e2; color: #991b1b; }
+assets/css/admin.css:654:.dd-btn-delivered { background: #dcfce7; color: #166534; }
+assets/css/admin.css:655:.dd-btn-whatsapp  { background: #25D366; color: #fff; }
+assets/css/admin.css:669:    background: #fffbeb;
+assets/css/admin.css:670:    border: 1px solid #fcd34d;
+assets/css/admin.css:671:    border-left: 4px solid #D97706;
+assets/css/admin.css:678:.dd-stale-content strong { font-size: 13px; font-weight: 600; color: #92400e; display: block; margin-bottom: 8px; }
+assets/css/admin.css:682:    color: #78350f;
+assets/css/admin.css:683:    background: #fef3c7;
+assets/css/admin.css:691:    color: #D97706;
+assets/css/admin.css:697:.dd-stale-action:hover { text-decoration: underline; color: #D97706; }
+assets/css/admin.css:711:    background: #fff;
+assets/css/admin.css:726:    border-bottom: 1px solid #f3f4f6;
+assets/css/admin.css:729:    background: #fff;
+assets/css/admin.css:736:    color: #111;
+assets/css/admin.css:741:    color: #9ca3af;
+assets/css/admin.css:748:    color: #9ca3af;
+assets/css/admin.css:754:.dd-modal-close:hover { background: #f3f4f6; color: #111; }
+assets/css/admin.css:758:    border-bottom: 1px solid #f3f4f6;
+assets/css/admin.css:764:    color: #9ca3af;
+assets/css/admin.css:769:.dd-modal-customer-name { font-size: 14px; font-weight: 500; color: #111; }
+assets/css/admin.css:770:.dd-modal-customer-phone { font-size: 13px; color: #6b7280; margin-top: 2px; }
+assets/css/admin.css:771:.dd-modal-customer-address { font-size: 13px; color: #6b7280; margin-top: 2px; }
+assets/css/admin.css:779:.dd-modal-item-qty { color: #9ca3af; min-width: 24px; }
+assets/css/admin.css:780:.dd-modal-item-name { flex: 1; color: #111; }
+assets/css/admin.css:781:.dd-modal-item-price { color: #111; font-weight: 500; white-space: nowrap; }
+assets/css/admin.css:788:    color: #111;
+assets/css/admin.css:789:    border-top: 1px solid #f3f4f6;
+assets/css/admin.css:792:.dd-modal-payment { font-size: 12px; font-weight: 400; color: #6b7280; border-top: none; padding-top: 2px; }
+assets/css/admin.css:796:.dd-status-pending   { background: #fef9c3; color: #854d0e; }
+assets/css/admin.css:797:.dd-status-confirmed { background: #dbeafe; color: #1e40af; }
+assets/css/admin.css:798:.dd-status-ready     { background: #dcfce7; color: #166534; }
+assets/css/admin.css:799:.dd-status-delivered { background: #dcfce7; color: #166534; }
+assets/css/admin.css:800:.dd-status-cancelled { background: #fee2e2; color: #991b1b; }
+assets/css/admin.css:808:    border-top: 1px solid #f3f4f6;
+assets/css/admin.css:811:    background: #fff;
+assets/css/admin.css:824:    color: #6b7280;
+assets/css/admin.css:828:.dd-order-row:hover { background: #fafafa; }
+assets/css/admin.css:846:    border: 1px solid #e5e7eb;
+assets/css/admin.css:851:    color: #6b7280;
+assets/css/admin.css:867:    background: #111;
+assets/css/admin.css:868:    color: #fff;
+assets/css/admin.css:878:    border: 1px solid #444;
+assets/css/admin.css:879:    background: #222;
+assets/css/admin.css:880:    color: #fff;
+assets/css/admin.css:886:    color: #fff;
+assets/css/admin.css:897:    color: #aaa;
+assets/css/admin.css:898:    border: 1px solid #444;
+assets/css/admin.css:904:.dd-bulk-clear:hover { color: #fff; }
+assets/css/admin.css:918:    background: #f3f4f6;
+assets/css/admin.css:919:    color: #6b7280;
+assets/css/admin.css:920:    border: 1px solid #e5e7eb;
+assets/css/admin.css:928:    background: #D97706;
+assets/css/admin.css:929:    color: #fff;
+assets/css/admin.css:965:    color: #fff;
+assets/css/admin.css:975:    color: #888;
+assets/css/admin.css:985:    background: #f8f8f8;
+assets/css/admin.css:991:    background: #fff5f5;
+assets/css/admin.css:992:    border-left: 3px solid #e53e3e;
+assets/css/admin.css:1004:    color: #111;
+assets/css/admin.css:1009:    color: #444;
+assets/css/admin.css:1014:    color: #888;
+assets/css/admin.css:1015:    background: #eee;
+assets/css/admin.css:1029:    color: #111;
+assets/css/admin.css:1036:    color: #111;
+assets/css/admin.css:1042:    color: #e53e3e;
+assets/css/admin.css:1056:    color: #fff;
+assets/css/admin.css:1064:    background: #f0f0f0;
+assets/css/admin.css:1065:    color: #444;
+assets/css/admin.css:1066:    border: 1px solid #ddd;
+assets/css/admin.css:1074:    background: #e4e4e4;
+assets/css/admin.css:1095:    border: 1px solid #e0e0e0;
+assets/css/admin.css:1096:    background: #fff;
+assets/css/admin.css:1097:    color: #444;
+assets/css/admin.css:1113:    color: #fff;
+assets/css/admin.css:1118:    color: #888;
+assets/css/admin.css:1139:    border: 1px solid #e0e0e0;
+assets/css/admin.css:1140:    background: #fff;
+assets/css/admin.css:1141:    color: #444;
+assets/css/admin.css:1156:    color: #fff;
+assets/css/admin.css:1161:    color: #aaa;
+assets/css/admin.css:1177:.dd-analytics-header-left .dd-page-title  { margin: 0; font-size: 22px; font-weight: 700; color: #111; }
+assets/css/admin.css:1178:.dd-analytics-header-left .dd-page-subtitle { margin: 4px 0 0; font-size: 13px; color: #888; }
+assets/css/admin.css:1182:    border-bottom: 2px solid #f0f0f0; padding-bottom: 0;
+assets/css/admin.css:1185:    padding: 8px 18px; font-size: 13px; font-weight: 500; color: #666;
+assets/css/admin.css:1196:    color: #666; text-decoration: none; border: 1px solid #e5e5e5; transition: all .15s;
+assets/css/admin.css:1200:    background: var(--dd-brand); color: #fff; border-color: var(--dd-brand);
+assets/css/admin.css:1208:.dd-delta--up   { background: #dcfce7; color: #166534; }
+assets/css/admin.css:1209:.dd-delta--down { background: #fee2e2; color: #991b1b; }
+assets/css/admin.css:1228:.dd-insights-seed-text strong { display: block; font-size: 14px; color: #111; margin-bottom: 2px; }
+assets/css/admin.css:1229:.dd-insights-seed-text span   { font-size: 13px; color: #666; }
+assets/css/admin.css:1231:    flex: 1; min-width: 120px; height: 6px; background: #f0f0f0;
+assets/css/admin.css:1241:    letter-spacing: .06em; color: #888; margin-bottom: 10px;
+assets/css/admin.css:1244:.dd-insights-confidence { font-weight: 400; text-transform: none; letter-spacing: 0; color: #aaa; }
+assets/css/admin.css:1257:.dd-insights-strip::-webkit-scrollbar-track { background: #f0f0f0; border-radius: 2px; }
+assets/css/admin.css:1264:.dd-insight--warning     { background: #fff7ed; border-color: #fed7aa; }
+assets/css/admin.css:1265:.dd-insight--opportunity { background: #f0fdf4; border-color: #bbf7d0; }
+assets/css/admin.css:1266:.dd-insight--info        { background: #eff6ff; border-color: #bfdbfe; }
+assets/css/admin.css:1269:.dd-insight-headline { font-size: 13px; font-weight: 600; color: #111; margin-bottom: 4px; line-height: 1.4; }
+assets/css/admin.css:1270:.dd-insight-detail   { font-size: 12px; color: #555; line-height: 1.5; }
+assets/css/admin.css:1285:    padding: 16px; background: #f9f9f9; border-radius: 10px;
+assets/css/admin.css:1286:    border: 1px solid #f0f0f0;
+assets/css/admin.css:1289:    letter-spacing: .05em; color: #888; margin-bottom: 6px; }
+assets/css/admin.css:1290:.dd-speed-kpi-value { font-size: 24px; font-weight: 700; color: #111; line-height: 1.2; }
+assets/css/admin.css:1292:.dd-speed-kpi-sub   { font-size: 11px; color: #aaa; margin-top: 2px; }
+assets/css/admin.css:1298:.dd-speed-badge--good { background: #dcfce7; color: #166534; }
+assets/css/admin.css:1299:.dd-speed-badge--ok   { background: #fef9c3; color: #854d0e; }
+assets/css/admin.css:1300:.dd-speed-badge--warn { background: #fee2e2; color: #991b1b; }
+assets/css/admin.css:1305:    font-size: 13px; color: #555; margin-bottom: 8px;
+assets/css/admin.css:1307:.dd-speed-benchmark-target { font-size: 12px; color: #aaa; }
+assets/css/admin.css:1308:.dd-speed-benchmark-bar    { height: 8px; background: #f0f0f0; border-radius: 99px; overflow: hidden; }
+assets/css/admin.css:1314:.dd-speed-table td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+assets/css/admin.css:1316:    letter-spacing: .05em; color: #888; }
+assets/css/admin.css:1319:.dd-speed-tips { margin-top: 20px; padding: 16px; background: #f9f9f9;
+assets/css/admin.css:1320:    border-radius: 10px; border: 1px solid #f0f0f0; }
+assets/css/admin.css:1321:.dd-speed-tips-title { font-size: 13px; font-weight: 700; color: #111; margin-bottom: 12px; }
+assets/css/admin.css:1326:    background: var(--dd-brand); color: #fff; font-size: 12px; font-weight: 700;
+assets/css/admin.css:1329:.dd-speed-tip-body strong { font-size: 13px; color: #111; display: block; margin-bottom: 2px; }
+assets/css/admin.css:1330:.dd-speed-tip-body p { font-size: 12px; color: #666; margin: 0; line-height: 1.5; }
+assets/css/admin.css:1337:.dd-hbar-label { flex-shrink: 0; width: 130px; color: #444; white-space: nowrap;
+assets/css/admin.css:1339:.dd-hbar-track { flex: 1; height: 8px; background: #f0f0f0;
+assets/css/admin.css:1344:    font-size: 12px; color: #666; font-weight: 500; }
+assets/css/admin.css:1352:    padding: 8px 0; border-bottom: 1px solid #f5f5f5;
+assets/css/admin.css:1355:.dd-top-item-rank  { font-size: 11px; font-weight: 700; color: #aaa; }
+assets/css/admin.css:1356:.dd-top-item-name  { font-size: 13px; color: #111; font-weight: 500;
+assets/css/admin.css:1358:.dd-top-item-bar-wrap { height: 6px; background: #f0f0f0; border-radius: 99px; overflow: hidden; }
+assets/css/admin.css:1361:.dd-top-item-count { font-size: 11px; font-weight: 600; color: #444; }
+assets/css/admin.css:1362:.dd-top-item-rev   { font-size: 11px; color: #888; }
+assets/css/admin.css:1367:.dd-tier-table td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
+assets/css/admin.css:1369:    letter-spacing: .05em; color: #888; }
+assets/css/admin.css:1375:    color: #999; font-style: italic;
+assets/css/admin.css:1380:    font-size: 14px; font-weight: 700; color: #111;
+assets/css/admin.css:1412:    color: #888;
+assets/css/admin.css:1418:    color: #111;
+assets/css/admin.css:1505:    border-bottom: 1px solid #f5f5f5;
+assets/css/admin.css:1524:    color: #aaa;
+assets/css/admin.css:1526:    border-bottom: 1px solid #f0f0f0;
+assets/css/admin.css:1530:    border-bottom: 1px solid #f8f8f8;
+assets/css/admin.css:1531:    color: #333;
+assets/css/audit.css:13:    color: #666;
+assets/css/audit.css:32:    background: #fff;
+assets/css/audit.css:33:    border: 1px solid #ddd;
+assets/css/audit.css:51:    color: #555;
+assets/css/audit.css:68:    background: #fff;
+assets/css/audit.css:69:    border: 1px solid #ddd;
+assets/css/audit.css:85:    background: #f9f9f9;
+assets/css/audit.css:89:    border-bottom-color: #eee;
+assets/css/audit.css:105:    color: #555;
+assets/css/audit.css:110:    color: #888;
+assets/css/audit.css:156:    color: #666;
+assets/css/audit.css:162:.dd-pillar-card[data-status="green"]  { border-left: 4px solid #46B450; }
+assets/css/audit.css:163:.dd-pillar-card[data-status="yellow"] { border-left: 4px solid #FFBA00; }
+assets/css/audit.css:164:.dd-pillar-card[data-status="orange"] { border-left: 4px solid #F56E28; }
+assets/css/audit.css:165:.dd-pillar-card[data-status="red"]    { border-left: 4px solid #DC3232; }
+assets/css/audit.css:170:    background: #fff;
+assets/css/audit.css:171:    border: 1px solid #ddd;
+assets/css/audit.css:201:    color: #888;
+assets/css/birthday.css:11:    background: #F5EFE6;
+assets/css/birthday.css:16:    background: #fff;
+assets/css/birthday.css:34:    color: #65040d;
+assets/css/birthday.css:39:    color: #666;
+assets/css/birthday.css:47:    background: #E8832A;
+assets/css/birthday.css:48:    color: #fff;
+assets/css/birthday.css:74:    color: #333;
+assets/css/birthday.css:78:    border: 1.5px solid #ddd;
+assets/css/birthday.css:82:    background: #fafafa;
+assets/css/birthday.css:89:    border-color: #E8832A;
+assets/css/birthday.css:90:    background: #fff;
+assets/css/birthday.css:95:    background: #65040d;
+assets/css/birthday.css:96:    color: #fff;
+assets/css/cart.css:28:    --dd-cart-red:     #65040d;
+assets/css/cart.css:29:    --dd-cart-accent:  #E8832A;
+assets/css/cart.css:30:    --dd-cart-border:  #EAD9CE;
+assets/css/cart.css:31:    --dd-cart-bg:      #FBF7F1;
+assets/css/cart.css:32:    --dd-cart-text:    #221B19;
+assets/css/cart.css:33:    --dd-cart-muted:   #7A6558;
+assets/css/cart.css:34:    --dd-cart-danger:  #c0392b;
+assets/css/cart.css:35:    --dd-cart-success: #2e7d52;
+assets/css/cart.css:64:    background: #fff;
+assets/css/cart.css:108:    color: #fff;
+assets/css/cart.css:138:    color: #fff;
+assets/css/cart.css:203:    color: #777;
+assets/css/cart.css:224:    background: #fdf6ee;
+assets/css/cart.css:245:    background: #EAD9CE;
+assets/css/cart.css:259:    border-top: 1px solid #f0e8df;
+assets/css/cart.css:290:    color: #fff;
+assets/css/cart.css:304:    background: #e37401;
+assets/css/cart.css:305:    color: #fff;
+assets/css/cart.css:321:    color: #fff;
+assets/css/cart.css:338:    background: #4a0209;
+assets/css/cart.css:344:    background: #fff;
+assets/css/cart.css:467:    background: #fff;
+assets/css/cart.css:491:    background: #fff;
+assets/css/cart.css:499:    background: #fdf0f0;
+assets/css/cart.css:509:    color: #fff;
+assets/css/cart.css:521:.dd-submit-btn:hover { background: #4a0209; }
+assets/css/cart.css:522:.dd-submit-btn:disabled { background: #ccc; cursor: not-allowed; }
+assets/css/cart.css:571:.dd-notice--success { background: #eaf7ef; color: #1e5e38; border: 1px solid #a8dfc0; }
+assets/css/cart.css:572:.dd-notice--error   { background: #fdecea; color: #7d1919; border: 1px solid #f5b7b1; }
+assets/css/cart.css:605:    border: 1.5px solid var(--dd-cart-border, #f0e8df);
+assets/css/cart.css:618:    color: #65040d;
+assets/css/cart.css:628:    background: #fdf0f0;
+assets/css/cart.css:636:    color: #2b1d12;
+assets/css/cart.css:642:    color: #c0a090;
+assets/css/cart.css:654:    color: #65040d;
+assets/css/cart.css:660:    background: #f5efe6;
+assets/css/cart.css:744:    color: var(--dd-accent, #E8832A);
+assets/css/cart.css:769:    background: #fff;
+assets/css/cart.css:774:    background: #F5EFE6;
+assets/css/cart.css:779:    color: #555;
+assets/css/cart.css:794:    color: #333;
+assets/css/cart.css:798:    color: #c0392b;
+assets/css/cart.css:804:    border: 1.5px solid #ddd;
+assets/css/cart.css:808:    background: #fafafa;
+assets/css/cart.css:816:    border-color: var(--dd-accent, #E8832A);
+assets/css/cart.css:817:    background: #fff;
+assets/css/cart.css:821:    border-color: #c0392b;
+assets/css/cart.css:827:    color: #c0392b;
+assets/css/cart.css:856:    border: 2px solid #ddd;
+assets/css/cart.css:859:    background: #fafafa;
+assets/css/cart.css:864:    border-color: var(--dd-accent, #E8832A);
+assets/css/cart.css:865:    background: #fff8f2;
+assets/css/cart.css:875:    color: #333;
+assets/css/cart.css:902:    color: #777;
+assets/css/cart.css:909:    background: var(--dd-accent, #E8832A);
+assets/css/cart.css:910:    color: #fff;
+assets/css/cart.css:936:    color: #888;
+assets/css/cart.css:965:    color: #555;
+assets/css/cart.css:971:    color: #888;
+assets/css/cart.css:976:    background: var(--dd-accent, #E8832A);
+assets/css/cart.css:977:    color: #fff;
+assets/css/cart.css:992:    background: #25D366; /* WhatsApp brand green — not the restaurant brand color */
+assets/css/cart.css:993:    color: #fff;
+assets/css/cart.css:1026:    color: #666;
+assets/css/cart.css:1048:    color: #111;
+assets/css/cart.css:1053:    color: #777;
+assets/css/cart.css:1066:    border: 1px solid #eee;
+assets/css/cart.css:1068:    background: #fff;
+assets/css/cart.css:1072:    background: var(--dd-accent, #E8832A);
+assets/css/cart.css:1073:    color: #fff;
+assets/css/cart.css:1098:    background: #f7f7f7;
+assets/css/cart.css:1099:    border: 1px solid #ececec;
+assets/css/cart.css:1110:    border-color: #157A46;
+assets/css/cart.css:1114:    color: #888;
+assets/css/cart.css:1119:    color: #111;
+assets/css/cart.css:1125:    color: #157A46;
+assets/css/cart.css:1129:    color: #999;
+assets/css/cart.css:1135:    background: var(--dd-accent, #E8832A);
+assets/css/cart.css:1136:    color: #fff;
+assets/css/cart.css:1155:    color: #157A46;
+assets/css/cart.css:1193:    background: #fff;
+assets/css/cart.css:1221:    border: 4px solid #f0f0f0;
+assets/css/cart.css:1234:    color: #1a1a1a;
+assets/css/cart.css:1240:    color: #666;
+assets/css/cart.css:1250:    color: #1a1a1a;
+assets/css/cart.css:1256:    color: #888;
+assets/css/cart.css:1262:    border: 1.5px solid #ddd;
+assets/css/cart.css:1266:    color: #666;
+assets/css/cart.css:1273:    border-color: #999;
+assets/css/cart.css:1274:    color: #333;
+assets/css/frontend.css:29:    --dd-accent:        #e8832a;
+assets/css/frontend.css:30:    --dd-accent-light:  #fde8d0;
+assets/css/frontend.css:31:    --dd-text:          #1a1a1a;
+assets/css/frontend.css:32:    --dd-muted:         #666;
+assets/css/frontend.css:33:    --dd-border:        #e8e0d5;
+assets/css/frontend.css:34:    --dd-bg-card:       #ffffff;
+assets/css/frontend.css:72:    color: #fff;
+assets/css/frontend.css:136:    color: #fff;
+assets/css/frontend.css:139:.dd-badge--popular      { background: #e05a2b; }
+assets/css/frontend.css:140:.dd-badge--new          { background: #2b7ae0; }
+assets/css/frontend.css:141:.dd-badge--spicy        { background: #d01f1f; }
+assets/css/frontend.css:142:.dd-badge--vegan        { background: #2e9e5b; }
+assets/css/frontend.css:143:.dd-badge--gluten-free  { background: #8a6bb1; }
+assets/css/frontend.css:144:.dd-badge--chef-special { background: #b5860d; }
+assets/css/frontend.css:152:    color: #fff;
+assets/css/frontend.css:198:    background: #faf7f4;
+assets/css/frontend.css:230:    color: #d01f1f;
+assets/css/frontend.css:237:    color: #fff;
+assets/css/frontend.css:248:.dd-add-to-cart:hover  { background: #c96d1a; }
+assets/css/frontend.css:292:    background: #fff;
+assets/css/frontend.css:293:    border: 1px solid #ede6db;
+assets/css/frontend.css:315:    color: #ddd;
+assets/css/frontend.css:320:    color: #C8960C;
+assets/css/frontend.css:327:    color: #4a3728;
+assets/css/frontend.css:339:    border-top: 1px solid #f0ece6;
+assets/css/frontend.css:348:    border: 2px solid #ede6db;
+assets/css/frontend.css:355:    background: var(--dd-primary, #E8832A);
+assets/css/frontend.css:356:    color: #fff;
+assets/css/frontend.css:369:    color: var(--dd-dark, #1E3A5F);
+assets/css/frontend.css:376:    color: #aaa;
+assets/css/frontend.css:390:        #f0ece6 25%,
+assets/css/frontend.css:391:        #e8e2db 50%,
+assets/css/frontend.css:392:        #f0ece6 75%
+assets/css/frontend.css:418:    background: #c0392b;
+assets/css/frontend.css:419:    color: #fff;
+assets/css/frontend.css:469:    color: #fff;
+assets/css/frontend.css:496:    background: #fff;
+assets/css/frontend.css:514:    color: #999;
+assets/css/frontend.css:520:.dd-closed-modal__close:hover { color: #333; }
+assets/css/frontend.css:524:    color: #333;
+assets/css/frontend.css:531:    color: #777;
+assets/css/frontend.css:550:    background: linear-gradient(135deg, #65040d, #a00015);
+assets/css/frontend.css:551:    color: #fff;
+assets/css/frontend.css:592:    border: 2px solid #65040d;
+assets/css/frontend.css:593:    color: #65040d;
+assets/css/frontend.css:598:    background: #25D366;
+assets/css/frontend.css:599:    color: #fff;
+assets/css/frontend.css:610:    background: #1a1a1a;
+assets/css/frontend.css:611:    color: #fff;
+assets/css/frontend.css:626:    color: #fff;
+assets/css/frontend.css:639:    background: #ccc !important;
+assets/css/frontend.css:640:    color: #888 !important;
+assets/css/frontend.css:642:    border-color: #ccc !important;
+assets/css/frontend.css:661:    background: var(--dd-bg, #F5EFE6);
+assets/css/frontend.css:668:    color: var(--dd-muted, #6E5B4C);
+assets/css/frontend.css:688:    background: #ffffff;
+assets/css/frontend.css:700:    background: #faf6f2;
+assets/css/frontend.css:710:    background: #f0ece6;
+assets/css/frontend.css:727:    color: var(--brand, #65040d);
+assets/css/frontend.css:740:    color: #1a1a1a;
+assets/css/frontend.css:750:    color: #888;
+assets/css/frontend.css:758:    color: #ccc;
+assets/css/menu-page.css:43:    background: #F5EFE6;
+assets/css/menu-page.css:58:    background: #F5EFE6;
+assets/css/menu-page.css:74:    background: #65040d;
+assets/css/menu-page.css:75:    color: #fff;
+assets/css/menu-page.css:88:    background: #fff;
+assets/css/menu-page.css:106:    color: #fff;
+assets/css/menu-page.css:122:    color: #fff;
+assets/css/menu-page.css:134:    color: #fff;
+assets/css/menu-page.css:144:    color: #fff;
+assets/css/menu-page.css:158:    background: #E8832A;
+assets/css/menu-page.css:159:    color: #fff;
+assets/css/menu-page.css:178:    color: #000;
+assets/css/menu-page.css:183:    color: #E8832A;
+assets/css/menu-page.css:190:    background: #fff;
+assets/css/menu-page.css:200:    color: #333;
+assets/css/menu-page.css:207:    color: #999;
+assets/css/menu-page.css:218:    color: #888;
+assets/css/menu-page.css:234:    background: #fff;
+assets/css/menu-page.css:265:    color: #111;
+assets/css/menu-page.css:270:    color: #888;
+assets/css/menu-page.css:275:    color: #ccc;
+assets/css/menu-page.css:283:    background: #F5EFE6;
+assets/css/menu-page.css:302:    border: 1.5px solid #e0d5c8;
+assets/css/menu-page.css:303:    background: #fff;
+assets/css/menu-page.css:304:    color: #555;
+assets/css/menu-page.css:313:    background: #E8832A;
+assets/css/menu-page.css:314:    border-color: #E8832A;
+assets/css/menu-page.css:315:    color: #fff;
+assets/css/menu-page.css:328:    background: #fff;
+assets/css/menu-page.css:362:    color: #ccc;
+assets/css/menu-page.css:365:  .dd-mobile-product-card__heart.is-fav { color: #E8832A; }
+assets/css/menu-page.css:382:    color: #111;
+assets/css/menu-page.css:388:    color: #888;
+assets/css/menu-page.css:394:    color: #888;
+assets/css/menu-page.css:411:    color: #E8832A;
+assets/css/menu-page.css:417:    background: #65040d;
+assets/css/menu-page.css:418:    color: #fff;
+assets/css/menu-page.css:429:  .dd-mobile-product-card__quick-add:active { background: #4a0209; }
+assets/css/menu-page.css:438:    background: #222;
+assets/css/menu-page.css:459:    color: #333;
+assets/css/menu-page.css:462:  .dd-mobile-single__heart { right: 16px; color: #ccc; }
+assets/css/menu-page.css:463:  .dd-mobile-single__heart.is-fav { color: #E8832A; }
+assets/css/menu-page.css:487:    color: #E8832A;
+assets/css/menu-page.css:497:    color: #111;
+assets/css/menu-page.css:500:    background: #fff;
+assets/css/menu-page.css:517:    color: #111;
+assets/css/menu-page.css:526:    color: #888;
+assets/css/menu-page.css:531:    color: #E8832A;
+assets/css/menu-page.css:538:    color: #111;
+assets/css/menu-page.css:547:    color: #888;
+assets/css/menu-page.css:560:    border: 1.5px solid #e0d5c8;
+assets/css/menu-page.css:562:    color: #555;
+assets/css/menu-page.css:563:    background: #F5EFE6;
+assets/css/menu-page.css:569:    background: #65040d;
+assets/css/menu-page.css:570:    border-color: #65040d;
+assets/css/menu-page.css:571:    color: #fff;
+assets/css/menu-page.css:577:    color: #666;
+assets/css/menu-page.css:588:    color: #E8832A;
+assets/css/menu-page.css:602:    background: #65040d;
+assets/css/menu-page.css:603:    color: #fff;
+assets/css/menu-page.css:621:  .dd-mobile-single__add-to-cart:active { background: #4a0209; }
+assets/css/menu-page.css:635:    background: #fff;
+assets/css/menu-page.css:639:    border-top: 1px solid #e8e0d6;
+assets/css/menu-page.css:661:    background: #fff; border-radius: 14px; padding: 10px;
+assets/css/menu-page.css:666:    overflow: hidden; flex-shrink: 0; background: #f0e8de;
+assets/css/menu-page.css:675:    font-size: 14px; font-weight: 600; color: #1a1a1a; line-height: 1.3;
+assets/css/menu-page.css:678:    font-size: 13px; font-weight: 700; color: #E8832A;
+assets/css/menu-page.css:693:    color: #888;
+assets/css/menu-page.css:703:    color: #888;
+assets/css/menu-page.css:709:    color: #888;
+assets/css/menu-page.css:732:        background: #FAF7F2;
+assets/css/menu-page.css:740:        background: #ffffff;
+assets/css/menu-page.css:741:        border: 1px solid #EADfCE;
+assets/css/menu-page.css:756:        color: #8a7a66;
+assets/css/menu-page.css:767:        color: #1a0f08 !important;
+assets/css/menu-page.css:781:        border: 1px solid var(--dd-line, #EADfCE);
+assets/css/menu-page.css:782:        background: var(--dd-surface, #FBF7F1);
+assets/css/menu-page.css:783:        color: #2b1d12;
+assets/css/menu-page.css:793:        background: var(--brand, #6B1D1D);
+assets/css/menu-page.css:794:        color: #fff;
+assets/css/menu-page.css:795:        border-color: var(--brand, #6B1D1D);
+assets/css/menu-page.css:835:        border: 2px solid #EADfCE;
+assets/css/menu-page.css:836:        background: #f5ede2;
+assets/css/menu-page.css:851:        color: var(--brand, #6B1D1D);
+assets/css/menu-page.css:857:        color: var(--brand, #6B1D1D);
+assets/css/menu-page.css:862:        color: #2b1d12;
+assets/css/menu-page.css:868:        border-color: var(--brand, #6B1D1D);
+assets/css/menu-page.css:872:        color: var(--brand, #6B1D1D);
+assets/css/menu-page.css:882:        color: #E8832A;
+assets/css/menu-page.css:894:        color: #1a0f08;
+assets/css/menu-page.css:947:        color: var(--dd-text, #221B19) !important;
+assets/css/menu-page.css:957:        color: #E8832A !important;
+assets/css/menu-page.css:973:        background: var(--brand, #6B1D1D);
+assets/css/menu-page.css:974:        color: #fff;
+assets/css/menu-page.css:989:        background: #4f1414;
+assets/css/menu-page.css:1002:        border-top-color: #fff;
+assets/css/menu.css:34:    --dd-primary:       #E8832A;
+assets/css/menu.css:35:    --dd-primary-light: #fff3e0;
+assets/css/menu.css:36:    --dd-dark:          #1E3A5F;
+assets/css/menu.css:37:    --dd-text:          #2c2c2c;
+assets/css/menu.css:38:    --dd-muted:         #777;
+assets/css/menu.css:39:    --dd-border:        #f0ece6;
+assets/css/menu.css:40:    --dd-bg-card:       #ffffff;
+assets/css/menu.css:45:    --dd-danger:        #e03d3d;
+assets/css/menu.css:52:.dd-search-input { width:100%; padding:.9rem 1.25rem .9rem 3rem; border:2px solid var(--dd-border); border-radius:999px; font-family:'Nunito',sans-serif; font-size:.95rem; background:#fff; outline:none; box-shadow:0 2px 12px rgba(0,0,0,.06); transition:border-color .2s,box-shadow .2s; box-sizing:border-box; }
+assets/css/menu.css:57:.dd-filter-btn { background:#fff; border:2px solid var(--dd-border); border-radius:999px; color:var(--dd-muted); cursor:pointer; font-family:'Nunito',sans-serif; font-size:.78rem; font-weight:700; letter-spacing:.04em; padding:.4rem 1.1rem; text-transform:uppercase; transition:all .2s; white-space:nowrap; }
+assets/css/menu.css:59:.dd-filter-btn--active { background:var(--dd-primary); border-color:var(--dd-primary); color:#fff; }
+assets/css/menu.css:71:.dd-card-image { position:relative; aspect-ratio:4/3; overflow:hidden; background:linear-gradient(135deg,#f5f0ea,#ede5d8); }
+assets/css/menu.css:75:.dd-badge { position:absolute; top:.75rem; right:.75rem; background:var(--dd-primary); color:#fff; font-size:.68rem; font-weight:800; letter-spacing:.06em; padding:.3rem .75rem; border-radius:999px; text-transform:uppercase; }
+assets/css/menu.css:77:.dd-badge--popular { background:#e05a2b; }
+assets/css/menu.css:78:.dd-badge--new     { background:#2b7ae0; }
+assets/css/menu.css:79:.dd-badge--spicy   { background:#d01f1f; }
+assets/css/menu.css:80:.dd-badge--vegan   { background:#2e9e5b; }
+assets/css/menu.css:81:.dd-badge--gluten-free { background:#8a6bb1; }
+assets/css/menu.css:95:.dd-add-to-cart-btn { background:var(--dd-dark); color:#fff; border:none; border-radius:999px; cursor:pointer; font-family:'Nunito',sans-serif; font-size:.78rem; font-weight:800; padding:.55rem 1rem; transition:background .2s,transform .15s; white-space:nowrap; flex-shrink:0; }
+assets/css/order-tracking.css:20:    --dd-track-accent: var(--brand, var(--dd-accent, var(--dd-brand, #65040d)));
+assets/css/order-tracking.css:209:    background: var(--brand, #65040d);
+assets/css/profile.css:12:    border-bottom: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:18:    color: var(--dd-text, #221B19);
+assets/css/profile.css:23:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:33:    color: #fff;
+assets/css/profile.css:50:    background: var(--dd-surface, #FBF7F1);
+assets/css/profile.css:51:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:68:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:77:    color: var(--dd-text, #221B19);
+assets/css/profile.css:88:    background: var(--dd-surface, #FBF7F1);
+assets/css/profile.css:89:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:96:    color: var(--dd-text, #221B19);
+assets/css/profile.css:100:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:106:    color: var(--dd-text, #221B19);
+assets/css/profile.css:110:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:124:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:127:    background: #fff;
+assets/css/profile.css:128:    color: var(--dd-text, #221B19);
+assets/css/profile.css:137:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:141:    background: var(--dd-surface, #FBF7F1);
+assets/css/profile.css:142:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:150:    color: var(--dd-text, #221B19);
+assets/css/profile.css:155:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:166:    background: #25D366;
+assets/css/profile.css:167:    color: #fff;
+assets/css/profile.css:193:    background: var(--dd-surface, #FBF7F1);
+assets/css/profile.css:194:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:211:    color: var(--dd-text, #221B19);
+assets/css/profile.css:219:    background: var(--dd-surface-2, #FFF7EA);
+assets/css/profile.css:224:    color: #fff;
+assets/css/profile.css:228:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:230:    border-top: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:238:    background: #fff;
+assets/css/profile.css:239:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:249:    color: var(--dd-text, #221B19);
+assets/css/profile.css:258:    color: #fff;
+assets/css/profile.css:267:    background: var(--brand-dark, #160F0D);
+assets/css/profile.css:274:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:280:.dd-profile .dd-btn--brand { background: var(--brand); color: #fff; border: none; }
+assets/css/profile.css:281:.dd-profile .dd-btn--brand:hover { background: var(--brand-dark, #160F0D); }
+assets/css/profile.css:310:    color: var(--dd-text, #221B19);
+assets/css/profile.css:313:.dd-order-history__empty { color: var(--dd-muted, #6E5B4C); }
+assets/css/profile.css:317:    border: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:321:    background: var(--dd-surface, #FBF7F1);
+assets/css/profile.css:333:    color: var(--dd-text, #221B19);
+assets/css/profile.css:338:    color: var(--dd-muted, #6E5B4C);
+assets/css/profile.css:353:    background: #eee;
+assets/css/profile.css:354:    color: #555;
+assets/css/profile.css:356:.dd-status--delivered { background: #E3F4E6; color: #1B7A3D; }
+assets/css/profile.css:357:.dd-status--ready     { background: #E6F0FB; color: #14609E; }
+assets/css/profile.css:358:.dd-status--pending   { background: #FFF3DC; color: #9A6B16; }
+assets/css/profile.css:359:.dd-status--cancelled { background: #FBE6E6; color: #A22; }
+assets/css/profile.css:365:    border-top: 1px solid var(--dd-line, #EADfCE);
+assets/css/profile.css:371:    color: var(--dd-text, #221B19);
+assets/css/profile.css:374:.dd-order-card__items li span:last-child { color: var(--dd-muted, #6E5B4C); }
+assets/css/profile.css:379:.dd-reorder-btn { background: var(--brand); color: #fff; border: none; cursor: pointer; white-space: nowrap; }
+assets/css/profile.css:380:.dd-reorder-btn:hover { background: var(--brand-dark, #160F0D); }
+assets/css/reservations-admin.css:11:    background: var(--dd-dark, #1e293b);
+assets/css/reservations-admin.css:17:    color: #fff;
+assets/css/reservations-admin.css:44:    background: #fff;
+assets/css/reservations-admin.css:52:    color: #888;
+assets/css/reservations-admin.css:59:    color: #111827;
+assets/css/reservations-admin.css:66:    color: #9ca3af;
+assets/css/reservations-admin.css:85:    color: #6b7280;
+assets/css/reservations-admin.css:86:    background: #fff;
+assets/css/reservations-admin.css:87:    border: 1px solid #e5e7eb;
+assets/css/reservations-admin.css:93:    color: #9ca3af;
+assets/css/reservations-admin.css:102:    color: #fff;
+assets/css/reservations-admin.css:111:    background: #fff;
+assets/css/reservations-admin.css:123:    border: 1px solid #e5e7eb;
+assets/css/reservations-admin.css:127:    color: #111;
+assets/css/reservations-admin.css:128:    background: #fff;
+assets/css/reservations-admin.css:140:    color: #fff !important;
+assets/css/reservations-admin.css:149:    color: #6b7280;
+assets/css/reservations-admin.css:153:    color: #374151;
+assets/css/reservations-admin.css:164:    background: #fff;
+assets/css/reservations-admin.css:177:    background: #f9fafb;
+assets/css/reservations-admin.css:182:    color: #6b7280;
+assets/css/reservations-admin.css:183:    border-bottom: 1px solid #f3f4f6;
+assets/css/reservations-admin.css:188:    color: #374151;
+assets/css/reservations-admin.css:190:    border-bottom: 1px solid #f9fafb;
+assets/css/reservations-admin.css:197:    background-color: #fafafa;
+assets/css/reservations-admin.css:201:    background: #f3f4f6;
+assets/css/reservations-admin.css:204:    color: #374151;
+assets/css/reservations-admin.css:217:.dd-res-badge--pending         { background: #fef3c7; color: #92400e; }
+assets/css/reservations-admin.css:218:.dd-res-badge--confirmed       { background: #d1fae5; color: #065f46; }
+assets/css/reservations-admin.css:219:.dd-res-badge--cancelled       { background: #f3f4f6; color: #6b7280; }
+assets/css/reservations-admin.css:220:.dd-res-badge--no_show         { background: #fee2e2; color: #991b1b; }
+assets/css/reservations-admin.css:221:.dd-res-badge--pending_payment { background: #e0f2fe; color: #075985; }
+assets/css/reservations-admin.css:222:.dd-res-badge--auto_cancelled  { background: #f3f4f6; color: #6b7280; }
+assets/css/reservations-admin.css:243:.dd-res-action-btn--confirm { background: #d1fae5; color: #065f46; border-color: #6ee7b7; }
+assets/css/reservations-admin.css:244:.dd-res-action-btn--confirm:hover { background: #065f46; color: #fff; border-color: #065f46; }
+assets/css/reservations-admin.css:245:.dd-res-action-btn--cancel  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+assets/css/reservations-admin.css:246:.dd-res-action-btn--cancel:hover  { background: #6b7280; color: #fff; border-color: #6b7280; }
+assets/css/reservations-admin.css:247:.dd-res-action-btn--noshow  { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+assets/css/reservations-admin.css:248:.dd-res-action-btn--noshow:hover  { background: #991b1b; color: #fff; border-color: #991b1b; }
+assets/css/reservations-admin.css:249:.dd-res-action-btn--deposit { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+assets/css/reservations-admin.css:250:.dd-res-action-btn--deposit:hover { background: #92400e; color: #fff; border-color: #92400e; }
+assets/css/reservations-admin.css:260:    background: #25d366;
+assets/css/reservations-admin.css:261:    color: #fff;
+assets/css/reservations-admin.css:266:.dd-res-wa-btn:hover { background: #1da851; color: #fff; text-decoration: none; }
+assets/css/reservations-admin.css:274:    border-top: 1px solid #f3f4f6;
+assets/css/reservations-admin.css:276:    color: #6b7280;
+assets/css/reservations-admin.css:287:    color: #374151;
+assets/css/reservations-admin.css:288:    border: 1px solid #e5e7eb;
+assets/css/reservations-admin.css:297:    color: #6b7280;
+assets/css/reservations-admin.css:306:    color: #d1d5db;
+assets/css/reservations-admin.css:307:    border: 1px solid #f3f4f6;
+assets/css/reservations-admin.css:310:    border: 1px solid #e5e7eb;
+assets/css/reservations-admin.css:314:    color: #374151;
+assets/css/reservations-admin.css:326:    color: #fff;
+assets/css/reservations-admin.css:334:#dd-res-toast.success { background: #065f46; }
+assets/css/reservations-admin.css:335:#dd-res-toast.error   { background: #991b1b; }
+assets/css/reservations-admin.css:341:    border-bottom: 2px solid #e5e7eb;
+assets/css/reservations-admin.css:351:    color: #6b7280;
+assets/css/reservations-admin.css:357:.dd-res-page-tab:hover { color: #111827; text-decoration: none; }
+assets/css/reservations-admin.css:359:    color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:360:    border-bottom-color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:374:    border: 1px solid #d1d5db;
+assets/css/reservations-admin.css:375:    background: #f9fafb;
+assets/css/reservations-admin.css:376:    color: #374151;
+assets/css/reservations-admin.css:384:.dd-res-range-pill:hover { background: #f3f4f6; border-color: #9ca3af; }
+assets/css/reservations-admin.css:386:    background: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:387:    border-color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:388:    color: #fff;
+assets/css/reservations-admin.css:395:    border: 1px solid #d1d5db;
+assets/css/reservations-admin.css:401:    background: #fff;
+assets/css/reservations-admin.css:413:    border: 1px solid #e5e7eb;
+assets/css/reservations-admin.css:414:    background: #f9fafb;
+assets/css/reservations-admin.css:415:    color: #374151;
+assets/css/reservations-admin.css:423:    background: #f3f4f6;
+assets/css/reservations-admin.css:424:    border-color: #9ca3af;
+assets/css/reservations-admin.css:425:    color: #111827;
+assets/css/reservations-admin.css:429:    background: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:430:    border-color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:431:    color: #fff;
+assets/css/reservations-admin.css:440:    border: 1px solid #d1d5db;
+assets/css/reservations-admin.css:441:    background: #f9fafb;
+assets/css/reservations-admin.css:442:    color: #374151;
+assets/css/reservations-admin.css:449:.dd-res-action-btn--confirm { border-color: #6ee7b7; background: #ecfdf5; color: #065f46; }
+assets/css/reservations-admin.css:450:.dd-res-action-btn--confirm:hover { background: #d1fae5; }
+assets/css/reservations-admin.css:451:.dd-res-action-btn--cancel  { border-color: #fca5a5; background: #fff5f5; color: #991b1b; }
+assets/css/reservations-admin.css:452:.dd-res-action-btn--cancel:hover  { background: #fee2e2; }
+assets/css/reservations-admin.css:453:.dd-res-action-btn--noshow  { background: #f3f4f6; color: #6b7280; border-color: #d1d5db; }
+assets/css/reservations-admin.css:454:.dd-res-action-btn--noshow:hover  { background: #e5e7eb; }
+assets/css/reservations-admin.css:455:.dd-res-action-btn--deposit { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+assets/css/reservations-admin.css:456:.dd-res-action-btn--deposit:hover { background: #fef3c7; }
+assets/css/reservations-admin.css:462:    background: #25d366;
+assets/css/reservations-admin.css:463:    color: #fff;
+assets/css/reservations-admin.css:471:.dd-res-wa-btn:hover { background: #1da851; color: #fff; text-decoration: none; }
+assets/css/reservations-admin.css:478:    color: #fff;
+assets/css/reservations-admin.css:483:    background: #fef3c7;
+assets/css/reservations-admin.css:484:    color: #92400e;
+assets/css/reservations-admin.css:485:    border: 1px solid #fcd34d;
+assets/css/reservations-admin.css:500:    background: #eff6ff;
+assets/css/reservations-admin.css:501:    border: 1px solid #bfdbfe;
+assets/css/reservations-admin.css:510:    color: #1d4ed8;
+assets/css/reservations-admin.css:517:    border: 1px solid #d1d5db;
+assets/css/reservations-admin.css:518:    background: #fff;
+assets/css/reservations-admin.css:526:    background: var(--dd-brand, #65040d);
+assets/css/reservations-admin.css:527:    color: #fff;
+assets/css/reservations-admin.css:537:    border: 1px solid #d1d5db;
+assets/css/reservations-admin.css:538:    background: #fff;
+assets/css/reservations-admin.css:539:    color: #6b7280;
+assets/css/reservations-admin.css:543:.dd-res-bulk-cancel:hover { background: #f3f4f6; }
+assets/css/reservations.css:16:  color: #fff;
+assets/css/reservations.css:31:  background: #fff;
+assets/css/reservations.css:32:  color: var(--brand, #65040d);
+assets/css/reservations.css:77:  background: var(--dd-surface, #FBF7F1);
+assets/css/reservations.css:106:  color: var(--dd-text, #221B19);
+assets/css/reservations.css:113:  color: var(--dd-muted, #6E5B4C);
+assets/css/reservations.css:136:  background: var(--dd-line, #EADfCE);
+assets/css/reservations.css:144:  background: var(--brand, #65040d);
+assets/css/reservations.css:158:  color: var(--dd-muted-2, #8A6E53);
+assets/css/reservations.css:164:  color: var(--brand, #65040d);
+assets/css/reservations.css:168:  color: var(--dd-muted, #6E5B4C);
+assets/css/reservations.css:187:  color: var(--dd-text, #221B19);
+assets/css/reservations.css:200:  color: var(--dd-muted, #6E5B4C);
+assets/css/reservations.css:208:  color: var(--dd-muted-2, #8A6E53);
+assets/css/reservations.css:237:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:238:  background: #fff;
+assets/css/reservations.css:239:  color: var(--brand, #65040d);
+assets/css/reservations.css:254:  border-color: var(--brand, #65040d);
+assets/css/reservations.css:255:  background: var(--brand, #65040d);
+assets/css/reservations.css:256:  color: #fff;
+assets/css/reservations.css:269:  background: linear-gradient(to right, transparent, var(--dd-surface, #FBF7F1));
+assets/css/reservations.css:281:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:282:  background: #fff;
+assets/css/reservations.css:288:.dd-res-date-pill:hover { border-color: var(--brand, #65040d); }
+assets/css/reservations.css:291:  background: var(--brand, #65040d);
+assets/css/reservations.css:292:  border-color: var(--brand, #65040d);
+assets/css/reservations.css:293:  color: #fff !important;
+assets/css/reservations.css:327:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:339:  color: var(--dd-muted, #6E5B4C);
+assets/css/reservations.css:347:  border-right: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:351:  background: var(--brand, #65040d);
+assets/css/reservations.css:352:  color: #fff !important;
+assets/css/reservations.css:365:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:366:  background: #fff;
+assets/css/reservations.css:369:  color: var(--dd-text, #221B19);
+assets/css/reservations.css:377:.dd-res-slot:hover { border-color: var(--brand, #65040d); color: var(--brand, #65040d); }
+assets/css/reservations.css:380:  background: var(--brand, #65040d);
+assets/css/reservations.css:381:  border-color: var(--brand, #65040d);
+assets/css/reservations.css:382:  color: #fff !important;
+assets/css/reservations.css:390:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:402:  color: var(--brand, #65040d);
+assets/css/reservations.css:419:  color: var(--dd-text, #221B19);
+assets/css/reservations.css:420:  border-left: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:421:  border-right: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:432:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:433:  background: #fff;
+assets/css/reservations.css:435:  color: var(--dd-text, #221B19);
+assets/css/reservations.css:445:.dd-res-select:focus { outline: none; border-color: var(--brand, #65040d); }
+assets/css/reservations.css:452:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:453:  background: #fff;
+assets/css/reservations.css:455:  color: var(--dd-text, #221B19);
+assets/css/reservations.css:462:.dd-res-input:focus { outline: none; border-color: var(--brand, #65040d); }
+assets/css/reservations.css:463:.dd-res-input::placeholder { color: var(--dd-muted-2, #8A6E53); }
+assets/css/reservations.css:468:  background: linear-gradient(135deg, #65040d 0%, #3d0208 100%);
+assets/css/reservations.css:471:  color: #fff;
+assets/css/reservations.css:512:  border-top: 1px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:522:  background: var(--brand, #65040d);
+assets/css/reservations.css:523:  color: #fff;
+assets/css/reservations.css:536:  border: 1.5px solid var(--dd-line, #EADfCE);
+assets/css/reservations.css:541:  color: var(--dd-muted, #6E5B4C);
+assets/css/reservations.css:549:.dd-res-back-btn:hover { border-color: var(--dd-muted, #6E5B4C); }
+assets/css/reservations.css:556:  background: #FBF7F1;
+assets/css/reservations.css:557:  border: 1px solid #EADFCE;
+assets/css/reservations.css:561:  color: #6E5B4C;
+assets/css/reservations.css:577:  background: #FBF7F1;
+assets/css/reservations.css:578:  border: 1px solid #EADFCE;
+assets/css/reservations.css:590:  color: #6E5B4C;
+assets/css/reservations.css:598:  color: #65040d;
+assets/css/reservations.css:603:  color: #6E5B4C;
+assets/css/reservations.css:610:  color: #6E5B4C;
+assets/css/reservations.css:611:  background: #F5EFE6;
+assets/css/simple-page.css:3:    background: var(--dd-bg, #FAF7F2);
+assets/css/simple-page.css:8:    background: #fff;
+assets/css/simple-page.css:17:    color: var(--dd-dark, #1E3A5F);
+assets/css/simple-page.css:20:    border-bottom: 2px solid var(--dd-brand, #E8832A);
+assets/css/simple-page.css:26:    color: #444;
+assets/css/simple-page.css:32:    color: #221B19;
+assets/css/simple-page.css:39:    color: #221B19;
+assets/css/simple-page.css:57:    color: var(--dd-brand, #E8832A);
+assets/css/theme.css:90:    --brand:      #6B1D1D;
+assets/css/theme.css:91:    --brand-dark: #160F0D;
+assets/css/theme.css:92:    --dd-bg:        #F5EFE6;
+assets/css/theme.css:93:    --dd-surface:   #FBF7F1;
+assets/css/theme.css:94:    --dd-surface-2: #FFF7EA;
+assets/css/theme.css:95:    --dd-white:     #ffffff;
+assets/css/theme.css:96:    --dd-text:      #221B19;
+assets/css/theme.css:97:    --dd-muted:     #6E5B4C;
+assets/css/theme.css:98:    --dd-muted-2:   #8A6E53;
+assets/css/theme.css:99:    --dd-gold:      #C9A24A;
+assets/css/theme.css:100:    --dd-gold-soft: #E6C77A;
+assets/css/theme.css:101:    --dd-line:      #EADfCE;
+assets/css/theme.css:102:    --dd-hero:      #1A1A1A;
+assets/css/theme.css:114:    --dd-bg:        #F5EFE6;
+assets/css/theme.css:115:    --dd-surface:   #FBF7F1;
+assets/css/theme.css:116:    --dd-surface-2: #FFF7EA;
+assets/css/theme.css:117:    --dd-white:     #ffffff;
+assets/css/theme.css:120:    --dd-text:    #221B19;
+assets/css/theme.css:121:    --dd-muted:   #6E5B4C;
+assets/css/theme.css:122:    --dd-muted-2: #8A6E53;
+assets/css/theme.css:125:    --brand:      #6B1D1D;
+assets/css/theme.css:126:    --brand-dark: #160F0D;
+assets/css/theme.css:129:    --dd-gold:      #C9A24A;
+assets/css/theme.css:130:    --dd-gold-soft: #E6C77A;
+assets/css/theme.css:133:    --dd-line: #EADfCE;
+assets/css/theme.css:134:    --dd-hero: #1A1A1A;
+assets/css/theme.css:224:    color: #ffffff !important;
+assets/css/theme.css:229:    color: #ffffff !important;
+assets/css/theme.css:234:    color: #ffffff !important;
+assets/css/theme.css:239:    color: #ffffff !important;
+assets/css/theme.css:265:    color: #241B12 !important;
+assets/css/theme.css:271:    color: #241B12 !important;
+assets/css/theme.css:366:    color: #F5EFE6;
+assets/css/theme.css:434:    color: #F5EFE6;
+assets/css/theme.css:522:    background: #fff;
+assets/css/theme.css:537:    border-bottom: 1px solid #f0ece6;
+assets/css/theme.css:545:    background: #f5efe6;
+assets/css/theme.css:556:.dd-nav-drawer__close:hover { background: #ede6db; }
+assets/css/theme.css:571:    color: #221B19 !important;
+assets/css/theme.css:573:    border-bottom: 1px solid #faf6f0 !important;
+assets/css/theme.css:580:    background: #faf6f0 !important;
+assets/css/theme.css:596:    border-top: 1px solid #f0ece6;
+assets/css/theme.css:623:    background: #1A0A0A;
+assets/css/theme.css:666:    color: #F7F0E8;
+assets/css/theme.css:735:    color: #F7F0E8;
+assets/css/theme.css:780:    border: 1px solid #D9CABC;
+assets/css/theme.css:792:    border: 1px solid #E7DCCD;
+assets/css/theme.css:817:    background: #F3E8D7;
+assets/css/theme.css:825:    color: #fff;
+assets/css/theme.css:832:    background: #F5EFE5;
+assets/css/theme.css:833:    border: 1px solid #DECDBD;
+assets/css/theme.css:850:    background: #F3E8D7;
+assets/css/theme.css:896:    border: 1px solid #E1D5C6;
+assets/css/theme.css:898:    color: #6b1d1d !important;
+assets/css/theme.css:915:    color: #6b1d1d !important;
+assets/css/theme.css:922:    color: #6b1d1d !important;
+assets/css/theme.css:923:    border-color: #E1D5C6 !important;
+assets/css/theme.css:973:    color: #6b1d1d;
+assets/css/theme.css:982:    border-color: #6b1d1d;
+assets/css/theme.css:987:    border-color: #6b1d1d;
+assets/css/theme.css:991:    color: #6b1d1d;
+assets/css/theme.css:1006:    border: 1px solid #E1D5C6;
+assets/css/theme.css:1019:    color: #ffffff !important;
+assets/css/theme.css:1058:    color: #fff;
+assets/css/theme.css:1182:    color: #ffffff;
+assets/css/theme.css:1247:    color: #F7F0E8;
+assets/css/theme.css:1265:    color: #F7F0E8;
+assets/css/theme.css:1270:    color: #241B12 !important;
+assets/css/theme.css:1316:    color: #F7F0E8;
+assets/css/theme.css:1330:    background: #1A0A0A;
+assets/css/theme.css:1375:    color: #F7F0E8;
+assets/css/theme.css:1428:    border: 1px solid #EFE4D7;
+assets/css/theme.css:1491:    color: #4F4137;
+assets/css/theme.css:1506:    background: var(--brand-dark, #160F0D);
+assets/css/theme.css:1507:    color: #F1E7DB;
+assets/css/theme.css:1513:    background: var(--brand-dark, #160F0D) !important;
+assets/css/theme.css:1514:    color: #F1E7DB !important;
+assets/css/theme.css:1549:    color: #F5EFE6;
+assets/css/theme.css:1561:    color: #F5EFE6;
+assets/css/theme.css:1621:    color: #ffffff;
+assets/css/theme.css:1840:        color: #ffffff;
+assets/css/theme.css:1850:        background: #8B2020;
+assets/css/theme.css:1955:        background: #f9f5ef !important;
+assets/css/theme.css:1972:        color: #221B19 !important;
+assets/css/theme.css:1976:        background: #f9f5ef !important;
+assets/css/theme.css:1982:        background: #ede8e0 !important;
+assets/css/theme.css:2095:        border-top: 1px solid #E8DDCF;
+assets/css/theme.css:2117:    .dd-bottom-link.active { background: #F1E8DB; color: var(--brand); }
+assets/css/theme.css:2269:    color: #fff;
+assets/css/theme.css:2284:    background: #fff;
+assets/css/theme.css:2285:    border: 1.5px solid #ede6db;
+assets/css/theme.css:2295:    border-top: 1px solid #f5efe6;
+assets/css/theme.css:2304:    color: #c0aa90;
+assets/css/theme.css:2324:.dd-ss__suggestion:hover { background: #fdf8f3; }
+assets/css/theme.css:2330:    background: #f5efe6;
+assets/css/theme.css:2337:.dd-ss__sug-icon--recent { background: #f0ece6; }
+assets/css/theme.css:2338:.dd-ss__sug-icon--dish   { background: #fff3e8; }
+assets/css/theme.css:2350:    color: #ccc;
+assets/css/theme.css:2360:.dd-ss__sug-remove:hover { background: #f0ece6; color: var(--brand); }
+assets/css/theme.css:2383:    border-color: var(--dd-primary, #6B1D1D);
+assets/css/theme.css:2421:.dd-ss__result-card:hover { background: #faf6f2; }
+assets/css/theme.css:2428:    background: #f5efe6;
+assets/css/theme.css:2449:    color: #221B19;
+assets/css/theme.css:2503:    background: #fff;
+assets/css/theme.css:2542:    color: #555;
+assets/css/theme.css:2550:.dd-product-modal__close:hover { background: #fff; }
+assets/css/theme.css:2557:    background: #f5efe6;
+assets/css/theme.css:2572:    background: #f5efe6;
+assets/css/theme.css:2582:    color: #221B19;
+assets/css/theme.css:2589:    color: #6E5B4C;
+assets/css/theme.css:2600:    border-top: 1px solid #f0ece6;
+assets/css/theme.css:2614:    background: #f5efe6;
+assets/css/theme.css:2639:    color: #221B19;
+assets/css/theme.css:2692:    background: #fff;
+assets/css/theme.css:2715:    background: #f5f0ea;
+assets/css/theme.css:2718:    color: #666;
+assets/css/theme.css:2725:.dd-auth-modal__close:hover { background: #ede6db; color: var(--brand); }
+assets/css/theme.css:2738:    background: var(--brand); color: #fff;
+assets/css/theme.css:2747:    color: #221B19;
+assets/css/theme.css:2753:    color: #888;
+assets/css/theme.css:2766:    border: 1.5px solid #e0e0e0;
+assets/css/theme.css:2768:    background: #fff;
+assets/css/theme.css:2771:    color: #333;
+assets/css/theme.css:2778:    border-color: #aaa;
+assets/css/theme.css:2780:    color: #333;
+assets/css/theme.css:2789:    color: #ccc;
+assets/css/theme.css:2797:    background: #eee;
+assets/css/theme.css:2806:    color: #888;
+assets/css/theme.css:2814:    border: 1.5px solid #e8ddd2;
+assets/css/theme.css:2818:    color: #221B19;
+assets/css/theme.css:2819:    background: #fdfaf7;
+assets/css/theme.css:2827:    background: #fff;
+assets/css/theme.css:2842:    color: #666;
+assets/css/theme.css:2871:    color: #888;
+assets/css/theme.css:2883:.dd-auth-msg--error   { background: #fff2f2; color: #c0392b; border: 1px solid #fdd; }
+assets/css/theme.css:2884:.dd-auth-msg--success { background: #f0fff4; color: #27ae60; border: 1px solid #c3fad5; }
+assets/css/theme.css:2909:    color: var(--brand, #6B1D1D);
+assets/css/theme.css:2948:    background: #fff;
+assets/css/theme.css:2973:    background: #f5efe6;
+assets/css/theme.css:2981:    border-color: var(--brand, #6B1D1D);
+assets/css/theme.css:2983:    background: #fff;
+assets/css/theme.css:2990:    color: var(--brand, #6B1D1D);
+assets/css/theme.css:3005:    border-top: 1px solid #f0ece6 !important;
+assets/css/theme.css:3010:    background: #fff;
+assets/css/theme.css:3013:    border-top: 1px solid #f0ece6 !important;
+assets/css/theme.css:3052:    background: var(--dd-bg, #F5EFE6);
+templates/cart/cart.php:58:            &#128722; <?php esc_html_e( 'Your Order', 'dish-dash' ); ?>
+templates/cart/cart.php:62:            &#10005;
+templates/cart/cart.php:111:                &#128757; <?php esc_html_e( 'Add', 'dish-dash' ); ?>
+templates/cart/cart.php:132:                <?php esc_html_e( 'Proceed to Checkout', 'dish-dash' ); ?> &#8594;
+templates/cart/cart.php:142:                &#8592; <?php esc_html_e( 'Back', 'dish-dash' ); ?>
+templates/cart/cart.php:186:                <span id="ddCheckoutTotal">&#8212;</span>
+templates/cart/cart.php:190:                <span id="ddCheckoutDeliveryFee">&#8212;</span>
+templates/cart/cart.php:193:                <?php esc_html_e( 'Place Order', 'dish-dash' ); ?> &#8594;
+templates/cart/cart.php:202:            <div class="dd-confirm-panel__icon">&#9989;</div>
+templates/cart/cart.php:229:    &#128722;
+templates/menu/grid.php:37:$primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+templates/menu/grid.php:38:$dark    = get_option( 'dish_dash_dark_color',    '#160F0D' );
+templates/page-dishdash.php:89:$dd_primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+templates/page-dishdash.php:90:$dd_dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
+templates/page-dishdash.php:111:$dd_overlay_color   = get_option( 'dd_hero_overlay_color', '#6B1D1D' );
+templates/page-dishdash.php:259:<title><?php the_title(); ?> &#8211; <?php bloginfo( 'name' ); ?></title>
+templates/page-dishdash.php:422:                <button class="dd-arrow-btn" id="ddCatPrev">&#8592;</button>
+templates/page-dishdash.php:423:                <button class="dd-arrow-btn" id="ddCatNext">&#8594;</button>
+templates/page-dishdash.php:486:                <button class="dd-arrow-btn" id="ddFeatPrev">&#8592;</button>
+templates/page-dishdash.php:487:                <button class="dd-arrow-btn" id="ddFeatNext">&#8594;</button>
+templates/page-dishdash.php:543:            <button class="dd-arrow-btn" id="ddSelCatPrev">&#8592;</button>
+templates/page-dishdash.php:544:            <button class="dd-arrow-btn" id="ddSelCatNext">&#8594;</button>
+templates/page-dishdash.php:872:                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6.1 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+templates/page-dishdash.php:873:                            <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+templates/page-dishdash.php:874:                            <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+templates/page-dishdash.php:875:                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C41 35.5 44 30.2 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+templates/page-dishdash.php:880:                        <?php for ( $s = 0; $s < $rating; $s++ ) echo '<span>&#9733;</span>'; ?>
+templates/page-dishdash.php:904:    color: #8a7a66; font-size: 12px; letter-spacing: .18em;
+templates/page-dishdash.php:910:    margin: 0 !important; color: #1a0f08 !important;
+templates/page-dishdash.php:938:    background: #ffffff !important;
+templates/page-dishdash.php:939:    border: 1px solid #EADfCE !important;
+templates/page-dishdash.php:967:    background: #e8e8e8;
+templates/page-dishdash.php:976:    background: var(--brand, #6B1D1D) !important;
+templates/page-dishdash.php:977:    color: #ffffff !important;
+templates/page-dishdash.php:989:    color: #2b1d12 !important;
+templates/page-dishdash.php:999:    color: #8a7a66 !important;
+templates/page-dishdash.php:1011:    color: #FBBC04 !important;
+templates/page-dishdash.php:1021:    color: #3a2e25 !important;
+templates/page-dishdash.php:1039:    color: var(--brand, #6B1D1D);
+templates/page-dishdash.php:1056:    border: 1px solid #EADfCE;
+templates/page-dishdash.php:1057:    background: #ffffff;
+templates/page-dishdash.php:1058:    color: #2b1d12;
+templates/page-dishdash.php:1068:    background: var(--brand, #6B1D1D);
+templates/page-dishdash.php:1069:    color: #ffffff;
+templates/page-dishdash.php:1070:    border-color: var(--brand, #6B1D1D);
+templates/reservations/modal.php:102:                style="display:none;color:#e53935;font-size:13px;margin-top:4px;"></span>
+templates/reservations/modal.php:133:          <p class="dd-res-submit-error" hidden style="color:#dc2626;font-size:14px;margin:0 0 10px"></p>
+assets/css/admin.css:27:    --dd-dark:         #1E3A5F;
+assets/css/admin.css:31:    --dd-bg:           #f9f9f9;
+assets/css/admin.css:47:    background: var(--dd-dark);
+assets/css/admin.css:116:    color: var(--dd-dark);
+assets/css/admin.css:138:    color: var(--dd-dark);
+assets/css/admin.css:153:    background: var(--dd-bg);
+assets/css/admin.css:159:    color: var(--dd-dark);
+assets/css/admin.css:181:    color: var(--dd-dark);
+assets/css/admin.css:224:.dd-coming-soon h2   { color: var(--dd-dark); font-size: 1.3rem; margin: 0 0 .5rem; }
+assets/css/admin.css:301:    border-left: 4px solid var(--kpi-accent, var(--dd-brand, #65040d));
+assets/css/admin.css:360:    color: var(--dd-brand, #65040d);
+assets/css/admin.css:427:    background: var(--dd-brand, #65040d);
+assets/css/admin.css:477:    border-color: var(--dd-brand, #65040d);
+assets/css/admin.css:478:    color: var(--dd-brand, #65040d);
+assets/css/admin.css:508:    border-left: 4px solid var(--stat-accent, var(--dd-brand));
+assets/css/admin.css:541:    background: var(--dd-brand);
+assets/css/admin.css:543:    border-color: var(--dd-brand);
+assets/css/admin.css:619:    background: var(--dd-brand);
+assets/css/admin.css:652:.dd-btn-primary   { background: var(--dd-brand); color: #fff; }
+assets/css/admin.css:857:    border-color: var(--dd-brand);
+assets/css/admin.css:858:    color: var(--dd-brand);
+assets/css/admin.css:860:.dd-order-row:hover td:first-child { color: var(--dd-brand); }
+assets/css/admin.css:885:    background: var(--dd-brand);
+assets/css/admin.css:908:.dd-check { width: 16px; height: 16px; cursor: pointer; accent-color: var(--dd-brand); }
+assets/css/admin.css:964:    background: var(--dd-brand);
+assets/css/admin.css:1055:    background: var(--dd-brand);
+assets/css/admin.css:1106:    border-color: var(--dd-brand);
+assets/css/admin.css:1107:    color: var(--dd-brand);
+assets/css/admin.css:1111:    background: var(--dd-brand);
+assets/css/admin.css:1112:    border-color: var(--dd-brand);
+assets/css/admin.css:1149:    border-color: var(--dd-brand);
+assets/css/admin.css:1150:    color: var(--dd-brand);
+assets/css/admin.css:1154:    background: var(--dd-brand);
+assets/css/admin.css:1155:    border-color: var(--dd-brand);
+assets/css/admin.css:1190:    color: var(--dd-brand); border-bottom-color: var(--dd-brand);
+assets/css/admin.css:1200:    background: var(--dd-brand); color: #fff; border-color: var(--dd-brand);
+assets/css/admin.css:1234:.dd-insights-seed-fill { height: 100%; background: var(--dd-brand); border-radius: 99px; transition: width .4s; }
+assets/css/admin.css:1235:.dd-insights-seed-pct  { font-size: 13px; font-weight: 600; color: var(--dd-brand); white-space: nowrap; }
+assets/css/admin.css:1258:.dd-insights-strip::-webkit-scrollbar-thumb { background: var(--dd-brand); border-radius: 2px; opacity: .5; }
+assets/css/admin.css:1273:    font-weight: 600; color: var(--dd-brand); text-decoration: none;
+assets/css/admin.css:1291:.dd-speed-kpi-value--total { color: var(--dd-brand); }
+assets/css/admin.css:1317:.dd-speed-table a  { color: var(--dd-brand); text-decoration: none; font-weight: 600; }
+assets/css/admin.css:1326:    background: var(--dd-brand); color: #fff; font-size: 12px; font-weight: 700;
+assets/css/admin.css:1341:.dd-hbar-fill  { height: 100%; background: var(--dd-brand);
+assets/css/admin.css:1359:.dd-top-item-bar   { height: 100%; background: var(--dd-brand); border-radius: 99px; }
+assets/css/cart.css:1222:    border-top-color: var(--dd-brand, var(--dd-cart-red));
+assets/css/cart.css:1286:    background: linear-gradient(to right, transparent, var(--dd-brand), transparent);
+assets/css/frontend.css:34:    --dd-bg-card:       #ffffff;
+assets/css/frontend.css:89:    background: var(--dd-bg-card);
+assets/css/frontend.css:369:    color: var(--dd-dark, #1E3A5F);
+assets/css/frontend.css:661:    background: var(--dd-bg, #F5EFE6);
+assets/css/menu.css:26: *   --dd-primary, --dd-dark, --dd-muted, --dd-border, --dd-bg-card,
+assets/css/menu.css:36:    --dd-dark:          #1E3A5F;
+assets/css/menu.css:40:    --dd-bg-card:       #ffffff;
+assets/css/menu.css:67:.dd-menu-card { background:var(--dd-bg-card); border:1px solid var(--dd-border); border-radius:var(--dd-radius); box-shadow:var(--dd-shadow); overflow:hidden; display:flex; flex-direction:column; transition:transform .25s ease,box-shadow .25s ease; position:relative; }
+assets/css/menu.css:85:.dd-card-title { font-size:1rem; font-weight:800; color:var(--dd-dark); margin:0; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+assets/css/menu.css:95:.dd-add-to-cart-btn { background:var(--dd-dark); color:#fff; border:none; border-radius:999px; cursor:pointer; font-family:'Nunito',sans-serif; font-size:.78rem; font-weight:800; padding:.55rem 1rem; transition:background .2s,transform .15s; white-space:nowrap; flex-shrink:0; }
+assets/css/order-tracking.css:20:    --dd-track-accent: var(--brand, var(--dd-accent, var(--dd-brand, #65040d)));
+assets/css/order-tracking.css:25:    background: var(--dd-bg-card, var(--dd-surface, transparent));
+assets/css/reservations-admin.css:11:    background: var(--dd-dark, #1e293b);
+assets/css/reservations-admin.css:96:    border-color: var(--dd-brand);
+assets/css/reservations-admin.css:97:    color: var(--dd-brand);
+assets/css/reservations-admin.css:101:    background: var(--dd-brand);
+assets/css/reservations-admin.css:103:    border-color: var(--dd-brand);
+assets/css/reservations-admin.css:134:    border-color: var(--dd-brand);
+assets/css/reservations-admin.css:135:    box-shadow: 0 0 0 3px rgba(var(--dd-brand-rgb), 0.12);
+assets/css/reservations-admin.css:138:    background: var(--dd-brand) !important;
+assets/css/reservations-admin.css:139:    border-color: var(--dd-brand) !important;
+assets/css/reservations-admin.css:292:    border-color: var(--dd-brand);
+assets/css/reservations-admin.css:293:    color: var(--dd-brand);
+assets/css/reservations-admin.css:359:    color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:360:    border-bottom-color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:386:    background: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:387:    border-color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:429:    background: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:430:    border-color: var(--dd-brand, #E8832A);
+assets/css/reservations-admin.css:526:    background: var(--dd-brand, #65040d);
+assets/css/simple-page.css:3:    background: var(--dd-bg, #FAF7F2);
+assets/css/simple-page.css:17:    color: var(--dd-dark, #1E3A5F);
+assets/css/simple-page.css:20:    border-bottom: 2px solid var(--dd-brand, #E8832A);
+assets/css/simple-page.css:57:    color: var(--dd-brand, #E8832A);
+assets/css/theme.css:18: *   --brand, --brand-dark, --dd-bg, --dd-surface, --dd-surface-2,
+assets/css/theme.css:92:    --dd-bg:        #F5EFE6;
+assets/css/theme.css:114:    --dd-bg:        #F5EFE6;
+assets/css/theme.css:151:    background: var(--dd-bg);
+assets/css/theme.css:3052:    background: var(--dd-bg, #F5EFE6);
+modules/activity/class-dd-activity-module.php:200:                    <span style="padding:6px 12px;background:var(--dd-brand,#65040d);color:#fff;border-radius:6px;"><?php echo (int) $p; ?></span>
+modules/template/class-dd-template-module.php:579:            --dd-bg:        #F5EFE6;
+admin/class-dd-admin.php:252:        $css  = ":root, body { --dd-brand: {$primary}; --dd-brand-rgb: {$rgb_str}; }\n";
+admin/pages/brand-identity.php:393:    background: var(--dd-brand, #65040d) !important;
+admin/pages/orders.php:304:    border-color: var(--dd-brand);
+admin/pages/orders.php:305:    box-shadow: 0 0 0 2px var(--dd-brand-light);
+admin/pages/orders.php:335:    border-color: var(--dd-brand);
+admin/pages/settings.php:148:    color: var(--dd-brand);
+admin/pages/settings.php:149:    border-bottom: 2px solid var(--dd-brand);
+admin/pages/settings.php:242:    background: var(--dd-brand);
+admin/pages/settings.php:243:    border-color: var(--dd-brand-dark, var(--dd-brand));
+admin/pages/settings.php:252:    background: var(--dd-brand-dark, var(--dd-brand));
+admin/pages/settings.php:253:    border-color: var(--dd-brand-dark, var(--dd-brand));
+admin/pages/settings.php:266:    border: 1px solid var(--dd-brand);
+admin/pages/settings.php:267:    background: var(--dd-bg, #fff8f3);
+admin/pages/settings.php:748:                        color = 'var(--dd-brand)';

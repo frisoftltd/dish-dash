@@ -1,176 +1,165 @@
-# INVESTIGATION — Spice selector: move from per-product attribute to a category rule
+# INVESTIGATION — Hardcoded brand-color leaks in the frontend
 
-**Read-only. No code changes.** Plugin: dish-dash (universal). Surfaced on: nyarutarama, v3.11.5.
+**Read-only. No fixes.** Plugin: dish-dash (universal white-label). Surfaced on: nyarutarama,
+v3.11.6. Brand colours must be dynamic (`dish_dash_primary_color` etc. → CSS vars); any raw
+`#65040d` (or a derived red shade) that isn't a `var(...)` fallback renders the wrong colour
+for a restaurant whose primary isn't Khana Khazana's maroon.
 
-**Goal:** the spice-level selector should appear for **all** products **except** four categories —
-Roti Ka Khazana (bread), Meetha Ka Khazana (desserts), Dahi (yogurt), Papad. Today spice is a
-per-product WooCommerce attribute (`pa_spiciness-level`), so any product missing that attribute has no
-selector. Moving to a category rule makes it automatic and correct for all/future products.
-
-Findings are **confirmed from source** (exact `file:line`). Live term IDs/slugs need **server
-verification** (no DB access from the repo checkout) — marked **VERIFY (server)**.
+Raw grep output is in **`investigation-color-leaks.txt`** (1,113 lines: every `#65040d`, every
+frontend hex, and every CSS-var definition).
 
 ---
 
-## 1. How the spice selector is rendered today
+## How the brand var is wired (baseline)
 
-**There is NO spice-specific code anywhere.** Repo-wide grep for `spice` / `spici` / `pa_spiciness` /
-`Spiciness` across `assets/js/`, `templates/`, `dishdash-core/`, `modules/`, `admin/`, `install.php`
-returns **only one hit** — a comment:
+- **`--brand`** is the frontend brand token. It is set to the restaurant's primary colour by
+  PHP inline styles:
+  - `templates/page-dishdash.php:265` → `--brand: {dish_dash_primary_color}`
+  - `modules/template/class-dd-template-module.php:354` and `:577` → `--brand: {primary}`
+- **`--dd-brand`** is the ADMIN token (set on `<body>` by admin PHP). Admin CSS uses
+  `var(--dd-brand, #65040d)` — fine.
 
-- `dishdash-core/class-dd-ajax.php:83` — *"Generic over any attribute (no pa_spiciness-level
-  special-casing)."*
+### ⭐ ROOT / STRUCTURAL FINDING — `--brand` itself defaults to a hardcoded maroon
+`assets/css/theme.css` defines, in TWO `:root`-level blocks:
+- `theme.css:90` → `--brand: #6B1D1D;`
+- `theme.css:125` → `--brand: #6B1D1D;` (comment right above: *"overridden by inline PHP style
+  in template"*)
+- (companion `--brand-dark: #160F0D;` at `:91` / `:126`)
 
-So the "spice selector" is just the **generic attribute-pill UI**. It appears for a product **iff that
-product has a VISIBLE WooCommerce attribute** (the spice one, taxonomy `pa_spiciness-level`), which the
-API normalizes into the product's `attributes[]`, and the frontend renders as pills.
-
-**The single mechanism:**
-
-- **API normalization** — `DD_API::normalize_product()` (`class-dd-api.php:560-571`) and the desktop
-  endpoint `DD_Ajax::ajax_get_product()` (`class-dd-ajax.php:84-96`) both do the identical loop:
-  ```php
-  foreach ( $product->get_attributes() as $attr ) {
-      if ( ! $attr->get_visible() ) continue;
-      $options = $attr->is_taxonomy()
-          ? wc_get_product_terms( $product->get_id(), $attr->get_name(), [ 'fields' => 'names' ] )
-          : $attr->get_options();
-      $attributes[] = [ 'name' => wc_attribute_label( $attr->get_name(), $product ), 'options' => … ];
-  }
-  ```
-  → For a product that has the spice attribute assigned, `attributes[]` gains
-  `{ name: "Spiciness Level", options: ["Mild","Medium","Hot", …] }`. Nothing marks it as "spice" — it
-  is one attribute among any others (e.g. `Size` on the v3.11.5 variable products).
-- **Mobile render** — `menu-page.js` `showProductDetails()` (`:581-593`) maps `product.attributes` into
-  `.dd-mobile-attr-pill` groups in `#dd-mobile-single-attrs`; the pill handler (`:377-432`) stores the
-  choice in `selectedAttributes[label]` and is POSTed as the `variation` text.
-- **Desktop render** — `frontend.js` `fetchProductEnrichment()` (`:1108-1155`) maps `p.attributes` into
-  `.dd-pm__attr-pill` groups in `#ddPmAttrs`, writing to `ddPmSelected`, POSTed as `variation`.
-
-**What makes the selector appear today:** the product has the visible `pa_spiciness-level` attribute
-assigned. No assignment → no selector. That is exactly why "many products are missing it."
-
-**Capture:** the selection rides in the order-item `variation` text (the same JSON, e.g.
-`{"Spiciness Level":"Hot"}`) — there is no dedicated spice column.
+So on any frontend surface where the PHP inline `--brand` override does **not** run, `--brand`
+falls back to the hardcoded **#6B1D1D**, and every `var(--brand, …)` resolves to that maroon —
+not the restaurant's colour. **This is why the `var(--brand, #65040d)` fallbacks below are
+"dead" (the `#65040d` never triggers) yet the pages can still render maroon: the leak is the
+`#6B1D1D` default, not the `#65040d` fallback.** Whether restaurant #2's cart/menu/reservation
+pages show its colour depends entirely on whether the PHP `--brand` injection reaches those
+pages — needs confirming per surface. This should be release #1.
 
 ---
 
-## 2. Category data — already available to the frontend
+## `#65040d` occurrences — leak vs legit, grouped by file
 
-**Category is already in the product payload** (no new plumbing for the mobile list):
+Legend: **LEAK** = raw hardcode (always maroon) · **legit** = `var(--brand|--dd-brand, #65040d)`
+fallback (only used if the var is undefined; low priority, but still a hardcoded hex in source).
 
-- `normalize_product()` (`class-dd-api.php:539-544, 585-586`) reads
-  `get_the_terms( $product_id, 'product_cat' )` and emits:
-  - `'categories'  => [ { id, slug, name }, … ]`  (`:585`)
-  - `'category_ids' => [ term_id, … ]`            (`:586`)
-- The mobile product list is localized from `DD_API::get_products( ['limit'=>-1] )`
-  (`templates/menu/grid.php:335`) → every mobile product already carries `categories` + `category_ids`.
+### assets/css/theme.css — the source of `--brand`
+- `:90`, `:125` `--brand: #6B1D1D` · `:91`, `:126` `--brand-dark: #160F0D` — **LEAK (root)**.
+  Not `#65040d` (a *different* maroon) — see the structural finding above.
 
-**Gap for desktop:** `ajax_get_product()` (`class-dd-ajax.php:98-108`) does **NOT** send categories (only
-id/name/price/price_html/description/image/rating/attributes/variations). So a **frontend-side** category
-rule would work on mobile but the desktop modal would need `categories` added — which is why a
-**server-side `has_spice` flag** (computed in both endpoints) is the cleaner choice (see §4).
+### assets/css/menu-page.css — **5 LEAKS** (mobile menu)
+- `:74` `background: #65040d;` — LEAK
+- `:417` `background: #65040d;` — LEAK
+- `:569` `background: #65040d;` — LEAK
+- `:570` `border-color: #65040d;` — LEAK
+- `:602` `background: #65040d;` — LEAK
+- (+ derived-red hover: `:429` `background: #4a0209;` — LEAK, see "Secondary reds")
 
-**The four no-spice categories** — names given: Roti Ka Khazana, Meetha Ka Khazana - Desserts,
-Dahi - Yogurt, Papad. Brief's approximate term IDs: **135, 141, 133, 132**. **VERIFY (server)** — no
-category slugs/IDs are hardcoded anywhere in the repo (grep of `install.php` + modules = none), so the
-real slugs/IDs must be read live:
-```bash
-wp term list product_cat --fields=term_id,slug,name --format=table
-```
-> ⚠️ **Term IDs are per-install.** For a white-label/universal plugin, keying the rule on **slugs** (or an
-> admin setting) is safe; hardcoding IDs (135/141/133/132) is **not** portable across restaurants.
+### assets/css/reservations.css — **2 LEAKS** + 17 legit fallbacks
+- `:468` `linear-gradient(135deg, #65040d 0%, #3d0208 100%)` — **LEAK** (both stops hardcoded)
+- `:598` `color: #65040d;` — **LEAK**
+- `:32, :144, :164, :239, :254, :255, :288, :291, :292, :351, :377(×2), :380, :381, :402,
+  :445, :462, :522` — all `var(--brand, #65040d)` — **legit** (fallback only)
+
+### assets/css/frontend.css — **3 LEAKS** + 1 legit
+- `:550` `linear-gradient(135deg, #65040d, #a00015)` — **LEAK** (both stops hardcoded)
+- `:592` `border: 2px solid #65040d;` — **LEAK**
+- `:593` `color: #65040d;` — **LEAK**
+- `:727` `var(--brand, #65040d)` — legit
+
+### assets/css/cart.css — **3 LEAKS**
+- `:28` `--dd-cart-red: #65040d;` — **LEAK** (defines a local var TO the hardcoded maroon;
+  every consumer of `--dd-cart-red` inherits the leak — fix here fixes many)
+- `:618` `color: #65040d;` — **LEAK**
+- `:654` `color: #65040d;` — **LEAK**
+- (+ derived-red: `:338`, `:521` `background: #4a0209;` — LEAK, see below)
+
+### assets/css/birthday.css — **2 LEAKS**
+- `:34` `color: #65040d;` — **LEAK**
+- `:95` `background: #65040d;` — **LEAK**
+
+### assets/css/order-tracking.css — 0 leaks (both legit)
+- `:20` `--dd-track-accent: var(--brand, var(--dd-accent, var(--dd-brand, #65040d)))` — legit
+- `:209` `background: var(--brand, #65040d)` — legit
+
+### assets/css/admin.css — ADMIN (out of "frontend" scope) — 0 true leaks
+- `:301, :360, :427, :477, :478` — all `var(--dd-brand, #65040d)` — legit fallbacks.
+
+### assets/css/reservations-admin.css — ADMIN — 0 true leaks
+- `:526` `var(--dd-brand, #65040d)` — legit.
+
+### templates/*.php — 0 `#65040d` hits (all leaks are in CSS files).
 
 ---
 
-## 3. Where the spice options (Mild/Medium/Hot) live
+## Secondary brand-red shades — also LEAKS (hardcoded darker/hover/gradient reds)
 
-`pa_spiciness-level` is a **global WooCommerce product-attribute taxonomy** (the `pa_` prefix = a
-registered attribute taxonomy under Products → Attributes). Its **terms** (Mild / Medium / Hot / …) are
-**global**, stored once — not per product. A product merely *references* a subset of those terms when the
-attribute is assigned to it.
+These are brand-derived shades that won't adapt to the restaurant's colour:
+- `#4a0209` (dark hover/active): `cart.css:338`, `cart.css:521`, `menu-page.css:429`,
+  `menu-page.css:621` — **LEAK ×4**
+- `#a00015` (gradient end): `frontend.css:550` — **LEAK**
+- `#3d0208` (gradient end): `reservations.css:468` — **LEAK**
+- `#6B1D1D` / `#160F0D`: `theme.css` `--brand` / `--brand-dark` defaults — **LEAK** (root).
 
-- Today the option list shown for a product = **that product's assigned terms**
-  (`wc_get_product_terms( $id, 'pa_spiciness-level', ['fields'=>'names'] )`, `class-dd-api.php:565`).
-- The **canonical full list**, independent of any product, is the taxonomy's terms:
-  ```php
-  get_terms( [ 'taxonomy' => 'pa_spiciness-level', 'hide_empty' => false ] );
-  ```
-
-**This is the key answer to the design question:** the spice options **already live in a global taxonomy**.
-Decoupling visibility from per-product assignment does **not** require moving/duplicating the options —
-they can keep coming from `pa_spiciness-level`'s terms, read globally. **VERIFY (server)** the exact
-taxonomy slug (`pa_spiciness-level` vs `pa_spiciness_level`) and the term set:
-```bash
-wp wc product_attribute list --user=1        # find the attribute + its taxonomy slug
-wp term list pa_spiciness-level --fields=term_id,slug,name --format=table
-```
+There is no derived-shade CSS var today (e.g. `--brand-dark` exists but is itself hardcoded),
+so a proper fix needs a brand-dark token driven from the primary (or `color-mix()` off
+`--brand`).
 
 ---
 
-## 4. Recommendation — category rule, options from the taxonomy
+## Decision-needed (flagged, NOT classified as a definite leak)
 
-### Design decision (the one the brief asked to nail)
-**Keep `pa_spiciness-level` as the option source; decide visibility by category.** Of the three options:
-- **A. Global spice-options setting** — flexible but duplicates data already in the taxonomy; extra admin
-  surface to keep in sync. ✗ (unnecessary)
-- **B. Hardcoded Mild/Medium/Hot list** — not white-label, drifts from the taxonomy. ✗
-- **C. Read options from the `pa_spiciness-level` taxonomy terms (global), gate visibility by category.**
-  ✓ **RECOMMENDED** — reuses existing data, zero migration, canonical, white-label-safe.
+- **Accent orange `#e8832a` / `#E8832A` (~35 uses; defined `frontend.css:29 --dd-accent:
+  #e8832a`, admin `--dd-primary: #E8832A`).** This is a pervasive SECONDARY colour but is
+  **not** in the restaurant-configurable set (only `dish_dash_primary_color`, `_dark_color`,
+  `_background_color`, `_font` exist). Either it's an intentional design constant (leave) or
+  the white-label model should add a configurable accent. **Product decision required before
+  touching it** — do not fix blind.
 
-### How to gate by category
-Compute a **server-side `has_spice`** so both endpoints and both UIs agree and no category data has to be
-shipped to the client:
-- `has_spice = ( product's category set does NOT intersect the excluded set )`.
-- **Excluded set — make it a setting, not hardcoded IDs.** Add an admin field (Settings) —
-  `dd_spice_excluded_categories` (multi-select of `product_cat`, stored as term IDs or slugs). White-label
-  restaurants pick their own no-spice categories; nyarutarama seeds Roti/Meetha/Dahi/Papad.
-  (Acceptable interim: a slug allow-list constant, since slugs are stable; IDs are not.)
+---
 
-### Minimal change set (server-driven, frontend-thin)
-1. **API — `class-dd-api.php`**
-   - New helper `DD_API::spice_options()` → cached `get_terms('pa_spiciness-level' → names)` (5-min
-     transient like the others). Single global read.
-   - New helper `DD_API::product_has_spice( $product )` → true unless its `category_ids`/slugs intersect
-     `dd_spice_excluded_categories`.
-   - In `normalize_product()` add `'has_spice' => …`. (Options can be sent per product or, better, once
-     in the page-level localize to avoid repeating the same list on every product.)
-2. **Desktop endpoint — `class-dd-ajax.php`** `ajax_get_product()`: add the same `'has_spice'` (+ options
-   if not page-localized). This is also where `categories` is currently absent — `has_spice` avoids
-   needing to add it.
-3. **Frontend — `menu-page.js` + `frontend.js`**: when `has_spice`, render **one dedicated spice pill
-   group** from the global `spice_options` (reuse the existing `.dd-mobile-attr-pill` /
-   `.dd-pm__attr-pill` markup), SEPARATE from `attributes[]` so it composes with real attributes (e.g.
-   `Size`). Include it in the "all selected" gate if spice is to be required (or make it optional with a
-   default).
-4. **Capture** — the spice choice must reach the order. Two clean options:
-   - Fold it into the existing `variation` JSON text on the **simple** path (works today, no schema
-     change). **Nuance for VARIABLE products:** the v3.11.5 cart **rebuilds** the variation text
-     server-side from the variation's own attributes (`class-dd-cart.php` `variation_label()`), which
-     would **drop** a client spice choice. So for variable products the spice must be merged in
-     server-side (append the posted spice to the rebuilt text) **or** carried in a separate field.
-   - Simplest universal: a dedicated `spice` POST field stored on the cart line and appended to the
-     order-item `variation`/`special_note` on both paths (no price impact — spice never changes price, so
-     it must **not** be modeled as a WC variation/`variation_id`).
+## Legit (NOT leaks) — neutral / semantic palette
 
-### Why NOT inject spice into `attributes[]`
-Tempting (frontend unchanged), but it collides with v3.11.5: for variable products the server rebuilds
-`variation` text from the matched variation and would discard the injected spice; and it muddies the
-"required selections" gate with a non-variation attribute. Keep spice as its **own** flagged selector.
+For completeness (from the frontend hex frequency scan) — these are correct as constants and
+should be LEFT alone:
+- Neutral greys: `#6b7280, #9ca3af, #e5e7eb, #d1d5db, #374151, #f3f4f6, #f9fafb`
+- Text/dark: `#221b19, #1a1a1a, #6e5b4c`
+- Backgrounds: `#f5efe6, #fbf7f1, #eadfce, #f0ece6, #f7f0e8, #fafafa, #ffffff`
+- Status colours: red `#991b1b / #c0392b / #fee2e2`, green `#166534 / #065f46 / #dcfce7`,
+  amber `#92400e`, WhatsApp `#25d366`.
+  (These convey meaning, not brand — keep hardcoded.)
 
-### Files to change (implementation, later)
-| Layer | File · function | Change |
-|---|---|---|
-| API | `dishdash-core/class-dd-api.php` · `normalize_product()` + new `spice_options()` / `product_has_spice()` | emit `has_spice`; provide global spice options; category-exclusion check |
-| API (desktop) | `dishdash-core/class-dd-ajax.php` · `ajax_get_product()` | emit `has_spice` (+ options if not page-localized) |
-| Frontend | `assets/js/menu-page.js` · `showProductDetails()` + pill handler | render dedicated spice group when `has_spice`; capture selection |
-| Frontend | `assets/js/frontend.js` · `renderModal()` / `fetchProductEnrichment()` | same for the desktop modal |
-| Cart | `modules/orders/class-dd-cart.php` · `ajax_add()` (+ `variation_label()`) | accept + persist spice into the order line on BOTH simple and variable paths |
-| Admin (recommended) | `admin/pages/settings.php` | `dd_spice_excluded_categories` multi-select (white-label) |
+---
 
-### Server verification checklist (before the implementation brief)
-- Exact spice taxonomy slug + its terms (§3 commands).
-- The four excluded categories' real slugs/IDs (§2 command) — decide slug-list vs setting.
-- Whether spice should be **required** or **optional-with-default** on non-excluded products.
+## Leak tally (frontend only)
 
-**STOP — awaiting review before the implementation brief.**
+| File | Raw `#65040d` leaks | Secondary-red leaks | Legit `var()` fallbacks |
+|---|---|---|---|
+| theme.css | — (`--brand:#6B1D1D` root leak ×2 + `--brand-dark` ×2) | — | — |
+| menu-page.css | 5 | 2 (`#4a0209`) | 0 |
+| reservations.css | 2 | 1 (`#3d0208`) | 17 |
+| frontend.css | 3 | 1 (`#a00015`) | 1 |
+| cart.css | 3 (incl. `--dd-cart-red`) | 2 (`#4a0209`) | 0 |
+| birthday.css | 2 | 0 | 0 |
+| order-tracking.css | 0 | 0 | 2 |
+| **Frontend total** | **15** | **6** | **37** |
+| admin.css / reservations-admin.css (admin) | 0 | 0 | 6 |
+
+---
+
+## Recommended fix order (one file per release, per workflow)
+
+1. **theme.css — the root.** Decide the `--brand`/`--brand-dark` default (neutral placeholder,
+   or ensure the PHP `--brand` injection runs on EVERY frontend surface). Confirm the injection
+   coverage first — this likely fixes the most visible leakage in one move.
+2. **menu-page.css** (5+1) — highest raw-leak count, primary ordering surface.
+3. **cart.css** (3+2) — includes `--dd-cart-red` (fix the local var → cascades).
+4. **frontend.css** (3+1) — homepage/menu shared.
+5. **reservations.css** (2+1) — mostly already var-driven; fix the 2 raw + 1 gradient.
+6. **birthday.css** (2) — small, isolated.
+7. Convert the remaining `var(--brand, #65040d)` fallbacks to a neutral/no-op fallback (cosmetic,
+   low priority) once `--brand` is guaranteed defined.
+8. **Accent `#e8832a`** — only after the product decision above.
+
+Each fix = replace the raw hex with `var(--brand, …)` (and introduce a real `--brand-dark` /
+`color-mix()` token for the darker shades) so the surface tracks `dish_dash_primary_color`.
+
+**STOP — read-only. Awaiting the implementation brief (one file per release).**
