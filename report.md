@@ -2488,3 +2488,37 @@ as-is (the `#160F0D` reconciliation belongs to the injector release, per TOKEN-S
 `php -l` clean; no schema change.
 
 **Awaiting go-ahead to commit v3.11.7.**
+
+---
+
+## Release — v3.11.8 — Central token injection helper ✅
+
+One file: `modules/template/class-dd-template-module.php`. Emits all 8 brand tokens from a
+single helper, wiring the v3.11.7 options (accent/text/heading) into live CSS vars.
+
+**New `private static build_root_tokens()`** — single source of truth for the `:root{…}` block.
+Reads the 6 configurable options (primary/dark/accent/bg/text/heading, `esc_attr()`'d), emits
+`--brand --brand-dark --accent --bg --text --heading`, the back-compat aliases
+`--dd-brand/--dd-bg/--dd-text/--dd-accent → var(--…)`, and the fixed `--dd-*` design constants
+(surface/white/muted/gold/line/shadows/container) preserved verbatim from P2.
+
+**P1** (`enqueue_frontend_assets`): the 2-token `:root` → `self::build_root_tokens()`; footer
+overrides after it unchanged (still use `$dark`).
+
+**P2** (`inject_global_header_styles`, all frontend pages): the full hand-written `:root` palette →
+`<?php echo self::build_root_tokens(); ?>` (long form, matching the file). Header-hide CSS after it
+kept; `$dark` (still used at line ~647) kept; unused `$primary` left (harmless).
+
+**Effect:** `--accent/--bg/--text/--heading` now emit on every frontend page; `--dd-bg`/`--dd-text`
+are no longer hardcoded (track options). Defaults standardized: primary `#65040d`, dark `#160F0D`.
+
+**Confirmed with developer before edit:** `$dark` is still used later in P2 (line ~647), so it was
+kept — only `$primary` becomes unused (left, harmless); used `<?php echo ?>` not `<?=`.
+
+**Not done (per brief / later):** raw `#65040d`/`#e8832a`/shade hardcodes + `--dd-cart-red` still
+don't point at the tokens (per-file CSS releases next); P3 (`page-dishdash.php:263`) left as-is
+(one-file scope; redundant, P2 covers homepage); fonts untouched.
+
+`php -l` clean; no CSS touched; no schema change.
+
+**Awaiting go-ahead to commit v3.11.8.**

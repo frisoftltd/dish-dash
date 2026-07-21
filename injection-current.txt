@@ -1,0 +1,133 @@
+########## 1. P1 + P2 :root blocks (modules/template/class-dd-template-module.php) ##########
+351-        // This is guaranteed to output after theme.css and override correctly
+352-        wp_add_inline_style( 'dish-dash-theme', '
+353:            :root {
+354-                --brand:      ' . $primary . ';
+355-                --brand-dark: ' . $dark . ';
+356-            }
+357-            .dd-footer, .dd-global-footer {
+358-                background: ' . $dark . ' !important;
+359-                color: #F1E7DB !important;
+360-            }
+361-            .dd-footer__heading { color: #C9A24A !important; }
+362-            .dd-footer__list a, .dd-footer__list li { color: rgba(241,231,219,0.7) !important; }
+363-            .dd-footer__list a:hover { color: #F1E7DB !important; }
+364-            .dd-footer__bottom { background: rgba(0,0,0,0.25) !important; color: rgba(241,231,219,0.5) !important; }
+365-            .dd-footer__copy, .dd-footer__brand-name { color: rgba(241,231,219,0.7) !important; }
+366-            .dd-footer__social-link { color: rgba(241,231,219,0.7) !important; }
+367-            .dd-footer__social-link:hover { color: #F1E7DB !important; }
+368-        ' );
+369-    }
+370-
+371-    // ─────────────────────────────────────────
+372-    //  ADMIN PAGE
+373-    // ─────────────────────────────────────────
+374-    public function register_admin_page(): void {
+375-        add_submenu_page(
+376-            'dish-dash',
+377-            __( 'Template Settings', 'dish-dash' ),
+378-            __( '🎨 Template', 'dish-dash' ),
+--
+574-        <style>
+575-        /* ── CSS variables for all pages ───────────────────── */
+576:        :root {
+577-            --brand:        <?php echo esc_attr( $primary ); ?>;
+578-            --brand-dark:   <?php echo esc_attr( $dark ); ?>;
+579-            --dd-bg:        #F5EFE6;
+580-            --dd-surface:   #FBF7F1;
+581-            --dd-surface-2: #FFF7EA;
+582-            --dd-white:     #ffffff;
+583-            --dd-text:      #221B19;
+584-            --dd-muted:     #6E5B4C;
+585-            --dd-muted-2:   #8A6E53;
+586-            --dd-gold:      #C9A24A;
+587-            --dd-gold-soft: #E6C77A;
+588-            --dd-line:      #EADfCE;
+589-            --dd-shadow-sm: 0 10px 30px rgba(107,29,29,0.06);
+590-            --dd-shadow-md: 0 20px 40px rgba(0,0,0,0.14);
+591-            --dd-container: 1240px;
+592-        }
+593-
+594-        /* ── Hide default theme header/footer — blank theme ── */
+595-        .site-header:not(.dd-header):not(.dd-global-header),
+596-        header:not(.dd-header):not(.dd-global-header),
+597-        .site-footer:not(.dd-footer):not(.dd-global-footer),
+598-        footer:not(.dd-footer):not(.dd-global-footer),
+599-        #colophon, #masthead,
+600-        .woocommerce-breadcrumb,
+601-        .breadcrumbs { display: none !important; }
+
+########## 2. get_option('dish_dash_*') reads in the template module ##########
+196:        $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+197:        $dark    = get_option( 'dish_dash_dark_color',    '#160F0D' );
+281:            'whatsappHandoff'       => get_option( 'dish_dash_order_handoff_whatsapp', '0' ) === '1',
+443:        $primary = get_option( 'dish_dash_primary_color', '#65040d' );
+571:        $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+572:        $dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
+630:        $dd_name       = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+631:        $dd_logo       = get_option( 'dish_dash_logo_url', '' );
+804:            deliveryFee:  <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
+855:        $dd_name     = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+856:        $dd_tagline  = get_option( 'dish_dash_restaurant_tagline', '' );
+857:        $dd_attrib   = get_option( 'dish_dash_footer_attribution', 'frisoft' );
+858:        $dd_logo     = get_option( 'dish_dash_logo_url', '' );
+860:        $dd_addr     = get_option( 'dish_dash_address', '' );
+861:        $dd_phone    = get_option( 'dish_dash_phone', '' );
+862:        $dd_email    = get_option( 'dish_dash_contact_email', '' );
+863:        $dd_hours    = get_option( 'dish_dash_opening_hours', '' );
+864:        $dd_fb       = get_option( 'dish_dash_facebook', '' );
+865:        $dd_ig       = get_option( 'dish_dash_instagram', '' );
+866:        $dd_wa       = get_option( 'dish_dash_whatsapp', '' );
+867:        $dd_tiktok   = get_option( 'dish_dash_tiktok', '' );
+869:        $dark        = get_option( 'dish_dash_dark_color', '#160F0D' );
+
+########## 2b. $primary / $dark assignment (what P1/P2 actually emit) ##########
+196:        $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+197:        $dark    = get_option( 'dish_dash_dark_color',    '#160F0D' );
+443:        $primary = get_option( 'dish_dash_primary_color', '#65040d' );
+571:        $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
+572:        $dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
+869:        $dark        = get_option( 'dish_dash_dark_color', '#160F0D' );
+
+########## 3. P3 homepage :root block (templates/page-dishdash.php) ##########
+262-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+263-<style>
+264::root {
+265-    --brand:      <?php echo esc_attr( $dd_primary ); ?>;
+266-    --brand-dark: <?php echo esc_attr( $dd_dark ); ?>;
+267-}
+268-</style>
+269-<?php wp_head(); ?>
+270-</head>
+271-<body class="dd-page" id="home">
+272-<?php wp_body_open(); ?>
+273-
+274-<?php if ( is_admin_bar_showing() ) : ?>
+275-<div style="height:32px"></div>
+276-<?php endif; ?>
+277-
+278-<!-- Header injected globally by DD_Template_Module via wp_body_open -->
+279-
+280-<!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
+281-<?php
+282-$hero_bg_style = '';
+283-if ( $dd_hero_bg ) {
+284-    $hero_bg_style = '--dd-hero-bg: url(' . esc_url( $dd_hero_bg ) . ');';
+285-} elseif ( $dd_h_img ) {
+286-    $hero_bg_style = '--dd-hero-bg: url(' . esc_url( $dd_h_img ) . ');';
+287-}
+288-$hero_bg_style .= '--dd-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
+289-?>
+
+########## 4. Alias landscape — token usage counts across frontend CSS ##########
+assets/css/admin.css:38
+assets/css/cart.css:9
+assets/css/frontend.css:16
+assets/css/menu-page.css:8
+assets/css/menu.css:5
+assets/css/order-tracking.css:8
+assets/css/profile.css:24
+assets/css/reservations-admin.css:17
+assets/css/reservations.css:23
+assets/css/simple-page.css:3
+assets/css/theme.css:75

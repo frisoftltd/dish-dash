@@ -349,11 +349,7 @@ class DD_Template_Module extends DD_Module {
 
         // Inject CSS variables + footer background via WordPress inline style system
         // This is guaranteed to output after theme.css and override correctly
-        wp_add_inline_style( 'dish-dash-theme', '
-            :root {
-                --brand:      ' . $primary . ';
-                --brand-dark: ' . $dark . ';
-            }
+        wp_add_inline_style( 'dish-dash-theme', self::build_root_tokens() . '
             .dd-footer, .dd-global-footer {
                 background: ' . $dark . ' !important;
                 color: #F1E7DB !important;
@@ -564,6 +560,54 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
+     * Build the complete :root token block from Brand Identity options.
+     * Single source of truth for all frontend CSS variables — used by BOTH the
+     * P1 inline-style injection (enqueue_frontend_assets) and the P2 global-header
+     * <style> (inject_global_header_styles). Emits the configurable brand tokens
+     * (--brand, --accent, …) plus back-compat --dd-* aliases so existing surfaces
+     * that read --dd-brand/--dd-bg/--dd-text/--dd-accent keep working, plus the
+     * fixed design constants (preserved verbatim from P2's original block).
+     */
+    private static function build_root_tokens(): string {
+        $primary = get_option( 'dish_dash_primary_color',    '#65040d' );
+        $dark    = get_option( 'dish_dash_dark_color',       '#160F0D' );
+        $accent  = get_option( 'dish_dash_accent_color',     '#e8832a' );
+        $bg      = get_option( 'dish_dash_background_color',  '#F5EFE6' );
+        $text    = get_option( 'dish_dash_text_color',       '#221B19' );
+        $heading = get_option( 'dish_dash_heading_color',    '#65040d' );
+
+        return '
+    :root {
+        /* ── Configurable brand tokens (Brand Identity) ── */
+        --brand:      ' . esc_attr( $primary ) . ';
+        --brand-dark: ' . esc_attr( $dark )    . ';
+        --accent:     ' . esc_attr( $accent )  . ';
+        --bg:         ' . esc_attr( $bg )      . ';
+        --text:       ' . esc_attr( $text )    . ';
+        --heading:    ' . esc_attr( $heading ) . ';
+
+        /* ── Back-compat aliases (existing surfaces read --dd-*) ── */
+        --dd-brand:   var(--brand);
+        --dd-bg:      var(--bg);
+        --dd-text:    var(--text);
+        --dd-accent:  var(--accent);
+
+        /* ── Fixed design constants (unchanged) ── */
+        --dd-surface:   #FBF7F1;
+        --dd-surface-2: #FFF7EA;
+        --dd-white:     #ffffff;
+        --dd-muted:     #6E5B4C;
+        --dd-muted-2:   #8A6E53;
+        --dd-gold:      #C9A24A;
+        --dd-gold-soft: #E6C77A;
+        --dd-line:      #EADfCE;
+        --dd-shadow-sm: 0 10px 30px rgba(107,29,29,0.06);
+        --dd-shadow-md: 0 20px 40px rgba(0,0,0,0.14);
+        --dd-container: 1240px;
+    }';
+    }
+
+    /**
      * Inject styles to hide theme header + our CSS vars.
      */
     public function inject_global_header_styles(): void {
@@ -573,23 +617,7 @@ class DD_Template_Module extends DD_Module {
         ?>
         <style>
         /* ── CSS variables for all pages ───────────────────── */
-        :root {
-            --brand:        <?php echo esc_attr( $primary ); ?>;
-            --brand-dark:   <?php echo esc_attr( $dark ); ?>;
-            --dd-bg:        #F5EFE6;
-            --dd-surface:   #FBF7F1;
-            --dd-surface-2: #FFF7EA;
-            --dd-white:     #ffffff;
-            --dd-text:      #221B19;
-            --dd-muted:     #6E5B4C;
-            --dd-muted-2:   #8A6E53;
-            --dd-gold:      #C9A24A;
-            --dd-gold-soft: #E6C77A;
-            --dd-line:      #EADfCE;
-            --dd-shadow-sm: 0 10px 30px rgba(107,29,29,0.06);
-            --dd-shadow-md: 0 20px 40px rgba(0,0,0,0.14);
-            --dd-container: 1240px;
-        }
+        <?php echo self::build_root_tokens(); ?>
 
         /* ── Hide default theme header/footer — blank theme ── */
         .site-header:not(.dd-header):not(.dd-global-header),
