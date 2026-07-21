@@ -1,0 +1,222 @@
+### templates/page-dishdash.php ###
+24- *   - modules/template/class-dd-template-module.php (loaded via template_include filter)
+25- *   - WordPress page editor (selectable as "DishDash" page template)
+26- *
+27- * CSS variables set dynamically:
+28: *   --brand (dish_dash_primary_color), --brand-dark (dish_dash_dark_color),
+29- *   --dd-hero-overlay-color, --dd-hero-overlay-opacity
+30- *
+31- * Key CSS classes (root):
+32- *   .dd-page (body), .dd-header, .dd-hero, .dd-summary,
+33- *   .dd-cart-drawer, .dd-floating-cart, .dd-bottom-nav,
+34- *   .dd-product-modal, .dd-auth-modal
+35- *
+36- * Last modified: v3.1.13
+37- */
+38-
+--
+261-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+262-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+263-<style>
+264-:root {
+265:    --brand:      <?php echo esc_attr( $dd_primary ); ?>;
+266:    --brand-dark: <?php echo esc_attr( $dd_dark ); ?>;
+267-}
+268-</style>
+269-<?php wp_head(); ?>
+270-</head>
+271-<body class="dd-page" id="home">
+272-<?php wp_body_open(); ?>
+273-
+274-<?php if ( is_admin_bar_showing() ) : ?>
+275-<div style="height:32px"></div>
+276-<?php endif; ?>
+--
+296-            <?php endif; ?>
+297-            <h1 class="dd-hero__title dd-serif"><?php echo wp_kses_post( $dd_h_title ); ?></h1>
+298-            <p class="dd-hero__copy"><?php echo esc_html( $dd_h_sub ); ?></p>
+299-            <div class="dd-hero__actions">
+300:                <a href="<?php echo esc_url( $dd_btn1_link ); ?>" class="dd-btn dd-btn--brand"><?php echo esc_html( $dd_btn1_label ); ?></a>
+301-                <a href="<?php echo esc_url( $dd_btn2_link ); ?>" class="dd-btn dd-btn--outline js-open-reservation"><?php echo esc_html( $dd_btn2_label ); ?></a>
+302-                <a href="<?php echo esc_url( $dd_btn3_link ); ?>" class="dd-btn dd-btn--soft"><?php echo esc_html( $dd_btn3_label ); ?></a>
+303-            </div>
+304-            <?php if ( $dd_show_chips ) : ?>
+305-            <div class="dd-hero__chips">
+306-                <?php if ( $dd_chip_1 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_1 ); ?></div><?php endif; ?>
+307-                <?php if ( $dd_chip_2 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_2 ); ?></div><?php endif; ?>
+308-                <?php if ( $dd_chip_3 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_3 ); ?></div><?php endif; ?>
+309-                <?php if ( $dd_chip_4 ) : ?><div class="dd-hero__chip"><?php echo esc_html( $dd_chip_4 ); ?></div><?php endif; ?>
+310-            </div>
+--
+972-.dd-greview-card__avatar--letter {
+973-    display: flex !important;
+974-    align-items: center !important;
+975-    justify-content: center !important;
+976:    background: var(--brand, #6B1D1D) !important;
+977-    color: #ffffff !important;
+978-    font-weight: 700 !important;
+979-    font-size: 18px !important;
+980-    line-height: 1 !important;
+981-}
+982-.dd-greview-card__meta {
+983-    flex: 1 1 auto !important;
+984-    min-width: 0 !important;
+985-    overflow: hidden;
+986-}
+--
+1035-    margin-top: 10px;
+1036-    background: none;
+1037-    border: none;
+1038-    padding: 0;
+1039:    color: var(--brand, #6B1D1D);
+1040-    font-weight: 600;
+1041-    font-size: 13px;
+1042-    cursor: pointer;
+1043-    align-self: flex-start;
+1044-}
+1045-.dd-greview-card__more:hover { text-decoration: underline; }
+1046-
+1047-/* Side arrows like the reference design */
+1048-.dd-greviews-arrow {
+1049-    position: absolute;
+--
+1064-    transition: all .2s;
+1065-    padding: 0;
+1066-}
+1067-.dd-greviews-arrow:hover:not(:disabled) {
+1068:    background: var(--brand, #6B1D1D);
+1069-    color: #ffffff;
+1070:    border-color: var(--brand, #6B1D1D);
+1071-}
+1072-.dd-greviews-arrow:disabled { opacity: .35; cursor: not-allowed; }
+1073-.dd-greviews-arrow--prev { left: -10px; }
+1074-.dd-greviews-arrow--next { right: -10px; }
+1075-
+1076-@media (max-width: 900px) {
+1077-    .dd-greviews-arrow--prev { left: 0; }
+1078-    .dd-greviews-arrow--next { right: 0; }
+1079-}
+1080-@media (max-width: 640px) {
+
+### modules/template/class-dd-template-module.php ###
+350-        // Inject CSS variables + footer background via WordPress inline style system
+351-        // This is guaranteed to output after theme.css and override correctly
+352-        wp_add_inline_style( 'dish-dash-theme', '
+353-            :root {
+354:                --brand:      ' . $primary . ';
+355:                --brand-dark: ' . $dark . ';
+356-            }
+357-            .dd-footer, .dd-global-footer {
+358-                background: ' . $dark . ' !important;
+359-                color: #F1E7DB !important;
+360-            }
+361-            .dd-footer__heading { color: #C9A24A !important; }
+362-            .dd-footer__list a, .dd-footer__list li { color: rgba(241,231,219,0.7) !important; }
+363-            .dd-footer__list a:hover { color: #F1E7DB !important; }
+364-            .dd-footer__bottom { background: rgba(0,0,0,0.25) !important; color: rgba(241,231,219,0.5) !important; }
+365-            .dd-footer__copy, .dd-footer__brand-name { color: rgba(241,231,219,0.7) !important; }
+--
+573-        ?>
+574-        <style>
+575-        /* ── CSS variables for all pages ───────────────────── */
+576-        :root {
+577:            --brand:        <?php echo esc_attr( $primary ); ?>;
+578:            --brand-dark:   <?php echo esc_attr( $dark ); ?>;
+579-            --dd-bg:        #F5EFE6;
+580-            --dd-surface:   #FBF7F1;
+581-            --dd-surface-2: #FFF7EA;
+582-            --dd-white:     #ffffff;
+583-            --dd-text:      #221B19;
+584-            --dd-muted:     #6E5B4C;
+585-            --dd-muted-2:   #8A6E53;
+586-            --dd-gold:      #C9A24A;
+587-            --dd-gold-soft: #E6C77A;
+588-            --dd-line:      #EADfCE;
+--
+680-                <a href="<?php echo esc_url( $account_url ); ?>"
+681-                   class="dd-btn dd-btn--light dd-btn--block">&#128100; My Profile</a>
+682-                <button id="ddLogoutBtn" class="dd-nav-drawer__logout">Log out</button>
+683-                <?php else : ?>
+684:                <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--block" style="margin-bottom:10px;">&#128100; Create Account</button>
+685-                <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--block">Log in</button>
+686-                <?php endif; ?>
+687-            </div>
+688-        </aside>
+689-
+690-        <!-- Sticky header -->
+691-        <header class="dd-header dd-global-header" id="ddHeader">
+692-            <div class="dd-container dd-header__inner">
+693-
+694-                <!-- Left: hamburger + logo -->
+--
+748-                       class="dd-btn dd-btn--light dd-btn--sm dd-desktop-only">My Profile</a>
+749-                    <button id="ddLogoutBtn" class="dd-auth-logout-btn dd-btn dd-btn--light dd-btn--sm dd-desktop-only">Log out</button>
+750-                    <?php else : ?>
+751-                    <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--sm dd-desktop-only">Log in</button>
+752:                    <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--sm dd-desktop-only">Sign up</button>
+753-                    <?php endif; ?>
+754-                    <button class="dd-cart-top" id="ddCartTopBtn" aria-label="Open cart">
+755-                        <span class="dd-cart-top__label">Cart</span>
+756-                        <span class="dd-cart-badge" id="ddCartCount"><?php echo esc_html( $dd_cart_count ); ?></span>
+757-                    </button>
+758-                </div>
+759-
+760-            </div>
+761-
+762-            <!-- Mobile search expand panel -->
+
+════════════════════════════════════════════════════════════════════
+ANALYSIS — injection scope vs frontend surfaces
+════════════════════════════════════════════════════════════════════
+
+THREE :root injections of --brand (all target :root = document-global):
+
+  P1  modules/template/class-dd-template-module.php:352
+        wp_add_inline_style('dish-dash-theme', ':root{--brand:$primary; --brand-dark:$dark}')
+        - inside enqueue_frontend_assets() (line 192), gated: is_dishdash_page() (:194)
+        - attached to the theme.css handle → GUARANTEED to print AFTER theme.css
+        - Coverage: is_dishdash_page() = front_page, restaurant-menu, cart, checkout,
+          birthday, my-account, track-order, page-dishdash.php/page-simple.php templates
+        - theme.css loads ⟺ is_dishdash_page ⟺ P1 runs → override ALWAYS wins where
+          theme.css (and its #6B1D1D default) is present.
+
+  P2  modules/template/class-dd-template-module.php:569 inject_global_header_styles()
+        <style>:root{--brand:$primary; --brand-dark:$dark; --dd-bg:...; --dd-text:...}</style>
+        - add_action('wp_head', ...) at :72
+        - gate is_global_header_page() (:550) → RETURNS TRUE FOR ALL FRONTEND PAGES (:553-554)
+        - Coverage: EVERY frontend page. Prints in wp_head after the enqueued <link>s.
+
+  P3  templates/page-dishdash.php:263-268   <head> inline <style>:root{--brand}</style>
+        - Homepage template only; printed BEFORE wp_head() (theme.css links come after),
+          so on its own it would lose the cascade — but P1 (front_page is is_dishdash_page)
+          and P2 both cover the homepage, so it's redundant.
+
+NET: --brand is set to the restaurant primary on EVERY frontend page (P2 always; P1
+guaranteed-after-theme.css on the dishdash subset). The theme.css :root{--brand:#6B1D1D}
+default (theme.css:90 & :125) is only ever LOADED on is_dishdash_page pages, where P1
+guarantees it is overridden → the default is a DEAD safety-net, never the effective value.
+
+DO hero / menu grid / FAB fall inside the override?
+  - Hero (homepage), menu grid (restaurant-menu): YES — both are is_dishdash_page AND all
+    frontend pages, covered by P1 + P2. Their raw #65040d hardcodes are the leak, NOT scope.
+  - FAB: inject_cart_sidebar() → add_action('wp_footer', ...) at :68, NO page gate (only
+    is_admin guard) → the cart drawer + floating button render on EVERY frontend page.
+    The active desktop FAB is .dd-cart-btn (templates/cart/cart.php:226), styled by cart.css:
+        .dd-cart-btn { background: var(--dd-cart-red); }   (cart.css:319)
+        --dd-cart-red: #65040d;                            (cart.css:28  ← HARDCODED)
+    So the FAB is maroon via --dd-cart-red, which does NOT read --brand — the global
+    --brand override does not touch it. (Note the OTHER class .dd-floating-cart in
+    theme.css:1751 correctly uses color:var(--brand); it is not the rendered desktop FAB.)
+    Extra bug (not colour): cart.css only enqueues on is_dishdash_page, but the FAB markup
+    renders on ALL pages (wp_footer) → on non-dishdash pages the FAB is unstyled.
+
+VERDICT: A (delete the default) — scope does NOT need widening.
+  - --brand already reaches every frontend page (P2 always-on; P1 guaranteed-after-theme.css
+    on the subset that loads theme.css). The theme.css --brand:#6B1D1D default is redundant
+    and never wins → safe to delete/neutralise.
+  - Widening (B) is unnecessary: there is no surface that loads theme.css without also
+    getting P1's override.
+  - IMPORTANT: A only removes a dead safety-net. It does NOT fix the visible leaks, which
+    are RAW hardcodes that never reference --brand: the 15 raw #65040d + 6 secondary reds
+    (per file, previous section) + the FAB's --dd-cart-red:#65040d (cart.css:28). Those
+    remain the real per-file fix set regardless of A/B.

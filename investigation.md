@@ -162,4 +162,48 @@ should be LEFT alone:
 Each fix = replace the raw hex with `var(--brand, …)` (and introduce a real `--brand-dark` /
 `color-mix()` token for the darker shades) so the surface tracks `dish_dash_primary_color`.
 
+---
+
+## ADDENDUM — `--brand` injection scope vs frontend surfaces
+
+Full evidence in **`inject-scope.txt`**. The PHP override targets **`:root`** (document-global)
+in three places, with different page gates:
+
+| # | Where | Hook / gate | Coverage |
+|---|---|---|---|
+| **P1** | `class-dd-template-module.php:352` `wp_add_inline_style('dish-dash-theme', :root{--brand})` | inside `enqueue_frontend_assets()`, gated `is_dishdash_page()` (:194) | is_dishdash_page set; **attached to the theme.css handle → guaranteed to print AFTER theme.css** |
+| **P2** | `class-dd-template-module.php:569` `inject_global_header_styles()` `<style>:root{--brand;…}</style>` | `add_action('wp_head')` (:72), gate `is_global_header_page()` | **always true (:553-554) → EVERY frontend page** |
+| **P3** | `page-dishdash.php:263-268` `<head><style>:root{--brand}</style>` | homepage template only, before `wp_head()` | homepage (redundant — P1+P2 already cover it) |
+
+**Selector = `:root` (global).** So there is no element-scope limitation — the only variable is
+*which pages the override runs on*, and **P2 runs on all frontend pages** (plus P1 is
+guaranteed-after-theme.css on the dishdash subset). theme.css (`--brand:#6B1D1D`) loads **only**
+on `is_dishdash_page` pages — exactly where P1 guarantees it is overridden. So the theme.css
+default is a **dead safety-net, never the effective value.**
+
+**Do hero / menu grid / FAB fall inside the override?**
+- **Hero** (homepage) and **menu grid** (`restaurant-menu`): **YES** (is_dishdash_page + all-pages
+  P2). Their maroon comes from **raw `#65040d` hardcodes**, not from `--brand` — scope is not the
+  problem.
+- **FAB:** `inject_cart_sidebar()` → `add_action('wp_footer')` (:68), **no page gate** → renders on
+  every frontend page. The active desktop button is `.dd-cart-btn` (`cart.php:226`) →
+  `cart.css:319` `background: var(--dd-cart-red)` → **`--dd-cart-red: #65040d` (cart.css:28,
+  hardcoded)**. The FAB is maroon via `--dd-cart-red`, which **does not read `--brand`**, so the
+  global override never reaches it. (The other class `.dd-floating-cart`, theme.css:1751, does use
+  `color: var(--brand)` — but it is not the rendered desktop FAB.) Separate non-colour bug: cart.css
+  enqueues only on is_dishdash_page yet the FAB renders on all pages → unstyled FAB off-app.
+
+### VERDICT: **A — delete the default (no scope-widening needed)**
+- `--brand` already reaches every frontend page (P2 always-on; P1 guaranteed-after-theme.css on the
+  subset that loads theme.css). No surface loads theme.css without also getting P1's override, so
+  **B (widen scope) is unnecessary.**
+- theme.css `:root{--brand:#6B1D1D}` (×2, :90/:125) and `--brand-dark:#160F0D` are redundant → safe
+  to delete or set to a neutral placeholder.
+- ⚠️ **A only removes a dead safety-net — it fixes nothing visible on its own.** The actual leaks are
+  RAW hardcodes that never reference `--brand`: the **15 raw `#65040d`**, the **6 secondary reds**,
+  and the FAB's **`--dd-cart-red: #65040d` (cart.css:28)**. Those stay the real per-file fix set
+  (convert each to `var(--brand, …)`; introduce a brand-dark token / `color-mix()` for the darker
+  shades). Recommended: fix `--dd-cart-red` (cart.css:28) as part of the cart.css release — it
+  cascades to the FAB + count badge in one line.
+
 **STOP — read-only. Awaiting the implementation brief (one file per release).**
