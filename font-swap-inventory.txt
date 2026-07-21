@@ -1,0 +1,191 @@
+========== ALL font-family decls in frontend CSS (file:line:content) ==========
+assets/css/cart.css:115:    font-family: inherit;
+assets/css/cart.css:424:    font-family: inherit;
+assets/css/cart.css:464:    font-family: inherit;
+assets/css/cart.css:518:    font-family: inherit;
+assets/css/cart.css:1268:    font-family: inherit;
+assets/css/frontend.css:38:    font-family: 'Georgia', 'Times New Roman', serif;
+assets/css/frontend.css:59:    font-family: inherit;
+assets/css/frontend.css:130:    font-family: sans-serif;
+assets/css/frontend.css:153:    font-family: sans-serif;
+assets/css/frontend.css:177:    font-family: sans-serif;
+assets/css/frontend.css:196:    font-family: sans-serif;
+assets/css/frontend.css:239:    font-family: sans-serif;
+assets/css/frontend.css:422:    font-family: inherit;
+assets/css/frontend.css:618:    font-family: inherit;
+assets/css/frontend.css:728:    font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:764:        font-family: 'Cormorant Garamond', Georgia, serif !important;
+assets/css/menu-page.css:849:        font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:855:        font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:888:        font-family: 'Inter', system-ui, sans-serif;
+assets/css/menu-page.css:891:        font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:943:        font-family: 'Cormorant Garamond', Georgia, serif !important;
+assets/css/menu.css:46:    font-family: 'Nunito', sans-serif;
+assets/css/menu.css:52:.dd-search-input { width:100%; padding:.9rem 1.25rem .9rem 3rem; border:2px solid var(--dd-border); border-radius:999px; font-family:'Nunito',sans-serif; font-size:.95rem; background:#fff; outline:none; box-shadow:0 2px 12px rgba(0,0,0,.06); transition:border-color .2s,box-shadow .2s; box-sizing:border-box; }
+assets/css/menu.css:57:.dd-filter-btn { background:#fff; border:2px solid var(--dd-border); border-radius:999px; color:var(--dd-muted); cursor:pointer; font-family:'Nunito',sans-serif; font-size:.78rem; font-weight:700; letter-spacing:.04em; padding:.4rem 1.1rem; text-transform:uppercase; transition:all .2s; white-space:nowrap; }
+assets/css/menu.css:95:.dd-add-to-cart-btn { background:var(--dd-dark); color:#fff; border:none; border-radius:999px; cursor:pointer; font-family:'Nunito',sans-serif; font-size:.78rem; font-weight:800; padding:.55rem 1rem; transition:background .2s,transform .15s; white-space:nowrap; flex-shrink:0; }
+assets/css/profile.css:16:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:59:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:75:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:148:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:248:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:309:    font-family: 'Cormorant Garamond', serif;
+assets/css/reservations.css:248:  font-family: inherit;
+assets/css/reservations.css:342:  font-family: inherit;
+assets/css/reservations.css:373:  font-family: inherit;
+assets/css/reservations.css:408:  font-family: inherit;
+assets/css/reservations.css:436:  font-family: inherit;
+assets/css/reservations.css:456:  font-family: inherit;
+assets/css/reservations.css:479:  font-family: 'Courier New', monospace;
+assets/css/reservations.css:527:  font-family: inherit;
+assets/css/reservations.css:543:  font-family: inherit;
+assets/css/theme.css:59:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:150:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:170:.dd-serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+assets/css/theme.css:209:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:406:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:576:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:759:    font-family: 'Cormorant Garamond', serif;
+assets/css/theme.css:1168:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:1378:    font-family: 'Cormorant Garamond', serif;
+assets/css/theme.css:1433:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:1843:        font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:1971:        font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:2214:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2264:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2321:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2418:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2744:    font-family: 'Cormorant Garamond', serif;
+assets/css/theme.css:2774:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2817:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2860:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2996:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:3054:    font-family: 'Cormorant Garamond', serif;
+
+========== HEADING (contains Cormorant) ==========
+assets/css/frontend.css:728:    font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:764:        font-family: 'Cormorant Garamond', Georgia, serif !important;
+assets/css/menu-page.css:849:        font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:855:        font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:891:        font-family: 'Cormorant Garamond', Georgia, serif;
+assets/css/menu-page.css:943:        font-family: 'Cormorant Garamond', Georgia, serif !important;
+assets/css/profile.css:16:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:59:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:75:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:148:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:248:    font-family: 'Cormorant Garamond', serif;
+assets/css/profile.css:309:    font-family: 'Cormorant Garamond', serif;
+assets/css/theme.css:170:.dd-serif { font-family: 'Cormorant Garamond', Georgia, serif; }
+assets/css/theme.css:759:    font-family: 'Cormorant Garamond', serif;
+assets/css/theme.css:1378:    font-family: 'Cormorant Garamond', serif;
+assets/css/theme.css:2744:    font-family: 'Cormorant Garamond', serif;
+assets/css/theme.css:3054:    font-family: 'Cormorant Garamond', serif;
+
+========== BODY (contains Inter) ==========
+assets/css/menu-page.css:888:        font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:59:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:150:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:209:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:406:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:576:    font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:1168:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:1433:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:1843:        font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:1971:        font-family: 'Inter', system-ui, sans-serif !important;
+assets/css/theme.css:2214:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2264:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2321:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2418:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2774:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2817:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2860:    font-family: 'Inter', system-ui, sans-serif;
+assets/css/theme.css:2996:    font-family: 'Inter', system-ui, sans-serif;
+
+========== KEYWORD-ONLY (serif/sans-serif/system-ui, NO named family) — likely LEAVE ==========
+assets/css/frontend.css:130:    font-family: sans-serif;
+assets/css/frontend.css:153:    font-family: sans-serif;
+assets/css/frontend.css:177:    font-family: sans-serif;
+assets/css/frontend.css:196:    font-family: sans-serif;
+assets/css/frontend.css:239:    font-family: sans-serif;
+assets/css/menu.css:46:    font-family: 'Nunito', sans-serif;
+assets/css/menu.css:52:.dd-search-input { width:100%; padding:.9rem 1.25rem .9rem 3rem; border:2px solid var(--dd-border); border-radius:999px; font-family:'Nunito',sans-serif; font-size:.95rem; background:#fff; outline:none; box-shadow:0 2px 12px rgba(0,0,0,.06); transition:border-color .2s,box-shadow .2s; box-sizing:border-box; }
+
+========== INHERIT / other (no named family, no keyword) ==========
+assets/css/cart.css:115:    font-family: inherit;
+assets/css/cart.css:424:    font-family: inherit;
+assets/css/cart.css:464:    font-family: inherit;
+assets/css/cart.css:518:    font-family: inherit;
+assets/css/cart.css:1268:    font-family: inherit;
+assets/css/frontend.css:59:    font-family: inherit;
+assets/css/frontend.css:422:    font-family: inherit;
+assets/css/frontend.css:618:    font-family: inherit;
+assets/css/reservations.css:248:  font-family: inherit;
+assets/css/reservations.css:342:  font-family: inherit;
+assets/css/reservations.css:373:  font-family: inherit;
+assets/css/reservations.css:408:  font-family: inherit;
+assets/css/reservations.css:436:  font-family: inherit;
+assets/css/reservations.css:456:  font-family: inherit;
+assets/css/reservations.css:479:  font-family: 'Courier New', monospace;
+assets/css/reservations.css:527:  font-family: inherit;
+assets/css/reservations.css:543:  font-family: inherit;
+
+════════════════════════════════════════════════════════════════════
+CLASSIFIED SWAP TABLE  (tokens: --font-heading = "Cormorant Garamond", Georgia, serif
+                                --font-body    = "Inter", system-ui, sans-serif)
+Swap replaces the WHOLE value with var(--font-*) — the fallback is already in the token.
+Preserve any !important.
+════════════════════════════════════════════════════════════════════
+
+──── SWAP → var(--font-heading)  (17 lines) ────
+  [fallback EXACTLY matches token: "…", Georgia, serif]  (7)
+    frontend.css:728
+    menu-page.css:764   (!important — keep)
+    menu-page.css:849
+    menu-page.css:855
+    menu-page.css:891
+    menu-page.css:943   (!important — keep)
+    theme.css:170       (.dd-serif — the canonical heading class)
+  [fallback = "serif" only → token ADDS "Georgia" before serif; harmless, Cormorant always loads] (10)
+    profile.css:16, 59, 75, 148, 248, 309
+    theme.css:759, 1378, 2744, 3054
+
+──── SWAP → var(--font-body)  (18 lines, ALL fallback-exact "…", system-ui, sans-serif) ────
+    menu-page.css:888
+    theme.css:59  (!imp), 150, 209 (!imp), 406 (!imp), 576 (!imp), 1168, 1433,
+    theme.css:1843, 1971 (!imp), 2214, 2264, 2321, 2418, 2774, 2817, 2860, 2996
+
+──── LEAVE  (22 lines) ────
+  font-family: inherit;  — inherits from parent (cascades from body → the body font). Do NOT swap
+    (swapping breaks inheritance semantics):
+      cart.css:115, 424, 464, 518, 1268
+      frontend.css:59, 422, 618
+      reservations.css:248, 342, 373, 408, 436, 456, 527, 543
+  font-family: 'Courier New', monospace;  — deliberate monospace (code/ref display):
+      reservations.css:479
+  font-family: sans-serif;  — bare generic keyword, no named face:
+      frontend.css:130, 153, 177, 196, 239
+      ⚠ NOTE: these 5 currently render as the SYSTEM default sans (NOT Inter) — a pre-existing
+        inconsistency. Per brief rule they're LEAVE, but swapping → var(--font-body) would unify
+        them onto the configured body font. Behaviour change → product call (flagged, not assumed).
+
+──── DECISION-NEEDED  (5 lines) ────
+  menu.css:46, 52, 57, 95  — font-family: 'Nunito', sans-serif;
+      'Nunito' is a THIRD family that is NEVER loaded (the loader only fetches the heading+body
+      pair) → these already fall back to system sans. Also: menu.css is NOT the menu-page
+      stylesheet (/restaurant-menu/ uses menu-page.css) — menu.css may be legacy/unused. Verify
+      enqueue before deciding: swap → var(--font-body) (unify onto body font) OR leave (and/or
+      retire menu.css). Do NOT map Nunito → --font-heading.
+  frontend.css:38  — font-family: 'Georgia', 'Times New Roman', serif;
+      A serif stack with NO Cormorant (Georgia-primary). Either an intentional distinct serif for
+      one element, or an oversight that should be the heading font. If it's a heading, swap →
+      var(--font-heading); if intentional, LEAVE. Needs eyes on the element/selector.
+
+──── FALLBACK-MISMATCH CHECK (the key subtlety) ────
+  • BODY: every Inter line is "Inter", system-ui, sans-serif → EXACT token match. Clean.
+  • HEADING: two shapes — "…, Georgia, serif" (exact) and "…, serif" (10 lines) which after swap
+    GAIN Georgia as an intermediate fallback. Additive only; effective font identical while
+    Cormorant loads (it always does). No line has a CONFLICTING named fallback (e.g. Times).
+  • Only frontend.css:38 uses a different named fallback (Georgia/Times) but it's NOT a Cormorant
+    line — handled under DECISION-NEEDED, not a silent swap.
+
+TALLY: 17 heading + 18 body = 35 clean swaps · 22 leave · 5 decision-needed = 62 frontend decls.

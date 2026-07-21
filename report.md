@@ -2558,3 +2558,33 @@ defaults unchanged.
 `php -l` clean (3 files); no CSS touched; no schema change.
 
 **Awaiting go-ahead to commit v3.11.9.**
+
+---
+
+## Investigation — font-family swap inventory (for Release β / v3.11.10)
+
+Full classified list in `font-swap-inventory.txt`. Tokens (from v3.11.9):
+`--font-heading = "Cormorant Garamond", Georgia, serif` · `--font-body = "Inter", system-ui, sans-serif`.
+Swap = replace the **whole** value with `var(--font-*)` (fallback already in the token); preserve `!important`.
+
+**SWAP → `var(--font-heading)` — 17 lines**
+- Exact-fallback (`…, Georgia, serif`): `frontend.css:728`, `menu-page.css:764(!), 849, 855, 891, 943(!)`, `theme.css:170` (`.dd-serif`).
+- `serif`-only fallback (swap ADDS Georgia — harmless, Cormorant always loads): `profile.css:16,59,75,148,248,309`, `theme.css:759,1378,2744,3054`.
+
+**SWAP → `var(--font-body)` — 18 lines** (all exact `…, system-ui, sans-serif`)
+`menu-page.css:888`, `theme.css:59(!),150,209(!),406(!),576(!),1168,1433,1843,1971(!),2214,2264,2321,2418,2774,2817,2860,2996`.
+
+**LEAVE — 22 lines**
+- `inherit` (16): cart ×5, frontend ×3, reservations ×8 — cascade from body; swapping breaks inheritance.
+- `'Courier New', monospace` (1): `reservations.css:479` — deliberate.
+- `sans-serif` bare (5): `frontend.css:130,153,177,196,239` — ⚠ currently render as **system** sans, not Inter (pre-existing inconsistency); per rule = LEAVE, but swapping → `var(--font-body)` would unify them. Product call — flagged, not assumed.
+
+**DECISION-NEEDED — 5 lines**
+- `menu.css:46,52,57,95` — `'Nunito', sans-serif`: a **third family that is never loaded** (loader fetches only the heading+body pair). Also `menu.css` isn't the menu-page stylesheet (`/restaurant-menu/` uses `menu-page.css`) — likely **legacy/unused**. Verify enqueue; then swap → `var(--font-body)` or retire. Never map Nunito → heading.
+- `frontend.css:38` — `'Georgia', 'Times New Roman', serif`: serif stack with **no Cormorant** (different named fallback). Intentional distinct serif or an oversight → needs eyes on the selector.
+
+**Fallback-mismatch check:** body lines all match the token exactly; heading lines either match or (10×) gain Georgia (additive/harmless); **no line has a conflicting named fallback**. The only different-fallback line (`frontend.css:38`) isn't a Cormorant line → routed to DECISION, not a silent swap.
+
+**Tally:** 35 clean swaps (17 heading + 18 body) · 22 leave · 5 decision-needed = 62 frontend decls.
+
+**STOP — read-only. Awaiting review of LEAVE/DECISION, then the v3.11.10 β brief.**
