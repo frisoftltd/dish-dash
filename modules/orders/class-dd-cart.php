@@ -105,6 +105,7 @@ class DD_Cart {
                 'image'        => esc_url_raw( $item['image'] ?? '' ),
                 'variation'    => sanitize_text_field( $item['variation'] ?? '' ),
                 'variation_id' => absint( $item['variation_id'] ?? 0 ),
+                'spice'        => sanitize_text_field( $item['spice'] ?? '' ),
                 'addons'       => $this->sanitize_addons( $item['addons'] ?? [] ),
                 'note'         => sanitize_textarea_field( $item['note'] ?? '' ),
             ];
@@ -186,7 +187,7 @@ class DD_Cart {
     }
 
     private function item_key( array $item ): string {
-        return md5( $item['id'] . ( $item['variation'] ?? '' ) . wp_json_encode( $item['addons'] ?? [] ) );
+        return md5( $item['id'] . ( $item['variation'] ?? '' ) . ( $item['spice'] ?? '' ) . wp_json_encode( $item['addons'] ?? [] ) );
     }
 
     /**
@@ -301,6 +302,28 @@ class DD_Cart {
             return;
         }
 
+        // Spice level — a CATEGORY rule, captured as its own field (never a variation:
+        // spice does not affect price). Required for products whose category is not in
+        // the excluded set. The posted value is a taxonomy SLUG; we validate it against
+        // the global spice terms and store the human LABEL for display/kitchen.
+        $spice_label = '';
+        if ( class_exists( 'DD_API' ) && DD_API::product_has_spice( $product ) ) {
+            $spice_terms = DD_API::spice_options();
+            if ( ! empty( $spice_terms ) ) {
+                $spice_slug = sanitize_title( $_POST['spice_level'] ?? '' );
+                foreach ( $spice_terms as $t ) {
+                    if ( $t['slug'] === $spice_slug ) {
+                        $spice_label = $t['name'];
+                        break;
+                    }
+                }
+                if ( '' === $spice_label ) {
+                    wp_send_json_error( [ 'message' => 'Please choose a spice level.' ] );
+                    return;
+                }
+            }
+        }
+
         $cart   = new self();
         $result = $cart->add( [
             'id'           => $product_id,
@@ -310,6 +333,7 @@ class DD_Cart {
             'image'        => $image,
             'variation'    => $variation_text,
             'variation_id' => $variation_id,
+            'spice'        => $spice_label,
             'addons'       => json_decode( stripslashes( $_POST['addons'] ?? '[]' ), true ),
             'note'         => sanitize_textarea_field( $_POST['note'] ?? '' ),
         ] );

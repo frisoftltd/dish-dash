@@ -102,6 +102,15 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dish_dash_order_handoff_whatsapp',  isset( $_POST['dish_dash_order_handoff_whatsapp']  ) ? '1' : '0' );
     update_option( 'dish_dash_momo_merchant_code',      preg_replace( '/\D/', '', (string) ( $_POST['dish_dash_momo_merchant_code'] ?? '' ) ) );
 
+    // Spice selector — product-category slugs where the spice level is HIDDEN.
+    // Comma-separated slugs; normalized to an array of sanitized slugs.
+    $dd_spice_ex_raw = sanitize_textarea_field( wp_unslash( $_POST['dd_spice_excluded_categories'] ?? '' ) );
+    $dd_spice_ex     = array_values( array_filter( array_map(
+        'sanitize_title',
+        array_map( 'trim', explode( ',', $dd_spice_ex_raw ) )
+    ) ) );
+    update_option( 'dd_spice_excluded_categories', $dd_spice_ex );
+
     echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 
     do_action( 'dd_log_activity', [
@@ -824,6 +833,21 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                            value="<?php echo esc_attr( get_option( 'dish_dash_momo_merchant_code', '' ) ); ?>"
                            class="dd-input dd-input--medium" />
                     <p class="description">Your MTN MoMo merchant code, used for the payment QR. Digits only.</p>
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">Hide Spice Selector For</div>
+                <div class="dd-field-control">
+                    <?php
+                    $dd_spice_ex_val = class_exists( 'DD_API' )
+                        ? DD_API::spice_excluded_slugs()
+                        : (array) get_option( 'dd_spice_excluded_categories', [] );
+                    ?>
+                    <input type="text" name="dd_spice_excluded_categories"
+                           value="<?php echo esc_attr( implode( ', ', $dd_spice_ex_val ) ); ?>"
+                           class="dd-input dd-input--medium" />
+                    <p class="description">Product-category <strong>slugs</strong> (comma-separated) where the spice selector is hidden — e.g. <code>roti-ka-khazana, meetha-ka-khazana-desserts, dahi-yogurt, papad</code>. Every other product requires a spice choice.</p>
                 </div>
             </div>
         </div>

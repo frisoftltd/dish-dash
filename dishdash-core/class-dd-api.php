@@ -556,11 +556,18 @@ class DD_API {
         // is_simple — true when product type is 'simple' (no variant selection required).
         $is_simple = $product->is_type( 'simple' );
 
+        // Spice selector visibility is a category rule (see product_has_spice()).
+        $has_spice = self::product_has_spice( $product );
+
         // Attributes — normalized for mobile UI variant pickers.
         $raw_attributes = $product->get_attributes();
         $attributes     = [];
         foreach ( $raw_attributes as $attr ) {
             if ( ! $attr->get_visible() ) continue;
+            // Spice is handled by the dedicated category-rule selector — never render
+            // it as a generic attribute (avoids a duplicate spice picker on products
+            // that still have the attribute assigned).
+            if ( $attr->get_name() === self::spice_taxonomy() ) continue;
             $options = $attr->is_taxonomy()
                 ? wc_get_product_terms( $product->get_id(), $attr->get_name(), [ 'fields' => 'names' ] )
                 : $attr->get_options();
@@ -593,6 +600,8 @@ class DD_API {
             'is_simple'           => $is_simple,
             'attributes'          => $attributes,
             'variations'          => self::normalize_variations( $product ),
+            'has_spice'           => $has_spice,
+            'spice_options'       => $has_spice ? self::spice_options() : [],
         ];
     }
 
@@ -660,6 +669,84 @@ class DD_API {
         }
 
         return $out;
+    }
+
+    /**
+     * The WooCommerce attribute taxonomy that holds the global spice levels.
+     * Filterable so a differently-named attribute can be pointed at.
+     */
+    public static function spice_taxonomy(): string {
+        return (string) apply_filters( 'dd_spice_taxonomy', 'pa_spiciness-level' );
+    }
+
+    /**
+     * Product-category slugs for which the spice selector is HIDDEN. Keyed on slugs
+     * (not term IDs) so it is portable across installs. Defaults cover nyarutarama's
+     * bread / desserts / yogurt / papad; overridable via the option or the filter.
+     *
+     * @return string[]
+     */
+    public static function spice_excluded_slugs(): array {
+        $default = [ 'papad', 'dahi-yogurt', 'roti-ka-khazana', 'meetha-ka-khazana-desserts' ];
+        $slugs   = get_option( 'dd_spice_excluded_categories', $default );
+        if ( ! is_array( $slugs ) ) {
+            $slugs = $default;
+        }
+        $slugs = array_values( array_filter( array_map( 'sanitize_title', $slugs ) ) );
+        return (array) apply_filters( 'dd_spice_excluded_slugs', $slugs );
+    }
+
+    /**
+     * Does this product show the spice selector? True unless ANY of its product_cat
+     * slugs is in the excluded set. (A product in multiple categories is excluded
+     * only if one of them is an excluded category.)
+     */
+    public static function product_has_spice( WC_Product $product ): bool {
+        $excluded = self::spice_excluded_slugs();
+        if ( empty( $excluded ) ) {
+            return true;
+        }
+        $terms = get_the_terms( $product->get_id(), 'product_cat' ) ?: [];
+        foreach ( $terms as $t ) {
+            if ( in_array( $t->slug, $excluded, true ) ) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The canonical global spice options, from the spice taxonomy's terms (in
+     * WooCommerce attribute order), as [ { slug, name } ]. Independent of any single
+     * product's assignment — this is the source once spice is decoupled from the
+     * per-product attribute. Cached 5 min. Empty array when the taxonomy has no terms.
+     *
+     * @return array<int,array{slug:string,name:string}>
+     */
+    public static function spice_options(): array {
+        $cache_key = 'dd_api_spice_options';
+        $cached    = get_transient( $cache_key );
+        if ( false !== $cached ) {
+            return $cached;
+        }
+
+        $taxonomy = self::spice_taxonomy();
+        $result   = [];
+        if ( taxonomy_exists( $taxonomy ) ) {
+            $terms = get_terms( [
+                'taxonomy'   => $taxonomy,
+                'hide_empty' => false,
+                'orderby'    => 'menu_order', // WooCommerce attribute term order
+            ] );
+            if ( ! is_wp_error( $terms ) ) {
+                foreach ( $terms as $term ) {
+                    $result[] = [ 'slug' => $term->slug, 'name' => $term->name ];
+                }
+            }
+        }
+
+        set_transient( $cache_key, $result, 5 * MINUTE_IN_SECONDS );
+        return $result;
     }
 
     /**

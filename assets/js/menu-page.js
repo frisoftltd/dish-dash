@@ -222,6 +222,7 @@ class DDMobileMenu {
                 prepTime: document.getElementById('dd-mobile-single-prep'),
                 desc: document.getElementById('dd-mobile-single-desc'),
                 attrs: document.getElementById('dd-mobile-single-attrs'),
+                spice: document.getElementById('dd-mobile-single-spice'),
                 heart: document.getElementById('dd-mobile-single-heart'),
                 qtyMinus: document.getElementById('dd-mobile-qty-minus'),
                 qtyPlus: document.getElementById('dd-mobile-qty-plus'),
@@ -400,7 +401,6 @@ class DDMobileMenu {
                 // Variable products: match the current selection to a variation and
                 // show its authoritative price; store variation_id for add-to-cart.
                 const variations = this.currentProduct.variations || [];
-                let variationOk = true;
                 if (variations.length) {
                     const match = this.findMatchingVariation(variations, this.currentProduct.selectedAttributes);
                     if (match) {
@@ -409,27 +409,25 @@ class DDMobileMenu {
                     } else {
                         this.currentProduct.selectedVariationId = 0;
                     }
-                    variationOk = this.currentProduct.selectedVariationId > 0;
                 }
 
-                const totalSelected = Object.keys(this.currentProduct.selectedAttributes).length;
-                const allSelected = totalSelected >= (this.currentProduct.requiredSelections || 0);
-                const addBtn = this.elements.singleProduct.addToCart;
-                if (addBtn) {
-                    if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
-                        addBtn.disabled = true;
-                        addBtn.textContent = "We're Closed";
-                        addBtn.classList.add('dd-add-btn--closed');
-                    } else if (allSelected && variationOk) {
-                        addBtn.disabled = false;
-                        addBtn.classList.remove('is-disabled');
-                    } else {
-                        // Not all options chosen, or no matching variation → block add
-                        // (never allow adding a variable product at the parent price).
-                        addBtn.disabled = true;
-                        addBtn.classList.add('is-disabled');
-                    }
+                this.updateAddButtonState();
+            });
+        }
+
+        // Spice pill selection (radio behaviour, separate from attributes/variations)
+        if (this.elements.singleProduct.spice) {
+            this.elements.singleProduct.spice.addEventListener('click', (e) => {
+                const pill = e.target.closest('.dd-mobile-attr-pill');
+                if (!pill) return;
+                const group = pill.closest('.dd-mobile-attr-group__pills');
+                if (group) {
+                    group.querySelectorAll('.dd-mobile-attr-pill').forEach(p => p.classList.remove('is-active'));
                 }
+                pill.classList.add('is-active');
+                this.currentProduct.selectedSpiceSlug = pill.dataset.spiceSlug || '';
+                this.currentProduct.selectedSpiceLabel = pill.textContent.trim();
+                this.updateAddButtonState();
             });
         }
 
@@ -574,7 +572,11 @@ class DDMobileMenu {
             selectedAttributes: {},
             requiredSelections: 0,
             variations: [],
-            selectedVariationId: 0
+            selectedVariationId: 0,
+            hasSpice: false,
+            spiceOptions: [],
+            selectedSpiceSlug: '',
+            selectedSpiceLabel: ''
         };
 
         if (!this.products) return;
@@ -607,7 +609,12 @@ class DDMobileMenu {
         // Reset quantity
         singleProduct.qtyCount.textContent = '1';
 
-        // Render attributes if available
+        // Reset selection state for this product
+        this.currentProduct.selectedAttributes = {};
+        this.currentProduct.requiredSelections = 0;
+        this.currentProduct.selectedVariationId = 0;
+
+        // Render product attributes (e.g. Size) as pills
         if (product.attributes && product.attributes.length > 0) {
             singleProduct.attrs.innerHTML = product.attributes.map(attr => {
                 return `
@@ -621,40 +628,18 @@ class DDMobileMenu {
                     </div>
                 `;
             }).join('');
-
-            // Reset selectedAttributes — require user to select before adding
-            this.currentProduct.selectedAttributes = {};
             this.currentProduct.requiredSelections = product.attributes.length;
-            this.currentProduct.selectedVariationId = 0;
-
-            const addBtn = this.elements.singleProduct.addToCart;
-            if (addBtn) {
-                addBtn.disabled = true;
-                if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
-                    addBtn.textContent = "We're Closed";
-                    addBtn.classList.add('dd-add-btn--closed');
-                } else {
-                    addBtn.classList.add('is-disabled');
-                }
-            }
         } else {
             singleProduct.attrs.innerHTML = '';
-            if (this.currentProduct) {
-                this.currentProduct.selectedAttributes = {};
-                this.currentProduct.requiredSelections = 0;
-            }
-            const addBtn = this.elements.singleProduct.addToCart;
-            if (addBtn) {
-                if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
-                    addBtn.disabled = true;
-                    addBtn.textContent = "We're Closed";
-                    addBtn.classList.add('dd-add-btn--closed');
-                } else {
-                    addBtn.disabled = false;
-                    addBtn.classList.remove('is-disabled');
-                }
-            }
         }
+
+        // Render the spice selector (category rule — separate from attributes so it
+        // never interferes with variation matching).
+        this.renderSpiceGroup(product);
+
+        // Compute the initial Add-button state (disabled until all required
+        // selections — attributes, a matched variation, and spice — are made).
+        this.updateAddButtonState();
 
         this.showScreen('single');
         this.renderRelatedProducts(product);
@@ -746,6 +731,61 @@ class DDMobileMenu {
         }) || null;
     }
 
+    // Render the spice-level selector (category rule). Shown only when the product
+    // has_spice AND there are options; sets the currentProduct spice state.
+    renderSpiceGroup(product) {
+        const el = this.elements.singleProduct.spice;
+        const opts = Array.isArray(product.spice_options) ? product.spice_options : [];
+        const hasSpice = !!product.has_spice && opts.length > 0;
+
+        this.currentProduct.hasSpice = hasSpice;
+        this.currentProduct.spiceOptions = opts;
+        this.currentProduct.selectedSpiceSlug = '';
+        this.currentProduct.selectedSpiceLabel = '';
+
+        if (!el) return;
+        if (!hasSpice) { el.innerHTML = ''; return; }
+
+        el.innerHTML =
+            '<div class="dd-mobile-attr-group">' +
+                '<span class="dd-mobile-attr-group__label">Spice Level</span>' +
+                '<div class="dd-mobile-attr-group__pills">' +
+                    opts.map(o =>
+                        `<span class="dd-mobile-attr-pill" data-spice-slug="${o.slug}">${o.name}</span>`
+                    ).join('') +
+                '</div>' +
+            '</div>';
+    }
+
+    // Single source of truth for the Add-to-Cart enabled state: requires all
+    // attribute groups chosen, a matched variation (variable products), and a spice
+    // level (spice products). Called from render + both pill handlers.
+    updateAddButtonState() {
+        const cp = this.currentProduct;
+        const addBtn = this.elements.singleProduct.addToCart;
+        if (!cp || !addBtn) return;
+
+        if (window.DD && (window.DD.hours_state === 'closed' || window.DD.hours_state === 'break')) {
+            addBtn.disabled = true;
+            addBtn.textContent = "We're Closed";
+            addBtn.classList.add('dd-add-btn--closed');
+            return;
+        }
+
+        const totalSelected = Object.keys(cp.selectedAttributes || {}).length;
+        const allSelected = totalSelected >= (cp.requiredSelections || 0);
+        const variationOk = !(cp.variations && cp.variations.length) || (cp.selectedVariationId > 0);
+        const spiceOk = !cp.hasSpice || !!cp.selectedSpiceSlug;
+
+        if (allSelected && variationOk && spiceOk) {
+            addBtn.disabled = false;
+            addBtn.classList.remove('is-disabled');
+        } else {
+            addBtn.disabled = true;
+            addBtn.classList.add('is-disabled');
+        }
+    }
+
     addToCartById(productId, qty, selectedAttributes = {}) {
         const product = this.products.find(p => p.id === parseInt(productId));
         if (!product) return;
@@ -764,6 +804,7 @@ class DDMobileMenu {
         formData.append('image', product.image_thumbnail_url || product.image_url || '');
         formData.append('variation', JSON.stringify(selectedAttributes));
         formData.append('variation_id', variationId);
+        formData.append('spice_level', this.currentProduct ? (this.currentProduct.selectedSpiceSlug || '') : '');
         formData.append('addons', JSON.stringify([]));
         formData.append('note', '');
 

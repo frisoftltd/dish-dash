@@ -902,6 +902,10 @@
     // currently-matched variation_id (authoritative for price + add-to-cart).
     var ddPmVariations  = [];
     var ddPmVariationId = 0;
+    // Spice-level state (category rule; separate from attributes/variations).
+    var ddPmHasSpice      = false;
+    var ddPmSpiceSlug     = '';
+    var ddPmRequiredAttrs = 0;
 
     // Match the current pill selection to a variation (same rule as mobile):
     // every attribute the variation defines must equal the selected value.
@@ -913,6 +917,26 @@
             if (!keys.length) return false;
             return keys.every(function(k) { return selected[k] === attrs[k]; });
         }) || null;
+    }
+
+    // Single source of truth for the modal Add button: all attribute groups chosen,
+    // a matched variation (variable products), and a spice level (spice products).
+    function updatePmAddState() {
+        var addBtn = document.getElementById('ddPmAddBtn');
+        if (!addBtn) return;
+        var _ddState = window.DD && window.DD.hours_state;
+        if (_ddState === 'closed' || _ddState === 'break') {
+            addBtn.disabled = true; addBtn.style.opacity = '0.5'; addBtn.style.cursor = 'not-allowed';
+            return;
+        }
+        var attrsOk     = Object.keys(ddPmSelected).length >= ddPmRequiredAttrs;
+        var variationOk = !(ddPmVariations && ddPmVariations.length) || ddPmVariationId > 0;
+        var spiceOk     = !ddPmHasSpice || !!ddPmSpiceSlug;
+        if (attrsOk && variationOk && spiceOk) {
+            addBtn.disabled = false; addBtn.style.opacity = '1'; addBtn.style.cursor = 'pointer';
+        } else {
+            addBtn.disabled = true; addBtn.style.opacity = '0.5'; addBtn.style.cursor = 'not-allowed';
+        }
     }
 
     function openProductModal(productId) {
@@ -957,9 +981,12 @@
         if (!modal || !content) return;
 
         // Fresh selection for this open (no-attribute products keep {} → sent as "{}").
-        ddPmSelected    = {};
-        ddPmVariations  = [];
-        ddPmVariationId = 0;
+        ddPmSelected      = {};
+        ddPmVariations    = [];
+        ddPmVariationId   = 0;
+        ddPmHasSpice      = false;
+        ddPmSpiceSlug     = '';
+        ddPmRequiredAttrs = 0;
 
         // Fire tracking event on open
         if (typeof DDTrack !== 'undefined') {
@@ -978,6 +1005,7 @@
                 '<div class="dd-pm__price" id="ddPmPrice" style="font-size:1.1rem;font-weight:800;color:#E8832A;margin-bottom:0.75rem;">' + escHtml(price) + '</div>' +
                 (desc ? '<p class="dd-pm__desc" style="font-size:0.88rem;color:#7A6558;margin:0 0 1rem;line-height:1.5;">' + escHtml(desc) + '</p>' : '') +
                 '<div class="dd-pm__attrs" id="ddPmAttrs" style="margin-bottom:0.75rem;"></div>' +
+                '<div class="dd-pm__attrs" id="ddPmSpice" style="margin-bottom:0.75rem;"></div>' +
                 '<div class="dd-pm__notes-wrap" style="margin-bottom:1rem;">' +
                     '<textarea id="ddPmNotes" placeholder="Add special instructions (optional)..." rows="2" ' +
                         'style="width:100%;box-sizing:border-box;padding:0.6rem 0.85rem;border:2px solid #EAD9CE;border-radius:10px;font-size:0.85rem;font-family:inherit;resize:none;outline:none;background:#fff;color:#221B19;">' +
@@ -1044,6 +1072,7 @@
                         quantity:     qty,
                         variation:    JSON.stringify(ddPmSelected),
                         variation_id: ddPmVariationId,
+                        spice_level:  ddPmSpiceSlug,
                         note:         pmNotes,
                     }),
                 })
@@ -1160,6 +1189,7 @@
                 // Writes to the module-level ddPmSelected so renderModal's Add handler
                 // can read it (reset to {} on each open in renderModal).
                 var total = p.attributes.length;
+                ddPmRequiredAttrs = total;
 
                 if (attrsEl) {
                     attrsEl.addEventListener('click', function(e) {
@@ -1173,7 +1203,6 @@
 
                         // Variable products: match selection → variation, show its
                         // authoritative price, store variation_id for add-to-cart.
-                        var variationOk = true;
                         if (ddPmVariations.length) {
                             var match   = ddFindVariation(ddPmVariations, ddPmSelected);
                             var priceEl = document.getElementById('ddPmPrice');
@@ -1183,32 +1212,44 @@
                             } else {
                                 ddPmVariationId = 0;
                             }
-                            variationOk = ddPmVariationId > 0;
                         }
 
-                        var allSelected = Object.keys(ddPmSelected).length >= total;
-                        if (addBtn) {
-                            var _ddState = window.DD && window.DD.hours_state;
-                            if (_ddState === 'closed' || _ddState === 'break') {
-                                addBtn.disabled = true;
-                                addBtn.style.opacity = '0.5';
-                                addBtn.style.cursor = 'not-allowed';
-                            } else if (allSelected && variationOk) {
-                                addBtn.disabled = false;
-                                addBtn.style.opacity = '1';
-                                addBtn.style.cursor = 'pointer';
-                            } else {
-                                // Incomplete selection or no matching variation → block.
-                                addBtn.disabled = true;
-                                addBtn.style.opacity = '0.5';
-                                addBtn.style.cursor = 'not-allowed';
-                            }
-                        }
+                        updatePmAddState();
                     });
                 }
             } else {
                 if (attrsEl) attrsEl.innerHTML = '';
             }
+
+            // Spice selector (category rule) — separate group in its own container so
+            // it never participates in variation matching.
+            ddPmHasSpice = !!p.has_spice && Array.isArray(p.spice_options) && p.spice_options.length > 0;
+            var spiceEl = document.getElementById('ddPmSpice');
+            if (spiceEl) {
+                if (ddPmHasSpice) {
+                    var sHtml = '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">' +
+                        '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#7A6558;margin-bottom:0.35rem;">Spice Level</div>' +
+                        '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
+                    p.spice_options.forEach(function(o) {
+                        sHtml += '<button type="button" class="dd-pm__attr-pill dd-chip" data-spice-slug="' + escHtml(o.slug) + '">' + escHtml(o.name) + '</button>';
+                    });
+                    sHtml += '</div></div>';
+                    spiceEl.innerHTML = sHtml;
+                    spiceEl.addEventListener('click', function(e) {
+                        var pill = e.target.closest('.dd-pm__attr-pill');
+                        if (!pill) return;
+                        spiceEl.querySelectorAll('.dd-pm__attr-pill').forEach(function(x) { x.classList.remove('active'); });
+                        pill.classList.add('active');
+                        ddPmSpiceSlug = pill.dataset.spiceSlug || '';
+                        updatePmAddState();
+                    });
+                } else {
+                    spiceEl.innerHTML = '';
+                }
+            }
+
+            // Initial Add-button state — also blocks a spice-only product until chosen.
+            updatePmAddState();
         })
         .catch(function() { /* silently fail — basic info already shown */ });
     }

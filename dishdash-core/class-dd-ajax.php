@@ -86,6 +86,11 @@ class DD_Ajax {
             if ( ! $attr->get_visible() ) {
                 continue;
             }
+            // Spice is rendered by the dedicated category-rule selector — skip it here
+            // so a product with the attribute assigned doesn't get two spice pickers.
+            if ( $attr->get_name() === DD_API::spice_taxonomy() ) {
+                continue;
+            }
             $options = $attr->is_taxonomy()
                 ? wc_get_product_terms( $product->get_id(), $attr->get_name(), [ 'fields' => 'names' ] )
                 : $attr->get_options();
@@ -106,6 +111,8 @@ class DD_Ajax {
             'rating_count'   => (int) $product->get_rating_count(),
             'attributes'     => $attributes,
             'variations'     => DD_API::normalize_variations( $product ),
+            'has_spice'      => DD_API::product_has_spice( $product ),
+            'spice_options'  => DD_API::product_has_spice( $product ) ? DD_API::spice_options() : [],
         ] );
     }
 }

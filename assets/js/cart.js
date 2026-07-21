@@ -454,6 +454,9 @@
                     : '<div class="dd-cart-drawer__item-img dd-cart-drawer__item-img--placeholder">&#127869;</div>' ) +
                 '<div class="dd-cart-drawer__item-info">' +
                     '<span class="dd-cart-drawer__item-name">' + escHtml( item.name ) + '</span>' +
+                    ( item.spice
+                        ? '<span class="dd-cart-drawer__item-meta">Spice: ' + escHtml( item.spice ) + '</span>'
+                        : '' ) +
                     '<div class="dd-cart-stepper">' +
                         '<button class="dd-cart-stepper__btn dd-cart-minus" data-key="' + key + '" aria-label="Decrease">&#8722;</button>' +
                         '<span class="dd-cart-stepper__qty">' + parseInt( item.qty, 10 ) + '</span>' +

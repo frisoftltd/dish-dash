@@ -427,6 +427,34 @@ class DD_Orders_Module extends DD_Module {
         ];
     }
 
+    /**
+     * Fold a cart line's separate `spice` label into its variation JSON for the
+     * ORDER layer only (never the cart line — that keeps spice separate so it never
+     * collides with the v3.11.5 price-side variation rebuild). Adding a "Spice Level"
+     * pair means every existing reader (kitchen/admin WhatsApp, email, modal) shows
+     * it with no reader change and no schema change. Our variation is always JSON or
+     * empty; a non-empty non-JSON value is preserved untouched (no spice appended).
+     */
+    private static function merge_spice_into_variation( string $variation, string $spice ): string {
+        $spice = trim( $spice );
+        if ( '' === $spice ) {
+            return $variation;
+        }
+        $data    = [];
+        $trimmed = trim( $variation );
+        if ( '' !== $trimmed && '{}' !== $trimmed ) {
+            $decoded = json_decode( stripslashes( $trimmed ), true );
+            if ( is_array( $decoded ) ) {
+                $data = $decoded;
+            } else {
+                // Unexpected plain-text variation — leave it as-is rather than lose it.
+                return $variation;
+            }
+        }
+        $data['Spice Level'] = $spice;
+        return wp_json_encode( $data );
+    }
+
     // ─────────────────────────────────────────
     //  INSERT ORDER ITEMS
     // ─────────────────────────────────────────
@@ -450,7 +478,7 @@ class DD_Orders_Module extends DD_Module {
                     'quantity'     => $qty,
                     'unit_price'   => $price,
                     'addons'       => ! empty( $addons ) ? wp_json_encode( $addons ) : null,
-                    'variation'    => sanitize_text_field( $item['variation'] ?? '' ),
+                    'variation'    => sanitize_text_field( self::merge_spice_into_variation( $item['variation'] ?? '', $item['spice'] ?? '' ) ),
                     'special_note' => sanitize_textarea_field( $item['note'] ?? '' ),
                     'line_total'   => $line_total,
                 ],
@@ -1177,7 +1205,9 @@ class DD_Orders_Module extends DD_Module {
                     'name'         => $item['name'],
                     'qty'          => (int) ( $item['qty'] ?? 1 ),
                     'price'        => (float) $item['price'],
-                    'variation'    => $item['variation'] ?? '',
+                    // Fold the separate spice field into the variation so the readers
+                    // show "Spice Level: …" alongside any real variation.
+                    'variation'    => self::merge_spice_into_variation( $item['variation'] ?? '', $item['spice'] ?? '' ),
                     // Cart items store the note under 'note'; normalize to 'special_note'
                     // so the notification readers see the same key on both order paths.
                     'special_note' => $item['note'] ?? '',
@@ -1870,7 +1900,7 @@ class DD_Orders_Module extends DD_Module {
                     'name'         => $item['name'],
                     'qty'          => (int) ( $item['qty'] ?? 1 ),
                     'price'        => (float) $item['price'],
-                    'variation'    => $item['variation'] ?? '',
+                    'variation'    => self::merge_spice_into_variation( $item['variation'] ?? '', $item['spice'] ?? '' ),
                     'special_note' => $item['note'] ?? '',
                 ];
             }, $pending['items'] ) ),

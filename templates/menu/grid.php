@@ -300,6 +300,9 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
       <!-- WooCommerce Attributes (only renders if product has attributes) -->
       <div class="dd-mobile-single__attributes" id="dd-mobile-single-attrs"></div>
 
+      <!-- Spice level (category rule — only renders when has_spice) -->
+      <div class="dd-mobile-single__attributes" id="dd-mobile-single-spice"></div>
+
       <!-- Description -->
       <div class="dd-mobile-single__description-wrap">
         <h3 class="dd-mobile-single__section-label">Description</h3>

@@ -2362,3 +2362,91 @@ no valid `variation_id` and the product isn't variable. No simple-product path w
 `php -l` clean (3 PHP files). No schema change. DD_DIAG untouched.
 
 **Awaiting go-ahead to commit v3.11.5.**
+
+---
+
+## Release — v3.11.6 — Category-based required spice selector ✅
+
+Spice shows for ALL products except 4 categories; options from the `pa_spiciness-level`
+taxonomy; required selection; captured as a SEPARATE field (never `variation_id` — spice
+has no price impact). Does not touch v3.11.5 pricing / payment / hours.
+
+### A. API — `has_spice` + `spice_options` (`class-dd-api.php`, `class-dd-ajax.php`)
+New helpers on `DD_API`:
+- `spice_taxonomy()` → `pa_spiciness-level` (filter `dd_spice_taxonomy`).
+- `spice_excluded_slugs()` → `get_option('dd_spice_excluded_categories', DEFAULTS)`, sanitized
+  slugs. **DEFAULTS:** `['papad','dahi-yogurt','roti-ka-khazana','meetha-ka-khazana-desserts']`.
+  Keyed on **slugs** (white-label safe), filter `dd_spice_excluded_slugs`.
+- `product_has_spice($product)` → true unless a product_cat slug ∈ excluded.
+- `spice_options()` → `get_terms(pa_spiciness-level, orderby=menu_order)` → `[{slug,name}]`,
+  cached 5 min (`dd_api_spice_options`). Empty if the taxonomy has no terms.
+
+`normalize_product()` + `ajax_get_product()` now emit `has_spice` and `spice_options`
+(options only when `has_spice`). Both attribute loops also **skip the spice taxonomy** so a
+product that still has the attribute assigned does not get a **duplicate** spice picker.
+
+### B. Admin setting (`admin/pages/settings.php`)
+Field "Hide Spice Selector For" (Order Handling card) — comma-separated category slugs →
+`dd_spice_excluded_categories` (array). Pre-filled with the current effective slugs (defaults
+until changed). Defaults work with **no** DB write via the helper fallback.
+
+### C. Frontend — dedicated spice group (mobile `menu-page.js` + desktop `frontend.js`)
+- Rendered in its **own** container (mobile `#dd-mobile-single-spice`, added to `grid.php`;
+  desktop `#ddPmSpice`, added to the modal), **separate from `attributes[]`** so it never
+  interferes with v3.11.5 variation matching. Reuses the existing pill markup/styles.
+- Shown only when `has_spice && spice_options.length`.
+- **Required:** unified gate — mobile `updateAddButtonState()` / desktop `updatePmAddState()`
+  now require attributes chosen **and** a matched variation (variable) **and** a spice level.
+  Variable **and** spice product ⇒ both required before Add enables.
+- Add POST sends `spice_level` (the taxonomy **slug**).
+
+### D. Cart — spice as its own field (`class-dd-cart.php`)
+- `ajax_add` reads `spice_level` (slug), validates it against `DD_API::spice_options()`, and
+  stores the human **label**. If the product `has_spice` (and terms exist) and no valid slug
+  → **reject** ("Please choose a spice level.") — server-side defense.
+- Stored as its own `spice` cart-line field (never in `variation`/`variation_id` — the v3.11.5
+  server-side variation rebuild would drop it). `item_key()` now includes `spice`, so **Hot vs
+  Mild are separate lines**.
+- Cart drawer shows a "Spice: <label>" sub-line (`cart.js` + `.dd-cart-drawer__item-meta` CSS).
+
+### Spice → order items / kitchen (no schema change, no reader edits)
+The spice label is folded into the order-item **variation JSON** as a `"Spice Level"` pair —
+via new `merge_spice_into_variation()` — at the **order/persistence layer only** (NOT the cart
+line, so no collision with v3.11.5):
+- `insert_order_items()` (DB `variation` column) → kitchen WhatsApp + admin modal + the PesaPal
+  promote notifier (which reads the DB) all show "Spice Level: …".
+- The offline `notification_data` map + the PesaPal fallback-create map → admin WhatsApp +
+  order email + customer "I have paid" WhatsApp.
+Every existing reader renders it with **zero** reader changes.
+
+### Edge cases
+- **Excluded-category product** → `has_spice=false` → no spice group, no requirement, adds
+  normally.
+- **Simple non-excluded product** → spice required.
+- **Variable + spice** → both required; cart price still from the variation; spice merged into
+  the stored variation text at the order layer only.
+- **Taxonomy misconfigured (no terms)** → `spice_options=[]`; the requirement is skipped
+  server-side (no lock-out) and the group isn't rendered.
+- **Non-JSON legacy variation text** → `merge_spice_into_variation` leaves it untouched
+  (never occurs from our frontend).
+
+### Confirmed: no quick-add bypass / no collision
+- `frontend.js` `addToCart()` (the `.dd-add-btn` homepage quick-add) is **dead code — never
+  invoked**; homepage/desktop cards open the product **modal** (card click handler), and the
+  mobile card quick-add opens the single view. So **every** add goes through a surface that
+  captures spice; the server reject is a pure safety net. (Corrects the v3.11.5 note about a
+  homepage quick-add path — there is no active one.)
+- Spice is never modeled as a variation/`variation_id`, so v3.11.5 pricing is untouched.
+
+### Notes for the developer
+1. **Clear the DD_API cache after deploy** — products cache 5 min and `spice_options` caches 5
+   min (`dd_api_spice_options`). Save any product or wait ≤5 min.
+2. **Verify on the server** (§ investigation): the exact spice taxonomy slug
+   (`pa_spiciness-level`) and the four excluded category slugs. If a slug differs, set the
+   Settings field (or the filters) — no code change needed.
+3. Spice is not persisted as its own `order_items` column (would need a schema change); it
+   rides in the item's `variation` text at the order layer, which reaches every reader.
+
+`php -l` clean (5 PHP files); JS brace/paren balanced. No schema change. DD_DIAG untouched.
+
+**Awaiting go-ahead to commit v3.11.6.**

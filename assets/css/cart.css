@@ -197,6 +197,14 @@ body.dd-cart-open {
     text-overflow: unset;
 }
 
+.dd-cart-drawer__item-meta {
+    display: block;
+    font-size: 0.75rem;
+    color: #777;
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
 .dd-cart-drawer__item-qty {
     font-size: 0.78rem;
     color: var(--dd-cart-muted);
