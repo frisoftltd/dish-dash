@@ -583,6 +583,11 @@ class DD_Template_Module extends DD_Module {
         ];
     }
 
+    /** Public accessor: the selectable font names for a role (for the BI dropdowns). */
+    public static function font_names( string $role ): array {
+        return array_keys( self::font_registry()[ $role ] ?? [] );
+    }
+
     /** Resolve a saved font name to its CSS stack, falling back to the role default. */
     private static function font_stack( string $role, string $default ): string {
         $sel = get_option( "dish_dash_{$role}_font", $default );

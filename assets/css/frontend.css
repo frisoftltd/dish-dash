@@ -725,7 +725,7 @@
     font-size: 22px;
     font-weight: 700;
     color: var(--brand, #65040d);
-    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-family: var(--font-heading);
     line-height: 1;
 }
 

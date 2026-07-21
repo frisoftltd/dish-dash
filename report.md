@@ -2588,3 +2588,32 @@ Swap = replace the **whole** value with `var(--font-*)` (fallback already in the
 **Tally:** 35 clean swaps (17 heading + 18 body) · 22 leave · 5 decision-needed = 62 frontend decls.
 
 **STOP — read-only. Awaiting review of LEAVE/DECISION, then the v3.11.10 β brief.**
+
+---
+
+## Release — v3.11.10 — Configurable fonts: BI dropdowns + wire 35 surfaces (Release β) ✅
+
+Fonts are now fully configurable end-to-end.
+
+**Part A — Brand Identity** (`brand-identity.php` + `class-dd-template-module.php`):
+- New `public static DD_Template_Module::font_names($role)` exposes the curated registry keys.
+- Typography's dead single `dish_dash_font` select → **two** dropdowns: Heading Font
+  (`dish_dash_heading_font`, default Cormorant Garamond) + Body Font (`dish_dash_body_font`,
+  default Inter), populated from `font_names()` (guarded + inline fallback).
+- Save = two **whitelist-gated** blocks (value must be a registry key else → default) — separate
+  from the `$fields`/`sanitize_text_field` loop, so no arbitrary string reaches the fonts URL.
+- Retired `dish_dash_font` (markup + `$font`/`$font_options` + `$fields` entry removed; DB option left).
+
+**Part B — 35 swaps** (`theme.css`, `frontend.css`, `menu-page.css`, `profile.css`) using
+`font-swap-inventory.txt` as authority: whole `font-family` value → `var(--font-heading)` (17) /
+`var(--font-body)` (18); `!important` preserved on 7 lines.
+
+**Verified:** 0 Cormorant/Inter `font-family` left in the 4 files; heading 17 (theme 5 + frontend 1
++ menu-page 5 + profile 6) + body 18 (theme 17 + menu-page 1) = 35; the 7 `!important` lines kept
+their `!important`; DEFERRED untouched (menu.css `'Nunito'` ×4, `frontend.css:38`) and all 22 LEAVE
+lines untouched. `php -l` clean.
+
+**Flagged for later** (from the inventory): the 5 bare `sans-serif` lines still render as system
+sans (not `--font-body`); menu.css Nunito + `frontend.css:38` decisions.
+
+**Awaiting go-ahead to commit v3.11.10.**

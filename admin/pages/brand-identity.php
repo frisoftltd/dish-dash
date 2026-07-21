@@ -38,7 +38,6 @@ if ( isset( $_POST['dd_save_brand_identity'] ) && check_admin_referer( 'dd_brand
         'dish_dash_accent_color',
         'dish_dash_text_color',
         'dish_dash_heading_color',
-        'dish_dash_font',
         'dish_dash_address',
         'dish_dash_phone',
         'dish_dash_contact_email',
@@ -62,6 +61,27 @@ if ( isset( $_POST['dd_save_brand_identity'] ) && check_admin_referer( 'dd_brand
         update_option( 'dish_dash_footer_attribution', $attr );
     }
 
+    // Fonts — whitelist-gated (a value must be a key in the curated registry, else it
+    // falls to the role default) so no arbitrary string can reach the Google Fonts URL.
+    $heading_font_whitelist = class_exists( 'DD_Template_Module' ) ? DD_Template_Module::font_names( 'heading' ) : array( 'Cormorant Garamond' );
+    $body_font_whitelist    = class_exists( 'DD_Template_Module' ) ? DD_Template_Module::font_names( 'body' )    : array( 'Inter' );
+
+    if ( isset( $_POST['dish_dash_heading_font'] ) ) {
+        $v = sanitize_text_field( wp_unslash( $_POST['dish_dash_heading_font'] ) );
+        if ( ! in_array( $v, $heading_font_whitelist, true ) ) {
+            $v = 'Cormorant Garamond';
+        }
+        update_option( 'dish_dash_heading_font', $v );
+    }
+
+    if ( isset( $_POST['dish_dash_body_font'] ) ) {
+        $v = sanitize_text_field( wp_unslash( $_POST['dish_dash_body_font'] ) );
+        if ( ! in_array( $v, $body_font_whitelist, true ) ) {
+            $v = 'Inter';
+        }
+        update_option( 'dish_dash_body_font', $v );
+    }
+
     echo '<div class="notice notice-success is-dismissible"><p>'
         . esc_html__( 'Brand identity saved!', 'dish-dash' )
         . '</p></div>';
@@ -78,7 +98,8 @@ $bg_color        = get_option( 'dish_dash_background_color', '#F5EFE6' );
 $accent_color    = get_option( 'dish_dash_accent_color', '#e8832a' );
 $text_color      = get_option( 'dish_dash_text_color', '#221B19' );
 $heading_color   = get_option( 'dish_dash_heading_color', '#65040d' );
-$font            = get_option( 'dish_dash_font', 'Inter' );
+$heading_font    = get_option( 'dish_dash_heading_font', 'Cormorant Garamond' );
+$body_font       = get_option( 'dish_dash_body_font',    'Inter' );
 $address         = get_option( 'dish_dash_address', '' );
 $phone           = get_option( 'dish_dash_phone', '' );
 $contact_email   = get_option( 'dish_dash_contact_email', get_option( 'admin_email' ) );
@@ -87,7 +108,10 @@ $instagram       = get_option( 'dish_dash_instagram', '' );
 $whatsapp        = get_option( 'dish_dash_whatsapp', '' );
 $tiktok          = get_option( 'dish_dash_tiktok', '' );
 
-$font_options = [ 'Inter', 'Poppins', 'Roboto', 'Lato', 'Montserrat' ];
+// Font name lists come from the module's curated registry (whitelist). Guarded so the
+// page never fatals if the class isn't loaded (mirrors the loader fallback).
+$heading_font_names = class_exists( 'DD_Template_Module' ) ? DD_Template_Module::font_names( 'heading' ) : [ 'Cormorant Garamond' ];
+$body_font_names    = class_exists( 'DD_Template_Module' ) ? DD_Template_Module::font_names( 'body' )    : [ 'Inter' ];
 ?>
 <div class="wrap dd-admin-wrap">
 
@@ -299,20 +323,32 @@ $font_options = [ 'Inter', 'Poppins', 'Roboto', 'Lato', 'Montserrat' ];
                     <h2><?php esc_html_e( 'Typography', 'dish-dash' ); ?></h2>
                 </div>
                 <div class="dd-hp-section__body">
-                    <div class="dd-hp-field" style="max-width:320px;">
-                        <label><?php esc_html_e( 'Font Family', 'dish-dash' ); ?></label>
-                        <select class="dd-hp-select" name="dish_dash_font" id="dd_font_select">
-                            <?php foreach ( $font_options as $f ) : ?>
-                            <option value="<?php echo esc_attr( $f ); ?>"
-                                <?php selected( $font, $f ); ?>
-                                style="font-family:'<?php echo esc_attr( $f ); ?>'">
-                                <?php echo esc_html( $f ); ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <p class="dd-hp-hint" style="margin-top:6px;">
-                            <?php esc_html_e( 'Applied across the entire storefront. Inter is the default.', 'dish-dash' ); ?>
-                        </p>
+                    <div class="dd-hp-grid-3">
+
+                        <div class="dd-hp-field">
+                            <label><?php esc_html_e( 'Heading Font', 'dish-dash' ); ?></label>
+                            <select class="dd-hp-select" name="dish_dash_heading_font" id="dd_heading_font_select">
+                                <?php foreach ( $heading_font_names as $f ) : ?>
+                                <option value="<?php echo esc_attr( $f ); ?>" <?php selected( $heading_font, $f ); ?>>
+                                    <?php echo esc_html( $f ); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="dd-hp-hint"><?php esc_html_e( 'Titles and headings (serif/display).', 'dish-dash' ); ?></p>
+                        </div>
+
+                        <div class="dd-hp-field">
+                            <label><?php esc_html_e( 'Body Font', 'dish-dash' ); ?></label>
+                            <select class="dd-hp-select" name="dish_dash_body_font" id="dd_body_font_select">
+                                <?php foreach ( $body_font_names as $f ) : ?>
+                                <option value="<?php echo esc_attr( $f ); ?>" <?php selected( $body_font, $f ); ?>>
+                                    <?php echo esc_html( $f ); ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="dd-hp-hint"><?php esc_html_e( 'Body text (sans-serif).', 'dish-dash' ); ?></p>
+                        </div>
+
                     </div>
                 </div>
             </div>

@@ -13,7 +13,7 @@
 }
 
 .dd-profile__name {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: var(--font-heading);
     font-size: 1.9rem;
     color: var(--dd-text, #221B19);
     margin: 0 0 4px;
@@ -56,7 +56,7 @@
 
 .dd-profile__stat-num {
     display: block;
-    font-family: 'Cormorant Garamond', serif;
+    font-family: var(--font-heading);
     font-size: 1.8rem;
     font-weight: 700;
     color: var(--brand);
@@ -72,7 +72,7 @@
 .dd-profile__section { margin-bottom: 28px; }
 
 .dd-profile__section-title {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: var(--font-heading);
     font-size: 1.25rem;
     color: var(--dd-text, #221B19);
     margin: 0 0 12px;
@@ -145,7 +145,7 @@
 }
 
 .dd-profile__link-title {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: var(--font-heading);
     font-size: 1.4rem;
     color: var(--dd-text, #221B19);
     margin: 0 0 8px;
@@ -245,7 +245,7 @@
 /* Tidy native WooCommerce content (orders table, address, account form) */
 .woocommerce-account .woocommerce-MyAccount-content h2,
 .woocommerce-account .woocommerce-MyAccount-content h3 {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: var(--font-heading);
     color: var(--dd-text, #221B19);
     margin-top: 0;
 }
@@ -306,7 +306,7 @@
 
 /* ── Order history ───────────────────────────────────────────────── */
 .dd-order-history__title {
-    font-family: 'Cormorant Garamond', serif;
+    font-family: var(--font-heading);
     color: var(--dd-text, #221B19);
     margin: 0 0 20px;
 }
