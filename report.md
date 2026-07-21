@@ -2450,3 +2450,41 @@ Every existing reader renders it with **zero** reader changes.
 `php -l` clean (5 PHP files); JS brace/paren balanced. No schema change. DD_DIAG untouched.
 
 **Awaiting go-ahead to commit v3.11.6.**
+
+---
+
+## Release — v3.11.7 — Brand Identity adds accent, text, heading color fields ✅
+
+Storage only. One file: `admin/pages/brand-identity.php` (page + its save handler). Builds toward
+the TOKEN-SPEC.md contract; these options are **stored but not yet emitted** as CSS vars.
+
+**Reads** (after `$bg_color`, mirroring the existing pattern):
+```php
+$accent_color  = get_option( 'dish_dash_accent_color', '#e8832a' );
+$text_color    = get_option( 'dish_dash_text_color', '#221B19' );
+$heading_color = get_option( 'dish_dash_heading_color', '#65040d' );
+```
+
+**Markup** — 3 new `.dd-hp-field` blocks in the Brand Colors `.dd-hp-grid-3` (after Background),
+each a swatch `<input type="color">` synced to a text `<input name="dish_dash_…_color">`, exactly
+like Primary/Dark/Background:
+- Accent → `dish_dash_accent_color`, placeholder `#e8832a`, hint "Highlights, badges, secondary CTAs."
+- Text → `dish_dash_text_color`, placeholder `#221B19`, hint "Body text."
+- Heading → `dish_dash_heading_color`, placeholder `#65040d`, hint "Titles and headings."
+
+**Save** — the 3 keys appended to the existing `$fields` allowlist → saved by the same
+`sanitize_text_field()` loop as primary/dark/bg.
+
+**Brief reconciliation (confirmed with developer):** the brief said "same `sanitize_hex_color()`
+treatment as the other colors," but the existing colors are saved via `$fields` +
+`sanitize_text_field()` (no `sanitize_hex_color` anywhere in the file). Chose **Option A** — add to
+`$fields` — so the new colors behave identically to the existing ones (the brief's actual intent:
+"same treatment as the other colors").
+
+**Not done (deferred per brief):** no font fields (no dynamic loader yet); **no injection wiring**
+(P1/P2 don't emit these tokens yet — next release); `dish_dash_dark_color` `#000000` default left
+as-is (the `#160F0D` reconciliation belongs to the injector release, per TOKEN-SPEC.md §2).
+
+`php -l` clean; no schema change.
+
+**Awaiting go-ahead to commit v3.11.7.**

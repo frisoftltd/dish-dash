@@ -35,6 +35,9 @@ if ( isset( $_POST['dd_save_brand_identity'] ) && check_admin_referer( 'dd_brand
         'dish_dash_primary_color',
         'dish_dash_dark_color',
         'dish_dash_background_color',
+        'dish_dash_accent_color',
+        'dish_dash_text_color',
+        'dish_dash_heading_color',
         'dish_dash_font',
         'dish_dash_address',
         'dish_dash_phone',
@@ -72,6 +75,9 @@ $logo_url        = get_option( 'dish_dash_logo_url', '' );
 $primary_color   = get_option( 'dish_dash_primary_color', '#65040d' );
 $dark_color      = get_option( 'dish_dash_dark_color', '#000000' );
 $bg_color        = get_option( 'dish_dash_background_color', '#F5EFE6' );
+$accent_color    = get_option( 'dish_dash_accent_color', '#e8832a' );
+$text_color      = get_option( 'dish_dash_text_color', '#221B19' );
+$heading_color   = get_option( 'dish_dash_heading_color', '#65040d' );
 $font            = get_option( 'dish_dash_font', 'Inter' );
 $address         = get_option( 'dish_dash_address', '' );
 $phone           = get_option( 'dish_dash_phone', '' );
@@ -229,6 +235,57 @@ $font_options = [ 'Inter', 'Poppins', 'Roboto', 'Lato', 'Montserrat' ];
                                        oninput="document.getElementById('dd_bg_color_picker').value=this.value" />
                             </div>
                             <p class="dd-hp-hint"><?php esc_html_e( 'Page background (warm cream default).', 'dish-dash' ); ?></p>
+                        </div>
+
+                        <div class="dd-hp-field">
+                            <label><?php esc_html_e( 'Accent Color', 'dish-dash' ); ?></label>
+                            <div class="dd-bi-color-wrap">
+                                <input type="color" class="dd-bi-color-swatch"
+                                       id="dd_accent_color_picker"
+                                       value="<?php echo esc_attr( $accent_color ); ?>"
+                                       oninput="document.getElementById('dd_accent_color_text').value=this.value" />
+                                <input type="text" class="dd-hp-input dd-bi-color-text"
+                                       id="dd_accent_color_text"
+                                       name="dish_dash_accent_color"
+                                       value="<?php echo esc_attr( $accent_color ); ?>"
+                                       placeholder="#e8832a"
+                                       oninput="document.getElementById('dd_accent_color_picker').value=this.value" />
+                            </div>
+                            <p class="dd-hp-hint"><?php esc_html_e( 'Highlights, badges, secondary CTAs.', 'dish-dash' ); ?></p>
+                        </div>
+
+                        <div class="dd-hp-field">
+                            <label><?php esc_html_e( 'Text Color', 'dish-dash' ); ?></label>
+                            <div class="dd-bi-color-wrap">
+                                <input type="color" class="dd-bi-color-swatch"
+                                       id="dd_text_color_picker"
+                                       value="<?php echo esc_attr( $text_color ); ?>"
+                                       oninput="document.getElementById('dd_text_color_text').value=this.value" />
+                                <input type="text" class="dd-hp-input dd-bi-color-text"
+                                       id="dd_text_color_text"
+                                       name="dish_dash_text_color"
+                                       value="<?php echo esc_attr( $text_color ); ?>"
+                                       placeholder="#221B19"
+                                       oninput="document.getElementById('dd_text_color_picker').value=this.value" />
+                            </div>
+                            <p class="dd-hp-hint"><?php esc_html_e( 'Body text.', 'dish-dash' ); ?></p>
+                        </div>
+
+                        <div class="dd-hp-field">
+                            <label><?php esc_html_e( 'Heading Color', 'dish-dash' ); ?></label>
+                            <div class="dd-bi-color-wrap">
+                                <input type="color" class="dd-bi-color-swatch"
+                                       id="dd_heading_color_picker"
+                                       value="<?php echo esc_attr( $heading_color ); ?>"
+                                       oninput="document.getElementById('dd_heading_color_text').value=this.value" />
+                                <input type="text" class="dd-hp-input dd-bi-color-text"
+                                       id="dd_heading_color_text"
+                                       name="dish_dash_heading_color"
+                                       value="<?php echo esc_attr( $heading_color ); ?>"
+                                       placeholder="#65040d"
+                                       oninput="document.getElementById('dd_heading_color_picker').value=this.value" />
+                            </div>
+                            <p class="dd-hp-hint"><?php esc_html_e( 'Titles and headings.', 'dish-dash' ); ?></p>
                         </div>
 
                     </div>
