@@ -151,7 +151,16 @@ class DD_Template_Module extends DD_Module {
         if ( is_page() ) {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
             if ( 'page-dishdash.php' === $meta ) {
-                $plugin_template = DD_TEMPLATES_DIR . 'page-dishdash.php';
+                // The saved page meta is now a MARKER ("use the Dish Dash full page") —
+                // which actual file gets served comes from the active template's
+                // registry entry, so switching templates never touches page meta.
+                $tpl             = self::template_registry()[ self::active_template() ];
+                $plugin_template = DD_TEMPLATES_DIR . $tpl['homepage'];
+                if ( ! file_exists( $plugin_template ) ) {
+                    // Registry pointed at a file that isn't shipped yet (e.g. an R3
+                    // layout) — fall back to the default so the page never breaks.
+                    $plugin_template = DD_TEMPLATES_DIR . 'page-dishdash.php';
+                }
                 if ( file_exists( $plugin_template ) ) {
                     return $plugin_template;
                 }
@@ -207,6 +216,20 @@ class DD_Template_Module extends DD_Module {
             [ 'dish-dash-frontend' ],
             DD_VERSION
         );
+
+        // ── Per-template CSS override (registry-driven) ──────────────────
+        // Enqueued after theme.css (dep) so a template's own CSS can override the
+        // base layout. khana-khazana's css[] is empty → zero enqueues, zero change.
+        $active_slug = self::active_template();
+        $active_tpl  = self::template_registry()[ $active_slug ];
+        foreach ( $active_tpl['css'] as $i => $css_file ) {
+            wp_enqueue_style(
+                'dd-tpl-' . $active_slug . '-' . $i,
+                $this->asset_url( 'css', $css_file ),
+                [ 'dish-dash-theme' ],
+                DD_VERSION
+            );
+        }
 
         if ( is_page() ) {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
@@ -472,16 +495,22 @@ class DD_Template_Module extends DD_Module {
     private static function template_registry(): array {
         return [
             'khana-khazana' => [
-                'label'  => 'Khana Khazana',
-                'status' => 'available',
+                'label'    => 'Khana Khazana',
+                'status'   => 'available',
+                'homepage' => 'page-dishdash.php',              // relative to DD_TEMPLATES_DIR
+                'css'      => [],                                // uses current default enqueues
             ],
             'minimal-light' => [
-                'label'  => 'Minimal Light',
-                'status' => 'coming_soon',   // flips to available in R3
+                'label'    => 'Minimal Light',
+                'status'   => 'coming_soon',   // flips to available in R3
+                'homepage' => 'layouts/minimal-light/page-home.php',
+                'css'      => [ 'layouts/minimal-light.css' ],   // relative to assets/css/
             ],
             'modern-dark' => [
-                'label'  => 'Modern Dark',
-                'status' => 'coming_soon',
+                'label'    => 'Modern Dark',
+                'status'   => 'coming_soon',
+                'homepage' => 'layouts/modern-dark/page-home.php',
+                'css'      => [ 'layouts/modern-dark.css' ],
             ],
         ];
     }

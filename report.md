@@ -2820,3 +2820,44 @@ confirms only the one scoped file changed.
 `php -l` clean. No schema change.
 
 **Awaiting go-ahead to commit v3.12.0.**
+
+---
+
+## Release — v3.12.1 — Template-aware render path (R2, behavior-neutral) ✅
+
+One file: `class-dd-template-module.php`. No file moves (developer explicitly dropped the
+"relocate page-dishdash.php under templates/layouts/" idea — would break theme-sync, page-meta,
+and git history for zero functional gain; the registry maps files to slugs instead).
+
+**Gate — confirmed all 3 `'page-dishdash.php' === $meta` sites and their roles before editing:**
+- `load_page_template()` (`:150`) — the **loader**. Only its `page-dishdash.php` branch rerouted
+  through the registry; the `page-simple.php` branch (separate, unrelated template) untouched.
+- `is_dishdash_page()` (`:186`, gates `enqueue_frontend_assets()`) — a **boolean detector**, not a
+  loader. Left byte-identical.
+- `remove_theme_conflicts()` (`:1194`, drifted from the brief's `:1098` estimate due to v3.12.0's
+  additions — gates one extra `wp_dequeue_style('woocommerce-general')`) — also a **detector**.
+  Left byte-identical.
+
+Developer's judgment call on both detectors confirmed correct by direct code inspection.
+
+**Implementation:**
+1. Registry entries gain `homepage` (relative to `DD_TEMPLATES_DIR`) and `css` (array, relative to
+   `assets/css/`) — khana-khazana → `page-dishdash.php` + `css:[]`; minimal-light/modern-dark →
+   `layouts/{slug}/page-home.php` + `layouts/{slug}.css` (not created — R3).
+2. `load_page_template()`'s `page-dishdash.php` branch resolves the file via
+   `template_registry()[active_template()]['homepage']`, with a `file_exists()` fallback to the
+   default if the registry points at an unshipped file. The saved page meta is now a **marker**
+   ("use the Dish Dash full page"), not a literal path — switching templates never touches page meta.
+3. `enqueue_frontend_assets()` gains a per-template CSS loop (after the 5 core enqueues, before the
+   `page-simple.php` special case): `dd-tpl-{slug}-{i}` handles, deps on `dish-dash-theme` so
+   template CSS can override the base layout.
+
+**Behavior-neutral by construction:** `active_template()` (v3.12.0) can only return `khana-khazana`
+today → `homepage` always resolves to the byte-identical `page-dishdash.php`, and `css` is always
+`[]` → the enqueue loop never runs.
+
+**Verified:** `php -l` clean; both detector sites + the `page-simple.php` branches confirmed
+byte-identical; `git status` shows only this one file changed — `page-dishdash.php` untouched, no
+CSS files touched, no R3 layout files created. No schema change.
+
+**Awaiting go-ahead to commit v3.12.1.**
