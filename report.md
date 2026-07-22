@@ -2617,3 +2617,56 @@ lines untouched. `php -l` clean.
 sans (not `--font-body`); menu.css Nunito + `frontend.css:38` decisions.
 
 **Awaiting go-ahead to commit v3.11.10.**
+
+---
+
+## Investigation + plan — v3.11.11 brand color sweep (pre-edit classification)
+
+Fresh inventory of the 5 target files. Context-checked every raw line — **none are semantic
+error/delete reds** (`#65040d` is the brand maroon; used on titles, buttons, remove-icon, ghost
+borders — all brand). Luminance: `#4a0209`/`#3d0208` are **darker** than brand (→ `--brand-dark`);
+`#a00015` is **brighter** (no token → leave+flag).
+
+### → `var(--brand)` — raw `#65040d` (15)
+| File:line | decl |
+|---|---|
+| cart.css:28 | `--dd-cart-red: #65040d` → `var(--brand)` (cascades to FAB + count badge) |
+| cart.css:618, 654 | `color` (`.dd-cart-remove` / :hover) |
+| menu-page.css:74, 417, 602 | `background` |
+| menu-page.css:569 | `background` (`.dd-mobile-attr-pill.is-active`) |
+| menu-page.css:570 | `border-color` (same rule) |
+| frontend.css:592 | `border: 2px solid` (`.dd-closed-btn--ghost`) |
+| frontend.css:593 | `color` (same rule) |
+| frontend.css:550 | 1st gradient stop only |
+| reservations.css:468 | 1st gradient stop only |
+| reservations.css:598 | `color` (`.dd-res-deposit-amount`) |
+| birthday.css:34 | `color` (`.dd-birthday-card__title`) |
+| birthday.css:95 | `background` (`.dd-birthday-form__submit`) |
+
+### → `var(--brand-dark)` — darker shades (5)
+| File:line | decl |
+|---|---|
+| cart.css:338 | `background: #4a0209` |
+| cart.css:521 | `.dd-submit-btn:hover { background: #4a0209 }` |
+| menu-page.css:429 | `.dd-mobile-product-card__quick-add:active { background: #4a0209 }` |
+| menu-page.css:621 | `.dd-mobile-single__add-to-cart:active { background: #4a0209 }` |
+| reservations.css:468 | 2nd gradient stop `#3d0208` (dark end) |
+
+### LEAVE + FLAG (don't guess)
+- **frontend.css:550** — 2nd gradient stop **`#a00015`** is a *brighter* red than brand; no
+  `--brand-light` token exists. Line becomes `linear-gradient(135deg, var(--brand), #a00015)`
+  (1st stop swapped, 2nd left). Needs a decision: add a `--brand-light` token, or `color-mix()`.
+- **rgba() maroon shadows** `rgba(101,4,13,α)` — can't take a var cleanly without `color-mix()`:
+  cart.css:331 (.35), cart.css:340 (.45), frontend.css:552 (.35), reservations.css:412 (.06). Leave.
+
+### LEAVE — legit `var(--brand, #65040d)` fallbacks (unchanged)
+frontend.css:727; reservations.css:32, 144, 164, 239, 254, 255, 288, 291, 292, 351, 377(×2), 380,
+381, 402, 445, 462, 522. (The `#65040d` is only a fallback; `--brand` is always defined since v3.11.8.)
+
+**Tally:** 15 → `var(--brand)` · 5 → `var(--brand-dark)` · 5 leave+flag (1 gradient stop + 4 rgba) ·
+~19 legit fallbacks untouched. `admin.css`/`reservations-admin.css`/`theme.css` not touched.
+
+**DONE (v3.11.11):** all 20 swaps applied and verified — 15 `→ var(--brand)`, 5 `→ var(--brand-dark)`;
+0 raw `#65040d` left in the 5 files; 18 `var(--brand, #65040d)` fallbacks intact; the 5 flagged
+survivors preserved (`#a00015` gradient stop + 4 `rgba(101,4,13,α)` shadows); `#4a0209`/`#3d0208`
+fully gone. `admin.css`/`reservations-admin.css`/`theme.css` untouched.

@@ -71,7 +71,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px 12px;
-    background: #65040d;
+    background: var(--brand);
     color: #fff;
     position: sticky;
     top: 0;
@@ -414,7 +414,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #65040d;
+    background: var(--brand);
     color: #fff;
     border: none;
     border-radius: 20px;
@@ -426,7 +426,7 @@
     transition: background 0.2s ease;
     touch-action: manipulation;
   }
-  .dd-mobile-product-card__quick-add:active { background: #4a0209; }
+  .dd-mobile-product-card__quick-add:active { background: var(--brand-dark); }
 
   /* ── Screen 3: Single Product ── */
   .dd-mobile-single__hero {
@@ -566,8 +566,8 @@
     touch-action: manipulation;
   }
   .dd-mobile-attr-pill.is-active {
-    background: #65040d;
-    border-color: #65040d;
+    background: var(--brand);
+    border-color: var(--brand);
     color: #fff;
     font-weight: 600;
   }
@@ -599,7 +599,7 @@
     left: 0;
     right: 0;
     margin: 24px 0 0;
-    background: #65040d;
+    background: var(--brand);
     color: #fff;
     border: none;
     border-radius: 16px;
@@ -618,7 +618,7 @@
     user-select: none;
     -webkit-user-select: none;
   }
-  .dd-mobile-single__add-to-cart:active { background: #4a0209; }
+  .dd-mobile-single__add-to-cart:active { background: var(--brand-dark); }
   .dd-mobile-single__add-to-cart.is-disabled {
     opacity: 0.45;
     cursor: not-allowed;

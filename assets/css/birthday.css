@@ -31,7 +31,7 @@
 .dd-birthday-card__title {
     font-size: 24px;
     font-weight: 700;
-    color: #65040d;
+    color: var(--brand);
     margin: 0 0 10px;
 }
 
@@ -92,7 +92,7 @@
 
 .dd-birthday-form__submit {
     width: 100%;
-    background: #65040d;
+    background: var(--brand);
     color: #fff;
     border: none;
     border-radius: 10px;

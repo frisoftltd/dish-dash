@@ -547,7 +547,7 @@
     width: 110px;
     height: 110px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #65040d, #a00015);
+    background: linear-gradient(135deg, var(--brand), #a00015);
     color: #fff;
     box-shadow: 0 4px 16px rgba(101,4,13,0.35);
 }
@@ -589,8 +589,8 @@
 .dd-closed-btn:hover { opacity: 0.82; text-decoration: none; }
 
 .dd-closed-btn--ghost {
-    border: 2px solid #65040d;
-    color: #65040d;
+    border: 2px solid var(--brand);
+    color: var(--brand);
     background: transparent;
 }
 

@@ -25,7 +25,7 @@
 
 /* ── Local variables ────────────────────────────────────────── */
 :root {
-    --dd-cart-red:     #65040d;
+    --dd-cart-red:     var(--brand);
     --dd-cart-accent:  #E8832A;
     --dd-cart-border:  #EAD9CE;
     --dd-cart-bg:      #FBF7F1;
@@ -335,7 +335,7 @@ body.dd-cart-open {
 }
 
 .dd-cart-btn:hover {
-    background: #4a0209;
+    background: var(--brand-dark);
     transform: translateY(-2px);
     box-shadow: 0 8px 28px rgba(101, 4, 13, 0.45);
 }
@@ -518,7 +518,7 @@ body.dd-cart-open {
     font-family: inherit;
 }
 
-.dd-submit-btn:hover { background: #4a0209; }
+.dd-submit-btn:hover { background: var(--brand-dark); }
 .dd-submit-btn:disabled { background: #ccc; cursor: not-allowed; }
 
 /* Order summary sidebar */
@@ -615,7 +615,7 @@ body.dd-cart-open {
     background: transparent;
     font-size: 16px;
     cursor: pointer;
-    color: #65040d;
+    color: var(--brand);
     display: grid;
     place-items: center;
     transition: background .15s;
@@ -651,7 +651,7 @@ body.dd-cart-open {
 }
 
 .dd-cart-remove:hover {
-    color: #65040d;
+    color: var(--brand);
 }
 
 .dd-cart-drawer__item-img--placeholder {

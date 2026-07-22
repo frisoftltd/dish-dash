@@ -465,7 +465,7 @@
 
 /* ── Confirm card (screen 4) ─────────────────────────────── */
 .dd-res-confirm-card {
-  background: linear-gradient(135deg, #65040d 0%, #3d0208 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
   border-radius: 16px;
   padding: 24px;
   color: #fff;
@@ -595,7 +595,7 @@
 .dd-res-deposit-amount {
   font-size: 22px;
   font-weight: 700;
-  color: #65040d;
+  color: var(--brand);
 }
 
 .dd-res-deposit-description {
