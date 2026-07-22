@@ -2670,3 +2670,21 @@ frontend.css:727; reservations.css:32, 144, 164, 239, 254, 255, 288, 291, 292, 3
 0 raw `#65040d` left in the 5 files; 18 `var(--brand, #65040d)` fallbacks intact; the 5 flagged
 survivors preserved (`#a00015` gradient stop + 4 `rgba(101,4,13,α)` shadows); `#4a0209`/`#3d0208`
 fully gone. `admin.css`/`reservations-admin.css`/`theme.css` untouched.
+
+---
+
+## Release — v3.11.12 — Remove dead `--brand`/`--brand-dark` defaults from theme.css ✅
+
+One file: `assets/css/theme.css`. Per the injection-scope investigation's **Verdict A**: `--brand`
+is emitted from options on every frontend page since v3.11.8 (`build_root_tokens()` via P1/P2), so
+theme.css's own `--brand:#6B1D1D` / `--brand-dark:#160F0D` defaults (`:root` at `:90-91`, `.dd-page`
+at `:125-126` — the latter explicitly commented "overridden by inline PHP style in template") were
+dead weight, never the effective value.
+
+Deleted both pairs. Nothing else in either block changed.
+
+**Verified:** no `--brand`/`--brand-dark` definitions remain in theme.css; all 49 `var(--brand)`
+consumers in the file are untouched and unaffected (they now resolve purely via the injected
+token — same value as before the deletion). Behavior-neutral.
+
+**Awaiting go-ahead to commit v3.11.12.**

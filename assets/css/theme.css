@@ -87,8 +87,6 @@ body.dd-page .ast-header-woo-cart {
    CSS CUSTOM PROPERTIES — Global (all pages)
 ───────────────────────────────────────────────────────────── */
 :root {
-    --brand:      #6B1D1D;
-    --brand-dark: #160F0D;
     --dd-bg:        #F5EFE6;
     --dd-surface:   #FBF7F1;
     --dd-surface-2: #FFF7EA;
@@ -120,10 +118,6 @@ body.dd-page .ast-header-woo-cart {
     --dd-text:    #221B19;
     --dd-muted:   #6E5B4C;
     --dd-muted-2: #8A6E53;
-
-    /* Brand — overridden by inline PHP style in template */
-    --brand:      #6B1D1D;
-    --brand-dark: #160F0D;
 
     /* Accent */
     --dd-gold:      #C9A24A;
