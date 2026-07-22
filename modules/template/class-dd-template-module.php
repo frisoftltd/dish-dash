@@ -55,6 +55,7 @@ class DD_Template_Module extends DD_Module {
     public function init(): void {
         add_action( 'admin_menu',             [ $this, 'register_admin_page' ] );
         add_action( 'admin_init',             [ $this, 'save_settings' ] );
+        add_action( 'admin_init',             [ $this, 'activate_template' ] );
         add_action( 'admin_enqueue_scripts',  [ $this, 'enqueue_admin_assets' ] );
         add_filter( 'theme_page_templates',   [ $this, 'register_page_template' ] );
         add_filter( 'template_include',       [ $this, 'load_page_template' ] );
@@ -431,6 +432,108 @@ class DD_Template_Module extends DD_Module {
         exit;
     }
 
+    /**
+     * Activate a template. Whitelist-validated against the registry — a slug must
+     * exist AND be 'available' (never 'coming_soon'), even on a forged POST.
+     */
+    public function activate_template(): void {
+        if (
+            ! isset( $_POST['dd_template_activate'] ) ||
+            ! check_admin_referer( 'dd_template_activate', 'dd_template_activate_nonce' ) ||
+            ! current_user_can( 'dd_manage_template' )
+        ) {
+            return;
+        }
+
+        $slug = sanitize_key( wp_unslash( $_POST['slug'] ?? '' ) );
+        $reg  = self::template_registry();
+
+        if ( isset( $reg[ $slug ] ) && 'available' === $reg[ $slug ]['status'] ) {
+            update_option( 'dd_active_template', $slug );
+
+            do_action( 'dd_log_activity', [
+                'action'      => 'template_activated',
+                'object_type' => 'template',
+                'object_id'   => $slug,
+            ] );
+        }
+
+        wp_redirect( add_query_arg( [
+            'page'  => 'dish-dash-template',
+            'saved' => '1',
+        ], admin_url( 'admin.php' ) ) );
+        exit;
+    }
+
+    /**
+     * Template registry. Each template = a layout package.
+     * status: 'available' | 'coming_soon'
+     */
+    private static function template_registry(): array {
+        return [
+            'khana-khazana' => [
+                'label'  => 'Khana Khazana',
+                'status' => 'available',
+            ],
+            'minimal-light' => [
+                'label'  => 'Minimal Light',
+                'status' => 'coming_soon',   // flips to available in R3
+            ],
+            'modern-dark' => [
+                'label'  => 'Modern Dark',
+                'status' => 'coming_soon',
+            ],
+        ];
+    }
+
+    /** Active template slug, validated against registry (available only). */
+    public static function active_template(): string {
+        $slug = get_option( 'dd_active_template', 'khana-khazana' );
+        $reg  = self::template_registry();
+        if ( ! isset( $reg[ $slug ] ) || $reg[ $slug ]['status'] !== 'available' ) {
+            return 'khana-khazana';
+        }
+        return $slug;
+    }
+
+    /**
+     * The card thumbnail preview block for a template, keyed by slug. Markup moved
+     * verbatim from the previous static cards — khana-khazana keeps its dynamic
+     * $primary color; the other two keep their static placeholder mockup colors.
+     */
+    private static function template_card_preview( string $slug, string $primary ): string {
+        $previews = [
+            'khana-khazana' => '
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#F5EFE6;position:relative;">
+                <div style="height:28px;background:' . esc_attr( $primary ) . ';"></div>
+                <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+                    <div style="height:10px;width:60px;background:#e0d5c8;border-radius:4px;"></div>
+                    <div style="height:10px;width:40px;background:#e0d5c8;border-radius:4px;"></div>
+                </div>
+                <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#E8832A;border-radius:6px;opacity:.7;"></div>
+            </div>',
+            'minimal-light' => '
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#fafafa;position:relative;">
+                <div style="height:28px;background:#f0f0f0;"></div>
+                <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+                    <div style="height:10px;width:60px;background:#ddd;border-radius:4px;"></div>
+                    <div style="height:10px;width:40px;background:#ddd;border-radius:4px;"></div>
+                </div>
+                <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#e0e0e0;border-radius:6px;"></div>
+            </div>',
+            'modern-dark' => '
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#2a2a2a;position:relative;">
+                <div style="height:28px;background:#1a1a1a;"></div>
+                <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
+                    <div style="height:10px;width:60px;background:#444;border-radius:4px;"></div>
+                    <div style="height:10px;width:40px;background:#444;border-radius:4px;"></div>
+                </div>
+                <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#555;border-radius:6px;"></div>
+            </div>',
+        ];
+        return $previews[ $slug ] ?? '<div style="border-radius:8px;height:110px;background:#eee;margin-bottom:1rem;"></div>';
+    }
+
     // ─────────────────────────────────────────
     //  RENDER ADMIN PAGE
     // ─────────────────────────────────────────
@@ -438,6 +541,7 @@ class DD_Template_Module extends DD_Module {
         $saved   = isset( $_GET['saved'] ) && '1' === $_GET['saved'];
         $primary = get_option( 'dish_dash_primary_color', '#65040d' );
         $brand_url = admin_url( 'admin.php?page=dish-dash-brand-identity' );
+        $active_template = self::active_template();
         ?>
         <div class="wrap dd-admin-wrap">
 
@@ -467,51 +571,43 @@ class DD_Template_Module extends DD_Module {
                 </h2>
                 <div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
 
-                    <!-- Card 1: Active — Khana Khazana -->
-                    <div style="background:#fff;border:2.5px solid <?php echo esc_attr( $primary ); ?>;border-radius:14px;padding:1.25rem;width:220px;box-shadow:0 4px 16px rgba(0,0,0,.08);position:relative;">
-                        <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#F5EFE6;position:relative;">
-                            <div style="height:28px;background:<?php echo esc_attr( $primary ); ?>;"></div>
-                            <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
-                                <div style="height:10px;width:60px;background:#e0d5c8;border-radius:4px;"></div>
-                                <div style="height:10px;width:40px;background:#e0d5c8;border-radius:4px;"></div>
-                            </div>
-                            <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#E8832A;border-radius:6px;opacity:.7;"></div>
+                    <?php foreach ( self::template_registry() as $slug => $tpl ) :
+                        $is_active    = ( $active_template === $slug );
+                        $is_available = ( 'available' === $tpl['status'] );
+                    ?>
+                        <?php if ( $is_available && $is_active ) : ?>
+                        <!-- Available + Active — green border, badge, Customize -->
+                        <div style="background:#fff;border:2.5px solid <?php echo esc_attr( $primary ); ?>;border-radius:14px;padding:1.25rem;width:220px;box-shadow:0 4px 16px rgba(0,0,0,.08);position:relative;">
+                            <?php echo self::template_card_preview( $slug, $primary ); ?>
+                            <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;"><?php echo esc_html( $tpl['label'] ); ?></div>
+                            <span style="display:inline-block;background:<?php echo esc_attr( $primary ); ?>;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;margin-bottom:.75rem;">✓ Active</span>
+                            <br>
+                            <a href="<?php echo esc_url( $brand_url ); ?>" class="button button-primary" style="background:<?php echo esc_attr( $primary ); ?>;border-color:<?php echo esc_attr( $primary ); ?>;width:100%;text-align:center;box-sizing:border-box;">
+                                Customize →
+                            </a>
                         </div>
-                        <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;">Khana Khazana</div>
-                        <span style="display:inline-block;background:<?php echo esc_attr( $primary ); ?>;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;margin-bottom:.75rem;">✓ Active</span>
-                        <br>
-                        <a href="<?php echo esc_url( $brand_url ); ?>" class="button button-primary" style="background:<?php echo esc_attr( $primary ); ?>;border-color:<?php echo esc_attr( $primary ); ?>;width:100%;text-align:center;box-sizing:border-box;">
-                            Customize →
-                        </a>
-                    </div>
-
-                    <!-- Card 2: Coming Soon — Modern Dark -->
-                    <div style="background:#fff;border:2px solid #e0e0e0;border-radius:14px;padding:1.25rem;width:220px;opacity:.45;cursor:not-allowed;">
-                        <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#2a2a2a;position:relative;">
-                            <div style="height:28px;background:#1a1a1a;"></div>
-                            <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
-                                <div style="height:10px;width:60px;background:#444;border-radius:4px;"></div>
-                                <div style="height:10px;width:40px;background:#444;border-radius:4px;"></div>
-                            </div>
-                            <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#555;border-radius:6px;"></div>
+                        <?php elseif ( $is_available ) : ?>
+                        <!-- Available + not active — normal card + Activate -->
+                        <div style="background:#fff;border:2px solid #e0e0e0;border-radius:14px;padding:1.25rem;width:220px;">
+                            <?php echo self::template_card_preview( $slug, $primary ); ?>
+                            <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;"><?php echo esc_html( $tpl['label'] ); ?></div>
+                            <form method="post" style="margin:0;">
+                                <?php wp_nonce_field( 'dd_template_activate', 'dd_template_activate_nonce' ); ?>
+                                <input type="hidden" name="slug" value="<?php echo esc_attr( $slug ); ?>">
+                                <button type="submit" name="dd_template_activate" value="1" class="button button-primary" style="width:100%;">
+                                    Activate
+                                </button>
+                            </form>
                         </div>
-                        <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;">Modern Dark</div>
-                        <span style="display:inline-block;background:#ccc;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">Coming Soon</span>
-                    </div>
-
-                    <!-- Card 3: Coming Soon — Minimal Light -->
-                    <div style="background:#fff;border:2px solid #e0e0e0;border-radius:14px;padding:1.25rem;width:220px;opacity:.45;cursor:not-allowed;">
-                        <div style="border-radius:8px;overflow:hidden;margin-bottom:1rem;height:110px;background:#fafafa;position:relative;">
-                            <div style="height:28px;background:#f0f0f0;"></div>
-                            <div style="padding:.5rem;display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.3rem;">
-                                <div style="height:10px;width:60px;background:#ddd;border-radius:4px;"></div>
-                                <div style="height:10px;width:40px;background:#ddd;border-radius:4px;"></div>
-                            </div>
-                            <div style="position:absolute;bottom:.5rem;right:.5rem;width:32px;height:32px;background:#e0e0e0;border-radius:6px;"></div>
+                        <?php else : ?>
+                        <!-- Coming soon — greyed, no button -->
+                        <div style="background:#fff;border:2px solid #e0e0e0;border-radius:14px;padding:1.25rem;width:220px;opacity:.45;cursor:not-allowed;">
+                            <?php echo self::template_card_preview( $slug, $primary ); ?>
+                            <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;"><?php echo esc_html( $tpl['label'] ); ?></div>
+                            <span style="display:inline-block;background:#ccc;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">Coming Soon</span>
                         </div>
-                        <div style="font-weight:700;font-size:.95rem;color:#333;margin-bottom:.4rem;">Minimal Light</div>
-                        <span style="display:inline-block;background:#ccc;color:#fff;font-size:.72rem;font-weight:700;padding:.2rem .6rem;border-radius:20px;">Coming Soon</span>
-                    </div>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
 
                 </div>
             </div>

@@ -2778,3 +2778,45 @@ admin-side (`dashboard.js` fallback, PHP module chrome/emails) + deferred font d
 Nunito, `frontend.css:38`, bare `sans-serif` lines).
 
 **Awaiting go-ahead to commit v3.11.14.**
+
+---
+
+## Release — v3.12.0 — Template registry + activation (behavior-neutral) ✅
+
+New feature system → **minor** version bump (3.11.14 → 3.12.0), per brief. One file:
+`modules/template/class-dd-template-module.php`.
+
+**Pre-edit gate findings:**
+- Card region confirmed at `:470-514` (close to the brief's estimate).
+- `dd_manage_template` cap already exists (`install.php`) — no registration needed.
+- `dd_active_template` had **zero readers anywhere** in the codebase — confirms it was dead/unused
+  before this release (matches CLAUDE.md's file-structure note that it's the option name but nothing
+  wired it up).
+- **No `<form>`/`wp_nonce_field()` exists anywhere on the page today** — the existing `save_settings()`
+  (checks `dd_template_save`) is pre-existing **dead code** with nothing to submit it. Left untouched;
+  built a new, separate `<form>` per Activate button since none existed to reuse.
+
+**Implementation:**
+- `template_registry()` — 3 entries exactly as specified.
+- `active_template()` — whitelist-validated read (must exist AND be `available`, else `khana-khazana`).
+- `activate_template()` — new `admin_init` handler (hooked alongside `save_settings`): own nonce, cap
+  `dd_manage_template`, whitelist-validates the POSTed slug (available only — rejects `coming_soon`
+  even via a forged POST), `update_option` + `dd_log_activity`.
+- `template_card_preview($slug,$primary)` — the three existing thumbnail blocks moved **verbatim**
+  into a slug-keyed lookup.
+- Card loop replaces the 3 static cards: available+active → unchanged (today: always khana-khazana,
+  the only available entry) → **behavior-neutral, zero visible change**; available+not-active → normal
+  card + new Activate `<form>` (real code path, not yet visually exercised since no other template is
+  `available` yet); coming_soon → unchanged greyed style.
+
+**Flagged + confirmed:** looping the registry in its written order swaps the visual order of the two
+disabled "coming soon" cards (Khana Khazana / Modern Dark / Minimal Light → Khana Khazana / Minimal
+Light / Modern Dark) — cosmetic only, both non-interactive. Proceeded as specified (registry order
+sent unchanged in the confirmation).
+
+**Do-not list honored:** render path (`load_page_template`), all CSS, `page-dishdash.php` — `git status`
+confirms only the one scoped file changed.
+
+`php -l` clean. No schema change.
+
+**Awaiting go-ahead to commit v3.12.0.**
