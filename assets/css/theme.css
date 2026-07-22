@@ -1841,7 +1841,7 @@ body.dd-page .ast-header-woo-cart {
         letter-spacing: 0.02em;
     }
     .dd-load-more-btn:hover {
-        background: #8B2020;
+        background: var(--brand-dark);
         transform: translateY(-2px);
         box-shadow: 0 12px 32px rgba(var(--brand-rgb),0.45);
     }

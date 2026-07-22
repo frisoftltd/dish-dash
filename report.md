@@ -2736,3 +2736,45 @@ remain in the 6 files; `--brand-rgb`/`--brand-dark-rgb` each defined exactly onc
 (oranges, golds, whites, neutral `rgba(0,0,0,…)`) confirmed untouched via exact-string targeting.
 
 **Awaiting go-ahead to commit v3.11.13.**
+
+---
+
+## Release — v3.11.14 — JS brand wiring: final storefront maroon sweep ✅
+
+Two files: `assets/js/frontend.js`, `assets/css/theme.css`. Pre-edit exhaustive grep of frontend.js
+confirmed the brief's 10 named lines were **complete** — first release in this series where nothing
+extra turned up beyond what was named.
+
+**All 14 raw values swapped** to `var(--brand)`/`var(--brand-dark)`/`var(--brand-rgb)` inside JS
+`style.cssText` / injected `<style>` strings / inline `style=""` attrs (CSS custom properties resolve
+identically in all three contexts, per the brief's stated rule):
+- `:80` toast background
+- `:110/:112` injected `.dd-pm__attr-pill.active` block (`!important` preserved, both)
+- `:499` closed-modal circles gradient (mirrors the v3.11.13 `frontend.css:550` `color-mix` fix) +
+  box-shadow `rgba(101,4,13,.35)` → `rgba(var(--brand-rgb),.35)`
+- `:504` ghost button border + color
+- `:506` `.dd-bottom-strip` → `var(--brand-dark)` (darker band, per brief's explicit context call —
+  contrasts with theme.css's `#6b1d1d`→`var(--brand)` mapping elsewhere; here it's brand-dark by design)
+- `:1017/:1020` qty stepper buttons (distinguished by trailing `&#8722;`/`&#43;` entity — two separate
+  edits, exact-string matched)
+- `:1023` Add-to-Cart button background
+- `:1049/:1050` mouseover/mouseout handlers
+
+`theme.css:1844` `.dd-load-more-btn:hover { background:#8B2020 }` → `var(--brand-dark)` (hover-darken,
+matches the surrounding `rgba(var(--brand-rgb),…)` shadows already swept in v3.11.13).
+
+**Left (per brief):** `dashboard.js`/analytics fallback (`brandColor` read from a localized var first,
+`#65040d` is only the JS-side default — admin-side, separate track); all PHP module hardcodes (admin
+chrome + emails — not customer-facing storefront).
+
+**Verified:** 0 raw maroon hex/rgb remain in frontend.js; JS brace/paren counts unchanged (285/285,
+927/927 — confirms no structural corruption from the string edits); token counts match exactly
+(11 `var(--brand)`, 2 `var(--brand-dark)`, 1 `var(--brand-rgb)`, 1 `color-mix`). No PHP touched; no
+schema change.
+
+**This closes the customer-facing storefront maroon sweep** (theme.css v3.11.12/13, cart/menu-page/
+frontend/reservations/birthday v3.11.11/13, frontend.js v3.11.14). Remaining brand-leak backlog:
+admin-side (`dashboard.js` fallback, PHP module chrome/emails) + deferred font decisions (menu.css
+Nunito, `frontend.css:38`, bare `sans-serif` lines).
+
+**Awaiting go-ahead to commit v3.11.14.**

@@ -77,7 +77,7 @@
         if (!t) {
             t = document.createElement('div');
             t.id = 'ddToast';
-            t.style.cssText = 'position:fixed;bottom:90px;right:20px;background:#65040d;color:#fff;' +
+            t.style.cssText = 'position:fixed;bottom:90px;right:20px;background:var(--brand);color:#fff;' +
                 'padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;' +
                 'z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
                 'box-shadow:0 4px 16px rgba(0,0,0,0.2);';
@@ -107,9 +107,9 @@
             '  margin:4px;',
             '}',
             '.dd-pm__attr-pill.active {',
-            '  background:#65040d !important;',
+            '  background:var(--brand) !important;',
             '  color:#fff !important;',
-            '  border-color:#65040d !important;',
+            '  border-color:var(--brand) !important;',
             '}',
             '.dd-pm__attr-group { margin-bottom:12px; }',
             '.dd-pm__attr-label { font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#8a7a66; margin-bottom:6px; }',
@@ -496,14 +496,14 @@
                 '.dd-closed-modal__intro{font-size:16px;color:#333;margin:0 0 6px;font-weight:500;}',
                 '.dd-closed-modal__sub{font-size:14px;color:#777;margin:0 0 28px;}',
                 '.dd-closed-modal__circles{display:flex;justify-content:center;gap:20px;margin-bottom:32px;}',
-                '.dd-circle{display:flex;flex-direction:column;align-items:center;justify-content:center;width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,#65040d,#a00015);color:#fff;box-shadow:0 4px 16px rgba(101,4,13,.35);}',
+                '.dd-circle{display:flex;flex-direction:column;align-items:center;justify-content:center;width:110px;height:110px;border-radius:50%;background:linear-gradient(135deg,var(--brand),color-mix(in srgb,var(--brand),white 22%));color:#fff;box-shadow:0 4px 16px rgba(var(--brand-rgb),.35);}',
                 '.dd-circle__num{font-size:32px;font-weight:700;line-height:1;}',
                 '.dd-circle__label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;opacity:.85;margin-top:4px;}',
                 '.dd-closed-modal__actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}',
                 '.dd-closed-btn{display:inline-flex;align-items:center;gap:6px;padding:11px 22px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;}',
-                '.dd-closed-btn--ghost{border:2px solid #65040d;color:#65040d;background:transparent;}',
+                '.dd-closed-btn--ghost{border:2px solid var(--brand);color:var(--brand);background:transparent;}',
                 '.dd-closed-btn--wa{background:#25D366;color:#fff;border:2px solid transparent;}',
-                '.dd-bottom-strip{position:fixed;bottom:0;left:0;right:0;z-index:99998;background:#6b1d1d;color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:center;gap:20px;font-size:14px;}',
+                '.dd-bottom-strip{position:fixed;bottom:0;left:0;right:0;z-index:99998;background:var(--brand-dark);color:#fff;padding:12px 24px;display:flex;align-items:center;justify-content:center;gap:20px;font-size:14px;}',
                 '.dd-bottom-strip__text{font-weight:500;}',
                 '.dd-bottom-strip__text span{font-weight:700;color:#E8832A;}',
                 '.dd-bottom-strip__hide{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;padding:5px 14px;border-radius:4px;font-size:13px;cursor:pointer;}',
@@ -1014,13 +1014,13 @@
                 '<div class="dd-pm__footer" style="display:flex;align-items:center;gap:12px;">' +
                     '<div class="dd-pm__qty-wrap" style="display:flex;align-items:center;gap:8px;background:#F5EFE6;border-radius:999px;padding:4px 12px;">' +
                         '<button class="dd-pm__qty-btn" id="ddPmMinus" aria-label="Decrease" ' +
-                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#65040d;font-weight:700;line-height:1;padding:2px 4px;">&#8722;</button>' +
+                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--brand);font-weight:700;line-height:1;padding:2px 4px;">&#8722;</button>' +
                         '<span class="dd-pm__qty" id="ddPmQty" style="font-weight:700;font-size:1rem;min-width:24px;text-align:center;">1</span>' +
                         '<button class="dd-pm__qty-btn" id="ddPmPlus" aria-label="Increase" ' +
-                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#65040d;font-weight:700;line-height:1;padding:2px 4px;">&#43;</button>' +
+                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--brand);font-weight:700;line-height:1;padding:2px 4px;">&#43;</button>' +
                     '</div>' +
                     '<button id="ddPmAddBtn" data-id="' + escHtml(productId) + '" ' +
-                        'style="flex:1;background:#65040d;color:#fff;border:none;border-radius:999px;padding:0.75rem 1rem;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s;">' +
+                        'style="flex:1;background:var(--brand);color:#fff;border:none;border-radius:999px;padding:0.75rem 1rem;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s;">' +
                         'Add to Cart' +
                     '</button>' +
                 '</div>' +
@@ -1046,8 +1046,8 @@
         }
 
         if (pmAdd) {
-            pmAdd.addEventListener('mouseover', function() { this.style.background = '#4a0209'; });
-            pmAdd.addEventListener('mouseout',  function() { this.style.background = '#65040d'; });
+            pmAdd.addEventListener('mouseover', function() { this.style.background = 'var(--brand-dark)'; });
+            pmAdd.addEventListener('mouseout',  function() { this.style.background = 'var(--brand)'; });
 
             pmAdd.addEventListener('click', function() {
                 var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
