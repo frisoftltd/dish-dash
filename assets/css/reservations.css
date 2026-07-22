@@ -409,7 +409,7 @@
   touch-action: manipulation;
 }
 
-.dd-res-stepper__btn:hover { background: rgba(101,4,13,0.06); }
+.dd-res-stepper__btn:hover { background: rgba(var(--brand-rgb),0.06); }
 
 .dd-res-stepper__val {
   min-width: 52px;

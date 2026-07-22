@@ -606,6 +606,25 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
+     * Convert a hex color (#rgb or #rrggbb, with or without '#') to an "r,g,b" string
+     * for use inside rgba(...). Guards malformed input by falling back to $default's
+     * own RGB — so a corrupted option can never break a shadow/gradient declaration.
+     */
+    private static function hex_to_rgb( string $hex, string $default ): string {
+        $clean = ltrim( trim( $hex ), '#' );
+        if ( strlen( $clean ) === 3 ) {
+            $clean = $clean[0] . $clean[0] . $clean[1] . $clean[1] . $clean[2] . $clean[2];
+        }
+        if ( ! preg_match( '/^[0-9a-fA-F]{6}$/', $clean ) ) {
+            $clean = ltrim( $default, '#' );
+            if ( strlen( $clean ) === 3 ) {
+                $clean = $clean[0] . $clean[0] . $clean[1] . $clean[1] . $clean[2] . $clean[2];
+            }
+        }
+        return hexdec( substr( $clean, 0, 2 ) ) . ',' . hexdec( substr( $clean, 2, 2 ) ) . ',' . hexdec( substr( $clean, 4, 2 ) );
+    }
+
+    /**
      * Build the complete :root token block from Brand Identity options.
      * Single source of truth for all frontend CSS variables — used by BOTH the
      * P1 inline-style injection (enqueue_frontend_assets) and the P2 global-header
@@ -627,6 +646,8 @@ class DD_Template_Module extends DD_Module {
         /* ── Configurable brand tokens (Brand Identity) ── */
         --brand:      ' . esc_attr( $primary ) . ';
         --brand-dark: ' . esc_attr( $dark )    . ';
+        --brand-rgb:      ' . esc_attr( self::hex_to_rgb( $primary, '#65040d' ) ) . ';
+        --brand-dark-rgb: ' . esc_attr( self::hex_to_rgb( $dark, '#160F0D' ) )    . ';
         --accent:     ' . esc_attr( $accent )  . ';
         --bg:         ' . esc_attr( $bg )      . ';
         --text:       ' . esc_attr( $text )    . ';
@@ -649,7 +670,7 @@ class DD_Template_Module extends DD_Module {
         --dd-gold:      #C9A24A;
         --dd-gold-soft: #E6C77A;
         --dd-line:      #EADfCE;
-        --dd-shadow-sm: 0 10px 30px rgba(107,29,29,0.06);
+        --dd-shadow-sm: 0 10px 30px rgba(var(--brand-rgb),0.06);
         --dd-shadow-md: 0 20px 40px rgba(0,0,0,0.14);
         --dd-container: 1240px;
     }';

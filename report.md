@@ -2688,3 +2688,51 @@ consumers in the file are untouched and unaffected (they now resolve purely via 
 token — same value as before the deletion). Behavior-neutral.
 
 **Awaiting go-ahead to commit v3.11.12.**
+
+---
+
+## Release — v3.11.13 — `--brand-rgb`/`--brand-dark-rgb` tokens + full theme.css maroon sweep ✅
+
+Pre-edit classification found 4 discrepancies between the brief's named lines and the actual code
+(fresh grep against theme.css/reservations.css/cart.css/frontend.css/menu-page.css). Sent for review;
+confirmed via commit message "full maroon sweep" → proceeded with the completeness reading on all 4,
+plus one addition (the module's own shadow definition).
+
+**Part A** (`class-dd-template-module.php`): new `hex_to_rgb($hex,$default)` — strips `#`, expands
+3-digit hex, `hexdec` pairs, malformed input falls back to `$default`'s own RGB. `build_root_tokens()`
+emits `--brand-rgb`/`--brand-dark-rgb`. Also fixed the module's own `--dd-shadow-sm` (was hardcoded
+`rgba(107,29,29,0.06)` — the LIVE value that overrides theme.css's copy since v3.11.8) →
+`rgba(var(--brand-rgb),0.06)`, so shadows are actually brand-reactive, not just cosmetically swapped
+in a dead location.
+
+**Part B — full sweep, 57 total swaps:**
+- **41× `rgba(107,29,29,α)` → `rgba(var(--brand-rgb),α)`** — 40 in theme.css (incl. `--dd-shadow-sm/-md`
+  definitions + the `var(--dd-overlay-color, rgba(…))` fallback at `:639`, now genuinely reactive) + 1
+  in `menu-page.css:869`. Applied via verified `perl -pi` regex (alpha values vary), confirmed 0 raw
+  remaining / exact count of `var(--brand-rgb)` matches. (Brief estimated "~25"; actual is higher.)
+- **4× `rgba(101,4,13,α)` → `rgba(var(--brand-rgb),α)`** — cart.css 331+340 (331 was left-flagged in
+  v3.11.11, now included per full sweep), frontend.css 552, reservations.css 412.
+- **7× raw `#6b1d1d` → `var(--brand)`** — brief named only 2 (909 color, 981 border-color); found 7
+  total (theme.css 892/909/916 `color…!important` — preserved, 967/985 `color`, 976/981
+  `border-color`). The 4 legit `var(--brand, #6B1D1D)`/`var(--dd-primary, #6B1D1D)` fallbacks
+  (2377/2903/2975/2984) left untouched.
+- **2× `#1A0A0A` → `var(--brand-dark)`** — brief named only `:1324` (.dd-reserve); `:617` (.dd-hero)
+  has the byte-identical value in the analogous role (background behind a gradient overlay), included.
+- **3× `rgba(26,10,10,α)`/`rgba(22,15,13,α)` → `rgba(var(--brand-dark-rgb),α)`** — theme.css `:639`
+  (two later hero-gradient stops) + `:1344` (reserve-band 2nd stop). Closes the reserve-band +
+  hero-fallback gradient fix exactly as specified.
+- **`menu-page.css:989`** `#4f1414` → `var(--brand-dark)`.
+- **`frontend.css:550`** `#a00015` → `color-mix(in srgb, var(--brand), white 22%)` — closes the
+  v3.11.11 flag.
+
+**Important note — not a byte-identical no-op.** theme.css's `rgba(107,29,29,…)`/`#6b1d1d` was its
+own legacy maroon (`#6B1D1D`), distinct from Brand Identity's `#65040d` default — the same drift
+already fixed for the plain `--brand`/`--brand-dark` tokens in v3.11.8/v3.11.12. This sweep converges
+theme.css's shadows/hovers/gradients onto the SAME live brand color as every other surface — a
+corrective, minor, expected visual shift on live sites (not a regression).
+
+**Verified:** `php -l` clean; 0 raw `#65040d`/`#6b1d1d` (non-fallback)/`#1A0A0A`/`#4f1414`/`#a00015`
+remain in the 6 files; `--brand-rgb`/`--brand-dark-rgb` each defined exactly once; leave-list
+(oranges, golds, whites, neutral `rgba(0,0,0,…)`) confirmed untouched via exact-string targeting.
+
+**Awaiting go-ahead to commit v3.11.13.**

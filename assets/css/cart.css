@@ -328,7 +328,7 @@ body.dd-cart-open {
     display: flex;
     align-items: center;
     gap: 0.45rem;
-    box-shadow: 0 6px 24px rgba(101, 4, 13, 0.35);
+    box-shadow: 0 6px 24px rgba(var(--brand-rgb), 0.35);
     z-index: 9000;
     transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
     line-height: 1;
@@ -337,7 +337,7 @@ body.dd-cart-open {
 .dd-cart-btn:hover {
     background: var(--brand-dark);
     transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(101, 4, 13, 0.45);
+    box-shadow: 0 8px 28px rgba(var(--brand-rgb), 0.45);
 }
 
 .dd-cart-btn__count {

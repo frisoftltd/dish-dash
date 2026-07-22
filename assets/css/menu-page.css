@@ -866,7 +866,7 @@
     }
     .dd-menu-cat.is-active .dd-menu-cat__circle {
         border-color: var(--brand, #6B1D1D);
-        box-shadow: 0 0 0 3px rgba(107, 29, 29, .12);
+        box-shadow: 0 0 0 3px rgba(var(--brand-rgb),.12);
     }
     .dd-menu-cat.is-active .dd-menu-cat__name {
         color: var(--brand, #6B1D1D);
@@ -986,7 +986,7 @@
         transition: background .2s, transform .15s;
     }
     .dd-menu-loadmore:hover {
-        background: #4f1414;
+        background: var(--brand-dark);
         transform: translateY(-1px);
     }
     .dd-menu-loadmore.is-loading {
