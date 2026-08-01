@@ -20,7 +20,8 @@
  *   dish_dash_enable_delivery, dish_dash_enable_dinein,
  *   dish_dash_enable_reservations, dish_dash_enable_pos,
  *   dd_per_order_fee, dd_minimum_order_amount,
- *   dd_payment_card_enabled, dd_payment_momo_enabled, dd_payment_cod_enabled
+ *   dd_payment_card_enabled, dd_payment_momo_enabled, dd_payment_cod_enabled,
+ *   dd_ga4_measurement_id
  *
  * Nonce action: dd_settings_save
  *
@@ -101,6 +102,9 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dish_dash_order_notify_dashboard', isset( $_POST['dish_dash_order_notify_dashboard'] ) ? '1' : '0' );
     update_option( 'dish_dash_order_handoff_whatsapp',  isset( $_POST['dish_dash_order_handoff_whatsapp']  ) ? '1' : '0' );
     update_option( 'dish_dash_momo_merchant_code',      preg_replace( '/\D/', '', (string) ( $_POST['dish_dash_momo_merchant_code'] ?? '' ) ) );
+
+    // Analytics — GA4 Measurement ID (per-site; blank disables gtag entirely)
+    update_option( 'dd_ga4_measurement_id', sanitize_text_field( $_POST['dd_ga4_measurement_id'] ?? '' ) );
 
     // Spice selector — product-category slugs where the spice level is HIDDEN.
     // Comma-separated slugs; normalized to an array of sanitized slugs.
@@ -354,6 +358,18 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                     <input type="password" name="dish_dash_claude_api_key"
                            value="<?php echo esc_attr( get_option( 'dish_dash_claude_api_key', '' ) ); ?>"
                            class="dd-input" />
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">Google Analytics 4 ID
+                    <span class="dd-label-hint">Leave blank to disable tracking</span>
+                </div>
+                <div class="dd-field-control">
+                    <input type="text" name="dd_ga4_measurement_id"
+                           value="<?php echo esc_attr( get_option( 'dd_ga4_measurement_id', '' ) ); ?>"
+                           placeholder="G-XXXXXXXXXX"
+                           class="dd-input dd-input--medium" />
                 </div>
             </div>
 

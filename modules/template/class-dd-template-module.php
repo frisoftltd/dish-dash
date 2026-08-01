@@ -206,6 +206,16 @@ class DD_Template_Module extends DD_Module {
         $primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
         $dark    = get_option( 'dish_dash_dark_color',    '#160F0D' );
 
+        // ── GA4 tracking (per-site Measurement ID, blank disables it) ────
+        $ga4_id = get_option( 'dd_ga4_measurement_id', '' );
+        if ( $ga4_id ) {
+            wp_enqueue_script( 'dd-gtag', 'https://www.googletagmanager.com/gtag/js?id=' . rawurlencode( $ga4_id ), [], null, false );
+            wp_add_inline_script( 'dd-gtag',
+                "window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','" . esc_js( $ga4_id ) . "');",
+                'after'
+            );
+        }
+
         wp_enqueue_style(  'dish-dash-theme',    $this->asset_url( 'css', 'theme.css' ),    [], DD_VERSION );
         wp_enqueue_style(  'dish-dash-frontend', $this->asset_url( 'css', 'frontend.css' ), [ 'dish-dash-theme' ], DD_VERSION );
         wp_enqueue_style(  'dish-dash-menu',     $this->asset_url( 'css', 'menu.css' ),     [], DD_VERSION );
@@ -308,6 +318,7 @@ class DD_Template_Module extends DD_Module {
             // Sourced from the shared dd_momo_merchant_code() helper (same value as
             // before — cart.js still builds the order payload itself, unchanged).
             'momoMerchantCode'      => dd_momo_merchant_code(),
+            'ga4Id'                 => $ga4_id,
             'pluginUrl'             => plugins_url( '/', DD_PLUGIN_FILE ),
             'paymentGateways'       => (function() {
                 if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways ) return [];
