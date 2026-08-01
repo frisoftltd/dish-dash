@@ -24,6 +24,10 @@
  *   - admin-ajax.php?action=dd_cart_add
  *   - admin-ajax.php?action=dd_get_product
  *
+ * Tracking events fired:
+ *   GA4 (window.gtag, v3.13.1): add_to_cart on a successful modal Add —
+ *   guarded by a local ddTrack(), no-ops when gtag isn't loaded
+ *
  * Custom events listened to:
  *   - dd:open-modal    (detail: { productId }) — fired by search.js
  *   - dd:filter-cards  (detail: { query })     — fired by search.js
@@ -57,6 +61,11 @@
     const $ = (id) => document.getElementById(id);
     const $q = (sel, scope = document) => scope.querySelector(sel);
     const $all = (sel, scope = document) => [...scope.querySelectorAll(sel)];
+
+    /* ── GA4 funnel tracking (local copy — ddTrack in cart.js is not global) ── */
+    function ddTrack(event, params) {
+        if (window.gtag) { gtag('event', event, params || {}); }
+    }
 
     const fmt = (n) => 'RWF ' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
@@ -1087,6 +1096,16 @@
                         if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
                         pmAdd.textContent = '✓ Added!';
                         showToast('✓ Added to cart!');
+
+                        var ddPrice = parseFloat(String(price).replace(/[^0-9.]/g, ''));
+                        ddTrack('add_to_cart', {
+                            currency: 'RWF',
+                            items: [{ item_name: name, quantity: qty }].map(function(it){
+                                if (!isNaN(ddPrice)) { it.price = ddPrice; }
+                                return it;
+                            })
+                        });
+
                         setTimeout(function() { closeProductModal(); }, 900);
                     } else {
                         pmAdd.textContent = 'Add to Cart';

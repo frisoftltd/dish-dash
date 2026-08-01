@@ -24,6 +24,10 @@
  * Custom events fired:   None
  * Custom events listened: None
  *
+ * Tracking events fired:
+ *   GA4 (window.gtag, v3.13.1): add_to_cart on a successful mobile add —
+ *   guarded by a local ddTrack(), no-ops when gtag isn't loaded
+ *
  * Dependencies:
  *   - window.DDTrackConfig (optional — from tracking.js, used for category view events)
  *
@@ -167,6 +171,11 @@
             });
     }
 })();
+
+/* ── GA4 funnel tracking (local copy — ddTrack in cart.js is not global) ── */
+function ddTrack(event, params) {
+    if (window.gtag) { gtag('event', event, params || {}); }
+}
 
 /**
  * DDMobileMenu - Handles the 3-screen mobile menu navigation
@@ -826,6 +835,15 @@ class DDMobileMenu {
                     if (typeof window.showToast === 'function') window.showToast('✓ Added to cart!');
                     // Track add to cart from mobile menu
                     if (window.DDTrack) window.DDTrack.addToCart(productId, null);
+                    ddTrack('add_to_cart', {
+                        currency: 'RWF',
+                        value: Number(product.price) || 0,
+                        items: [{
+                            item_name: product.name,
+                            price: Number(product.price) || 0,
+                            quantity: qty
+                        }]
+                    });
                 } else {
                     console.error('Add to cart failed', data);
                 }

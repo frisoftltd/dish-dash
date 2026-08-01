@@ -1,209 +1,283 @@
-# INVESTIGATION — Hardcoded brand-color leaks in the frontend
+# Investigation — add_to_cart call sites (Phase 1, read-only)
 
-**Read-only. No fixes.** Plugin: dish-dash (universal white-label). Surfaced on: nyarutarama,
-v3.11.6. Brand colours must be dynamic (`dish_dash_primary_color` etc. → CSS vars); any raw
-`#65040d` (or a derived red shade) that isn't a `var(...)` fallback renders the wrong colour
-for a restaurant whose primary isn't Khana Khazana's maroon.
-
-Raw grep output is in **`investigation-color-leaks.txt`** (1,113 lines: every `#65040d`, every
-frontend hex, and every CSS-var definition).
+Scope: locate every place `dd_cart_add` is actually fired from `assets/js/frontend.js`
+and `assets/js/menu-page.js`, what product data is in scope at each site, whether
+`ddTrack`/`window.gtag` are reachable there, and whether both files are genuinely
+enqueued on the frontend. No files changed.
 
 ---
 
-## How the brand var is wired (baseline)
+## 1. Files exist
 
-- **`--brand`** is the frontend brand token. It is set to the restaurant's primary colour by
-  PHP inline styles:
-  - `templates/page-dishdash.php:265` → `--brand: {dish_dash_primary_color}`
-  - `modules/template/class-dd-template-module.php:354` and `:577` → `--brand: {primary}`
-- **`--dd-brand`** is the ADMIN token (set on `<body>` by admin PHP). Admin CSS uses
-  `var(--dd-brand, #65040d)` — fine.
+```
+assets/js/frontend.js
+assets/js/menu-page.js
+```
 
-### ⭐ ROOT / STRUCTURAL FINDING — `--brand` itself defaults to a hardcoded maroon
-`assets/css/theme.css` defines, in TWO `:root`-level blocks:
-- `theme.css:90` → `--brand: #6B1D1D;`
-- `theme.css:125` → `--brand: #6B1D1D;` (comment right above: *"overridden by inline PHP style
-  in template"*)
-- (companion `--brand-dark: #160F0D;` at `:91` / `:126`)
-
-So on any frontend surface where the PHP inline `--brand` override does **not** run, `--brand`
-falls back to the hardcoded **#6B1D1D**, and every `var(--brand, …)` resolves to that maroon —
-not the restaurant's colour. **This is why the `var(--brand, #65040d)` fallbacks below are
-"dead" (the `#65040d` never triggers) yet the pages can still render maroon: the leak is the
-`#6B1D1D` default, not the `#65040d` fallback.** Whether restaurant #2's cart/menu/reservation
-pages show its colour depends entirely on whether the PHP `--brand` injection reaches those
-pages — needs confirming per surface. This should be release #1.
+Confirmed both present under `assets/`.
 
 ---
 
-## `#65040d` occurrences — leak vs legit, grouped by file
+## 2. `dd_cart_add` / add-to-cart hits
 
-Legend: **LEAK** = raw hardcode (always maroon) · **legit** = `var(--brand|--dd-brand, #65040d)`
-fallback (only used if the var is undefined; low priority, but still a hardcoded hex in source).
+```
+assets/js/frontend.js:24:    - admin-ajax.php?action=dd_cart_add
+assets/js/frontend.js:191:  function addToCart(productId, quantity, btn) {
+assets/js/frontend.js:208:      action:     'dd_cart_add',
+assets/js/frontend.js:1069:    action:     'dd_cart_add',
+assets/js/frontend.js:1318:  if (window.wc_add_to_cart_params && window.wc_add_to_cart_params.cart_url) {
 
-### assets/css/theme.css — the source of `--brand`
-- `:90`, `:125` `--brand: #6B1D1D` · `:91`, `:126` `--brand-dark: #160F0D` — **LEAK (root)**.
-  Not `#65040d` (a *different* maroon) — see the structural finding above.
+assets/js/menu-page.js:22:   - admin-ajax.php?action=dd_cart_add (id, name, price, qty, image, variation, addons, note)
+assets/js/menu-page.js:230:  addToCart: document.getElementById('dd-mobile-add-to-cart')
+assets/js/menu-page.js:370-373:  addToCart button click -> this.addToCart()
+assets/js/menu-page.js:789:  addToCartById(productId, qty, selectedAttributes = {}) {
+assets/js/menu-page.js:798:    formData.append('action', 'dd_cart_add');
+assets/js/menu-page.js:811:  const btn = this.elements.singleProduct.addToCart;
+assets/js/menu-page.js:828:  if (window.DDTrack) window.DDTrack.addToCart(productId, null);
+assets/js/menu-page.js:839:  addToCart() {
+assets/js/menu-page.js:848:  this.addToCartById(
+```
 
-### assets/css/menu-page.css — **5 LEAKS** (mobile menu)
-- `:74` `background: #65040d;` — LEAK
-- `:417` `background: #65040d;` — LEAK
-- `:569` `background: #65040d;` — LEAK
-- `:570` `border-color: #65040d;` — LEAK
-- `:602` `background: #65040d;` — LEAK
-- (+ derived-red hover: `:429` `background: #4a0209;` — LEAK, see "Secondary reds")
+### Key finding — `frontend.js:191` `addToCart(productId, quantity, btn)` is dead code
 
-### assets/css/reservations.css — **2 LEAKS** + 17 legit fallbacks
-- `:468` `linear-gradient(135deg, #65040d 0%, #3d0208 100%)` — **LEAK** (both stops hardcoded)
-- `:598` `color: #65040d;` — **LEAK**
-- `:32, :144, :164, :239, :254, :255, :288, :291, :292, :351, :377(×2), :380, :381, :402,
-  :445, :462, :522` — all `var(--brand, #65040d)` — **legit** (fallback only)
+Grepped the whole repo (JS + PHP templates) for callers: **zero**. Nothing calls
+`addToCart(` in `frontend.js` — no click handler wires it, no inline `onclick` in
+any template. The homepage card's `.dd-add-btn` (`templates/partials/product-card.php:79`)
+has no handler of its own; its click bubbles to the delegated listener at
+`frontend.js:1276` (`document.addEventListener('click', ...)` -> `closest('.dd-dish-card')`
+-> `openProductModal()`), because the button lives inside the card. So clicking
+"Add" on a homepage/menu card **opens the modal**, it does not add anything.
+This matches the existing CLAUDE.md note from v3.11.6 ("no quick-add bypass exists
+... cards open the modal").
 
-### assets/css/frontend.css — **3 LEAKS** + 1 legit
-- `:550` `linear-gradient(135deg, #65040d, #a00015)` — **LEAK** (both stops hardcoded)
-- `:592` `border: 2px solid #65040d;` — **LEAK**
-- `:593` `color: #65040d;` — **LEAK**
-- `:727` `var(--brand, #65040d)` — legit
+**The one real add-to-cart call site in `frontend.js`** is the product modal's Add
+button, inside `renderModal()` -> `pmAdd.addEventListener('click', ...)` at
+**line 1052-1100** (the `dd_cart_add` fetch is at line 1069).
 
-### assets/css/cart.css — **3 LEAKS**
-- `:28` `--dd-cart-red: #65040d;` — **LEAK** (defines a local var TO the hardcoded maroon;
-  every consumer of `--dd-cart-red` inherits the leak — fix here fixes many)
-- `:618` `color: #65040d;` — **LEAK**
-- `:654` `color: #65040d;` — **LEAK**
-- (+ derived-red: `:338`, `:521` `background: #4a0209;` — LEAK, see below)
+### `menu-page.js` — mobile
 
-### assets/css/birthday.css — **2 LEAKS**
-- `:34` `color: #65040d;` — **LEAK**
-- `:95` `background: #65040d;` — **LEAK**
+`quick-add` on the product list (`.dd-mobile-product-card__quick-add`, wired at
+lines 306-315 and 336-344) does **not** add to cart either — it calls
+`showProductDetails(card.dataset.id)`, i.e. opens the single-product screen. Same
+non-bypass pattern as desktop.
 
-### assets/css/order-tracking.css — 0 leaks (both legit)
-- `:20` `--dd-track-accent: var(--brand, var(--dd-accent, var(--dd-brand, #65040d)))` — legit
-- `:209` `background: var(--brand, #65040d)` — legit
+**The one real add-to-cart call site in `menu-page.js`** is `addToCartById()`
+(line 789-837), reached only via the class method `addToCart()` (839-853), which
+is reached only via the single-product screen's Add button click handler
+(370-373: `this.elements.singleProduct.addToCart.addEventListener('click', () =>
+this.addToCart())`).
 
-### assets/css/admin.css — ADMIN (out of "frontend" scope) — 0 true leaks
-- `:301, :360, :427, :477, :478` — all `var(--dd-brand, #65040d)` — legit fallbacks.
-
-### assets/css/reservations-admin.css — ADMIN — 0 true leaks
-- `:526` `var(--dd-brand, #65040d)` — legit.
-
-### templates/*.php — 0 `#65040d` hits (all leaks are in CSS files).
-
----
-
-## Secondary brand-red shades — also LEAKS (hardcoded darker/hover/gradient reds)
-
-These are brand-derived shades that won't adapt to the restaurant's colour:
-- `#4a0209` (dark hover/active): `cart.css:338`, `cart.css:521`, `menu-page.css:429`,
-  `menu-page.css:621` — **LEAK ×4**
-- `#a00015` (gradient end): `frontend.css:550` — **LEAK**
-- `#3d0208` (gradient end): `reservations.css:468` — **LEAK**
-- `#6B1D1D` / `#160F0D`: `theme.css` `--brand` / `--brand-dark` defaults — **LEAK** (root).
-
-There is no derived-shade CSS var today (e.g. `--brand-dark` exists but is itself hardcoded),
-so a proper fix needs a brand-dark token driven from the primary (or `color-mix()` off
-`--brand`).
+**So, codebase-wide, there are exactly two places an item is actually added to
+the cart:** the desktop product modal (`frontend.js`) and the mobile single-product
+screen (`menu-page.js`). Everything else (homepage card, mobile card quick-add) is
+a router into one of these two, not a third add path.
 
 ---
 
-## Decision-needed (flagged, NOT classified as a definite leak)
+## 3. Data in scope at each real call site
 
-- **Accent orange `#e8832a` / `#E8832A` (~35 uses; defined `frontend.css:29 --dd-accent:
-  #e8832a`, admin `--dd-primary: #E8832A`).** This is a pervasive SECONDARY colour but is
-  **not** in the restaurant-configurable set (only `dish_dash_primary_color`, `_dark_color`,
-  `_background_color`, `_font` exist). Either it's an intentional design constant (leave) or
-  the white-label model should add a configurable accent. **Product decision required before
-  touching it** — do not fix blind.
+### A. `frontend.js` — modal Add button (`pmAdd` click, ~line 1052)
 
----
+This handler is nested inside `renderModal(productId, name, price, desc, imgSrc)`
+(line 978), so all of its parameters are closure-captured and available at the
+`fetch` call:
 
-## Legit (NOT leaks) — neutral / semantic palette
+- `productId` — yes, string/number id.
+- `name` — yes, but it's whatever text was scraped from the DOM card
+  (`.dd-dish-card__title`) or the `dd_get_product` fallback response — plain string,
+  ready to use as `item_name`.
+- `price` — yes, but it's a **display string** (e.g. `"RWF 5,000"`, or
+  `escHtml(price)` of that), not a bare number. Getting a clean numeric `value` for
+  GA4 needs either parsing this string (fragile — locale/format-dependent) or
+  reading `ddPmVariations`' matched price / the enrichment response's raw price
+  (`p.price`, fetched separately in `fetchProductEnrichment`, async, may not have
+  landed by the time Add is clicked for a no-variation product — needs checking if
+  it's stored anywhere numeric). Simplest reliable path: skip `value`/`price` in
+  the `items[]` payload unless a numeric price is confirmed available, exactly as
+  the `purchase`/`add_payment_info` events already do (`data.total` from the
+  server response, not scraped text).
+- `qty` — yes, local `var qty` in the same closure, current stepper value.
 
-For completeness (from the frontend hex frequency scan) — these are correct as constants and
-should be LEFT alone:
-- Neutral greys: `#6b7280, #9ca3af, #e5e7eb, #d1d5db, #374151, #f3f4f6, #f9fafb`
-- Text/dark: `#221b19, #1a1a1a, #6e5b4c`
-- Backgrounds: `#f5efe6, #fbf7f1, #eadfce, #f0ece6, #f7f0e8, #fafafa, #ffffff`
-- Status colours: red `#991b1b / #c0392b / #fee2e2`, green `#166534 / #065f46 / #dcfce7`,
-  amber `#92400e`, WhatsApp `#25d366`.
-  (These convey meaning, not brand — keep hardcoded.)
+Net: `item_name` and `quantity` are solid; a numeric `price`/`value` is not
+guaranteed without extra work. Simplest correct v1: fire `add_to_cart` with
+`{ currency: 'RWF', items: [{ item_id: productId, item_name: name, quantity: qty }] }`
+and add `value`/`price` only if a follow-up decides to thread the numeric price
+through (e.g. from the `dd_cart_add` AJAX response, if it echoes back a price —
+not confirmed in this read-only pass, would need a quick read of the PHP handler).
 
----
+### B. `menu-page.js` — `addToCartById(productId, qty, selectedAttributes)`
 
-## Leak tally (frontend only)
+- `product` — full object, looked up via `this.products.find(p => p.id ===
+  parseInt(productId))` (line 790). `product.name` and `product.price` (line
+  801-802) are sent straight to the server as form fields, so they're already
+  known to be the right shape/type for that product (numeric price, presumably —
+  matches what `DD_API::get_products()` returns, localized wholesale into
+  `DD_MOBILE_DATA.products` in `grid.php:338`).
+- `qty` — yes, parameter.
+- `productId` — yes, parameter.
 
-| File | Raw `#65040d` leaks | Secondary-red leaks | Legit `var()` fallbacks |
-|---|---|---|---|
-| theme.css | — (`--brand:#6B1D1D` root leak ×2 + `--brand-dark` ×2) | — | — |
-| menu-page.css | 5 | 2 (`#4a0209`) | 0 |
-| reservations.css | 2 | 1 (`#3d0208`) | 17 |
-| frontend.css | 3 | 1 (`#a00015`) | 1 |
-| cart.css | 3 (incl. `--dd-cart-red`) | 2 (`#4a0209`) | 0 |
-| birthday.css | 2 | 0 | 0 |
-| order-tracking.css | 0 | 0 | 2 |
-| **Frontend total** | **15** | **6** | **37** |
-| admin.css / reservations-admin.css (admin) | 0 | 0 | 6 |
-
----
-
-## Recommended fix order (one file per release, per workflow)
-
-1. **theme.css — the root.** Decide the `--brand`/`--brand-dark` default (neutral placeholder,
-   or ensure the PHP `--brand` injection runs on EVERY frontend surface). Confirm the injection
-   coverage first — this likely fixes the most visible leakage in one move.
-2. **menu-page.css** (5+1) — highest raw-leak count, primary ordering surface.
-3. **cart.css** (3+2) — includes `--dd-cart-red` (fix the local var → cascades).
-4. **frontend.css** (3+1) — homepage/menu shared.
-5. **reservations.css** (2+1) — mostly already var-driven; fix the 2 raw + 1 gradient.
-6. **birthday.css** (2) — small, isolated.
-7. Convert the remaining `var(--brand, #65040d)` fallbacks to a neutral/no-op fallback (cosmetic,
-   low priority) once `--brand` is guaranteed defined.
-8. **Accent `#e8832a`** — only after the product decision above.
-
-Each fix = replace the raw hex with `var(--brand, …)` (and introduce a real `--brand-dark` /
-`color-mix()` token for the darker shades) so the surface tracks `dish_dash_primary_color`.
+Net: this site has everything GA4 wants — `item_name`, numeric `price`, `qty` —
+with no scraping/parsing needed. This is the stronger of the two sites for a full
+`items[]` payload.
 
 ---
 
-## ADDENDUM — `--brand` injection scope vs frontend surfaces
+## 4. `ddTrack` / `window.gtag` reachability
 
-Full evidence in **`inject-scope.txt`**. The PHP override targets **`:root`** (document-global)
-in three places, with different page gates:
+```
+frontend.js:  no "ddTrack", no "gtag" (bare), no "window.gtag", no "ga4Id".
+              Only "window.ddCartData" appears (10 sites, all reading
+              ajax_url/nonce) — confirming frontend.js DOES receive the
+              same localized ddCartData object cart.js uses (wp_localize_script
+              binds it to the 'dish-dash-cart' handle; ddCartData is a bare
+              `var` on `window`, so any script that loads after it on the same
+              page can read it). ga4Id is on that object as of v3.13.0
+              (`ddCartData.ga4Id`) but nothing in frontend.js reads it today.
 
-| # | Where | Hook / gate | Coverage |
-|---|---|---|---|
-| **P1** | `class-dd-template-module.php:352` `wp_add_inline_style('dish-dash-theme', :root{--brand})` | inside `enqueue_frontend_assets()`, gated `is_dishdash_page()` (:194) | is_dishdash_page set; **attached to the theme.css handle → guaranteed to print AFTER theme.css** |
-| **P2** | `class-dd-template-module.php:569` `inject_global_header_styles()` `<style>:root{--brand;…}</style>` | `add_action('wp_head')` (:72), gate `is_global_header_page()` | **always true (:553-554) → EVERY frontend page** |
-| **P3** | `page-dishdash.php:263-268` `<head><style>:root{--brand}</style>` | homepage template only, before `wp_head()` | homepage (redundant — P1+P2 already cover it) |
+menu-page.js: zero matches for all five patterns (ddTrack, window.gtag, gtag,
+              ddCartData, ga4Id). It doesn't read ddCartData at all — it has its
+              own localized object, DD_MOBILE_DATA (bound to the 'dd-menu-page'
+              handle in templates/menu/grid.php:336), which does NOT currently
+              carry ga4Id.
+```
 
-**Selector = `:root` (global).** So there is no element-scope limitation — the only variable is
-*which pages the override runs on*, and **P2 runs on all frontend pages** (plus P1 is
-guaranteed-after-theme.css on the dishdash subset). theme.css (`--brand:#6B1D1D`) loads **only**
-on `is_dishdash_page` pages — exactly where P1 guarantees it is overridden. So the theme.css
-default is a **dead safety-net, never the effective value.**
+**`ddTrack()` itself is a local (non-exported) function defined inside `cart.js`'s
+IIFE** (`assets/js/cart.js`, added in v3.13.0, right after the CONFIG block). It
+is not attached to `window`, so neither `frontend.js` nor `menu-page.js` can call
+it — confirmed, this needs a small redefinition (or a single shared global) in
+whichever file(s) fire `add_to_cart`.
 
-**Do hero / menu grid / FAB fall inside the override?**
-- **Hero** (homepage) and **menu grid** (`restaurant-menu`): **YES** (is_dishdash_page + all-pages
-  P2). Their maroon comes from **raw `#65040d` hardcodes**, not from `--brand` — scope is not the
-  problem.
-- **FAB:** `inject_cart_sidebar()` → `add_action('wp_footer')` (:68), **no page gate** → renders on
-  every frontend page. The active desktop button is `.dd-cart-btn` (`cart.php:226`) →
-  `cart.css:319` `background: var(--dd-cart-red)` → **`--dd-cart-red: #65040d` (cart.css:28,
-  hardcoded)**. The FAB is maroon via `--dd-cart-red`, which **does not read `--brand`**, so the
-  global override never reaches it. (The other class `.dd-floating-cart`, theme.css:1751, does use
-  `color: var(--brand)` — but it is not the rendered desktop FAB.) Separate non-colour bug: cart.css
-  enqueues only on is_dishdash_page yet the FAB renders on all pages → unstyled FAB off-app.
+Both files **do** see `window.gtag` at runtime once GA4 is loaded, because
+`gtag.js`'s inline bootstrap script (`class-dd-template-module.php`,
+`enqueue_frontend_assets()`) defines `window.gtag` globally, and it's enqueued on
+every page `is_dishdash_page()` returns true for — independent of which module
+enqueues which of `frontend.js`/`menu-page.js`/`cart.js`. So a tiny local
+`ddTrack` guarded by `if (window.gtag)` in each file will work exactly like
+cart.js's, with no import/dependency wiring needed — just duplicate the 3-line
+guard function (or promote it to a genuinely shared global — see §6).
 
-### VERDICT: **A — delete the default (no scope-widening needed)**
-- `--brand` already reaches every frontend page (P2 always-on; P1 guaranteed-after-theme.css on the
-  subset that loads theme.css). No surface loads theme.css without also getting P1's override, so
-  **B (widen scope) is unnecessary.**
-- theme.css `:root{--brand:#6B1D1D}` (×2, :90/:125) and `--brand-dark:#160F0D` are redundant → safe
-  to delete or set to a neutral placeholder.
-- ⚠️ **A only removes a dead safety-net — it fixes nothing visible on its own.** The actual leaks are
-  RAW hardcodes that never reference `--brand`: the **15 raw `#65040d`**, the **6 secondary reds**,
-  and the FAB's **`--dd-cart-red: #65040d` (cart.css:28)**. Those stay the real per-file fix set
-  (convert each to `var(--brand, …)`; introduce a brand-dark token / `color-mix()` for the darker
-  shades). Recommended: fix `--dd-cart-red` (cart.css:28) as part of the cart.css release — it
-  cascades to the FAB + count badge in one line.
+---
 
-**STOP — read-only. Awaiting the implementation brief (one file per release).**
+## 5. Enqueue confirmation — and a wrinkle the brief's grep would have missed
+
+```
+modules/template/class-dd-template-module.php:293:
+  wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search' ], DD_VERSION, true );
+```
+
+`frontend.js` **is** enqueued in the template module, gated by
+`enqueue_frontend_assets()` -> `is_dishdash_page()` (true on the homepage, cart,
+checkout, birthday, my-account, track-order, and any page using the
+`page-dishdash.php`/`page-simple.php` templates).
+
+`menu-page.js` is **not** in `class-dd-template-module.php` at all — the brief's
+grep (`modules/template/class-dd-template-module.php frontend/`) would have
+returned nothing for it and looked like a gap. It's actually enqueued from a
+**different module**:
+
+```
+modules/menu/class-dd-menu-module.php:153-177:
+  public function enqueue_menu_assets(): void {
+      if ( ! $this->is_menu_page() ) return;
+      ...
+      wp_enqueue_script( 'dd-menu-page', DD_ASSETS_URL . 'js/menu-page.js', [], DD_VERSION, true );
+      wp_localize_script( 'dd-menu-page', 'DDMenu', [ 'ajaxUrl' => ..., 'nonce' => ... ] );
+  }
+```
+
+gated by its own `is_menu_page()` (checks the stored `dish_dash_menu_page_id`
+option, falling back to slug matching).
+
+**Both are confirmed enqueued on the pages where their add-to-cart flow lives.**
+GA4's `gtag.js` bootstrap, however, is gated by `is_dishdash_page()` in the
+*template* module, which checks the **literal slug** `is_page('restaurant-menu')`
+— not the stored `dish_dash_menu_page_id` option that `is_menu_page()` in the menu
+module uses. On the default install these agree (both resolve to the same page),
+but if a restaurant renames/relocates their menu page, `is_menu_page()` would
+still enqueue `menu-page.js` there (option-based) while `is_dishdash_page()` could
+miss it (slug-based) — meaning `add_to_cart` fires (once wired) but `window.gtag`
+might not exist on that page, and `ddTrack`'s guard silently no-ops. Pre-existing
+gap, unrelated to this task, flagging since it directly affects whether the new
+event reaches GA4 in a non-default setup.
+
+---
+
+## 6. Answering the four questions from the brief
+
+**Where does add-to-cart actually fire?**
+Exactly two places, both identified above: `frontend.js` modal Add button
+(desktop, plus the >=1025px-width branch of mobile since menu-page.js dispatches
+`dd:open-modal` to reuse this same modal above that breakpoint), and
+`menu-page.js` `addToCartById()` (mobile single-product screen, <1025px). No
+third path — the two "quick add" buttons (homepage card, mobile card list) both
+just open one of these two flows rather than adding directly.
+
+**What product data is in scope?**
+`menu-page.js`'s site has full clean data (`name`, numeric `price`, `qty`) with no
+extra work. `frontend.js`'s site has `name` and `qty` cleanly, but `price` is a
+formatted display string, not a number — getting a numeric `value` there needs
+either string-parsing (fragile) or sourcing the number from somewhere else (the
+`dd_cart_add` AJAX response, if it echoes back a price — not confirmed here,
+would need a quick read of the PHP handler in a Phase 2 pass if the brief wants
+`value` included). Firing a `value`-less `add_to_cart` (`items[]` with just
+`item_name`/`quantity`) is the safe v1 shape for the `frontend.js` site; the
+`menu-page.js` site can carry the full shape from day one.
+
+**Does `ddTrack` need to be redefined?**
+Yes. It's a private function inside `cart.js`'s IIFE, not on `window`. Two options
+for the implementation brief to choose between: (a) copy the same 3-line
+`function ddTrack(event, params){ if (window.gtag) gtag('event', event, params ||
+{}); }` into each of `frontend.js` and `menu-page.js` (consistent with how each
+file already duplicates its own `ajaxUrl`/`nonce` resolution rather than sharing
+a module), or (b) hoist one copy onto `window.ddTrack` from wherever loads first
+and have all three files call `window.ddTrack(...)`. Cart.js currently loads
+before frontend.js on pages where both are enqueued (`dish-dash-frontend`
+depends on `dish-dash-search`, not on `dish-dash-cart` — so load order isn't
+guaranteed by WP's dependency graph even though both are typically enqueued
+together), and menu-page.js is enqueued by an entirely different module with no
+dependency edge to cart.js at all — so hoisting onto `window` would need an
+explicit dependency edge added to be safe, whereas copying the tiny guard has no
+ordering requirement. Given the project's existing style (each cart-ish file
+re-resolves its own `ajaxUrl`/`nonce` rather than importing a shared helper),
+duplicating the guard is the lower-risk, more consistent-with-precedent choice —
+noting it here for the brief to make the actual call.
+
+**Overlap / double-count risk?**
+None found. The two real add sites are in different files, wired to different
+buttons, and the desktop-modal-via-mobile-dispatch path (`dd:open-modal`) routes
+through `frontend.js`'s single Add button — it does not also go through
+`menu-page.js`'s `addToCartById()`. Each user action that results in a cart line
+touches exactly one `dd_cart_add` call site. No dedup logic needed beyond "put the
+`ddTrack('add_to_cart', ...)` call next to the existing `res.success` branch" at
+each of the two sites (mirroring where `menu-page.js` already fires its own
+internal `DDTrack.addToCart(productId, null)` at line 828, and where `frontend.js`
+shows the "Added!" state).
+
+---
+
+## Summary for the implementation brief
+
+- Two files, two call sites: `frontend.js` line ~1081 (`res.success` branch inside
+  the `pmAdd` click handler, alongside the existing `showToast('Added to cart!')`),
+  and `menu-page.js` line ~822-828 (`data.success` branch inside
+  `addToCartById()`, alongside the existing `if (window.DDTrack)
+  window.DDTrack.addToCart(...)` call).
+- `menu-page.js` can carry a full `items[]` payload (`item_name`, numeric
+  `price`, `quantity`) immediately. `frontend.js` should ship a simpler
+  event (no numeric `value`) unless the brief wants to also solve the
+  price-is-a-string problem.
+- Both files need their own tiny `ddTrack` guard (dead-simple copy from
+  cart.js) — no shared/global helper exists yet, and none is required to make
+  this work.
+- `frontend.js`'s dead `addToCart(productId, quantity, btn)` function (line 191)
+  is unrelated to this work — flagging only so a future release doesn't
+  mistakenly wire tracking into it thinking it's live.
+- No double-counting risk between the two files.
+- Pre-existing, unrelated gap: `is_dishdash_page()`'s slug-based menu-page
+  detection could, in a non-default setup, disagree with `is_menu_page()`'s
+  option-based detection — meaning `gtag.js` might not load on a renamed menu
+  page even though `menu-page.js` (and the new tracking call) does. Not blocking,
+  just noting it since it affects whether this specific event reaches GA4 in that
+  edge case.
+
+**STOP — read-only. Awaiting the implementation brief (v3.13.1).**
