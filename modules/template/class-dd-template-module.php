@@ -24,6 +24,7 @@
  *   - theme_page_templates (filter), template_include (filter)
  *   - after_setup_theme → register_nav_menus()
  *   - wp_enqueue_scripts → enqueue_frontend_assets() + remove_theme_conflicts()
+ *   - template_redirect (priority 1) → redirect_woocommerce_pages()
  *   - wp_footer → inject_cart_sidebar() + inject_global_footer() + inject_product_modal()
  *   - wp_body_open → inject_global_header()
  *   - wp_head → inject_global_header_styles()
@@ -61,6 +62,9 @@ class DD_Template_Module extends DD_Module {
         add_filter( 'template_include',       [ $this, 'load_page_template' ] );
         add_action( 'after_setup_theme',      [ $this, 'register_nav_menus' ] );
         add_action( 'wp_enqueue_scripts',     [ $this, 'enqueue_frontend_assets' ] );
+
+        // ── Redirect broken WooCommerce archive/product pages to the menu ──
+        add_action( 'template_redirect', [ $this, 'redirect_woocommerce_pages' ], 1 );
 
         // ── Remove ALL theme/plugin conflicts on our page ──
         add_action( 'wp_enqueue_scripts', [ $this, 'remove_theme_conflicts' ], 999 );
@@ -397,6 +401,25 @@ class DD_Template_Module extends DD_Module {
             .dd-footer__social-link { color: rgba(241,231,219,0.7) !important; }
             .dd-footer__social-link:hover { color: #F1E7DB !important; }
         ' );
+    }
+
+    // ─────────────────────────────────────────
+    //  REDIRECT BROKEN WOOCOMMERCE PAGES TO MENU
+    // ─────────────────────────────────────────
+    /**
+     * WooCommerce product/shop/category/tag pages render unstyled (theme only
+     * styles DishDash pages) and are meant to be browsed via the modal + menu,
+     * never standalone. 301 them to the menu so customers never hit a broken
+     * page and Google drops the URLs from its index.
+     */
+    public function redirect_woocommerce_pages(): void {
+        if ( ! function_exists( 'is_woocommerce' ) ) {
+            return;
+        }
+        if ( is_woocommerce() ) { // true on product, shop, product_cat, product_tag archives
+            wp_safe_redirect( home_url( '/restaurant-menu/' ), 301 );
+            exit;
+        }
     }
 
     // ─────────────────────────────────────────
