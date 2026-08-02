@@ -72,6 +72,15 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
         $decoded = json_decode( $raw, true );
         if ( is_array( $decoded ) ) {
             update_option( 'dd_opening_hours', $raw );
+
+            // The homepage bakes hours_state/next_open_ts into cached HTML
+            // (render_global_header()) — a stale page cache can freeze the
+            // closed-banner countdown at 00:00:00 long after hours change.
+            // litespeed_purge_all is the LiteSpeed Cache plugin's standard
+            // integration hook (safe no-op if the plugin isn't active); it
+            // also cascades to QUIC.cloud CDN purge when the site is
+            // connected via the same plugin.
+            do_action( 'litespeed_purge_all' );
         }
     }
 

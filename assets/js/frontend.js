@@ -474,17 +474,37 @@
        OPENING HOURS BANNERS
     ══════════════════════════════════════════════════════════ */
     function setupHoursBanner() {
-        var DD         = window.DD || {};
-        var state      = (DD.hours_state || 'open');
-        var nextOpenTs = parseInt(DD.next_open_ts || 0, 10) * 1000;
-        var closeTs    = parseInt(DD.close_ts || 0, 10) * 1000;
-        var waNumber   = (DD.whatsapp_admin || '').replace(/\D/g, '');
-        var menuUrl    = DD.menu_url || '/restaurant-menu/';
+        var DD       = window.DD || {};
+        var waNumber = (DD.whatsapp_admin || '').replace(/\D/g, '');
+        var menuUrl  = DD.menu_url || '/restaurant-menu/';
 
-        if (state === 'open') return;
         if (sessionStorage.getItem('dd_banner_hidden') === '1') return;
 
-        var isHomepage = document.querySelector('.dd-page') !== null;
+        // Fetch hours state fresh on every load instead of trusting the
+        // PHP-baked window.DD.hours_state/next_open_ts/close_ts — those are
+        // rendered into the page HTML at PHP-render time and can go stale
+        // for hours behind a page cache (LiteSpeed local cache / QUIC.cloud
+        // CDN). admin-ajax.php requests are never page-cached, so this is
+        // always current regardless of how old the cached HTML is.
+        var ajaxUrl = DD.ajaxUrl || '/wp-admin/admin-ajax.php';
+        var nonce   = DD.nonce   || '';
+
+        fetch(ajaxUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action: 'dd_get_hours_state', nonce: nonce })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (!res.success || !res.data) return;
+
+            var state      = res.data.hours_state || 'open';
+            var nextOpenTs = parseInt(res.data.next_open_ts || 0, 10) * 1000;
+            var closeTs    = parseInt(res.data.close_ts || 0, 10) * 1000;
+
+            if (state === 'open') return;
+
+            var isHomepage = document.querySelector('.dd-page') !== null;
 
         // Inject banner styles if not already present
         if (!document.getElementById('dd-hours-styles')) {
@@ -522,12 +542,22 @@
             document.head.appendChild(style);
         }
 
-        var timerInterval = null;
+        var timerInterval     = null;
+        var staleReloadTried  = false;
 
         function formatCountdown(ms) {
-            // Only reload if we just ticked past zero — not if nextOpenTs was never set (0)
-            if (ms <= 0 && ms > -10000) { location.reload(); return { h:'00', m:'00', s:'00' }; }
-            if (ms <= 0) { return { h:'00', m:'00', s:'00' }; }
+            // Self-heal a stale cached target by reloading once — not on every
+            // tick. Uncapped reload-on-any-negative would infinite-loop when
+            // nextOpenTs is legitimately 0 (no open day found in the next 7
+            // days: a fresh reload recomputes 0 again, ms stays deeply
+            // negative, and an unconditional reload would refire every tick).
+            // One attempt is enough to recover from a stale page cache; if the
+            // countdown is still expired after that reload, freeze at 00:00:00
+            // instead of hammering the page with repeat reloads.
+            if (ms <= 0) {
+                if (!staleReloadTried) { staleReloadTried = true; location.reload(); }
+                return { h:'00', m:'00', s:'00' };
+            }
             var total = Math.floor(ms / 1000);
             var h = Math.floor(total / 3600);
             var m = Math.floor((total % 3600) / 60);
@@ -731,6 +761,8 @@
                 }, 600);
             });
         }
+        })
+        .catch(function() { /* network failure — fail open, no banner, ordering not blocked */ });
     }
 
     /* ══════════════════════════════════════════════════════════

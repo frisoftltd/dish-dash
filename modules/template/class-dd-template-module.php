@@ -66,6 +66,9 @@ class DD_Template_Module extends DD_Module {
         // ── Redirect broken WooCommerce archive/product pages to the menu ──
         add_action( 'template_redirect', [ $this, 'redirect_woocommerce_pages' ], 1 );
 
+        // ── Fresh (never-cached) opening-hours state for the closed banner ──
+        DD_Ajax::register( 'dd_get_hours_state', [ $this, 'ajax_get_hours_state' ], true );
+
         // ── Remove ALL theme/plugin conflicts on our page ──
         add_action( 'wp_enqueue_scripts', [ $this, 'remove_theme_conflicts' ], 999 );
 
@@ -1067,6 +1070,46 @@ class DD_Template_Module extends DD_Module {
         };
         </script>
         <?php
+    }
+
+    /**
+     * Fresh, never-cached opening-hours state for the closed banner.
+     *
+     * window.DD.hours_state/next_open_ts/close_ts (set above in
+     * render_global_header()) are baked into the page's HTML at PHP-render
+     * time — fine for pages that are never cached, but on a cached homepage
+     * (LiteSpeed/QUIC.cloud) that snapshot can go stale for hours, freezing
+     * the closed-banner countdown. frontend.js's setupHoursBanner() now
+     * fetches this endpoint instead of trusting window.DD.hours_state for
+     * its own render decision — admin-ajax.php requests are never page-
+     * cached, so this is always current regardless of HTML cache age.
+     *
+     * NOTE: window.DD.hours_state itself is left untouched (still baked
+     * in) because menu-page.js reads it synchronously in three places to
+     * disable Add to Cart while closed — switching that to this endpoint
+     * too is a separate, larger change and out of scope here.
+     */
+    public function ajax_get_hours_state(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_frontend' );
+
+        $hours_state  = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
+        $next_open_ts = 0;
+        $close_ts     = 0;
+
+        if ( class_exists( 'DD_Hours' ) ) {
+            if ( $hours_state !== 'open' ) {
+                $next_open_ts = DD_Hours::get_next_open_info_ts();
+            }
+            if ( in_array( $hours_state, [ 'open', 'closing_soon' ], true ) ) {
+                $close_ts = DD_Hours::get_current_close_ts();
+            }
+        }
+
+        wp_send_json_success( [
+            'hours_state'  => $hours_state,
+            'next_open_ts' => (int) $next_open_ts,
+            'close_ts'     => (int) $close_ts,
+        ] );
     }
 
     /**

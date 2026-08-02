@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.13.2 (2026-08-02)
+> Last updated: v3.13.3 (2026-08-02)
 
 ---
 
@@ -413,12 +413,13 @@ dish-dash/
 | **Phase 5B** | ✅ | Admin layout shell — dark sidebar, top bar, brand injection |
 | **Phase 5C** | ✅ | Brand Identity page, Template card picker |
 | **Phase 5D** | ✅ | Full admin redesign + frontend template system |
-| **Phase 6** | ⏳ | MoMo Payment Integration — MTN Mobile Money payment gateway, in-drawer payment flow ← CURRENT |
-| **Phase 7** | ⏳ | User Access Control — customer profiles, roles, permissions, order history |
-| **Phase 8** | ⏳ | Analytics + AI — Python microservice, behavior engine, recommendations |
-| **Phase 9** | ⏳ | Loyalty & QR — points system, QR scan ordering |
-| **Phase 10** | ⏳ | Testing + Optimization |
-| **Phase 11** | ⏳ | SaaS Platform — multi-tenant, subscription billing, white-label |
+| **Phase 6** | ✅ | MoMo Payment Integration — MTN Mobile Money payment gateway, in-drawer payment flow |
+| **Phase 7** | ✅ | User Access Control — customer profiles, roles, permissions, order history |
+| **Phase 8** | ⏳ CURRENT | Feature Backlog — paid reservations (flat fee, per-person scaling, PesaPal deposit, accept modal), CSV menu import/export tool, admin dashboard cleanup, test customer flag, MoMo payment proof upload, ordering/reservation toggle, Minimal Light template, dishdash.rw marketing site redesign, WhatsApp Business API integration, Kiyovu branch deployment |
+| **Phase 9** | ⏳ | Analytics + AI — Python microservice, behavior engine, recommendations |
+| **Phase 10** | ⏳ | Loyalty & QR — points system, QR scan ordering |
+| **Phase 11** | ⏳ | Testing + Optimization |
+| **Phase 12** | ⏳ | SaaS Platform — multi-tenant, subscription billing, white-label |
 
 ---
 
