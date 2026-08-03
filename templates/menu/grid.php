@@ -61,7 +61,7 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
         <!-- Category circles carousel -->
         <section class="dd-menu-cats">
             <div class="dd-menu-cats__inner">
-            <header class="dd-menu-cats__header">
+            <div class="dd-menu-cats__header">
                 <div>
                     <div class="dd-menu-cats__eyebrow">Browse by category</div>
                     <h2 class="dd-menu-cats__title">Choose your craving</h2>
@@ -74,7 +74,7 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                     </button>
                 </div>
-            </header>
+            </div>
 
             <div class="dd-menu-cats__track" id="ddMenuCatsTrack">
                 <!-- "All" pseudo-category -->
