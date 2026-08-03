@@ -1,15 +1,18 @@
 <?php
 /**
  * File:    admin/pages/csv-menu-import.php
- * Purpose: CSV menu bulk import tool — wipes ALL WooCommerce products and
- *          reimports from an uploaded CSV. INTERNAL (Fri Soft) USE ONLY —
- *          never intended for restaurant owners/managers.
+ * Purpose: CSV menu bulk import tool — wipes ALL WooCommerce products AND
+ *          product categories (except the "Uncategorized" default term),
+ *          then reimports from an uploaded CSV. INTERNAL (Fri Soft) USE
+ *          ONLY — never intended for restaurant owners/managers.
  *
  *          Two-step flow, modeled on scripts/dd-r3-migrate.php's
  *          dry-run-then-commit pattern:
  *            Step 1 (Preview) — parse + validate the CSV, no writes.
  *            Step 2 (Commit)  — only after an explicit typed confirmation,
- *                                wipes all products then reimports.
+ *                                wipes all products + categories, reimports.
+ *          One confirmation step covers both wipes — no separate
+ *          "also wipe categories" checkbox.
  *
  * Rendered by: DD_Admin::render_tools() (appended after event-health.php,
  *              same "Tools" admin page — admin.php?page=dish-dash-tools)
@@ -25,12 +28,13 @@
  *              No spice column — spice visibility is category-driven
  *              (dd_spice_included_categories, v3.13.4) and untouched here.
  *
- * What this tool does NOT touch: product_cat terms (categories are
- * upserted by name, never deleted) and media attachments (never deleted;
- * sideloaded images are de-duped across rows/runs via _dd_csv_source_url
- * postmeta).
+ * What this tool does NOT touch: the "Uncategorized" product_cat term
+ * (WooCommerce's default term must never be deleted) and media attachments
+ * (never deleted; sideloaded images are de-duped across rows/runs via
+ * _dd_csv_source_url postmeta). Every OTHER product_cat term is deleted on
+ * commit — categories are recreated fresh from the CSV's category column.
  *
- * Last modified: v3.13.5
+ * Last modified: v3.13.6
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -215,10 +219,13 @@ if ( ! function_exists( 'dd_csvi_parse_and_validate' ) ) {
 
 if ( ! function_exists( 'dd_csvi_commit' ) ) {
     /**
-     * STEP 2 — wipe all WooCommerce products, reimport from the token'd
-     * preview rows. Categories and media attachments are never deleted.
+     * STEP 2 — wipe all WooCommerce products AND product categories (except
+     * "Uncategorized"), reimport from the token'd preview rows. Categories
+     * are recreated fresh from the CSV's category column. Media attachments
+     * are never deleted.
      *
      * @return array{fatal?: string, deleted?: int, delete_errors?: array,
+     *   categories_deleted?: int, category_delete_errors?: array,
      *   created?: int, images_ok?: int, images_skipped?: int, row_log?: array}
      */
     function dd_csvi_commit(): array {
@@ -245,23 +252,45 @@ if ( ! function_exists( 'dd_csvi_commit' ) ) {
         $wpdb->query( 'START TRANSACTION' );
 
         $result = [
-            'deleted'        => 0,
-            'delete_errors'  => [],
-            'created'        => 0,
-            'images_ok'      => 0,
-            'images_skipped' => 0,
-            'row_log'        => [],
+            'deleted'                => 0,
+            'delete_errors'          => [],
+            'categories_deleted'     => 0,
+            'category_delete_errors' => [],
+            'created'                => 0,
+            'images_ok'              => 0,
+            'images_skipped'         => 0,
+            'row_log'                => [],
         ];
 
         try {
-            // ── Wipe — products (+ their variations) only. Categories and
-            // attachments are deliberately left untouched. ──
+            // ── Wipe — products (+ their variations). Media attachments are
+            // deliberately left untouched. ──
             foreach ( wc_get_products( [ 'limit' => -1, 'return' => 'ids' ] ) as $pid ) {
                 $product = wc_get_product( $pid );
                 if ( $product && $product->delete( true ) ) {
                     $result['deleted']++;
                 } else {
                     $result['delete_errors'][] = $pid;
+                }
+            }
+
+            // ── Wipe — product categories, except "Uncategorized" (WooCommerce's
+            // default term must never be deleted). Recreated fresh on reimport.
+            // Matched by slug AND by the default_product_cat option (belt-and-
+            // suspenders — the option is authoritative if the term was ever
+            // renamed/re-slugged). ──
+            $default_cat_id = (int) get_option( 'default_product_cat' );
+            $existing_terms = get_terms( [ 'taxonomy' => 'product_cat', 'hide_empty' => false ] );
+            if ( ! is_wp_error( $existing_terms ) ) {
+                foreach ( $existing_terms as $term ) {
+                    if ( 'uncategorized' === $term->slug || $term->term_id === $default_cat_id ) {
+                        continue;
+                    }
+                    if ( true === wp_delete_term( $term->term_id, 'product_cat' ) ) {
+                        $result['categories_deleted']++;
+                    } else {
+                        $result['category_delete_errors'][] = $term->term_id;
+                    }
                 }
             }
 
@@ -331,7 +360,11 @@ if ( ! function_exists( 'dd_csvi_commit' ) ) {
             'action'      => 'csv_menu_import',
             'object_type' => 'product',
             'object_id'   => 'bulk',
-            'details'     => [ 'deleted' => $result['deleted'], 'created' => $result['created'] ],
+            'details'     => [
+                'deleted'            => $result['deleted'],
+                'categories_deleted' => $result['categories_deleted'],
+                'created'            => $result['created'],
+            ],
         ] );
 
         return $result;
@@ -362,7 +395,7 @@ $dd_csvi_site_name = get_option( 'dish_dash_restaurant_name' ) ?: get_bloginfo( 
     <h2>📋 <?php esc_html_e( 'CSV Menu Import', 'dish-dash' ); ?></h2>
 
     <p style="color:#666;margin-bottom:8px;">
-        <?php esc_html_e( 'Internal tool — wipes ALL existing products and reimports from a CSV. Two-step: preview first (no writes), then an explicit typed confirmation to commit.', 'dish-dash' ); ?>
+        <?php esc_html_e( 'Internal tool — wipes ALL existing products AND categories, then reimports fresh from CSV. Two-step: preview first (no writes), then an explicit typed confirmation to commit.', 'dish-dash' ); ?>
     </p>
     <p style="color:#888;font-size:12px;margin-bottom:20px;">
         <?php esc_html_e( 'Required columns: name, regular_price. Optional: description, short_description, category, image_url, prep_time. No spice column — spice visibility is category-driven and untouched by this tool.', 'dish-dash' ); ?>
@@ -389,15 +422,17 @@ $dd_csvi_site_name = get_option( 'dish_dash_restaurant_name' ) ?: get_bloginfo( 
             <table class="widefat striped" style="margin-bottom:24px;max-width:520px;">
                 <tbody>
                     <tr><td><?php esc_html_e( 'Products deleted', 'dish-dash' ); ?></td><td><strong><?php echo esc_html( number_format( $dd_csvi_result['deleted'] ) ); ?></strong></td></tr>
+                    <tr><td><?php esc_html_e( 'Categories deleted', 'dish-dash' ); ?></td><td><strong><?php echo esc_html( number_format( $dd_csvi_result['categories_deleted'] ) ); ?></strong></td></tr>
                     <tr><td><?php esc_html_e( 'Products created', 'dish-dash' ); ?></td><td><strong><?php echo esc_html( number_format( $dd_csvi_result['created'] ) ); ?></strong></td></tr>
                     <tr><td><?php esc_html_e( 'Images sideloaded', 'dish-dash' ); ?></td><td><?php echo esc_html( number_format( $dd_csvi_result['images_ok'] ) ); ?></td></tr>
                     <tr><td><?php esc_html_e( 'Images skipped/failed', 'dish-dash' ); ?></td><td><?php echo esc_html( number_format( $dd_csvi_result['images_skipped'] ) ); ?></td></tr>
-                    <tr><td><?php esc_html_e( 'Delete errors', 'dish-dash' ); ?></td><td><?php echo esc_html( number_format( count( $dd_csvi_result['delete_errors'] ) ) ); ?></td></tr>
+                    <tr><td><?php esc_html_e( 'Product delete errors', 'dish-dash' ); ?></td><td><?php echo esc_html( number_format( count( $dd_csvi_result['delete_errors'] ) ) ); ?></td></tr>
+                    <tr><td><?php esc_html_e( 'Category delete errors', 'dish-dash' ); ?></td><td><?php echo esc_html( number_format( count( $dd_csvi_result['category_delete_errors'] ) ) ); ?></td></tr>
                 </tbody>
             </table>
 
             <p style="font-size:12px;color:#27ae60;margin-bottom:20px;">
-                ✅ <?php esc_html_e( 'Product categories and media attachments were NOT touched by this run.', 'dish-dash' ); ?>
+                ✅ <?php esc_html_e( 'The "Uncategorized" category and media attachments were NOT touched by this run.', 'dish-dash' ); ?>
             </p>
 
             <?php if ( ! empty( $dd_csvi_result['row_log'] ) ) : ?>
@@ -467,7 +502,10 @@ $dd_csvi_site_name = get_option( 'dish_dash_restaurant_name' ) ?: get_bloginfo( 
 
         <?php if ( $dd_csvi_preview['valid_count'] > 0 ) : ?>
             <div style="border:1px solid #e0b4b4;background:#fff6f6;border-radius:8px;padding:16px;margin-bottom:20px;max-width:520px;">
-                <h3 style="font-size:13px;font-weight:700;color:#c0392b;margin:0 0 10px;">⚠️ <?php esc_html_e( 'Confirm — this permanently deletes existing products', 'dish-dash' ); ?></h3>
+                <h3 style="font-size:13px;font-weight:700;color:#c0392b;margin:0 0 10px;">⚠️ <?php esc_html_e( 'Confirm — this permanently deletes existing products AND categories', 'dish-dash' ); ?></h3>
+                <p style="font-size:12px;color:#c0392b;margin:0 0 10px;">
+                    <?php esc_html_e( 'This will permanently delete all existing products AND categories.', 'dish-dash' ); ?>
+                </p>
                 <form method="post">
                     <?php wp_nonce_field( 'dd_csv_import_commit' ); ?>
                     <input type="hidden" name="dd_csv_token" value="<?php echo esc_attr( $dd_csvi_preview['token'] ); ?>">
@@ -477,7 +515,7 @@ $dd_csvi_site_name = get_option( 'dish_dash_restaurant_name' ) ?: get_bloginfo( 
                             <?php
                             printf(
                                 /* translators: %d: number of products to be deleted */
-                                esc_html__( 'I understand this will permanently delete all %d existing products.', 'dish-dash' ),
+                                esc_html__( 'I understand this will permanently delete all %d existing products and all existing categories (except "Uncategorized").', 'dish-dash' ),
                                 (int) $dd_csvi_preview['existing_count']
                             );
                             ?>
