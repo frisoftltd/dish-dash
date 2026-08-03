@@ -605,5 +605,6 @@ class DD_Admin extends DD_Module {
 
     public function render_tools(): void {
         include DD_PLUGIN_DIR . 'admin/pages/event-health.php';
+        include DD_PLUGIN_DIR . 'admin/pages/csv-menu-import.php';
     }
 }

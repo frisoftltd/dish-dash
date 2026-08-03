@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.13.4 (2026-08-03)
+> Last updated: v3.13.5 (2026-08-03)
 
 ---
 
@@ -94,8 +94,8 @@ For drops/renames, use a manual migration step and document it in the release no
 | **Deployed version** | v3.13.4 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
-| **Next task** | Awaiting next brief. Last shipped: v3.13.2 (WooCommerce SEO redirect). No code work currently queued. |
-| **Last working state** | v3.13.2 — WooCommerce product/shop/category/tag pages (previously broken, unstyled, and indexable by Google) now 301-redirect to /restaurant-menu/ via new `redirect_woocommerce_pages()` hooked on `template_redirect` priority 1 in `class-dd-template-module.php`. Full per-version history: see RELEASE.md. |
+| **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
+| **Last working state** | v3.13.5 — internal-only CSV menu import tool added to Tools page (`admin/pages/csv-menu-import.php`, rendered via `DD_Admin::render_tools()`). Two-step preview-then-commit flow: parses/validates a CSV (name, regular_price required; description, short_description, category, image_url, prep_time optional), previews counts with zero writes, then requires a typed restaurant-name confirmation before wiping all WooCommerce products and reimporting. Categories upserted by name (never deleted), images de-duped via `_dd_csv_source_url` postmeta (never deleted), whole commit wrapped in a DB transaction with rollback on failure. Gated to manage_options users who do NOT hold `dd_restaurant_owner`/`dd_restaurant_manager` (those roles have manage_options directly per install.php, so a plain capability check isn't sufficient). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
