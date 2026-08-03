@@ -115,14 +115,14 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     // Analytics — GA4 Measurement ID (per-site; blank disables gtag entirely)
     update_option( 'dd_ga4_measurement_id', sanitize_text_field( $_POST['dd_ga4_measurement_id'] ?? '' ) );
 
-    // Spice selector — product-category slugs where the spice level is HIDDEN.
+    // Spice selector — product-category slugs where the spice level is SHOWN.
     // Comma-separated slugs; normalized to an array of sanitized slugs.
-    $dd_spice_ex_raw = sanitize_textarea_field( wp_unslash( $_POST['dd_spice_excluded_categories'] ?? '' ) );
-    $dd_spice_ex     = array_values( array_filter( array_map(
+    $dd_spice_inc_raw = sanitize_textarea_field( wp_unslash( $_POST['dd_spice_included_categories'] ?? '' ) );
+    $dd_spice_inc     = array_values( array_filter( array_map(
         'sanitize_title',
-        array_map( 'trim', explode( ',', $dd_spice_ex_raw ) )
+        array_map( 'trim', explode( ',', $dd_spice_inc_raw ) )
     ) ) );
-    update_option( 'dd_spice_excluded_categories', $dd_spice_ex );
+    update_option( 'dd_spice_included_categories', $dd_spice_inc );
 
     echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Settings saved.', 'dish-dash' ) . '</p></div>';
 
@@ -862,17 +862,17 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
             </div>
 
             <div class="dd-field-grid">
-                <div class="dd-field-label">Hide Spice Selector For</div>
+                <div class="dd-field-label">Show Spice Selector For</div>
                 <div class="dd-field-control">
                     <?php
-                    $dd_spice_ex_val = class_exists( 'DD_API' )
-                        ? DD_API::spice_excluded_slugs()
-                        : (array) get_option( 'dd_spice_excluded_categories', [] );
+                    $dd_spice_inc_val = class_exists( 'DD_API' )
+                        ? DD_API::spice_included_slugs()
+                        : (array) get_option( 'dd_spice_included_categories', [] );
                     ?>
-                    <input type="text" name="dd_spice_excluded_categories"
-                           value="<?php echo esc_attr( implode( ', ', $dd_spice_ex_val ) ); ?>"
+                    <input type="text" name="dd_spice_included_categories"
+                           value="<?php echo esc_attr( implode( ', ', $dd_spice_inc_val ) ); ?>"
                            class="dd-input dd-input--medium" />
-                    <p class="description">Product-category <strong>slugs</strong> (comma-separated) where the spice selector is hidden — e.g. <code>roti-ka-khazana, meetha-ka-khazana-desserts, dahi-yogurt, papad</code>. Every other product requires a spice choice.</p>
+                    <p class="description">Product-category <strong>slugs</strong> (comma-separated) where the spice selector is shown — e.g. <code>curries, tandoori, biryani</code>. Left empty, no product shows a spice choice.</p>
                 </div>
             </div>
         </div>

@@ -680,39 +680,41 @@ class DD_API {
     }
 
     /**
-     * Product-category slugs for which the spice selector is HIDDEN. Keyed on slugs
-     * (not term IDs) so it is portable across installs. Defaults cover nyarutarama's
-     * bread / desserts / yogurt / papad; overridable via the option or the filter.
+     * Product-category slugs for which the spice selector is SHOWN. Keyed on slugs
+     * (not term IDs) so it is portable across installs. Default is empty — a fresh
+     * white-label install shows no spice selector until the restaurant opts
+     * categories in via the option or the filter.
      *
      * @return string[]
      */
-    public static function spice_excluded_slugs(): array {
-        $default = [ 'papad', 'dahi-yogurt', 'roti-ka-khazana', 'meetha-ka-khazana-desserts' ];
-        $slugs   = get_option( 'dd_spice_excluded_categories', $default );
+    public static function spice_included_slugs(): array {
+        $default = [];
+        $slugs   = get_option( 'dd_spice_included_categories', $default );
         if ( ! is_array( $slugs ) ) {
             $slugs = $default;
         }
         $slugs = array_values( array_filter( array_map( 'sanitize_title', $slugs ) ) );
-        return (array) apply_filters( 'dd_spice_excluded_slugs', $slugs );
+        return (array) apply_filters( 'dd_spice_included_slugs', $slugs );
     }
 
     /**
-     * Does this product show the spice selector? True unless ANY of its product_cat
-     * slugs is in the excluded set. (A product in multiple categories is excluded
-     * only if one of them is an excluded category.)
+     * Does this product show the spice selector? True only if ANY of its
+     * product_cat slugs is in the included set. (A product in multiple
+     * categories is included if any one of them is an included category.)
+     * Empty included set → always false (safe default for white-label installs).
      */
     public static function product_has_spice( WC_Product $product ): bool {
-        $excluded = self::spice_excluded_slugs();
-        if ( empty( $excluded ) ) {
-            return true;
+        $included = self::spice_included_slugs();
+        if ( empty( $included ) ) {
+            return false;
         }
         $terms = get_the_terms( $product->get_id(), 'product_cat' ) ?: [];
         foreach ( $terms as $t ) {
-            if ( in_array( $t->slug, $excluded, true ) ) {
-                return false;
+            if ( in_array( $t->slug, $included, true ) ) {
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**
