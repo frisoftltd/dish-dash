@@ -876,7 +876,13 @@ class DD_Reservations_Admin {
                 if (e.target === resModal) closeResModal();
             });
             document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape' && resModal.style.display !== 'none') closeResModal();
+                if (e.key !== 'Escape') return;
+                var lightbox = document.getElementById('dd-res-proof-lightbox');
+                if (lightbox && lightbox.style.display !== 'none') {
+                    closeProofLightbox();
+                } else if (resModal.style.display !== 'none') {
+                    closeResModal();
+                }
             });
 
             function openResModal(id) {
@@ -888,6 +894,37 @@ class DD_Reservations_Admin {
             function closeResModal() {
                 resModal.style.display = 'none';
                 document.body.style.overflow = '';
+            }
+
+            // ── Payment-proof lightbox — reuses the .dd-modal-overlay pattern
+            // (same CSS class the accept modal itself uses, already loaded via
+            // admin.css) rather than a new library. Lazily created on first use,
+            // appended to <body> so it always paints above the accept modal.
+            function openProofLightbox(url) {
+                var lb = document.getElementById('dd-res-proof-lightbox');
+                if (!lb) {
+                    lb = document.createElement('div');
+                    lb.id = 'dd-res-proof-lightbox';
+                    lb.className = 'dd-modal-overlay';
+                    lb.style.display = 'none';
+                    lb.innerHTML =
+                        '<img id="dd-res-proof-lightbox-img" alt="Payment proof screenshot" '
+                        + 'style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">'
+                        + '<button type="button" id="dd-res-proof-lightbox-close" aria-label="Close" '
+                        + 'style="position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.6);color:#fff;'
+                        + 'border:none;border-radius:50%;width:40px;height:40px;font-size:18px;line-height:1;cursor:pointer;">✕</button>';
+                    document.body.appendChild(lb);
+                    lb.addEventListener('click', function (e) {
+                        if (e.target === lb || e.target.id === 'dd-res-proof-lightbox-close') closeProofLightbox();
+                    });
+                }
+                document.getElementById('dd-res-proof-lightbox-img').src = url;
+                lb.style.display = 'flex';
+            }
+
+            function closeProofLightbox() {
+                var lb = document.getElementById('dd-res-proof-lightbox');
+                if (lb) lb.style.display = 'none';
             }
 
             function setResLoading(on) {
@@ -963,12 +1000,20 @@ class DD_Reservations_Admin {
                         depositInfoHtml +=
                             '<div style="margin-top:10px;">'
                             + '<div class="dd-modal-label" style="margin-bottom:6px;">PAYMENT PROOF</div>'
-                            + '<a href="' + r.deposit_proof_url + '" target="_blank" rel="noopener noreferrer">'
-                            + '<img src="' + r.deposit_proof_url + '" alt="Payment proof screenshot" '
-                            + 'style="max-width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;"></a>'
+                            + '<img src="' + r.deposit_proof_url + '" alt="Payment proof screenshot — click to enlarge" '
+                            + 'class="dd-res-proof-thumb" '
+                            + 'style="max-width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;cursor:zoom-in;">'
                             + '</div>';
                     }
                     resModal.querySelector('.dd-res-modal-deposit-info').innerHTML = depositInfoHtml;
+
+                    // Click-to-zoom (Part A) — same overlay pattern as the modal itself.
+                    var proofThumb = resModal.querySelector('.dd-res-proof-thumb');
+                    if (proofThumb) {
+                        proofThumb.addEventListener('click', function () {
+                            openProofLightbox(proofThumb.src);
+                        });
+                    }
                 } else {
                     depositSection.style.display = 'none';
                 }

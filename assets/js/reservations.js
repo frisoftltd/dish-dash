@@ -66,6 +66,7 @@
     bindNavigation();
     bindInputSync();
     initDepositBadge();
+    updateDepositLive();
     // NB: initPhonePicker() is NOT called here. The WhatsApp field lives on
     // screen 3 (Details), which is display:none at page load — initialising
     // intl-tel-input on a hidden element mis-measures the separate dial code.
@@ -138,6 +139,27 @@
     } else {
       badge.style.display = 'none';
     }
+  }
+
+  // ── Live per-person deposit total on Screen 2 (guest stepper) ─────────────
+  // Display only — recalculates instantly from state.guests, no AJAX call.
+  // Fixed-amount deposits are already shown accurately on Screen 1 (no guest
+  // dependency), so this line only ever appears for depositType 'per_person'.
+  // Server-side calculate_deposit_amount() is untouched and remains the only
+  // source of truth for the actual charged amount.
+  function updateDepositLive() {
+    const el = document.getElementById('dd-res-deposit-live');
+    if (!el) return;
+    if (!depositActive || ddRes.depositType !== 'per_person' || !ddRes.depositAmount) {
+      el.style.display = 'none';
+      return;
+    }
+    const rate      = Number(ddRes.depositAmount) || 0;
+    const guestWord = state.guests === 1 ? 'guest' : 'guests';
+    const total     = rate * state.guests;
+    el.textContent = '💳 ' + state.guests + ' ' + guestWord + ' × ' + rate.toLocaleString()
+      + ' RWF = ' + total.toLocaleString() + ' RWF deposit';
+    el.style.display = 'flex';
   }
 
   // ── Open / Close ──────────────────────────────────────────
@@ -303,10 +325,10 @@
   // ── Stepper ───────────────────────────────────────────────
   function bindStepper() {
     $('#dd-guests-minus')?.addEventListener('click', () => {
-      if (state.guests > 1) { state.guests--; $('#dd-guests-val').textContent = state.guests; }
+      if (state.guests > 1) { state.guests--; $('#dd-guests-val').textContent = state.guests; updateDepositLive(); }
     });
     $('#dd-guests-plus')?.addEventListener('click', () => {
-      if (state.guests < 20) { state.guests++; $('#dd-guests-val').textContent = state.guests; }
+      if (state.guests < 20) { state.guests++; $('#dd-guests-val').textContent = state.guests; updateDepositLive(); }
     });
   }
 

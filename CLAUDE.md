@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.14.3 (2026-08-04)
+> Last updated: v3.14.4 (2026-08-04)
 
 ---
 
@@ -91,7 +91,7 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.14.3 |
+| **Deployed version** | v3.14.4 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |

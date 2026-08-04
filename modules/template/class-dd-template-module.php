@@ -380,6 +380,11 @@ class DD_Template_Module extends DD_Module {
             // alongside MoMo. false → today's MoMo-only behavior, unchanged.
             'pesapalEnabled' => class_exists( 'DD_PesaPal' ) && ( new DD_PesaPal() )->is_configured(),
             'depositAmount'  => (int)  get_option( 'dd_reservation_deposit_amount', 2000 ),
+            // 'fixed' (flat, guest-count-independent) or 'per_person' (depositAmount
+            // is the PER-GUEST rate). Lets the guest-stepper screen show a live
+            // running total for per_person without a round trip — display only,
+            // calculate_deposit_amount() server-side is the actual source of truth.
+            'depositType'    => get_option( 'dd_reservation_deposit_type', 'fixed' ),
             'refundPolicy'   => get_option( 'dd_reservation_refund_policy_text', '' ),
             // MoMo deposit scan-&-pay (mirrors orders R7). Merchant code + the FULL
             // USSD payload built server-side by the shared dd_momo_ussd_payload()

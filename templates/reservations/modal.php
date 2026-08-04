@@ -68,6 +68,11 @@
             <span class="dd-res-stepper__val" id="dd-guests-val">2</span>
             <button class="dd-res-stepper__btn" id="dd-guests-plus" aria-label="More guests">+</button>
           </div>
+          <!-- Live per-person deposit total (Part B). Hidden for fixed-amount
+               deposits — Screen 1's badge already shows that flat amount
+               accurately, so this only ever appears when deposit type is
+               per_person, where guests × rate needs live recalculation. -->
+          <div class="dd-res-deposit-notice" id="dd-res-deposit-live"></div>
         </div>
 
         <div class="dd-res-field-block">
