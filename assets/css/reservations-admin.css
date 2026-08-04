@@ -221,6 +221,17 @@
 .dd-res-badge--pending_payment { background: #e0f2fe; color: #075985; }
 .dd-res-badge--auto_cancelled  { background: #f3f4f6; color: #6b7280; }
 
+/* Row-table Status column is a fixed 100px (table-layout:fixed) — composite
+   labels like "Confirmed — deposit unpaid" don't fit on one line at that
+   width. Wrap instead of clip: ellipsis would hide the word that actually
+   matters ("unpaid"). Scoped to the row table only — the accept modal's
+   .dd-res-modal-status-badge has plenty of room and keeps the shared
+   .dd-res-badge single-line default. Short labels (Pending, Confirmed, Test)
+   easily fit within 100px and never wrap — no layout change for those rows. */
+.dd-res-table-wrap .dd-res-badge {
+    white-space: normal;
+}
+
 /* ── Action Buttons ──────────────────────────────────────────────────────── */
 .dd-res-actions {
     display: flex;
