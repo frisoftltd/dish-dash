@@ -86,6 +86,7 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_pesapal_check_status', [ $this, 'ajax_pesapal_check_status' ], true );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
+        DD_Ajax::register( 'dd_notify_adhoc_rider', [ $this, 'ajax_notify_adhoc_rider' ], false );
         add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
         add_action( 'wp_ajax_dd_kitchen_queue',           [ $this, 'ajax_kitchen_queue' ] );
         add_action( 'wp_ajax_dd_mark_month_paid',         [ $this, 'ajax_mark_month_paid' ] );
@@ -1284,6 +1285,42 @@ class DD_Orders_Module extends DD_Module {
             'order' => $order,
             'items' => $items,
         ] );
+    }
+
+    /**
+     * Ad-hoc rider notification (v3.15.2) — staff-only. Lets staff notify a
+     * rider who isn't pre-registered in Settings → Delivery Riders, without
+     * any schema change or per-order rider tracking: just builds the SAME
+     * wa.me link the saved-rider buttons already use
+     * (DD_Notifications::build_rider_whatsapp_url(), which already accepts
+     * any phone string — no changes needed there), for a number typed in on
+     * the spot instead of one from the dd_riders option.
+     */
+    public function ajax_notify_adhoc_rider(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_orders' ) ) {
+            $this->json_error( __( 'Unauthorized.', 'dish-dash' ), 403 );
+        }
+
+        $order_id = absint( $_POST['order_id'] ?? 0 );
+        $phone    = sanitize_text_field( wp_unslash( $_POST['phone'] ?? '' ) );
+
+        if ( $order_id < 1 || '' === $phone ) {
+            $this->json_error( __( 'Invalid request.', 'dish-dash' ) );
+        }
+
+        $order = $this->get_order( $order_id );
+        if ( ! $order ) {
+            $this->json_error( __( 'Order not found.', 'dish-dash' ) );
+        }
+
+        $url = DD_Notifications::build_rider_whatsapp_url( (array) $order, $phone );
+        if ( ! $url ) {
+            $this->json_error( __( 'Could not build the notification link — check the phone number.', 'dish-dash' ) );
+        }
+
+        $this->json_success( [ 'url' => $url ] );
     }
 
     public function ajax_momo_check_status(): void {
