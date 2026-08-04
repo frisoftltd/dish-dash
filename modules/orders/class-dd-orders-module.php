@@ -2033,22 +2033,36 @@ class DD_Orders_Module extends DD_Module {
 
         global $wpdb;
 
-        // ALL pending orders — actionable, restaurant-wide.
+        // ALL pending orders — actionable, restaurant-wide. Excludes momo_manual
+        // (scan-&-pay) orders still sitting in the up-front claimed_pending state —
+        // nothing for staff to act on until the customer taps "I have paid" (→
+        // claimed) or the order is otherwise resolved. COD is unaffected (no
+        // claim concept). PesaPal is unaffected too — it's inserted at
+        // status='pending_payment', not 'pending', so it never matched this
+        // query in the first place; only promote_pesapal_order() moves it to
+        // 'pending', by which point it's genuinely actionable.
         $pending_orders = $wpdb->get_results(
             "SELECT id, order_number, customer_name, total, payment_method,
                     TIMESTAMPDIFF(SECOND, created_at, NOW()) AS seconds_ago
              FROM {$wpdb->prefix}dishdash_orders
              WHERE status = 'pending' AND is_test = 0
+               AND NOT ( payment_method = 'momo_manual' AND payment_status = 'claimed_pending' )
              ORDER BY id DESC",
             ARRAY_A
         );
 
-        // ALL pending reservations — actionable, restaurant-wide.
+        // ALL pending reservations — actionable, restaurant-wide. Excludes
+        // deposit-required bookings still awaiting customer payment
+        // (deposit_status='pending') — same exclusion as the v3.14.3 admin-list
+        // "All" tab fix. 'claimed' (MoMo self-attested) and 'paid' rows surface
+        // on the next poll automatically once deposit_status changes — no
+        // separate re-notify call needed, this is a live poll.
         $pending_reservations = $wpdb->get_results(
             "SELECT id, name, date, time, guests,
                     TIMESTAMPDIFF(SECOND, created_at, NOW()) AS seconds_ago
              FROM {$wpdb->prefix}dishdash_reservations
              WHERE status = 'pending'
+               AND NOT ( deposit_required = 1 AND deposit_status = 'pending' )
              ORDER BY id DESC",
             ARRAY_A
         );
