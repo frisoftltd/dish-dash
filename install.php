@@ -210,6 +210,10 @@ class DD_Install {
         // manual ALTER never added to install.php (see class-dd-orders-module.php
         // has_pesapal_tracking_column()), VARCHAR(64) with a UNIQUE KEY. Matched here.
         // Schema verified Q2 2026-06-02.
+        // deposit_proof_attachment_id (v3.14.2, MoMo proof upload) — WP Media
+        // Library attachment ID for an optional customer-attached payment
+        // screenshot on the "I have paid" claim. Nullable — claim works
+        // identically with no attachment, same as before this column existed.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_reservations (
                 id                BIGINT UNSIGNED     NOT NULL AUTO_INCREMENT,
@@ -242,6 +246,7 @@ class DD_Install {
                 deposit_paid_at   DATETIME                     DEFAULT NULL,
                 payment_ref       VARCHAR(100)                 DEFAULT NULL,
                 pesapal_tracking_id VARCHAR(64)                DEFAULT NULL,
+                deposit_proof_attachment_id BIGINT UNSIGNED     DEFAULT NULL,
                 is_test           TINYINT(1)          NOT NULL DEFAULT 0,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   booking_ref (booking_ref),

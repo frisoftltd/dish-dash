@@ -921,9 +921,22 @@ class DD_Reservations_Admin {
                 var depositSection = resModal.querySelector('.dd-res-modal-deposit-section');
                 if (Number(r.deposit_required) === 1) {
                     depositSection.style.display = '';
-                    resModal.querySelector('.dd-res-modal-deposit-info').innerHTML =
+                    var depositInfoHtml =
                         '<div class="dd-modal-total-row"><span>' + (RES_DEPOSIT_LABELS[r.deposit_status] || r.deposit_status) + '</span>'
                         + '<strong>' + Number(r.deposit_amount).toLocaleString('en-US') + ' RWF</strong></div>';
+                    // Customer-attached MoMo payment screenshot (v3.14.2) — optional,
+                    // shown only when present so staff can visually verify before
+                    // clicking "Mark deposit paid". No proof → no change from before.
+                    if (r.deposit_proof_url) {
+                        depositInfoHtml +=
+                            '<div style="margin-top:10px;">'
+                            + '<div class="dd-modal-label" style="margin-bottom:6px;">PAYMENT PROOF</div>'
+                            + '<a href="' + r.deposit_proof_url + '" target="_blank" rel="noopener noreferrer">'
+                            + '<img src="' + r.deposit_proof_url + '" alt="Payment proof screenshot" '
+                            + 'style="max-width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;"></a>'
+                            + '</div>';
+                    }
+                    resModal.querySelector('.dd-res-modal-deposit-info').innerHTML = depositInfoHtml;
                 } else {
                     depositSection.style.display = 'none';
                 }

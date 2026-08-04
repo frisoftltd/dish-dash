@@ -632,7 +632,7 @@
     var amount = ddRes.depositAmount ? Number( ddRes.depositAmount ).toLocaleString() : '';
 
     var html = '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0;">'
-             + '<p style="font-weight:700;font-size:16px;margin:0 0 4px;">✅ Booking received!</p>'
+             + '<p style="font-weight:700;font-size:16px;margin:0 0 4px;">Booking recorded — payment required to confirm.</p>'
              + '<p style="color:#6b7280;font-size:14px;margin:0 0 18px;">Pay your ' + amount + ' RWF deposit to confirm your table.</p>'
              + '<button id="dd-res-pay-momo" type="button" class="dd-momoqr__claim" style="margin-bottom:10px;">📲 Scan &amp; Pay with MoMo</button>'
              + '<button id="dd-res-pay-pesapal" type="button" class="dd-momoqr__claim">🏦 Pay with PesaPal</button>'
@@ -780,7 +780,7 @@
     var qrImg    = hasQr ? makeQrDataUrl( payload ) : '';
 
     var html = '<div class="dd-momoqr">';
-    html += '<p class="dd-momoqr__ordernum">✅ Booking received!</p>';
+    html += '<p class="dd-momoqr__ordernum">Booking recorded — payment required to confirm.</p>';
 
     if ( hasQr ) {
       html += '<p class="dd-momoqr__instruction">Pay your ' + amount.toLocaleString()
@@ -812,8 +812,15 @@
     html += '</div>';
 
     html += '<p class="dd-momoqr__note">Tap any detail above to copy.</p>';
+
+    // Optional payment-proof screenshot — attaching one is never required;
+    // clicking "I have paid" works exactly the same with or without it.
+    html += '<div style="margin:14px 0;text-align:left;">';
+    html += '<label for="dd-res-momo-proof" style="display:block;font-size:12px;color:#6b7280;margin-bottom:6px;">Attach payment screenshot (optional)</label>';
+    html += '<input type="file" id="dd-res-momo-proof" accept="image/*" style="display:block;width:100%;font-size:13px;">';
+    html += '</div>';
+
     html += '<button id="dd-res-momo-claim" type="button" class="dd-momoqr__claim">I have paid — notify restaurant</button>';
-    html += '<p class="dd-momoqr__recorded" id="dd-res-momo-recorded" hidden>Payment recorded — you can close this.</p>';
     html += '</div>';
 
     area.innerHTML = html;
@@ -849,11 +856,17 @@
           document.body.removeChild( a );
         }
 
+        // Optional proof screenshot, if the customer attached one.
+        var proofInput = document.getElementById( 'dd-res-momo-proof' );
+        var proofFile  = ( proofInput && proofInput.files && proofInput.files[0] ) ? proofInput.files[0] : null;
+
         // Claim (always) — flip pending → claimed. Server is idempotent; NEVER 'paid'.
-        claimDeposit( depositBookingRef, function () {
-          if ( claimBtn ) { claimBtn.disabled = true; claimBtn.hidden = true; }
-          var recorded = document.getElementById( 'dd-res-momo-recorded' );
-          if ( recorded ) recorded.hidden = false;
+        // Success transitions to the shared "Booking confirmed" view (showWhatsAppButtons),
+        // same as PesaPal's already-correct poll-gated pattern — the claim IS the
+        // confirmation signal MoMo has (no webhook exists for scan-&-pay).
+        claimDeposit( depositBookingRef, proofFile, function () {
+          depositPanelLocked = false;
+          showWhatsAppButtons( data.admin_url, data.customer_url );
         }, function ( message ) {
           // Allow a retry (claim is idempotent; any WhatsApp already opened).
           claimBtn.disabled    = false;
@@ -865,12 +878,13 @@
     }
   }
 
-  function claimDeposit( bookingRef, onSuccess, onError ) {
+  function claimDeposit( bookingRef, file, onSuccess, onError ) {
     if ( ! bookingRef ) { if ( onError ) onError(); return; }
     var fd = new FormData();
     fd.append( 'action',      'dd_reservation_claim_deposit' );
     fd.append( 'nonce',       ddRes.nonce || '' );
     fd.append( 'booking_ref', bookingRef );
+    if ( file ) fd.append( 'deposit_proof', file, file.name );
 
     fetch( ddRes.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: fd } )
       .then( function ( r ) { return r.json(); } )

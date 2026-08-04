@@ -864,6 +864,12 @@ class DD_Reservations_Module extends DD_Module {
             return;
         }
 
+        // Resolve the proof screenshot (if any) to a displayable URL for the
+        // accept modal — the row itself only stores the attachment ID.
+        $reservation->deposit_proof_url = $reservation->deposit_proof_attachment_id
+            ? ( wp_get_attachment_image_url( (int) $reservation->deposit_proof_attachment_id, 'medium' ) ?: '' )
+            : '';
+
         wp_send_json_success( [ 'reservation' => $reservation ] );
     }
 
@@ -961,22 +967,79 @@ class DD_Reservations_Module extends DD_Module {
             return;
         }
 
+        // Optional payment-proof screenshot (v3.14.2). Never blocks the claim —
+        // an upload failure just means no proof gets stored; the claim itself
+        // still succeeds exactly as it did before this existed.
+        $attachment_id = $this->maybe_upload_deposit_proof();
+
+        $update_fields  = [];
+        $update_formats = [];
+
         // Only advance from the up-front 'pending' state (idempotent; double-tap = no-op).
-        if ( 'pending' === $reservation->deposit_status ) {
+        $was_pending = ( 'pending' === $reservation->deposit_status );
+        if ( $was_pending ) {
+            $update_fields['deposit_status'] = 'claimed';
+            $update_formats[]                = '%s';
+        }
+
+        if ( $attachment_id ) {
+            $update_fields['deposit_proof_attachment_id'] = $attachment_id;
+            $update_formats[]                              = '%d';
+        }
+
+        if ( $update_fields ) {
             $wpdb->update(
                 $wpdb->prefix . 'dishdash_reservations',
-                [ 'deposit_status' => 'claimed' ],
-                [ 'id'             => (int) $reservation->id ],
-                [ '%s' ],
+                $update_fields,
+                [ 'id' => (int) $reservation->id ],
+                $update_formats,
                 [ '%d' ]
             );
+        }
 
+        if ( $was_pending ) {
             do_action( 'dd_track_event', 'deposit_claimed', null, null, [
                 'booking_ref' => $booking_ref,
+                'has_proof'   => (bool) $attachment_id,
             ] );
         }
 
-        wp_send_json_success( [ 'claimed' => true, 'booking_ref' => $booking_ref ] );
+        wp_send_json_success( [
+            'claimed'        => true,
+            'booking_ref'    => $booking_ref,
+            'proof_uploaded' => (bool) $attachment_id,
+        ] );
+    }
+
+    /**
+     * Handle an optional deposit-proof screenshot upload via the WP Media
+     * Library. Restricted to image mime types (checked by actual file
+     * content, not the client-supplied extension/MIME header) since this is
+     * a nopriv endpoint. Returns the attachment ID, or 0 if no file was
+     * provided, the type isn't an allowed image, or the upload failed.
+     */
+    private function maybe_upload_deposit_proof(): int {
+        if ( empty( $_FILES['deposit_proof']['tmp_name'] ) || ! is_uploaded_file( $_FILES['deposit_proof']['tmp_name'] ) ) {
+            return 0;
+        }
+
+        $filetype = wp_check_filetype_and_ext( $_FILES['deposit_proof']['tmp_name'], $_FILES['deposit_proof']['name'] );
+        $allowed  = [ 'image/jpeg', 'image/png', 'image/webp', 'image/gif' ];
+        if ( empty( $filetype['type'] ) || ! in_array( $filetype['type'], $allowed, true ) ) {
+            return 0;
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+
+        $attachment_id = media_handle_upload( 'deposit_proof', 0 );
+        if ( is_wp_error( $attachment_id ) ) {
+            error_log( 'DD reservation deposit proof upload failed: ' . $attachment_id->get_error_message() );
+            return 0;
+        }
+
+        return (int) $attachment_id;
     }
 
     // ── AJAX: Customer-initiated PesaPal deposit request (guest, unauthenticated) ──
