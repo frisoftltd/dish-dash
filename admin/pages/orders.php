@@ -893,14 +893,12 @@ window.ddOrdersData = {
             if ( waUrls.customer ) {
                 actionsHtml += '<a href="' + esc( waUrls.customer ) + '" target="_blank" class="dd-btn dd-btn-whatsapp">📲 Customer</a>';
             }
-            // Ad-hoc rider (v3.15.2) — alongside the saved-riders list above,
-            // for a rider who isn't pre-registered in Settings. No schema
-            // change, no per-order rider tracking — just enables the same
-            // wa.me notify link for a number typed in on the spot.
-            actionsHtml += '<span class="dd-adhoc-rider" id="dd-adhoc-rider-' + id + '" style="display:inline-flex;gap:6px;align-items:center;">'
-                + '<input type="tel" class="dd-adhoc-rider-phone" placeholder="Ad-hoc rider phone" style="width:150px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">'
-                + '<button type="button" class="dd-btn dd-btn-whatsapp dd-adhoc-rider-notify" data-order-id="' + id + '" disabled>🛵 Notify</button>'
-                + '</span>';
+            // Rider Notified (v3.15.3, replaces v3.15.2's ad-hoc phone/WhatsApp
+            // flow) — for a rider who isn't pre-registered in Settings and was
+            // called outside the app (personal phone, walk-up, etc). Plain
+            // confirmation, no phone entry, no wa.me link — just unlocks
+            // Delivered the same way notifying a saved rider does.
+            actionsHtml += '<button type="button" class="dd-btn dd-btn-whatsapp dd-rider-notified-btn" data-order-id="' + id + '">🛵 Rider Notified</button>';
             var deliveredDisabled = riderNotified ? '' : ' disabled';
             actionsHtml += '<button class="dd-btn dd-btn-delivered dd-modal-status-btn dd-requires-rider" data-status="delivered" data-order-id="' + id + '"' + deliveredDisabled + '>✓ Delivered</button>';
             actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
@@ -967,72 +965,18 @@ window.ddOrdersData = {
             } );
         } );
 
-        // Ad-hoc rider (v3.15.2) — basic sanity check (digit count, same
-        // digit-stripping approach build_rider_whatsapp_url() itself already
-        // uses server-side) enables the Notify button; no intl-tel-input in
-        // wp-admin to match reservations.js's readPhone() exactly, so this is
-        // the closest equivalent — a length floor, not full E.164 validation.
-        modalActions.querySelectorAll( '.dd-adhoc-rider-phone' ).forEach( function ( input ) {
-            input.addEventListener( 'input', function () {
-                var wrap   = this.closest( '.dd-adhoc-rider' );
-                var notify = wrap ? wrap.querySelector( '.dd-adhoc-rider-notify' ) : null;
-                if ( ! notify ) return;
-                var digits = this.value.replace( /\D/g, '' );
-                notify.disabled = digits.length < 9;
-            } );
-        } );
-
-        modalActions.querySelectorAll( '.dd-adhoc-rider-notify' ).forEach( function ( notifyBtn ) {
-            notifyBtn.addEventListener( 'click', function () {
-                var wrap  = notifyBtn.closest( '.dd-adhoc-rider' );
-                var input = wrap ? wrap.querySelector( '.dd-adhoc-rider-phone' ) : null;
-                var oid   = notifyBtn.dataset.orderId;
-                var phone = input ? input.value.trim() : '';
-                if ( ! phone || ! wrap ) return;
-
-                notifyBtn.disabled    = true;
-                notifyBtn.textContent = 'Building link…';
-
-                var data = new FormData();
-                data.append( 'action',   'dd_notify_adhoc_rider' );
-                data.append( 'order_id', oid );
-                data.append( 'phone',    phone );
-                data.append( 'nonce',    window.ddOrdersData.adminNonce );
-
-                fetch( window.ddOrdersData.ajaxUrl, { method: 'POST', body: data } )
-                    .then( function ( r ) { return r.json(); } )
-                    .then( function ( res ) {
-                        if ( ! res.success || ! res.data || ! res.data.url ) {
-                            alert( ( res.data && res.data.message ) || 'Could not build the notification link.' );
-                            notifyBtn.disabled    = false;
-                            notifyBtn.textContent = '🛵 Notify';
-                            return;
-                        }
-                        // Swap the button for a real link (same "async result,
-                        // never auto-open" pattern as reservations-admin.php's
-                        // requestPesapalDeposit() — window.open() inside an
-                        // async callback is not a trusted user gesture and
-                        // browsers routinely block it; a tap-only link isn't).
-                        var link = document.createElement( 'a' );
-                        link.href        = res.data.url;
-                        link.target      = '_blank';
-                        link.rel         = 'noopener noreferrer';
-                        link.className   = 'dd-btn dd-btn-whatsapp';
-                        link.textContent = '💬 Open WhatsApp';
-                        link.addEventListener( 'click', function () {
-                            localStorage.setItem( LS_RIDER + String( oid ), '1' );
-                            modalActions.querySelectorAll( '.dd-requires-rider' ).forEach( function ( b ) {
-                                b.disabled = false;
-                            } );
-                        } );
-                        wrap.innerHTML = '';
-                        wrap.appendChild( link );
-                    } )
-                    .catch( function () {
-                        alert( 'Network error. Please try again.' );
-                        notifyBtn.disabled    = false;
-                        notifyBtn.textContent = '🛵 Notify';
-                    } );
+        // Rider Notified (v3.15.3) — plain confirm for a rider who wasn't
+        // pre-registered and was called outside the app. Same unlock
+        // mechanism as the saved-rider links above, no AJAX call.
+        modalActions.querySelectorAll( '.dd-rider-notified-btn' ).forEach( function ( btn ) {
+            btn.addEventListener( 'click', function () {
+                var oid = this.dataset.orderId;
+                localStorage.setItem( LS_RIDER + String( oid ), '1' );
+                modalActions.querySelectorAll( '.dd-requires-rider' ).forEach( function ( b ) {
+                    b.disabled = false;
+                } );
+                this.textContent = '✓ Rider Notified';
+                this.disabled    = true;
             } );
         } );
     }

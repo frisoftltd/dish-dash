@@ -1,16 +1,25 @@
 <?php
 /**
  * File:    admin/pages/billing.php
- * Purpose: Billing admin page — platform fee tracking per delivered order.
- *          Shows this-month, last-month, all-time fee totals, monthly history,
- *          and order status breakdown. Read-only reporting page.
+ * Purpose: Billing admin page — platform fee tracking for both orders and
+ *          reservations (see PHP block below for the reservations queries,
+ *          added v3.15.0). Shows this-month, last-month, all-time fee
+ *          totals, monthly history, and status breakdown per section, plus
+ *          a combined "Total This Month" hero. Read-only reporting page.
  *
  * Dependencies:
- *   - wp_dishdash_orders table (platform_fee column, added v3.4.91)
- *   - dd_per_order_fee wp_option (set in Settings → Pricing & Fees)
- *   - admin.css (dd-kpi-card, dd-kpi-row, dd-section-title, dd-status-* classes)
+ *   - wp_dishdash_orders / wp_dishdash_reservations tables (platform_fee
+ *     column — orders added v3.4.91, reservations added v3.15.0)
+ *   - dd_per_order_fee / dd_per_reservation_fee wp_options (Settings →
+ *     Pricing & Fees), dd_fees_enabled toggle shared by both
+ *   - admin.css's dd-status-* status-badge color rules (colors only — all
+ *     structural classes below, dd-billing-*, are self-contained in this
+ *     file's own <style> blocks, not admin.css)
+ *   - --dd-brand / --dd-brand-rgb CSS variables (DD_Admin::get_admin_styles(),
+ *     set on :root/body from the restaurant's own primary color) — the
+ *     v3.15.3 visual redesign uses these exclusively, no hardcoded brand hex
  *
- * Last modified: v3.4.93
+ * Last modified: v3.15.3
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -184,358 +193,342 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
   </div>
   <?php endif; ?>
 
-  <!-- ── Combined total (v3.14.8) ─────────────────────────────────────────── -->
-  <div class="dd-card" style="margin-bottom:24px;background:linear-gradient(135deg,#111827,#1f2937);border:none;">
-    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;">Total This Month — Orders + Reservations</div>
-    <div style="font-size:32px;font-weight:700;color:#fff;margin-top:6px;">RWF <?php echo number_format( $combined_this_month_fees ); ?></div>
-    <div style="font-size:13px;color:#d1d5db;margin-top:4px;">
-      RWF <?php echo number_format( $this_month_fees ); ?> from <?php echo number_format( $this_month_orders ); ?> orders
-      · RWF <?php echo number_format( $res_this_month_fees ); ?> from <?php echo number_format( $res_this_month_count ); ?> reservations
+  <!-- ── Hero: combined total (redesigned) ───────────────────────────────── -->
+  <div class="dd-billing-hero">
+    <div class="dd-billing-hero__label">Total This Month — Orders + Reservations</div>
+    <div class="dd-billing-hero__value">RWF <?php echo number_format( $combined_this_month_fees ); ?></div>
+    <div class="dd-billing-hero__chips">
+      <span class="dd-billing-chip">
+        <span class="dd-billing-chip__dot" style="background:#2563eb"></span>
+        🧾 Orders — <strong>RWF <?php echo number_format( $this_month_fees ); ?></strong> · <?php echo number_format( $this_month_orders ); ?> orders
+      </span>
+      <span class="dd-billing-chip">
+        <span class="dd-billing-chip__dot" style="background:#7c3aed"></span>
+        📅 Reservations — <strong>RWF <?php echo number_format( $res_this_month_fees ); ?></strong> · <?php echo number_format( $res_this_month_count ); ?> reservations
+      </span>
     </div>
   </div>
 
-  <h2 class="dd-section-title" style="font-size:16px;margin:0 0 12px;">🧾 Orders</h2>
-
-  <!-- ── KPI row ───────────────────────────────────────────────────────────── -->
-  <div class="dd-billing-kpis">
-
-    <div class="dd-kpi-card" style="--kpi-accent:#0EA5E9">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-calendar-alt" style="color:#0EA5E9"></span>
-      </div>
-      <div class="dd-kpi-label">This Month</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $this_month_fees ); ?></div>
-      <div class="dd-kpi-sub"><?php echo number_format( $this_month_orders ); ?> delivered orders</div>
+  <!-- ═══ ORDERS ═══════════════════════════════════════════════════════════ -->
+  <div class="dd-billing-section">
+    <div class="dd-billing-section__header">
+      <span class="dd-billing-section__icon">🧾</span>
+      <span class="dd-billing-section__title">Orders</span>
     </div>
 
-    <div class="dd-kpi-card" style="--kpi-accent:#8B5CF6">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-backup" style="color:#8B5CF6"></span>
+    <div class="dd-billing-kpis">
+      <div class="dd-billing-kpi" style="--kpi-accent:#2563eb">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-calendar-alt"></span>This Month</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $this_month_fees ); ?></div>
+        <div class="dd-billing-kpi__sub"><?php echo number_format( $this_month_orders ); ?> delivered orders</div>
       </div>
-      <div class="dd-kpi-label">Last Month</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $last_month_fees ); ?></div>
-      <div class="dd-kpi-sub"><?php echo number_format( $last_month_orders ); ?> delivered orders</div>
+      <div class="dd-billing-kpi" style="--kpi-accent:#7c3aed">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-backup"></span>Last Month</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $last_month_fees ); ?></div>
+        <div class="dd-billing-kpi__sub"><?php echo number_format( $last_month_orders ); ?> delivered orders</div>
+      </div>
+      <div class="dd-billing-kpi" style="--kpi-accent:#059669">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-chart-line"></span>All Time</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $alltime_fees ); ?></div>
+        <div class="dd-billing-kpi__sub"><?php echo number_format( $alltime_orders ); ?> delivered orders</div>
+      </div>
+      <div class="dd-billing-kpi" style="--kpi-accent:var(--dd-brand)">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-money-alt"></span>Fee Per Order</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $fee ); ?></div>
+        <div class="dd-billing-kpi__sub">Flat rate — no percentage</div>
+      </div>
     </div>
 
-    <div class="dd-kpi-card" style="--kpi-accent:#10B981">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-chart-line" style="color:#10B981"></span>
-      </div>
-      <div class="dd-kpi-label">All Time</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $alltime_fees ); ?></div>
-      <div class="dd-kpi-sub"><?php echo number_format( $alltime_orders ); ?> delivered orders</div>
-    </div>
+    <div class="dd-billing-grid">
 
-    <div class="dd-kpi-card" style="--kpi-accent:#F59E0B">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-money-alt" style="color:#F59E0B"></span>
-      </div>
-      <div class="dd-kpi-label">Fee Per Order</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $fee ); ?></div>
-      <div class="dd-kpi-sub">Flat rate — no percentage</div>
-    </div>
-
-  </div><!-- /.dd-billing-kpis -->
-
-  <!-- ── Two-column row ───────────────────────────────────────────────────── -->
-  <div class="dd-billing-grid">
-
-    <!-- Monthly History -->
-    <div class="dd-card">
-      <h2 class="dd-section-title">Monthly History</h2>
-      <table class="dd-billing-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Delivered Orders</th>
-            <th>Total Fees</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if ( $monthly_history ) : ?>
-            <?php foreach ( $monthly_history as $row ) : ?>
-              <?php
-              $month_key   = $row->month;
-              $is_paid     = isset( $paid_months[ $month_key ] ) && $paid_months[ $month_key ]['paid'];
-              $paid_at_val = $is_paid ? $paid_months[ $month_key ]['paid_at'] : null;
-              ?>
-              <tr data-month="<?php echo esc_attr( $month_key ); ?>">
-                <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
-                <td><?php echo number_format( (int) $row->orders ); ?></td>
-                <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
-                <td>
-                  <?php if ( $is_paid ) : ?>
-                    <span class="dd-paid-badge">✅ Paid</span>
-                    <?php if ( $paid_at_val ) : ?>
-                      <span class="dd-paid-date"><?php echo esc_html( date( 'd M Y', strtotime( $paid_at_val ) ) ); ?></span>
-                    <?php endif; ?>
-                  <?php else : ?>
-                    <span class="dd-unpaid-badge">⏳ Unpaid</span>
-                  <?php endif; ?>
-                </td>
-                <td>
-                  <?php if ( $is_paid ) : ?>
-                    <button class="dd-mark-paid-btn dd-mark-unpaid"
-                        data-month="<?php echo esc_attr( $month_key ); ?>"
-                        data-paid="0"
-                        data-nonce="<?php echo esc_attr( $billing_nonce ); ?>">
-                        Mark Unpaid
-                    </button>
-                  <?php else : ?>
-                    <button class="dd-mark-paid-btn dd-mark-paid"
-                        data-month="<?php echo esc_attr( $month_key ); ?>"
-                        data-paid="1"
-                        data-nonce="<?php echo esc_attr( $billing_nonce ); ?>">
-                        Mark as Paid
-                    </button>
-                  <?php endif; ?>
-                </td>
-              </tr>
-            <?php endforeach; ?>
-          <?php else : ?>
+      <!-- Monthly History -->
+      <div class="dd-billing-card">
+        <h3 class="dd-billing-card__title">Monthly History</h3>
+        <table class="dd-billing-table">
+          <thead>
             <tr>
-              <td colspan="5" style="text-align:center;color:#888;padding:24px">No billing data yet</td>
+              <th>Month</th>
+              <th>Delivered Orders</th>
+              <th>Total Fees</th>
+              <th>Status</th>
+              <th></th>
             </tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Status Breakdown -->
-    <div class="dd-card">
-      <h2 class="dd-section-title">Order Status Breakdown</h2>
-      <p style="font-size:13px;color:#888;margin:0 0 16px">All time &middot; excludes test orders</p>
-      <table class="dd-billing-table">
-        <thead>
-          <tr>
-            <th>Status</th>
-            <th>Orders</th>
-            <th>Total Fees</th>
-            <th>Billable</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ( $status_breakdown as $row ) : ?>
-          <tr>
-            <td>
-              <span class="dd-status-badge dd-status-<?php echo esc_attr( $row->status ); ?>">
-                <?php echo esc_html( ucfirst( $row->status ) ); ?>
-              </span>
-            </td>
-            <td><?php echo number_format( (int) $row->cnt ); ?></td>
-            <td>
-              <?php echo $row->fees > 0
-                  ? 'RWF ' . number_format( (int) $row->fees )
-                  : '—';
-              ?>
-            </td>
-            <td><?php echo $row->status === 'delivered' ? '✅ Yes' : '—'; ?></td>
-          </tr>
-          <?php endforeach; ?>
-          <?php if ( empty( $status_breakdown ) ) : ?>
-          <tr>
-            <td colspan="4" style="text-align:center;color:#888;padding:24px">No data yet</td>
-          </tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-
-      <div style="margin-top:24px;padding:16px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10B981">
-        <p style="margin:0;font-size:13px;color:#065f46">
-          <strong>Billing policy:</strong> A flat fee is charged per delivered order.
-          The fee is snapshotted at order placement time — if the rate changes,
-          past orders keep their original fee. Cancelled orders are never billed.
-          Pending, confirmed, and ready orders are excluded — their outcome is not yet final.
-        </p>
-      </div>
-    </div>
-
-  </div><!-- /.dd-billing-grid -->
-
-  <h2 class="dd-section-title" style="font-size:16px;margin:32px 0 12px;">📅 Reservations</h2>
-
-  <!-- ── Reservations KPI row (v3.14.8) ──────────────────────────────────── -->
-  <div class="dd-billing-kpis">
-
-    <div class="dd-kpi-card" style="--kpi-accent:#0EA5E9">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-calendar-alt" style="color:#0EA5E9"></span>
-      </div>
-      <div class="dd-kpi-label">This Month</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $res_this_month_fees ); ?></div>
-      <div class="dd-kpi-sub"><?php echo number_format( $res_this_month_count ); ?> billable reservations</div>
-    </div>
-
-    <div class="dd-kpi-card" style="--kpi-accent:#8B5CF6">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-backup" style="color:#8B5CF6"></span>
-      </div>
-      <div class="dd-kpi-label">Last Month</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $res_last_month_fees ); ?></div>
-      <div class="dd-kpi-sub"><?php echo number_format( $res_last_month_count ); ?> billable reservations</div>
-    </div>
-
-    <div class="dd-kpi-card" style="--kpi-accent:#10B981">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-chart-line" style="color:#10B981"></span>
-      </div>
-      <div class="dd-kpi-label">All Time</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $res_alltime_fees ); ?></div>
-      <div class="dd-kpi-sub"><?php echo number_format( $res_alltime_count ); ?> billable reservations</div>
-    </div>
-
-    <div class="dd-kpi-card" style="--kpi-accent:#F59E0B">
-      <div class="dd-kpi-top">
-        <span class="dashicons dashicons-money-alt" style="color:#F59E0B"></span>
-      </div>
-      <div class="dd-kpi-label">Fee Per Reservation</div>
-      <div class="dd-kpi-value">RWF <?php echo number_format( $res_fee ); ?></div>
-      <div class="dd-kpi-sub">Flat rate — no percentage</div>
-    </div>
-
-  </div><!-- /.dd-billing-kpis -->
-
-  <!-- ── Reservations two-column row ─────────────────────────────────────── -->
-  <div class="dd-billing-grid">
-
-    <!-- Monthly History -->
-    <div class="dd-card">
-      <h2 class="dd-section-title">Monthly History</h2>
-      <p style="font-size:13px;color:#888;margin:0 0 16px">Paid/Unpaid reflects the combined order+reservation ledger below — toggle it from the Orders table above.</p>
-      <table class="dd-billing-table">
-        <thead>
-          <tr>
-            <th>Month</th>
-            <th>Billable Reservations</th>
-            <th>Total Fees</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if ( $res_monthly_history ) : ?>
-            <?php foreach ( $res_monthly_history as $row ) : ?>
-              <?php
-              $res_month_key   = $row->month;
-              $res_is_paid     = isset( $paid_months[ $res_month_key ] ) && $paid_months[ $res_month_key ]['paid'];
-              $res_paid_at_val = $res_is_paid ? $paid_months[ $res_month_key ]['paid_at'] : null;
-              ?>
+          </thead>
+          <tbody>
+            <?php if ( $monthly_history ) : ?>
+              <?php foreach ( $monthly_history as $row ) : ?>
+                <?php
+                $month_key   = $row->month;
+                $is_paid     = isset( $paid_months[ $month_key ] ) && $paid_months[ $month_key ]['paid'];
+                $paid_at_val = $is_paid ? $paid_months[ $month_key ]['paid_at'] : null;
+                ?>
+                <tr data-month="<?php echo esc_attr( $month_key ); ?>">
+                  <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
+                  <td><?php echo number_format( (int) $row->orders ); ?></td>
+                  <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
+                  <td>
+                    <?php if ( $is_paid ) : ?>
+                      <span class="dd-paid-badge">✅ Paid</span>
+                      <?php if ( $paid_at_val ) : ?>
+                        <span class="dd-paid-date"><?php echo esc_html( date( 'd M Y', strtotime( $paid_at_val ) ) ); ?></span>
+                      <?php endif; ?>
+                    <?php else : ?>
+                      <span class="dd-unpaid-badge">⏳ Unpaid</span>
+                    <?php endif; ?>
+                  </td>
+                  <td>
+                    <?php if ( $is_paid ) : ?>
+                      <button class="dd-mark-paid-btn dd-mark-unpaid"
+                          data-month="<?php echo esc_attr( $month_key ); ?>"
+                          data-paid="0"
+                          data-nonce="<?php echo esc_attr( $billing_nonce ); ?>">
+                          Mark Unpaid
+                      </button>
+                    <?php else : ?>
+                      <button class="dd-mark-paid-btn dd-mark-paid"
+                          data-month="<?php echo esc_attr( $month_key ); ?>"
+                          data-paid="1"
+                          data-nonce="<?php echo esc_attr( $billing_nonce ); ?>">
+                          Mark as Paid
+                      </button>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else : ?>
               <tr>
-                <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
-                <td><?php echo number_format( (int) $row->bookings ); ?></td>
-                <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
-                <td>
-                  <?php if ( $res_is_paid ) : ?>
-                    <span class="dd-paid-badge">✅ Paid</span>
-                    <?php if ( $res_paid_at_val ) : ?>
-                      <span class="dd-paid-date"><?php echo esc_html( date( 'd M Y', strtotime( $res_paid_at_val ) ) ); ?></span>
-                    <?php endif; ?>
-                  <?php else : ?>
-                    <span class="dd-unpaid-badge">⏳ Unpaid</span>
-                  <?php endif; ?>
-                </td>
+                <td colspan="5" class="dd-billing-empty">No billing data yet</td>
               </tr>
-            <?php endforeach; ?>
-          <?php else : ?>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Status Breakdown -->
+      <div class="dd-billing-card">
+        <h3 class="dd-billing-card__title">Order Status Breakdown</h3>
+        <p class="dd-billing-card__hint">All time &middot; excludes test orders</p>
+        <table class="dd-billing-table">
+          <thead>
             <tr>
-              <td colspan="4" style="text-align:center;color:#888;padding:24px">No billing data yet</td>
+              <th>Status</th>
+              <th>Orders</th>
+              <th>Total Fees</th>
+              <th>Billable</th>
             </tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <?php foreach ( $status_breakdown as $row ) : ?>
+            <tr>
+              <td>
+                <span class="dd-status-badge dd-status-<?php echo esc_attr( $row->status ); ?>">
+                  <?php echo esc_html( ucfirst( $row->status ) ); ?>
+                </span>
+              </td>
+              <td><?php echo number_format( (int) $row->cnt ); ?></td>
+              <td>
+                <?php echo $row->fees > 0
+                    ? 'RWF ' . number_format( (int) $row->fees )
+                    : '—';
+                ?>
+              </td>
+              <td><?php echo $row->status === 'delivered' ? '✅ Yes' : '—'; ?></td>
+            </tr>
+            <?php endforeach; ?>
+            <?php if ( empty( $status_breakdown ) ) : ?>
+            <tr>
+              <td colspan="4" class="dd-billing-empty">No data yet</td>
+            </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+
+        <div class="dd-billing-note">
+          <span class="dd-billing-note__icon">💡</span>
+          <p><strong>Billing policy:</strong> a flat fee is charged per delivered order.
+            The fee is snapshotted at order placement time — if the rate changes,
+            past orders keep their original fee. Cancelled orders are never billed.
+            Pending, confirmed, and ready orders are excluded — their outcome is not yet final.</p>
+        </div>
+      </div>
+
+    </div><!-- /.dd-billing-grid -->
+  </div><!-- /.dd-billing-section (Orders) -->
+
+  <!-- ═══ RESERVATIONS ═════════════════════════════════════════════════════ -->
+  <div class="dd-billing-section">
+    <div class="dd-billing-section__header">
+      <span class="dd-billing-section__icon">📅</span>
+      <span class="dd-billing-section__title">Reservations</span>
     </div>
 
-    <!-- Status Breakdown -->
-    <div class="dd-card">
-      <h2 class="dd-section-title">Reservation Status Breakdown</h2>
-      <p style="font-size:13px;color:#888;margin:0 0 16px">All time &middot; excludes test reservations</p>
-      <table class="dd-billing-table">
-        <thead>
-          <tr>
-            <th>Status</th>
-            <th>Reservations</th>
-            <th>Total Fees</th>
-            <th>Billable</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php foreach ( $res_status_breakdown as $row ) : ?>
-          <tr>
-            <td>
-              <span class="dd-status-badge dd-status-<?php echo esc_attr( $row->status ); ?>">
-                <?php echo esc_html( ucfirst( str_replace( '_', ' ', $row->status ) ) ); ?>
-              </span>
-            </td>
-            <td><?php echo number_format( (int) $row->cnt ); ?></td>
-            <td>
-              <?php echo $row->fees > 0
-                  ? 'RWF ' . number_format( (int) $row->fees )
-                  : '—';
-              ?>
-            </td>
-            <td><?php echo $row->fees > 0 ? '✅ Yes' : '—'; ?></td>
-          </tr>
-          <?php endforeach; ?>
-          <?php if ( empty( $res_status_breakdown ) ) : ?>
-          <tr>
-            <td colspan="4" style="text-align:center;color:#888;padding:24px">No data yet</td>
-          </tr>
-          <?php endif; ?>
-        </tbody>
-      </table>
-
-      <div style="margin-top:24px;padding:16px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10B981">
-        <p style="margin:0;font-size:13px;color:#065f46">
-          <strong>Billing policy:</strong> a flat fee applies once a reservation is
-          actually secured — deposit paid (deposit-required bookings) or confirmed
-          (no-deposit bookings). The fee is snapshotted at booking time; if the
-          rate changes, past reservations keep their original fee. Cancelled,
-          no-show, and auto-cancelled reservations are never billed.
-        </p>
+    <div class="dd-billing-kpis">
+      <div class="dd-billing-kpi" style="--kpi-accent:#2563eb">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-calendar-alt"></span>This Month</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $res_this_month_fees ); ?></div>
+        <div class="dd-billing-kpi__sub"><?php echo number_format( $res_this_month_count ); ?> billable reservations</div>
+      </div>
+      <div class="dd-billing-kpi" style="--kpi-accent:#7c3aed">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-backup"></span>Last Month</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $res_last_month_fees ); ?></div>
+        <div class="dd-billing-kpi__sub"><?php echo number_format( $res_last_month_count ); ?> billable reservations</div>
+      </div>
+      <div class="dd-billing-kpi" style="--kpi-accent:#059669">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-chart-line"></span>All Time</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $res_alltime_fees ); ?></div>
+        <div class="dd-billing-kpi__sub"><?php echo number_format( $res_alltime_count ); ?> billable reservations</div>
+      </div>
+      <div class="dd-billing-kpi" style="--kpi-accent:var(--dd-brand)">
+        <div class="dd-billing-kpi__label"><span class="dashicons dashicons-money-alt"></span>Fee Per Reservation</div>
+        <div class="dd-billing-kpi__value">RWF <?php echo number_format( $res_fee ); ?></div>
+        <div class="dd-billing-kpi__sub">Flat rate — no percentage</div>
       </div>
     </div>
 
-  </div><!-- /.dd-billing-grid -->
+    <div class="dd-billing-grid">
+
+      <!-- Monthly History -->
+      <div class="dd-billing-card">
+        <h3 class="dd-billing-card__title">Monthly History</h3>
+        <p class="dd-billing-card__hint">Paid/Unpaid reflects the combined order+reservation ledger — toggle it from the Orders table above.</p>
+        <table class="dd-billing-table">
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>Billable Reservations</th>
+              <th>Total Fees</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if ( $res_monthly_history ) : ?>
+              <?php foreach ( $res_monthly_history as $row ) : ?>
+                <?php
+                $res_month_key   = $row->month;
+                $res_is_paid     = isset( $paid_months[ $res_month_key ] ) && $paid_months[ $res_month_key ]['paid'];
+                $res_paid_at_val = $res_is_paid ? $paid_months[ $res_month_key ]['paid_at'] : null;
+                ?>
+                <tr>
+                  <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
+                  <td><?php echo number_format( (int) $row->bookings ); ?></td>
+                  <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
+                  <td>
+                    <?php if ( $res_is_paid ) : ?>
+                      <span class="dd-paid-badge">✅ Paid</span>
+                      <?php if ( $res_paid_at_val ) : ?>
+                        <span class="dd-paid-date"><?php echo esc_html( date( 'd M Y', strtotime( $res_paid_at_val ) ) ); ?></span>
+                      <?php endif; ?>
+                    <?php else : ?>
+                      <span class="dd-unpaid-badge">⏳ Unpaid</span>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else : ?>
+              <tr>
+                <td colspan="4" class="dd-billing-empty">No billing data yet</td>
+              </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Status Breakdown -->
+      <div class="dd-billing-card">
+        <h3 class="dd-billing-card__title">Reservation Status Breakdown</h3>
+        <p class="dd-billing-card__hint">All time &middot; excludes test reservations</p>
+        <table class="dd-billing-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Reservations</th>
+              <th>Total Fees</th>
+              <th>Billable</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ( $res_status_breakdown as $row ) : ?>
+            <tr>
+              <td>
+                <span class="dd-status-badge dd-status-<?php echo esc_attr( $row->status ); ?>">
+                  <?php echo esc_html( ucfirst( str_replace( '_', ' ', $row->status ) ) ); ?>
+                </span>
+              </td>
+              <td><?php echo number_format( (int) $row->cnt ); ?></td>
+              <td>
+                <?php echo $row->fees > 0
+                    ? 'RWF ' . number_format( (int) $row->fees )
+                    : '—';
+                ?>
+              </td>
+              <td><?php echo $row->fees > 0 ? '✅ Yes' : '—'; ?></td>
+            </tr>
+            <?php endforeach; ?>
+            <?php if ( empty( $res_status_breakdown ) ) : ?>
+            <tr>
+              <td colspan="4" class="dd-billing-empty">No data yet</td>
+            </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+
+        <div class="dd-billing-note">
+          <span class="dd-billing-note__icon">💡</span>
+          <p><strong>Billing policy:</strong> a flat fee applies once a reservation is
+            actually secured — deposit paid (deposit-required bookings) or confirmed
+            (no-deposit bookings). The fee is snapshotted at booking time; if the
+            rate changes, past reservations keep their original fee. Cancelled,
+            no-show, and auto-cancelled reservations are never billed.</p>
+        </div>
+      </div>
+
+    </div><!-- /.dd-billing-grid -->
+  </div><!-- /.dd-billing-section (Reservations) -->
 
 </div><!-- /.dd-page-wrap -->
 
 <style>
+/* Paid/Unpaid pills — sized to match .dd-res-badge's pill convention
+   (reservations-admin.css) for cross-page consistency. Colors stay
+   semantic (green=paid, amber=unpaid), same as deposit badges elsewhere. */
 .dd-paid-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: .02em;
     color: #065f46;
     background: #d1fae5;
-    border-radius: 4px;
-    padding: 2px 8px;
+    border-radius: 999px;
+    padding: 3px 10px;
 }
 .dd-unpaid-badge {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
+    letter-spacing: .02em;
     color: #92400e;
     background: #fef3c7;
-    border-radius: 4px;
-    padding: 2px 8px;
+    border-radius: 999px;
+    padding: 3px 10px;
 }
 .dd-paid-date {
     font-size: 11px;
-    color: #888;
+    color: #9ca3af;
     margin-left: 6px;
 }
 .dd-mark-paid-btn {
     font-size: 12px;
-    padding: 4px 10px;
-    border-radius: 4px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 999px;
     border: 1px solid;
     cursor: pointer;
     font-family: inherit;
-    transition: opacity 0.15s;
+    transition: background .15s, opacity .15s;
 }
 .dd-mark-paid {
     background: #fff;
@@ -545,10 +538,10 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
 .dd-mark-paid:hover { background: #d1fae5; }
 .dd-mark-unpaid {
     background: #fff;
-    color: #888;
-    border-color: #e0e0e0;
+    color: #9ca3af;
+    border-color: #e5e7eb;
 }
-.dd-mark-unpaid:hover { background: #f5f5f5; }
+.dd-mark-unpaid:hover { background: #f9fafb; }
 .dd-mark-paid-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -604,37 +597,167 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
   width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
 }
-.dd-page-header { margin-bottom: 24px; }
+.dd-page-header { margin-bottom: 20px; }
 .dd-page-subtitle { font-size: 13px; color: #888; margin: 4px 0 0; }
 
-.dd-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-sizing: border-box;
+/* ── Hero: combined total ─────────────────────────────────────────────────
+   Brand-tinted (--dd-brand / --dd-brand-rgb, both already set on :root/body
+   by DD_Admin::get_admin_styles() from the restaurant's own primary color —
+   no hardcoded hex here). Large number carries the "hero" weight the plain
+   dark bar didn't; the chip row replaces the old subtext line so the order/
+   reservation split reads as a glance, not a sentence to parse. */
+.dd-billing-hero {
+  background: linear-gradient(135deg, rgba(var(--dd-brand-rgb), .09), rgba(var(--dd-brand-rgb), .03));
+  border: 1px solid rgba(var(--dd-brand-rgb), .18);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 28px;
 }
-
-.dd-card .dd-section-title {
-  font-size: 14px;
+.dd-billing-hero__label {
+  font-size: 12px;
   font-weight: 700;
-  color: #111;
-  margin: 0 0 16px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--dd-brand);
+}
+.dd-billing-hero__value {
+  font-size: clamp(30px, 4vw, 42px);
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.15;
+  margin-top: 8px;
+}
+.dd-billing-hero__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+.dd-billing-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.06);
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13px;
+  color: #4b5563;
+}
+.dd-billing-chip strong { color: #111827; }
+.dd-billing-chip__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }
 
+/* ── Section grouping (Orders / Reservations as a matched pair) ─────────── */
+.dd-billing-section { margin-bottom: 36px; }
+.dd-billing-section:last-child { margin-bottom: 0; }
+.dd-billing-section__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #eef0f2;
+}
+.dd-billing-section__icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(var(--dd-brand-rgb), .12);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.dd-billing-section__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+}
+
+/* ── KPI cards — number-first, plain card + thin accent top border, same
+   card shell (radius/shadow) as .dd-res-kpi in reservations-admin.css, so
+   Billing reads as a sibling of the Reservations page rather than its own
+   visual language. --kpi-accent stays a quick per-card differentiator
+   (mirrors the dashboard's own multi-color KPI convention); the 4th card
+   (Fee Rate) uses var(--dd-brand) itself since it IS the brand's rate. ── */
 .dd-billing-kpis {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.dd-billing-kpi {
+  background: #fff;
+  border: 1px solid #eef0f2;
+  border-top: 3px solid var(--kpi-accent, var(--dd-brand));
+  border-radius: 12px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.dd-billing-kpi__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #6b7280;
+}
+.dd-billing-kpi__label .dashicons {
+  font-size: 14px;
+  width: 14px;
+  height: 14px;
+  color: var(--kpi-accent, var(--dd-brand));
+}
+.dd-billing-kpi__value {
+  font-size: clamp(19px, 2.4vw, 25px);
+  font-weight: 700;
+  color: #111827;
+  margin-top: 8px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+.dd-billing-kpi__sub {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+  line-height: 1.4;
 }
 
+/* ── Cards (Monthly History / Status Breakdown) ──────────────────────────── */
 .dd-billing-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 20px;
+}
+.dd-billing-card {
+  background: #fff;
+  border: 1px solid #eef0f2;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  box-sizing: border-box;
+}
+.dd-billing-card__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px;
+}
+.dd-billing-card__hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin: 0 0 16px;
 }
 
+/* ── Tables — larger row rhythm, less "raw data dump" ────────────────────── */
 .dd-billing-table {
   width: 100%;
   border-collapse: collapse;
@@ -644,34 +767,54 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
   text-align: left;
   font-size: 11px;
   font-weight: 600;
-  color: #888;
+  color: #9ca3af;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 0 12px 10px 0;
+  padding: 0 12px 12px 0;
   border-bottom: 1px solid #f0f0f0;
 }
 .dd-billing-table td {
-  padding: 10px 12px 10px 0;
+  padding: 13px 12px 13px 0;
   border-bottom: 1px solid #f8f8f8;
-  color: #333;
+  color: #374151;
 }
 .dd-billing-table tbody tr:last-child td { border-bottom: none; }
-
-.dd-kpi-sub {
-  font-size: 11px;
-  color: #888;
-  margin-top: 4px;
-  line-height: 1.4;
+.dd-billing-empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 28px 0 !important;
 }
 
-/* Status badge base — colors come from admin.css dd-status-* rules */
+/* Status badge base — colors come from admin.css dd-status-* rules.
+   Pill sizing now matches .dd-res-badge (reservations-admin.css). */
 .dd-status-badge {
   display: inline-block;
   padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
 }
+
+/* ── Billing policy note — softened from a bordered "warning" callout to a
+   plain neutral note, so it reads as helpful context, not an alert. ────── */
+.dd-billing-note {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: #f9fafb;
+  border-radius: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.dd-billing-note__icon { font-size: 14px; line-height: 1.6; }
+.dd-billing-note p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #6b7280;
+}
+.dd-billing-note strong { color: #374151; }
 
 @media (max-width: 860px) {
   .dd-billing-kpis { grid-template-columns: 1fr 1fr; }
