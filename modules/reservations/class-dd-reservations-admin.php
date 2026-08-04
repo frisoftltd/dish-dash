@@ -79,11 +79,23 @@ class DD_Reservations_Admin {
 
         if ( $filter_status === 'test' ) {
             $where .= ' AND is_test = 1';
+        } elseif ( $filter_status === 'awaiting_deposit' ) {
+            // Deposit required, customer hasn't paid or claimed yet. Deliberately
+            // excludes 'claimed' (MoMo "I have paid", unverified) — those still need
+            // staff eyes before auto-cancel and stay visible on their normal status
+            // tab; this tab is only for bookings nobody has acted on at all.
+            $where .= " AND is_test = 0 AND deposit_required = 1 AND deposit_status = 'pending'";
         } else {
             $where .= ' AND is_test = 0';
             if ( $filter_status ) {
                 $where   .= ' AND status = %s';
                 $params[] = $filter_status;
+            } else {
+                // Bare "All" view only — hide deposit-required bookings still
+                // awaiting customer payment (visible via the "Awaiting Payment"
+                // tab instead). Explicit status tabs (Pending/Confirmed/etc.)
+                // are untouched and still include these rows if they match.
+                $where .= " AND NOT ( deposit_required = 1 AND deposit_status = 'pending' )";
             }
         }
 
@@ -165,13 +177,17 @@ class DD_Reservations_Admin {
         $today_guests    = (int) ( $today_row->guests_today    ?? 0 );
 
         // ── Status map ────────────────────────────────────────────────────
+        // 'pending_payment' removed (v3.14.3) — dead label for reservations,
+        // never written to this table's `status` column (real, active status
+        // for orders only). Reservation deposit state lives in the separate
+        // deposit_status column, surfaced via the 'awaiting_deposit' tab below,
+        // not through this status map.
         $statuses = [
-            'pending'         => 'Pending',
-            'confirmed'       => 'Confirmed',
-            'cancelled'       => 'Cancelled',
-            'no_show'         => 'No-show',
-            'pending_payment' => 'Awaiting Payment',
-            'auto_cancelled'  => 'Auto-Cancelled',
+            'pending'        => 'Pending',
+            'confirmed'      => 'Confirmed',
+            'cancelled'      => 'Cancelled',
+            'no_show'        => 'No-show',
+            'auto_cancelled' => 'Auto-Cancelled',
         ];
 
         $base_url = admin_url( 'admin.php?page=dd-reservations' );
@@ -243,11 +259,23 @@ class DD_Reservations_Admin {
 
             <?php if ( ! $open_reservation_id ) : ?>
             <!-- Status Tabs -->
-            <?php $test_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE is_test = 1" ); ?>
+            <?php
+            $test_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE is_test = 1" );
+            // Standalone count, same pattern as $test_count above — deposit_status
+            // is a separate column from `status`, so it isn't part of $counts
+            // (which is GROUP BY status).
+            $awaiting_deposit_count = (int) $wpdb->get_var(
+                "SELECT COUNT(*) FROM {$table} WHERE is_test = 0 AND deposit_required = 1 AND deposit_status = 'pending'"
+            );
+            // "All" badge must reflect what the All view actually shows now that
+            // it excludes awaiting-deposit rows — $kpi_total (the KPI card above)
+            // stays the true overall total on purpose, unaffected.
+            $all_tab_count = $kpi_total - $awaiting_deposit_count;
+            ?>
             <div class="dd-res-tabs">
                 <a href="<?php echo esc_url( $base_url ); ?>"
                    class="dd-res-tab <?php echo $filter_status === '' ? 'active' : ''; ?>">
-                    All <span class="count">(<?php echo esc_html( $kpi_total ); ?>)</span>
+                    All <span class="count">(<?php echo esc_html( $all_tab_count ); ?>)</span>
                 </a>
                 <?php foreach ( $statuses as $slug => $label ) :
                     $cnt = $counts[ $slug ] ?? 0;
@@ -258,6 +286,10 @@ class DD_Reservations_Admin {
                     <span class="count">(<?php echo esc_html( $cnt ); ?>)</span>
                 </a>
                 <?php endforeach; ?>
+                <a href="<?php echo esc_url( $base_url . '&status=awaiting_deposit' ); ?>"
+                   class="dd-res-tab <?php echo $filter_status === 'awaiting_deposit' ? 'active' : ''; ?>">
+                    💳 Awaiting Payment <span class="count">(<?php echo esc_html( $awaiting_deposit_count ); ?>)</span>
+                </a>
                 <a href="<?php echo esc_url( $base_url . '&status=test' ); ?>"
                    class="dd-res-tab <?php echo $filter_status === 'test' ? 'active' : ''; ?>">
                     🧪 Test <span class="count">(<?php echo esc_html( $test_count ); ?>)</span>
