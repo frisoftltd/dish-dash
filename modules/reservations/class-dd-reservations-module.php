@@ -32,6 +32,7 @@ class DD_Reservations_Module extends DD_Module {
         DD_Ajax::register( 'dd_reservation_pesapal_check_status', [ $this, 'ajax_pesapal_check_status' ], true );
         DD_Ajax::register( 'dd_reservation_get',             [ $this, 'ajax_get_reservation' ], false );
         DD_Ajax::register( 'dd_reservation_pesapal_request',  [ $this, 'ajax_pesapal_request_deposit' ], false );
+        DD_Ajax::register( 'dd_reservation_pesapal_start',    [ $this, 'ajax_pesapal_start_customer' ], true );
 
         add_action( 'dd_reservation_autocancel',    [ $this, 'run_autocancel' ], 10, 1 );
         add_action( 'woocommerce_api_wc_pesapal_gateway', [ $this, 'handle_pesapal_ipn' ] );
@@ -976,6 +977,56 @@ class DD_Reservations_Module extends DD_Module {
         }
 
         wp_send_json_success( [ 'claimed' => true, 'booking_ref' => $booking_ref ] );
+    }
+
+    // ── AJAX: Customer-initiated PesaPal deposit request (guest, unauthenticated) ──
+    // Customer-facing counterpart to ajax_pesapal_request_deposit() (admin-only,
+    // staff-triggered). Keyed on booking_ref, same auth pattern as
+    // ajax_claim_deposit() — the customer never has the numeric reservation id.
+    // Delegates to the SAME submit_reservation_deposit_to_pesapal() the admin path
+    // already uses; no duplicated PesaPal order-building logic.
+    public function ajax_pesapal_start_customer(): void {
+        DD_Ajax::verify_nonce();
+
+        $booking_ref = sanitize_text_field( wp_unslash( $_POST['booking_ref'] ?? '' ) );
+        if ( '' === $booking_ref ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        global $wpdb;
+        $reservation = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, deposit_required, deposit_status
+             FROM {$wpdb->prefix}dishdash_reservations WHERE booking_ref = %s LIMIT 1",
+            $booking_ref
+        ) );
+
+        if ( ! $reservation ) {
+            wp_send_json_error( [ 'message' => 'Booking not found.' ] );
+            return;
+        }
+
+        if ( (int) $reservation->deposit_required !== 1 ) {
+            wp_send_json_error( [ 'message' => 'This booking has no deposit.' ] );
+            return;
+        }
+
+        if ( 'paid' === $reservation->deposit_status ) {
+            wp_send_json_error( [ 'message' => 'Deposit already paid.' ] );
+            return;
+        }
+
+        $result = $this->submit_reservation_deposit_to_pesapal( (int) $reservation->id );
+        if ( ! $result['success'] ) {
+            wp_send_json_error( [ 'message' => $result['error'] ] );
+            return;
+        }
+
+        wp_send_json_success( [
+            'redirect_url'      => $result['redirect_url'],
+            'order_tracking_id' => $result['order_tracking_id'],
+            'booking_ref'       => $booking_ref,
+        ] );
     }
 
     // ── AJAX: Bulk action ──────────────────────────────────────────────────

@@ -45,6 +45,11 @@
   let depositBookingRef  = '';
   let depositWhatsappUrl = '';
 
+  // PesaPal deposit polling (customer-facing). Mirrors cart.js's order-checkout
+  // PesaPal panel exactly — same 5s interval, same never-trust-the-client
+  // pattern (dd_reservation_pesapal_check_status re-verifies server-side).
+  let pesapalPollingTimer = null;
+
   // ── Init ──────────────────────────────────────────────────
   function init() {
     if (!$('#dd-res-overlay')) return;
@@ -188,6 +193,7 @@
     const overlay = $('#dd-res-overlay');
     if (!overlay) return;
     depositPanelLocked = false; // unlock so a fresh booking isn't stuck sticky
+    if (pesapalPollingTimer) { clearInterval(pesapalPollingTimer); pesapalPollingTimer = null; }
     overlay.classList.remove('dd-res-overlay--open');
     overlay.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
@@ -496,10 +502,15 @@
           } catch ( e ) { console.log( 'DD tracking skipped:', e ); }
 
           if ( btn ) btn.style.display = 'none';
-          // Deposit booking → show the MoMo scan-&-pay QR panel; otherwise the
-          // normal confirmation (with the opt-in WhatsApp handoff button).
+          // Deposit booking → show the MoMo scan-&-pay QR panel (or, when PesaPal
+          // is configured, a payment-method choice first); otherwise the normal
+          // confirmation (with the opt-in WhatsApp handoff button).
           if ( depositActive ) {
-            renderDepositPanel( data );
+            if ( ddRes.pesapalEnabled ) {
+              renderDepositChoice( data );
+            } else {
+              renderDepositPanel( data );
+            }
           } else {
             showWhatsAppButtons( data.admin_url, data.customer_url );
           }
@@ -607,6 +618,148 @@
     } else {
       legacyCopy( text );
       feedback();
+    }
+  }
+
+  // ── Deposit payment-method choice (MoMo vs PesaPal) ──────────────────────
+  // Only shown when ddRes.pesapalEnabled is true (PesaPal configured server-side,
+  // see class-dd-template-module.php). When it's false, callers go straight to
+  // renderDepositPanel() — today's MoMo-only behavior, byte-for-byte unchanged.
+  function renderDepositChoice( data ) {
+    var area = document.querySelector( '.dd-res-confirm-area' );
+    if ( ! area ) return;
+
+    var amount = ddRes.depositAmount ? Number( ddRes.depositAmount ).toLocaleString() : '';
+
+    var html = '<div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:8px 0;">'
+             + '<p style="font-weight:700;font-size:16px;margin:0 0 4px;">✅ Booking received!</p>'
+             + '<p style="color:#6b7280;font-size:14px;margin:0 0 18px;">Pay your ' + amount + ' RWF deposit to confirm your table.</p>'
+             + '<button id="dd-res-pay-momo" type="button" class="dd-momoqr__claim" style="margin-bottom:10px;">📲 Scan &amp; Pay with MoMo</button>'
+             + '<button id="dd-res-pay-pesapal" type="button" class="dd-momoqr__claim">🏦 Pay with PesaPal</button>'
+             + '</div>';
+    area.innerHTML = html;
+
+    var momoBtn = document.getElementById( 'dd-res-pay-momo' );
+    if ( momoBtn ) {
+      momoBtn.addEventListener( 'click', function () { renderDepositPanel( data ); } );
+    }
+
+    var pesapalBtn = document.getElementById( 'dd-res-pay-pesapal' );
+    if ( pesapalBtn ) {
+      pesapalBtn.addEventListener( 'click', function () { startPesapalDeposit( data ); } );
+    }
+  }
+
+  // ── PesaPal deposit — request + iframe + poll (mirrors cart.js's panelPesaPal) ──
+  function startPesapalDeposit( data ) {
+    var area = document.querySelector( '.dd-res-confirm-area' );
+    if ( ! area ) return;
+
+    area.innerHTML = '<p style="text-align:center;color:#6b7280;font-size:14px;padding:24px 0;">Setting up PesaPal payment…</p>';
+
+    var fd = new FormData();
+    fd.append( 'action',      'dd_reservation_pesapal_start' );
+    fd.append( 'nonce',       ddRes.nonce || '' );
+    fd.append( 'booking_ref', data.booking_ref || '' );
+
+    fetch( ddRes.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: fd } )
+      .then( function ( r ) { return r.json(); } )
+      .then( function ( res ) {
+        if ( ! res || ! res.success ) {
+          renderPesapalError( data, res && res.data && res.data.message );
+          return;
+        }
+        renderPesapalWaitingPanel( data, res.data );
+      } )
+      .catch( function () {
+        renderPesapalError( data, 'Network error. Please try again.' );
+      } );
+  }
+
+  function renderPesapalError( data, message ) {
+    var area = document.querySelector( '.dd-res-confirm-area' );
+    if ( ! area ) return;
+    area.innerHTML = '<div style="text-align:center;padding:16px 0;">'
+      + '<p style="color:#e53935;font-size:14px;margin:0 0 16px;">' + escHtmlRes( message || 'Could not start PesaPal payment. Please try again.' ) + '</p>'
+      + '<button id="dd-res-pesapal-retry" type="button" class="dd-momoqr__claim">← Back</button>'
+      + '</div>';
+    var retryBtn = document.getElementById( 'dd-res-pesapal-retry' );
+    if ( retryBtn ) {
+      retryBtn.addEventListener( 'click', function () { renderDepositChoice( data ); } );
+    }
+  }
+
+  function escHtmlRes( s ) {
+    var d = document.createElement( 'div' );
+    d.textContent = s == null ? '' : String( s );
+    return d.innerHTML;
+  }
+
+  // Renders the waiting/iframe panel and starts polling. Success (the
+  // "Booking confirmed!" view) is shown ONLY from inside the poll's
+  // `if (res.paid)` branch below — never on iframe load/redirect/close.
+  function renderPesapalWaitingPanel( data, startData ) {
+    var area = document.querySelector( '.dd-res-confirm-area' );
+    if ( ! area ) return;
+
+    depositPanelLocked = true; // sticky, same as the MoMo QR panel — status stays "Awaiting Payment"
+    depositBookingRef  = data.booking_ref || '';
+    depositWhatsappUrl = data.admin_url  || '';
+
+    area.innerHTML =
+      '<div style="padding:16px 0;">' +
+        '<p style="text-align:center;color:#6b7280;font-size:13px;margin:0 0 12px;">Complete your payment in the secure window below.<br>Do not close this panel until payment is confirmed.</p>' +
+        '<div style="width:100%;height:380px;border:1px solid #eee;border-radius:8px;overflow:hidden;margin:12px 0;">' +
+          '<iframe id="dd-res-pesapal-iframe" src="" width="100%" height="380" frameborder="0" style="border:none;"></iframe>' +
+        '</div>' +
+        '<p id="dd-res-pesapal-status" style="text-align:center;font-size:13px;color:#6b7280;margin:8px 0;">Waiting for payment confirmation…</p>' +
+        '<button id="dd-res-pesapal-cancel" type="button" class="dd-confirm-panel__close" style="display:block;margin:0 auto;">Cancel</button>' +
+      '</div>';
+
+    var iframe = document.getElementById( 'dd-res-pesapal-iframe' );
+    if ( iframe ) iframe.src = startData.redirect_url;
+
+    var statusEl = document.getElementById( 'dd-res-pesapal-status' );
+    var cancelBtn = document.getElementById( 'dd-res-pesapal-cancel' );
+
+    if ( pesapalPollingTimer ) clearInterval( pesapalPollingTimer );
+    pesapalPollingTimer = setInterval( function () {
+      var fd = new FormData();
+      fd.append( 'action',             'dd_reservation_pesapal_check_status' );
+      fd.append( 'nonce',              ddRes.nonce || '' );
+      fd.append( 'order_tracking_id',  startData.order_tracking_id || '' );
+
+      fetch( ddRes.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: fd } )
+        .then( function ( r ) { return r.json(); } )
+        .then( function ( res ) {
+          if ( ! res || ! res.success ) return; // transient error — keep polling
+          var d = res.data;
+          if ( d.paid ) {
+            clearInterval( pesapalPollingTimer );
+            depositPanelLocked = false;
+            showWhatsAppButtons( data.admin_url, data.customer_url );
+          } else if ( d.status === 'FAILED' || d.status === 'REVERSED' ) {
+            // Only these are terminal. PENDING/INVALID mean "not finalized yet" — keep polling.
+            clearInterval( pesapalPollingTimer );
+            if ( statusEl ) {
+              statusEl.textContent = 'Payment failed. Please try again.';
+              statusEl.style.color = '#e53935';
+            }
+          }
+        } )
+        .catch( function () {
+          // network error — keep polling silently, same as cart.js
+        } );
+    }, 5000 );
+
+    if ( cancelBtn ) {
+      cancelBtn.addEventListener( 'click', function () {
+        clearInterval( pesapalPollingTimer );
+        depositPanelLocked = false;
+        var iframeEl = document.getElementById( 'dd-res-pesapal-iframe' );
+        if ( iframeEl ) iframeEl.src = '';
+        renderDepositChoice( data );
+      } );
     }
   }
 

@@ -376,6 +376,9 @@ class DD_Template_Module extends DD_Module {
             'ajax_url'      => admin_url( 'admin-ajax.php' ),
             'nonce'         => wp_create_nonce( 'dish_dash_frontend' ),
             'depositEnabled' => (bool) get_option( 'dd_reservation_deposit_enabled', 0 ),
+            // Gates whether the deposit confirmation screen offers a PesaPal choice
+            // alongside MoMo. false → today's MoMo-only behavior, unchanged.
+            'pesapalEnabled' => class_exists( 'DD_PesaPal' ) && ( new DD_PesaPal() )->is_configured(),
             'depositAmount'  => (int)  get_option( 'dd_reservation_deposit_amount', 2000 ),
             'refundPolicy'   => get_option( 'dd_reservation_refund_policy_text', '' ),
             // MoMo deposit scan-&-pay (mirrors orders R7). Merchant code + the FULL
