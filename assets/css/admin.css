@@ -798,6 +798,10 @@
 .dd-status-ready     { background: #dcfce7; color: #166534; }
 .dd-status-delivered { background: #dcfce7; color: #166534; }
 .dd-status-cancelled { background: #fee2e2; color: #991b1b; }
+/* Reservation-only statuses (v3.14.8 billing.php breakdown) — colors match
+   the existing .dd-res-badge--no_show / --auto_cancelled palette. */
+.dd-status-no_show        { background: #fee2e2; color: #991b1b; }
+.dd-status-auto_cancelled { background: #f3f4f6; color: #6b7280; }
 
 /* Footer actions */
 .dd-modal-footer {

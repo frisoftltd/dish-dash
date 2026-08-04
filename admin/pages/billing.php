@@ -94,13 +94,79 @@ $status_breakdown = $wpdb->get_results(
      GROUP BY status
      ORDER BY FIELD(status,'delivered','cancelled')"
 );
+
+// ── Reservations (v3.14.8) — mirrors the orders queries above exactly,
+// swapping the orders "status='delivered'" billability test for reservations'
+// two-path test: deposit-required bookings bill on deposit_status='paid';
+// no-deposit bookings bill on status='confirmed'. See
+// DD_Reservations_Module::recalculate_fee_for_reservation_status_change()
+// for how platform_fee gets zeroed/restored to keep this query cheap.
+$rt        = $wpdb->prefix . 'dishdash_reservations';
+$res_fee   = (int) get_option( 'dd_per_reservation_fee', 750 );
+$res_billable_sql = "platform_fee > 0 AND (
+        ( deposit_required = 1 AND deposit_status = 'paid' )
+        OR ( deposit_required = 0 AND status = 'confirmed' )
+    )";
+
+$res_this_month_count = (int) $wpdb->get_var( $wpdb->prepare(
+    "SELECT COUNT(*) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at >= %s AND is_test = 0",
+    $month_start
+) );
+$res_this_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
+    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at >= %s AND is_test = 0",
+    $month_start
+) );
+
+$res_last_month_count = (int) $wpdb->get_var( $wpdb->prepare(
+    "SELECT COUNT(*) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at BETWEEN %s AND %s AND is_test = 0",
+    $last_month_s, $last_month_e
+) );
+$res_last_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
+    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at BETWEEN %s AND %s AND is_test = 0",
+    $last_month_s, $last_month_e
+) );
+
+$res_alltime_count = (int) $wpdb->get_var(
+    "SELECT COUNT(*) FROM `{$rt}` WHERE {$res_billable_sql} AND is_test = 0"
+);
+$res_alltime_fees = (int) $wpdb->get_var(
+    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$rt}` WHERE {$res_billable_sql} AND is_test = 0"
+);
+
+$res_monthly_history = $wpdb->get_results(
+    "SELECT
+         DATE_FORMAT(created_at, '%Y-%m') AS month,
+         COUNT(*) AS bookings,
+         SUM(platform_fee) AS fees
+     FROM `{$rt}`
+     WHERE {$res_billable_sql} AND is_test = 0
+     GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+     ORDER BY month DESC
+     LIMIT 6"
+);
+
+// Status breakdown — grouped by the booking status column (same shape as
+// orders' breakdown), fees only counted where the combined billable test
+// passes for that row (so e.g. a 'confirmed' deposit-required-but-unpaid
+// row correctly shows RWF 0, not the snapshotted-but-not-yet-billable fee).
+$res_status_breakdown = $wpdb->get_results(
+    "SELECT status, COUNT(*) AS cnt,
+            COALESCE(SUM(CASE WHEN {$res_billable_sql} THEN platform_fee ELSE 0 END), 0) AS fees
+     FROM `{$rt}`
+     WHERE is_test = 0
+     GROUP BY status
+     ORDER BY FIELD(status,'confirmed','pending','cancelled','no_show','auto_cancelled')"
+);
+
+// Combined total — orders + reservations, this month (v3.14.8).
+$combined_this_month_fees = $this_month_fees + $res_this_month_fees;
 ?>
 
 <div class="dd-page-wrap">
 
   <div class="dd-page-header">
     <h1 class="dd-page-title">💳 Billing</h1>
-    <p class="dd-page-subtitle">Platform fee tracking — RWF <?php echo number_format( $fee ); ?> per delivered order</p>
+    <p class="dd-page-subtitle">Platform fee tracking — RWF <?php echo number_format( $fee ); ?> per delivered order, RWF <?php echo number_format( $res_fee ); ?> per billable reservation</p>
   </div>
 
   <?php
@@ -111,12 +177,24 @@ $status_breakdown = $wpdb->get_results(
     <div>
       <div style="font-weight:600;color:#92400e;font-size:14px">Fee tracking is paused</div>
       <div style="color:#b45309;font-size:13px;margin-top:2px">
-        No fees are being recorded on new orders.
+        No fees are being recorded on new orders or reservations.
         <a href="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-settings' ) ); ?>" style="color:#92400e;text-decoration:underline">Enable in Settings → Pricing &amp; Fees</a>
       </div>
     </div>
   </div>
   <?php endif; ?>
+
+  <!-- ── Combined total (v3.14.8) ─────────────────────────────────────────── -->
+  <div class="dd-card" style="margin-bottom:24px;background:linear-gradient(135deg,#111827,#1f2937);border:none;">
+    <div style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#9ca3af;">Total This Month — Orders + Reservations</div>
+    <div style="font-size:32px;font-weight:700;color:#fff;margin-top:6px;">RWF <?php echo number_format( $combined_this_month_fees ); ?></div>
+    <div style="font-size:13px;color:#d1d5db;margin-top:4px;">
+      RWF <?php echo number_format( $this_month_fees ); ?> from <?php echo number_format( $this_month_orders ); ?> orders
+      · RWF <?php echo number_format( $res_this_month_fees ); ?> from <?php echo number_format( $res_this_month_count ); ?> reservations
+    </div>
+  </div>
+
+  <h2 class="dd-section-title" style="font-size:16px;margin:0 0 12px;">🧾 Orders</h2>
 
   <!-- ── KPI row ───────────────────────────────────────────────────────────── -->
   <div class="dd-billing-kpis">
@@ -270,6 +348,150 @@ $status_breakdown = $wpdb->get_results(
           The fee is snapshotted at order placement time — if the rate changes,
           past orders keep their original fee. Cancelled orders are never billed.
           Pending, confirmed, and ready orders are excluded — their outcome is not yet final.
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /.dd-billing-grid -->
+
+  <h2 class="dd-section-title" style="font-size:16px;margin:32px 0 12px;">📅 Reservations</h2>
+
+  <!-- ── Reservations KPI row (v3.14.8) ──────────────────────────────────── -->
+  <div class="dd-billing-kpis">
+
+    <div class="dd-kpi-card" style="--kpi-accent:#0EA5E9">
+      <div class="dd-kpi-top">
+        <span class="dashicons dashicons-calendar-alt" style="color:#0EA5E9"></span>
+      </div>
+      <div class="dd-kpi-label">This Month</div>
+      <div class="dd-kpi-value">RWF <?php echo number_format( $res_this_month_fees ); ?></div>
+      <div class="dd-kpi-sub"><?php echo number_format( $res_this_month_count ); ?> billable reservations</div>
+    </div>
+
+    <div class="dd-kpi-card" style="--kpi-accent:#8B5CF6">
+      <div class="dd-kpi-top">
+        <span class="dashicons dashicons-backup" style="color:#8B5CF6"></span>
+      </div>
+      <div class="dd-kpi-label">Last Month</div>
+      <div class="dd-kpi-value">RWF <?php echo number_format( $res_last_month_fees ); ?></div>
+      <div class="dd-kpi-sub"><?php echo number_format( $res_last_month_count ); ?> billable reservations</div>
+    </div>
+
+    <div class="dd-kpi-card" style="--kpi-accent:#10B981">
+      <div class="dd-kpi-top">
+        <span class="dashicons dashicons-chart-line" style="color:#10B981"></span>
+      </div>
+      <div class="dd-kpi-label">All Time</div>
+      <div class="dd-kpi-value">RWF <?php echo number_format( $res_alltime_fees ); ?></div>
+      <div class="dd-kpi-sub"><?php echo number_format( $res_alltime_count ); ?> billable reservations</div>
+    </div>
+
+    <div class="dd-kpi-card" style="--kpi-accent:#F59E0B">
+      <div class="dd-kpi-top">
+        <span class="dashicons dashicons-money-alt" style="color:#F59E0B"></span>
+      </div>
+      <div class="dd-kpi-label">Fee Per Reservation</div>
+      <div class="dd-kpi-value">RWF <?php echo number_format( $res_fee ); ?></div>
+      <div class="dd-kpi-sub">Flat rate — no percentage</div>
+    </div>
+
+  </div><!-- /.dd-billing-kpis -->
+
+  <!-- ── Reservations two-column row ─────────────────────────────────────── -->
+  <div class="dd-billing-grid">
+
+    <!-- Monthly History -->
+    <div class="dd-card">
+      <h2 class="dd-section-title">Monthly History</h2>
+      <p style="font-size:13px;color:#888;margin:0 0 16px">Paid/Unpaid reflects the combined order+reservation ledger below — toggle it from the Orders table above.</p>
+      <table class="dd-billing-table">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>Billable Reservations</th>
+            <th>Total Fees</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php if ( $res_monthly_history ) : ?>
+            <?php foreach ( $res_monthly_history as $row ) : ?>
+              <?php
+              $res_month_key   = $row->month;
+              $res_is_paid     = isset( $paid_months[ $res_month_key ] ) && $paid_months[ $res_month_key ]['paid'];
+              $res_paid_at_val = $res_is_paid ? $paid_months[ $res_month_key ]['paid_at'] : null;
+              ?>
+              <tr>
+                <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
+                <td><?php echo number_format( (int) $row->bookings ); ?></td>
+                <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
+                <td>
+                  <?php if ( $res_is_paid ) : ?>
+                    <span class="dd-paid-badge">✅ Paid</span>
+                    <?php if ( $res_paid_at_val ) : ?>
+                      <span class="dd-paid-date"><?php echo esc_html( date( 'd M Y', strtotime( $res_paid_at_val ) ) ); ?></span>
+                    <?php endif; ?>
+                  <?php else : ?>
+                    <span class="dd-unpaid-badge">⏳ Unpaid</span>
+                  <?php endif; ?>
+                </td>
+              </tr>
+            <?php endforeach; ?>
+          <?php else : ?>
+            <tr>
+              <td colspan="4" style="text-align:center;color:#888;padding:24px">No billing data yet</td>
+            </tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Status Breakdown -->
+    <div class="dd-card">
+      <h2 class="dd-section-title">Reservation Status Breakdown</h2>
+      <p style="font-size:13px;color:#888;margin:0 0 16px">All time &middot; excludes test reservations</p>
+      <table class="dd-billing-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Reservations</th>
+            <th>Total Fees</th>
+            <th>Billable</th>
+          </tr>
+        </thead>
+        <tbody>
+          <?php foreach ( $res_status_breakdown as $row ) : ?>
+          <tr>
+            <td>
+              <span class="dd-status-badge dd-status-<?php echo esc_attr( $row->status ); ?>">
+                <?php echo esc_html( ucfirst( str_replace( '_', ' ', $row->status ) ) ); ?>
+              </span>
+            </td>
+            <td><?php echo number_format( (int) $row->cnt ); ?></td>
+            <td>
+              <?php echo $row->fees > 0
+                  ? 'RWF ' . number_format( (int) $row->fees )
+                  : '—';
+              ?>
+            </td>
+            <td><?php echo $row->fees > 0 ? '✅ Yes' : '—'; ?></td>
+          </tr>
+          <?php endforeach; ?>
+          <?php if ( empty( $res_status_breakdown ) ) : ?>
+          <tr>
+            <td colspan="4" style="text-align:center;color:#888;padding:24px">No data yet</td>
+          </tr>
+          <?php endif; ?>
+        </tbody>
+      </table>
+
+      <div style="margin-top:24px;padding:16px;background:#f0fdf4;border-radius:8px;border-left:3px solid #10B981">
+        <p style="margin:0;font-size:13px;color:#065f46">
+          <strong>Billing policy:</strong> a flat fee applies once a reservation is
+          actually secured — deposit paid (deposit-required bookings) or confirmed
+          (no-deposit bookings). The fee is snapshotted at booking time; if the
+          rate changes, past reservations keep their original fee. Cancelled,
+          no-show, and auto-cancelled reservations are never billed.
         </p>
       </div>
     </div>

@@ -105,6 +105,7 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
 
     // Pricing & Fees
     update_option( 'dd_per_order_fee',        absint( $_POST['dd_per_order_fee']        ?? 750   ) );
+    update_option( 'dd_per_reservation_fee',  absint( $_POST['dd_per_reservation_fee']  ?? 750   ) );
     update_option( 'dd_minimum_order_amount', absint( $_POST['dd_minimum_order_amount'] ?? 10000 ) );
     update_option( 'dd_fees_enabled',         isset( $_POST['dd_fees_enabled']          ) ? '1' : '0' );
 
@@ -733,6 +734,16 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
             </div>
 
             <div class="dd-field-grid">
+                <div class="dd-field-label">Per-Reservation Flat Fee (RWF)</div>
+                <div class="dd-field-control">
+                    <input type="number" id="dd_per_reservation_fee" name="dd_per_reservation_fee"
+                           value="<?php echo esc_attr( get_option( 'dd_per_reservation_fee', 750 ) ); ?>"
+                           min="0" step="50" class="dd-input dd-input--short" />
+                    <p class="description">Flat fee charged per billable reservation (deposit paid, or confirmed when no deposit is required). Independent of the order fee above.</p>
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
                 <div class="dd-field-label">Minimum Order Amount (RWF)</div>
                 <div class="dd-field-control">
                     <input type="number" id="dd_minimum_order_amount" name="dd_minimum_order_amount"
@@ -803,7 +814,8 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                             Enable platform fee tracking
                             <span class="dd-check-desc">
                                 When enabled, RWF <?php echo number_format( (int) get_option( 'dd_per_order_fee', 750 ) ); ?>
-                                is recorded on each delivered order. Disable to pause without losing history.
+                                is recorded on each delivered order and RWF <?php echo number_format( (int) get_option( 'dd_per_reservation_fee', 750 ) ); ?>
+                                on each billable reservation. Disable to pause both without losing history.
                             </span>
                         </span>
                     </label>

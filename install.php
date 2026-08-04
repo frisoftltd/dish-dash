@@ -214,6 +214,11 @@ class DD_Install {
         // Library attachment ID for an optional customer-attached payment
         // screenshot on the "I have paid" claim. Nullable — claim works
         // identically with no attachment, same as before this column existed.
+        // platform_fee (v3.14.8, reservation flat fee) — mirrors
+        // dishdash_orders.platform_fee exactly (same type/default). Snapshotted
+        // at booking time regardless of billability; the billing query (not
+        // this column's presence) decides what actually counts. See
+        // DD_Reservations_Module::recalculate_fee_for_reservation_status_change().
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_reservations (
                 id                BIGINT UNSIGNED     NOT NULL AUTO_INCREMENT,
@@ -247,6 +252,7 @@ class DD_Install {
                 payment_ref       VARCHAR(100)                 DEFAULT NULL,
                 pesapal_tracking_id VARCHAR(64)                DEFAULT NULL,
                 deposit_proof_attachment_id BIGINT UNSIGNED     DEFAULT NULL,
+                platform_fee      INT UNSIGNED        NOT NULL DEFAULT 0,
                 is_test           TINYINT(1)          NOT NULL DEFAULT 0,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   booking_ref (booking_ref),

@@ -36,6 +36,19 @@ class DD_Reservations_Module extends DD_Module {
 
         add_action( 'dd_reservation_autocancel',    [ $this, 'run_autocancel' ], 10, 1 );
         add_action( 'woocommerce_api_wc_pesapal_gateway', [ $this, 'handle_pesapal_ipn' ] );
+
+        // Platform fee recalc (v3.14.8) — hooks onto the SAME action already
+        // fired by both existing status-change entry points (ajax_update_status()
+        // and the admin POST-fallback in class-dd-reservations-admin.php), so
+        // neither needed to change. ajax_bulk_action() and run_autocancel() fire
+        // it explicitly too (see those methods) since they update status directly
+        // and never fired this hook before.
+        add_action( 'dish_dash_reservation_status_changed', [ __CLASS__, 'recalculate_fee_for_reservation_status_change' ], 10, 3 );
+
+        // Answers the orders module's billing-ledger filter (v3.14.8) — module
+        // isolation: the orders module never queries wp_dishdash_reservations
+        // directly, it asks via this filter instead.
+        add_filter( 'dd_billing_reservation_fees_for_month', [ __CLASS__, 'filter_billing_fees_for_month' ], 10, 2 );
     }
 
     public function hide_sidebar_links(): void {
@@ -118,6 +131,15 @@ class DD_Reservations_Module extends DD_Module {
         $deposit_status  = $deposit_enabled ? 'pending' : 'none';
         $status          = 'pending';
 
+        // Snapshot platform fee at booking time (v3.14.8) — mirrors
+        // class-dd-orders-module.php's place_order() exactly: the full rate is
+        // stored immediately regardless of current status/deposit state; the
+        // billing query (not this column) decides what actually counts as
+        // billable. Keeps past reservations' fees stable if the rate changes
+        // later, same as orders.
+        $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
+        $platform_fee = $fees_enabled ? absint( get_option( 'dd_per_reservation_fee', 750 ) ) : 0;
+
         // 7. Insert reservation
         $inserted = $wpdb->insert(
             $res_table,
@@ -136,8 +158,9 @@ class DD_Reservations_Module extends DD_Module {
                 'deposit_required' => $deposit_enabled ? 1 : 0,
                 'deposit_amount'   => $deposit_amount,
                 'deposit_status'   => $deposit_status,
+                'platform_fee'     => $platform_fee,
             ],
-            [ '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' ]
+            [ '%s', '%d', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%d' ]
         );
 
         if ( ! $inserted ) {
@@ -1117,14 +1140,115 @@ class DD_Reservations_Module extends DD_Module {
             $wpdb->query( $wpdb->prepare( "UPDATE {$table} SET is_test = 0 WHERE id IN ({$placeholders})", ...$ids ) );
             wp_send_json_success( count( $ids ) . ' test flag(s) removed' );
         } elseif ( in_array( $action, [ 'confirmed', 'cancelled', 'no_show' ], true ) ) {
+            // Capture pre-update status per row so the fee recalc (fired below,
+            // same hook the single-row status-change paths already use) has a
+            // real old→new pair for each reservation — a multi-row UPDATE can't
+            // give us that after the fact.
+            $old_statuses = $wpdb->get_results(
+                $wpdb->prepare( "SELECT id, status FROM {$table} WHERE id IN ({$placeholders})", ...$ids ),
+                OBJECT_K
+            );
+
             $wpdb->query( $wpdb->prepare(
                 "UPDATE {$table} SET status = %s WHERE id IN ({$placeholders})",
                 ...array_merge( [ $action ], $ids )
             ) );
+
+            foreach ( $ids as $rid ) {
+                $old_status = isset( $old_statuses[ $rid ] ) ? $old_statuses[ $rid ]->status : '';
+                do_action( 'dish_dash_reservation_status_changed', $rid, $old_status, $action );
+            }
+
             wp_send_json_success( count( $ids ) . ' reservation(s) updated' );
         } else {
             wp_send_json_error( 'Unknown action' );
         }
+    }
+
+    // ── Platform fee recalculation (v3.14.8) ────────────────────────────────
+    // Mirrors class-dd-orders-module.php's recalculate_fee_for_status_change()
+    // exactly: same signature shape (id, old_status, new_status), same
+    // idempotent skip-if-already-at-target, same "terminal state zeroes the
+    // fee" + "leaving a terminal state (currently zeroed) restores it at the
+    // CURRENT rate" pair of rules. Reservations' billability additionally
+    // depends on deposit_status for deposit-required bookings, but that's
+    // entirely the billing query's job (WHERE deposit_status='paid' AND
+    // platform_fee>0) — this function only ever needs to react to the
+    // `status` column, since the fee itself is already snapshotted in full at
+    // booking time (ajax_submit_reservation()) and just sits dormant until
+    // the billing query picks it up.
+    public static function recalculate_fee_for_reservation_status_change( int $reservation_id, string $old_status, string $new_status ): void {
+        if ( $reservation_id <= 0 || $old_status === $new_status ) {
+            return;
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_reservations';
+
+        $current_fee = $wpdb->get_var( $wpdb->prepare(
+            "SELECT platform_fee FROM {$table} WHERE id = %d",
+            $reservation_id
+        ) );
+
+        if ( null === $current_fee ) {
+            return; // row not found
+        }
+        $current_fee = (int) $current_fee;
+
+        $terminal   = [ 'cancelled', 'no_show', 'auto_cancelled' ];
+        $target_fee = null;
+
+        if ( in_array( $new_status, $terminal, true ) ) {
+            $target_fee = 0;
+        } elseif ( in_array( $old_status, $terminal, true ) && $current_fee === 0 ) {
+            // Reopened from a terminal state — restore the snapshot at the
+            // CURRENT rate. Whether it's actually billable yet is still
+            // entirely the billing query's job (status='confirmed' or
+            // deposit_status='paid', depending on deposit_required).
+            $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
+            $target_fee   = $fees_enabled ? absint( get_option( 'dd_per_reservation_fee', 750 ) ) : 0;
+        }
+
+        if ( null === $target_fee || $current_fee === $target_fee ) {
+            return;
+        }
+
+        $wpdb->update(
+            $table,
+            [ 'platform_fee' => $target_fee ],
+            [ 'id'           => $reservation_id ],
+            [ '%d' ],
+            [ '%d' ]
+        );
+    }
+
+    /**
+     * Answers 'dd_billing_reservation_fees_for_month' — sum of billable
+     * reservation platform_fee for a given Y-m month. Same billable test
+     * used in admin/pages/billing.php's reservations section. Called from
+     * class-dd-orders-module.php's ajax_mark_month_paid() so the combined
+     * monthly ledger includes reservation fees without that module querying
+     * this one's table directly.
+     */
+    public static function filter_billing_fees_for_month( int $default, string $month ): int {
+        if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
+            return $default;
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_reservations';
+
+        $amount = $wpdb->get_var( $wpdb->prepare(
+            "SELECT COALESCE(SUM(platform_fee),0) FROM `{$table}`
+             WHERE platform_fee > 0 AND (
+                 ( deposit_required = 1 AND deposit_status = 'paid' )
+                 OR ( deposit_required = 0 AND status = 'confirmed' )
+             )
+             AND DATE_FORMAT(created_at, '%%Y-%%m') = %s AND is_test = 0",
+            $month
+        ) );
+
+        return null === $amount ? $default : (int) $amount;
     }
 
     // ── Auto-cancel cron callback ──────────────────────────────────────────
@@ -1158,6 +1282,12 @@ class DD_Reservations_Module extends DD_Module {
             [ '%s', '%s' ],
             [ '%d' ]
         );
+
+        // Fires the same hook ajax_update_status() and the admin POST-fallback
+        // already fire — recalculate_fee_for_reservation_status_change() is
+        // hooked onto it in init() and will zero the fee (auto_cancelled is a
+        // terminal status).
+        do_action( 'dish_dash_reservation_status_changed', $reservation_id, $reservation['status'], 'auto_cancelled' );
 
         do_action( 'dd_track_event', 'booking_auto_cancelled', null, null, [
             'booking_ref'   => $reservation['booking_ref'],

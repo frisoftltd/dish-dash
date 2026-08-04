@@ -2182,13 +2182,22 @@ class DD_Orders_Module extends DD_Module {
         $table   = $wpdb->prefix . 'dd_billing_payments';
 
         // Get current amount for this month from orders table
-        $ot     = $wpdb->prefix . 'dishdash_orders';
-        $amount = (int) $wpdb->get_var( $wpdb->prepare(
+        $ot           = $wpdb->prefix . 'dishdash_orders';
+        $order_amount = (int) $wpdb->get_var( $wpdb->prepare(
             "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}`
              WHERE status = 'delivered' AND platform_fee > 0
              AND DATE_FORMAT(created_at, '%%Y-%%m') = %s AND is_test = 0",
             $month
         ) );
+
+        // Reservation fees (v3.14.8) — one combined ledger, one Paid/Unpaid
+        // toggle per month covering both. Fetched via filter, not a direct
+        // query into wp_dishdash_reservations, per this codebase's module
+        // isolation rule (orders module never queries another module's
+        // table directly) — DD_Reservations_Module answers this filter.
+        $res_amount = (int) apply_filters( 'dd_billing_reservation_fees_for_month', 0, $month );
+
+        $amount = $order_amount + $res_amount;
 
         // Upsert — insert or update
         $existing = $wpdb->get_var( $wpdb->prepare(
