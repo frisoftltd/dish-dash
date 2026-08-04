@@ -461,6 +461,8 @@ class DD_Reservations_Module extends DD_Module {
                 [ '%d' ]
             );
 
+            self::assign_reservation_fee_if_zero( (int) $reservation->id );
+
             do_action( 'dd_track_event', 'deposit_confirmed_paid', null, null, [
                 'reservation_id' => (int) $reservation->id,
             ] );
@@ -630,6 +632,8 @@ class DD_Reservations_Module extends DD_Module {
         ) );
 
         if ( $promoted ) {
+            self::assign_reservation_fee_if_zero( (int) $reservation->id );
+
             do_action( 'dd_track_event', 'deposit_confirmed_paid', null, null, [
                 'reservation_id' => (int) $reservation->id,
                 'method'         => 'pesapal',
@@ -1165,18 +1169,25 @@ class DD_Reservations_Module extends DD_Module {
         }
     }
 
-    // ── Platform fee recalculation (v3.14.8) ────────────────────────────────
+    // ── Platform fee recalculation (v3.14.8, widened v3.15.1) ───────────────
     // Mirrors class-dd-orders-module.php's recalculate_fee_for_status_change()
     // exactly: same signature shape (id, old_status, new_status), same
     // idempotent skip-if-already-at-target, same "terminal state zeroes the
-    // fee" + "leaving a terminal state (currently zeroed) restores it at the
-    // CURRENT rate" pair of rules. Reservations' billability additionally
-    // depends on deposit_status for deposit-required bookings, but that's
-    // entirely the billing query's job (WHERE deposit_status='paid' AND
-    // platform_fee>0) — this function only ever needs to react to the
-    // `status` column, since the fee itself is already snapshotted in full at
-    // booking time (ajax_submit_reservation()) and just sits dormant until
-    // the billing query picks it up.
+    // fee" rule (UNCHANGED below — this widening only ever touches WHEN a
+    // zero fee gets assigned, never the zero-on-cancel logic itself).
+    //
+    // v3.15.1 gap fix: originally only assigned a fee when *reopening* from a
+    // terminal state (cancelled/no_show/auto_cancelled). That left any
+    // reservation created before v3.15.0 shipped — platform_fee=0 because it
+    // predates the snapshot-at-insert logic, added by dbDelta() with
+    // DEFAULT 0 and never backfilled — permanently stuck at fee=0 even after
+    // a completely normal pending→confirmed transition, since that isn't
+    // "leaving a terminal state." Now also assigns on a plain confirm for a
+    // zero-fee, no-deposit row. The deposit-required equivalent
+    // (deposit_status→'paid') can't be handled here — deposit_status changes
+    // independently of status, and this function only ever sees status
+    // transitions — see assign_reservation_fee_if_zero(), called directly
+    // from ajax_mark_deposit_paid() and promote_pesapal_reservation().
     public static function recalculate_fee_for_reservation_status_change( int $reservation_id, string $old_status, string $new_status ): void {
         if ( $reservation_id <= 0 || $old_status === $new_status ) {
             return;
@@ -1185,23 +1196,27 @@ class DD_Reservations_Module extends DD_Module {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_reservations';
 
-        $current_fee = $wpdb->get_var( $wpdb->prepare(
-            "SELECT platform_fee FROM {$table} WHERE id = %d",
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT platform_fee, deposit_required FROM {$table} WHERE id = %d",
             $reservation_id
         ) );
 
-        if ( null === $current_fee ) {
+        if ( ! $row ) {
             return; // row not found
         }
-        $current_fee = (int) $current_fee;
+        $current_fee = (int) $row->platform_fee;
 
         $terminal   = [ 'cancelled', 'no_show', 'auto_cancelled' ];
         $target_fee = null;
 
         if ( in_array( $new_status, $terminal, true ) ) {
             $target_fee = 0;
-        } elseif ( in_array( $old_status, $terminal, true ) && $current_fee === 0 ) {
-            // Reopened from a terminal state — restore the snapshot at the
+        } elseif ( $current_fee === 0 && (
+            in_array( $old_status, $terminal, true )
+            || ( 'confirmed' === $new_status && (int) $row->deposit_required === 0 )
+        ) ) {
+            // Reopened from a terminal state, OR a plain confirm on a
+            // zero-fee no-deposit row (v3.15.1). Restore/assign at the
             // CURRENT rate. Whether it's actually billable yet is still
             // entirely the billing query's job (status='confirmed' or
             // deposit_status='paid', depending on deposit_required).
@@ -1216,6 +1231,43 @@ class DD_Reservations_Module extends DD_Module {
         $wpdb->update(
             $table,
             [ 'platform_fee' => $target_fee ],
+            [ 'id'           => $reservation_id ],
+            [ '%d' ],
+            [ '%d' ]
+        );
+    }
+
+    /**
+     * Assign platform_fee at the current rate when it's currently 0 (v3.15.1).
+     * Called directly from the two places deposit_status becomes 'paid'
+     * (ajax_mark_deposit_paid(), promote_pesapal_reservation()) — deposit_status
+     * changes independently of status, so recalculate_fee_for_reservation_status_change()
+     * (hooked on the status-change action) never sees these transitions.
+     * Idempotent: no-op if the fee is already anything but 0, so it's safe to
+     * call unconditionally on every deposit-paid confirmation, including
+     * ones that already had their fee snapshotted at booking time.
+     */
+    private static function assign_reservation_fee_if_zero( int $reservation_id ): void {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_reservations';
+
+        $current_fee = $wpdb->get_var( $wpdb->prepare(
+            "SELECT platform_fee FROM {$table} WHERE id = %d",
+            $reservation_id
+        ) );
+        if ( null === $current_fee || (int) $current_fee !== 0 ) {
+            return;
+        }
+
+        $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
+        $rate         = $fees_enabled ? absint( get_option( 'dd_per_reservation_fee', 750 ) ) : 0;
+        if ( $rate === 0 ) {
+            return;
+        }
+
+        $wpdb->update(
+            $table,
+            [ 'platform_fee' => $rate ],
             [ 'id'           => $reservation_id ],
             [ '%d' ],
             [ '%d' ]
