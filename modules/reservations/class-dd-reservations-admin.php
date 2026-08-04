@@ -370,28 +370,27 @@ class DD_Reservations_Admin {
                             <th style="width:60px">Guests</th>
                             <th style="width:140px">Name</th>
                             <th style="width:120px">WhatsApp</th>
-                            <th style="width:140px">Special Requests</th>
                             <th style="width:100px">Status</th>
                             <th style="width:80px">Deposit</th>
-                            <th style="width:160px">Actions</th>
+                            <th style="width:100px"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ( empty( $rows ) ) : ?>
-                            <tr><td colspan="10" style="text-align:center;color:#6b7280;padding:24px;">No reservations found.</td></tr>
+                            <tr><td colspan="9" style="text-align:center;color:#6b7280;padding:24px;">No reservations found.</td></tr>
                         <?php else :
                             foreach ( $rows as $r ) :
                                 $wa_num = preg_replace( '/\D/', '', $r->whatsapp );
                         ?>
-                            <tr data-reservation-id="<?= esc_attr( $r->id ) ?>" <?php if ( $open_reservation_id ) echo 'style="background:#fef9c3;"'; ?>>
-                                <td style="text-align:center;">
+                            <tr class="dd-res-row" data-reservation-id="<?= esc_attr( $r->id ) ?>" style="cursor:pointer;<?php if ( $open_reservation_id ) echo 'background:#fef9c3;'; ?>">
+                                <td style="text-align:center;" onclick="event.stopPropagation()">
                                     <input type="checkbox" class="dd-res-row-check" value="<?= esc_attr( $r->id ) ?>" style="cursor:pointer;">
                                 </td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><code><?php echo esc_html( $r->booking_ref ); ?></code></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->date ); ?></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->guests ); ?></td>
                                 <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->name ); ?></td>
-                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" onclick="event.stopPropagation()">
                                     <?php if ( $wa_num ) : ?>
                                         <a href="https://wa.me/<?php echo esc_attr( $wa_num ); ?>" target="_blank">
                                             <?php echo esc_html( $r->whatsapp ); ?>
@@ -400,7 +399,6 @@ class DD_Reservations_Admin {
                                         <?php echo esc_html( $r->whatsapp ); ?>
                                     <?php endif; ?>
                                 </td>
-                                <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo esc_html( $r->special_requests ?? '' ); ?></td>
                                 <td style="overflow:hidden;">
                                     <?php
                                     $badge_mod   = $r->status;
@@ -440,129 +438,9 @@ class DD_Reservations_Admin {
                                         <span style="color:#9ca3af">—</span>
                                     <?php endif; ?>
                                 </td>
-                                <td style="overflow:hidden;">
-                                    <div class="dd-res-actions">
-                                        <?php
-                                        $restaurant  = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
-                                        $admin_phone = get_option( 'dish_dash_phone', '' );
-                                        $date_fmt    = date( 'D, d M Y', strtotime( $r->date ) );
-                                        $guest_word  = ( (int) $r->guests === 1 ) ? 'guest' : 'guests';
-                                        $session_fmt = ucfirst( $r->session );
-                                        $lines       = [];
-
-                                        if ( $r->status === 'confirmed'
-                                             && ! empty( $r->deposit_required )
-                                             && 'paid' !== $r->deposit_status ) {
-                                            // Deposit owed but not restaurant-confirmed: the table is HELD, not
-                                            // secured. Do not tell the customer their table is booked.
-                                            $lines[] = 'RESERVATION HELD — DEPOSIT PENDING ⏳';
-                                            $lines[] = $restaurant;
-                                            $lines[] = '';
-                                            $lines[] = "Hi {$r->name}, we've reserved your table — it's held pending your deposit.";
-                                            $lines[] = '';
-                                            $lines[] = "Ref: {$r->booking_ref}";
-                                            $lines[] = "Date: {$date_fmt}";
-                                            $lines[] = "Time: {$r->time} ({$session_fmt})";
-                                            $lines[] = "Guests: {$r->guests} {$guest_word}";
-                                            $lines[] = '';
-                                            $lines[] = 'Deposit required: ' . number_format( (int) $r->deposit_amount ) . ' RWF';
-                                            $lines[] = 'Your booking is secured once we receive it. Until then, the table may be released.';
-                                            if ( $admin_phone ) {
-                                                $lines[] = '';
-                                                $lines[] = "Questions? Call us: {$admin_phone}";
-                                            }
-                                        } elseif ( $r->status === 'confirmed' ) {
-                                            $lines[] = 'RESERVATION CONFIRMED ✅';
-                                            $lines[] = $restaurant;
-                                            $lines[] = '';
-                                            $lines[] = "Hi {$r->name}, your table is booked! 🎉";
-                                            $lines[] = '';
-                                            $lines[] = "Ref: {$r->booking_ref}";
-                                            $lines[] = "Date: {$date_fmt}";
-                                            $lines[] = "Time: {$r->time} ({$session_fmt})";
-                                            $lines[] = "Guests: {$r->guests} {$guest_word}";
-                                            $lines[] = '';
-                                            $lines[] = 'We look forward to welcoming you! 🍽️';
-                                            if ( $admin_phone ) {
-                                                $lines[] = '';
-                                                $lines[] = "Need to change anything? Call us: {$admin_phone}";
-                                            }
-                                        } elseif ( $r->status === 'cancelled' ) {
-                                            $lines[] = 'RESERVATION CANCELLED ❌';
-                                            $lines[] = $restaurant;
-                                            $lines[] = '';
-                                            $lines[] = "Hi {$r->name}, your reservation has been cancelled.";
-                                            $lines[] = '';
-                                            $lines[] = "Ref: {$r->booking_ref}";
-                                            $lines[] = "Date: {$date_fmt}";
-                                            $lines[] = "Time: {$r->time} ({$session_fmt})";
-                                            $lines[] = '';
-                                            $lines[] = "We're sorry for any inconvenience.";
-                                            $lines[] = "We'd love to host you another time — book again whenever you're ready. 🙏";
-                                            if ( $admin_phone ) {
-                                                $lines[] = '';
-                                                $lines[] = "Questions? Call us: {$admin_phone}";
-                                            }
-                                        } elseif ( $r->status === 'no_show' ) {
-                                            $lines[] = 'WE MISSED YOU 😔';
-                                            $lines[] = $restaurant;
-                                            $lines[] = '';
-                                            $lines[] = "Hi {$r->name}, we had your table ready but didn't see you.";
-                                            $lines[] = '';
-                                            $lines[] = "Ref: {$r->booking_ref}";
-                                            $lines[] = "Date: {$date_fmt}";
-                                            $lines[] = "Time: {$r->time} ({$session_fmt})";
-                                            $lines[] = '';
-                                            $lines[] = 'We hope everything is okay.';
-                                            $lines[] = "You're always welcome — book again anytime. 🍽️";
-                                            if ( $admin_phone ) {
-                                                $lines[] = '';
-                                                $lines[] = "Call us: {$admin_phone}";
-                                            }
-                                        }
-
-                                        if ( ! empty( $lines ) && $wa_num ) :
-                                            $wa_msg  = implode( "\n", $lines );
-                                            $wa_link = 'https://wa.me/' . $wa_num . '?text=' . rawurlencode( $wa_msg );
-                                            $wa_labels = [
-                                                'confirmed' => '💬 Send Confirmation',
-                                                'cancelled' => '💬 Send Cancellation',
-                                                'no_show'   => '💬 Send Follow-up',
-                                            ];
-                                        ?>
-                                        <a href="<?php echo esc_attr( $wa_link ); ?>"
-                                           target="_blank"
-                                           class="dd-res-wa-btn">
-                                           <?php echo esc_html( $wa_labels[ $r->status ] ?? '💬 Notify' ); ?>
-                                        </a>
-                                        <?php endif; ?>
-
-                                        <?php if ( $r->status !== 'confirmed' ) : ?>
-                                        <button class="dd-res-action-btn dd-res-action-btn--confirm dd-res-open-modal-btn"
-                                                data-id="<?php echo esc_attr( $r->id ); ?>">Confirm</button>
-                                        <?php endif; ?>
-                                        <?php if ( $r->status !== 'cancelled' ) : ?>
-                                        <button class="dd-res-action-btn dd-res-action-btn--cancel dd-res-status-btn"
-                                                data-id="<?php echo esc_attr( $r->id ); ?>"
-                                                data-status="cancelled">Cancel</button>
-                                        <?php endif; ?>
-                                        <?php if ( $r->status !== 'no_show' ) : ?>
-                                        <button class="dd-res-action-btn dd-res-action-btn--noshow dd-res-status-btn"
-                                                data-id="<?php echo esc_attr( $r->id ); ?>"
-                                                data-status="no_show">No-show</button>
-                                        <?php endif; ?>
-                                        <?php
-                                        // "Mark deposit paid" — gated PER BOOKING (row), not on the
-                                        // deposit setting: this booking required a deposit and it is
-                                        // still unconfirmed (pending|claimed). Setting 'paid' is the
-                                        // only thing that stops auto-cancel. Turning deposits off in
-                                        // settings must not strand existing unconfirmed deposits.
-                                        if ( ! empty( $r->deposit_required )
-                                             && in_array( $r->deposit_status, [ 'pending', 'claimed' ], true ) ) : ?>
-                                        <button class="dd-res-action-btn dd-res-action-btn--deposit dd-res-deposit-paid-btn"
-                                                data-id="<?php echo esc_attr( $r->id ); ?>">✅ Mark deposit paid</button>
-                                        <?php endif; ?>
-                                    </div>
+                                <td style="overflow:hidden;text-align:center;" onclick="event.stopPropagation()">
+                                    <button type="button" class="dd-res-action-btn dd-res-action-btn--confirm dd-res-open-modal-btn"
+                                            data-id="<?php echo esc_attr( $r->id ); ?>">View →</button>
                                 </td>
                             </tr>
                         <?php endforeach; endif; ?>
@@ -692,6 +570,10 @@ class DD_Reservations_Admin {
 
             // AJAX status updates
             var nonce = '<?php echo wp_create_nonce( 'dish_dash_admin' ); ?>';
+            // Needed client-side only for building the WhatsApp notify message
+            // inside the modal (moved from the row's PHP $lines cascade, v3.14.6).
+            var resRestaurantName = <?php echo wp_json_encode( get_option( 'dish_dash_restaurant_name', 'Khana Khazana' ) ); ?>;
+            var resAdminPhone     = <?php echo wp_json_encode( get_option( 'dish_dash_phone', '' ) ); ?>;
             var toast = document.getElementById('dd-res-toast');
             var toastTimer;
 
@@ -702,74 +584,12 @@ class DD_Reservations_Admin {
                 toastTimer = setTimeout(function () { toast.className = ''; }, 2400);
             }
 
-            document.querySelectorAll('.dd-res-status-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    var id     = this.dataset.id;
-                    var status = this.dataset.status;
-                    var self   = this;
-                    self.classList.add('loading');
+            // Cancel/No-show/Mark-deposit-paid moved into the accept modal
+            // (v3.14.6) — see updateStatusFromModal() / markDepositPaidFromModal(),
+            // wired fresh inside renderResModal() on every render, same pattern
+            // already proven for Confirm/PesaPal. No page-load-once binding here
+            // anymore since these buttons no longer exist in the row.
 
-                    fetch(ajaxurl, {
-                        method:  'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body:    new URLSearchParams({
-                            action: 'dd_reservation_update_status',
-                            id:     id,
-                            status: status,
-                            nonce:  nonce
-                        })
-                    })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (data.success) {
-                            showToast('Status updated', 'success');
-                            setTimeout(function () { location.reload(); }, 800);
-                        } else {
-                            var msg = (data.data && data.data.message) ? data.data.message : 'Error updating status';
-                            showToast(msg, 'error');
-                            self.classList.remove('loading');
-                        }
-                    })
-                    .catch(function () {
-                        showToast('Network error — please try again', 'error');
-                        self.classList.remove('loading');
-                    });
-                });
-            });
-
-            // Mark deposit paid (restaurant-confirmed → stops auto-cancel)
-            document.querySelectorAll('.dd-res-deposit-paid-btn').forEach(function (btn) {
-                btn.addEventListener('click', function () {
-                    var id   = this.dataset.id;
-                    var self = this;
-                    self.classList.add('loading');
-
-                    fetch(ajaxurl, {
-                        method:  'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body:    new URLSearchParams({
-                            action: 'dd_reservation_mark_deposit_paid',
-                            id:     id,
-                            nonce:  nonce
-                        })
-                    })
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                        if (data.success) {
-                            showToast('Deposit marked paid', 'success');
-                            setTimeout(function () { location.reload(); }, 800);
-                        } else {
-                            var msg = (data.data && data.data.message) ? data.data.message : 'Error marking deposit paid';
-                            showToast(msg, 'error');
-                            self.classList.remove('loading');
-                        }
-                    })
-                    .catch(function () {
-                        showToast('Network error — please try again', 'error');
-                        self.classList.remove('loading');
-                    });
-                });
-            });
             // ── Bulk actions ───────────────────────────────────────────────────
             var bulkBar    = document.getElementById('dd-res-bulk-bar');
             var bulkCount  = document.getElementById('dd-res-bulk-count');
@@ -868,6 +688,19 @@ class DD_Reservations_Admin {
             document.querySelectorAll('.dd-res-open-modal-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     openResModal(this.dataset.id);
+                });
+            });
+
+            // Whole row is clickable too (mirrors orders' .dd-order-row pattern).
+            // Clicking the View button itself only fires the button's own listener
+            // above — its <td> has onclick="event.stopPropagation()" (matching the
+            // checkbox and WhatsApp cells), so this row listener only fires for
+            // clicks elsewhere on the row.
+            document.querySelectorAll('.dd-res-row').forEach(function (row) {
+                row.addEventListener('click', function () {
+                    var id = this.dataset.reservationId;
+                    if (!id) return;
+                    openResModal(id);
                 });
             });
 
@@ -1018,10 +851,21 @@ class DD_Reservations_Admin {
                     depositSection.style.display = 'none';
                 }
 
-                // Footer actions
+                // Footer actions — Cancel/No-show/Mark-deposit-paid/WhatsApp Notify
+                // moved in from the row (v3.14.6), same rebuild-fresh-every-render
+                // pattern already proven here for Confirm/PesaPal.
                 var actionsHtml = '';
                 if (r.status !== 'confirmed') {
                     actionsHtml += '<button class="dd-btn dd-btn-primary dd-res-modal-confirm-btn" data-id="' + r.id + '">✓ Confirm</button>';
+                }
+                if (r.status !== 'cancelled') {
+                    actionsHtml += '<button class="dd-btn dd-res-action-btn--cancel dd-res-modal-cancel-btn" data-id="' + r.id + '">✗ Cancel</button>';
+                }
+                if (r.status !== 'no_show') {
+                    actionsHtml += '<button class="dd-btn dd-res-action-btn--noshow dd-res-modal-noshow-btn" data-id="' + r.id + '">No-show</button>';
+                }
+                if (Number(r.deposit_required) === 1 && ( r.deposit_status === 'pending' || r.deposit_status === 'claimed' )) {
+                    actionsHtml += '<button class="dd-btn dd-res-action-btn--deposit dd-res-modal-deposit-paid-btn" data-id="' + r.id + '">✅ Mark deposit paid</button>';
                 }
                 if (Number(r.deposit_required) === 1 && r.deposit_status !== 'paid') {
                     if (r.pesapal_tracking_id) {
@@ -1030,12 +874,35 @@ class DD_Reservations_Admin {
                         actionsHtml += '<button class="dd-btn dd-res-action-btn--deposit dd-res-modal-pesapal-btn" data-id="' + r.id + '">🏦 Request PesaPal Payment</button>';
                     }
                 }
+                var waInfo = buildResWhatsAppLink(r);
+                if (waInfo) {
+                    actionsHtml += '<a href="' + waInfo.url + '" target="_blank" rel="noopener noreferrer" class="dd-res-wa-btn">' + waInfo.label + '</a>';
+                }
                 resModalActions.innerHTML = actionsHtml;
 
                 var confirmBtn = resModalActions.querySelector('.dd-res-modal-confirm-btn');
                 if (confirmBtn) {
                     confirmBtn.addEventListener('click', function () {
-                        confirmFromModal(r.id);
+                        updateStatusFromModal(r.id, 'confirmed', 'Reservation confirmed');
+                    });
+                }
+                var cancelBtn = resModalActions.querySelector('.dd-res-modal-cancel-btn');
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', function () {
+                        if (!confirm('Cancel this reservation?')) return;
+                        updateStatusFromModal(r.id, 'cancelled', 'Reservation cancelled');
+                    });
+                }
+                var noshowBtn = resModalActions.querySelector('.dd-res-modal-noshow-btn');
+                if (noshowBtn) {
+                    noshowBtn.addEventListener('click', function () {
+                        updateStatusFromModal(r.id, 'no_show', 'Marked as no-show');
+                    });
+                }
+                var depositPaidBtn = resModalActions.querySelector('.dd-res-modal-deposit-paid-btn');
+                if (depositPaidBtn) {
+                    depositPaidBtn.addEventListener('click', function () {
+                        markDepositPaidFromModal(r.id, depositPaidBtn);
                     });
                 }
                 var pesapalBtn = resModalActions.querySelector('.dd-res-modal-pesapal-btn');
@@ -1046,26 +913,112 @@ class DD_Reservations_Admin {
                 }
             }
 
-            function confirmFromModal(id) {
+            // ── WhatsApp notify message — ported verbatim from the row's old PHP
+            // $lines cascade (v3.14.6). Text content unchanged; only the runtime
+            // moved from PHP (render time) to JS (modal render time). Needs the
+            // restaurant name / admin phone client-side since those aren't part
+            // of the reservation row itself — see resRestaurantName/resAdminPhone.
+            function formatResDate(dateStr) {
+                var d = new Date(dateStr + 'T00:00:00');
+                if (isNaN(d.getTime())) return dateStr;
+                var days   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                var dd     = String(d.getDate()).padStart(2, '0');
+                return days[d.getDay()] + ', ' + dd + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+            }
+
+            function buildResWhatsAppLink(r) {
+                var waNum = (r.whatsapp || '').replace(/\D/g, '');
+                if (!waNum) return null;
+
+                var dateFmt    = formatResDate(r.date);
+                var guestWord  = (Number(r.guests) === 1) ? 'guest' : 'guests';
+                var sessionFmt = ucfirstRes(r.session);
+                var lines      = [];
+
+                if (r.status === 'confirmed' && Number(r.deposit_required) === 1 && r.deposit_status !== 'paid') {
+                    lines.push('RESERVATION HELD — DEPOSIT PENDING ⏳', resRestaurantName, '',
+                        'Hi ' + r.name + ", we've reserved your table — it's held pending your deposit.", '',
+                        'Ref: ' + r.booking_ref, 'Date: ' + dateFmt, 'Time: ' + r.time + ' (' + sessionFmt + ')',
+                        'Guests: ' + r.guests + ' ' + guestWord, '',
+                        'Deposit required: ' + Number(r.deposit_amount).toLocaleString('en-US') + ' RWF',
+                        'Your booking is secured once we receive it. Until then, the table may be released.');
+                    if (resAdminPhone) lines.push('', 'Questions? Call us: ' + resAdminPhone);
+                } else if (r.status === 'confirmed') {
+                    lines.push('RESERVATION CONFIRMED ✅', resRestaurantName, '',
+                        'Hi ' + r.name + ', your table is booked! 🎉', '',
+                        'Ref: ' + r.booking_ref, 'Date: ' + dateFmt, 'Time: ' + r.time + ' (' + sessionFmt + ')',
+                        'Guests: ' + r.guests + ' ' + guestWord, '',
+                        'We look forward to welcoming you! 🍽️');
+                    if (resAdminPhone) lines.push('', 'Need to change anything? Call us: ' + resAdminPhone);
+                } else if (r.status === 'cancelled') {
+                    lines.push('RESERVATION CANCELLED ❌', resRestaurantName, '',
+                        'Hi ' + r.name + ', your reservation has been cancelled.', '',
+                        'Ref: ' + r.booking_ref, 'Date: ' + dateFmt, 'Time: ' + r.time + ' (' + sessionFmt + ')', '',
+                        "We're sorry for any inconvenience.",
+                        "We'd love to host you another time — book again whenever you're ready. 🙏");
+                    if (resAdminPhone) lines.push('', 'Questions? Call us: ' + resAdminPhone);
+                } else if (r.status === 'no_show') {
+                    lines.push('WE MISSED YOU 😔', resRestaurantName, '',
+                        'Hi ' + r.name + ", we had your table ready but didn't see you.", '',
+                        'Ref: ' + r.booking_ref, 'Date: ' + dateFmt, 'Time: ' + r.time + ' (' + sessionFmt + ')', '',
+                        'We hope everything is okay.',
+                        "You're always welcome — book again anytime. 🍽️");
+                    if (resAdminPhone) lines.push('', 'Call us: ' + resAdminPhone);
+                }
+
+                if (!lines.length) return null;
+
+                var waLabels = { confirmed: '💬 Send Confirmation', cancelled: '💬 Send Cancellation', no_show: '💬 Send Follow-up' };
+                return {
+                    url:   'https://wa.me/' + waNum + '?text=' + encodeURIComponent(lines.join('\n')),
+                    label: waLabels[r.status] || '💬 Notify'
+                };
+            }
+
+            function updateStatusFromModal(id, status, successMsg) {
                 setResLoading(true);
                 fetch(ajaxurl, {
                     method:  'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body:    new URLSearchParams({ action: 'dd_reservation_update_status', id: id, status: 'confirmed', nonce: nonce })
+                    body:    new URLSearchParams({ action: 'dd_reservation_update_status', id: id, status: status, nonce: nonce })
                 })
                 .then(function (r) { return r.json(); })
                 .then(function (data) {
                     setResLoading(false);
                     if (data.success) {
-                        showToast('Reservation confirmed', 'success');
+                        showToast(successMsg, 'success');
                         setTimeout(function () { location.reload(); }, 800);
                     } else {
-                        showToast((data.data && data.data.message) || 'Error confirming', 'error');
+                        showToast((data.data && data.data.message) || 'Error updating status', 'error');
                     }
                 })
                 .catch(function () {
                     setResLoading(false);
                     showToast('Network error — please try again', 'error');
+                });
+            }
+
+            function markDepositPaidFromModal(id, btn) {
+                if (btn) { btn.disabled = true; btn.textContent = 'Marking…'; }
+                fetch(ajaxurl, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    new URLSearchParams({ action: 'dd_reservation_mark_deposit_paid', id: id, nonce: nonce })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        showToast('Deposit marked paid', 'success');
+                        setTimeout(function () { location.reload(); }, 800);
+                    } else {
+                        showToast((data.data && data.data.message) || 'Error marking deposit paid', 'error');
+                        if (btn) { btn.disabled = false; btn.textContent = '✅ Mark deposit paid'; }
+                    }
+                })
+                .catch(function () {
+                    showToast('Network error — please try again', 'error');
+                    if (btn) { btn.disabled = false; btn.textContent = '✅ Mark deposit paid'; }
                 });
             }
 
