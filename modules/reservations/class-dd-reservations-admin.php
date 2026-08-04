@@ -506,9 +506,8 @@ class DD_Reservations_Admin {
                                         <?php endif; ?>
 
                                         <?php if ( $r->status !== 'confirmed' ) : ?>
-                                        <button class="dd-res-action-btn dd-res-action-btn--confirm dd-res-status-btn"
-                                                data-id="<?php echo esc_attr( $r->id ); ?>"
-                                                data-status="confirmed">Confirm</button>
+                                        <button class="dd-res-action-btn dd-res-action-btn--confirm dd-res-open-modal-btn"
+                                                data-id="<?php echo esc_attr( $r->id ); ?>">Confirm</button>
                                         <?php endif; ?>
                                         <?php if ( $r->status !== 'cancelled' ) : ?>
                                         <button class="dd-res-action-btn dd-res-action-btn--cancel dd-res-status-btn"
@@ -605,6 +604,50 @@ class DD_Reservations_Admin {
         </div><!-- /wrap -->
 
         <div id="dd-res-toast"></div>
+
+        <!-- Reservation Accept Modal — shell mirrors admin/pages/orders.php's
+             #dd-order-modal exactly (.dd-modal-overlay/.dd-modal/.dd-modal-header/
+             .dd-modal-body/.dd-modal-footer), styled by the already-loaded
+             assets/css/admin.css (enqueued on every "dish-dash" admin page —
+             no new stylesheet needed). Reservation-specific status/deposit badges
+             reuse this file's OWN .dd-res-badge classes (reservations-admin.css),
+             not orders' .dd-status-* (those don't cover no_show/pending_payment/
+             auto_cancelled). -->
+        <div id="dd-res-modal" class="dd-modal-overlay" style="display:none">
+            <div class="dd-modal">
+                <div class="dd-modal-header">
+                    <div>
+                        <span class="dd-res-modal-ref"></span>
+                        <span class="dd-res-modal-date"></span>
+                    </div>
+                    <button class="dd-modal-close" id="dd-res-modal-close">✕</button>
+                </div>
+                <div class="dd-modal-body">
+                    <div class="dd-modal-section">
+                        <div class="dd-modal-label">CUSTOMER</div>
+                        <div class="dd-res-modal-name"></div>
+                        <div class="dd-res-modal-whatsapp"></div>
+                    </div>
+                    <div class="dd-modal-section">
+                        <div class="dd-modal-label">BOOKING</div>
+                        <div class="dd-res-modal-details"></div>
+                    </div>
+                    <div class="dd-modal-section dd-modal-status-section">
+                        <div class="dd-modal-label">STATUS</div>
+                        <div class="dd-res-modal-status-badge"></div>
+                    </div>
+                    <div class="dd-modal-section dd-res-modal-deposit-section" style="display:none">
+                        <div class="dd-modal-label">DEPOSIT</div>
+                        <div class="dd-res-modal-deposit-info"></div>
+                    </div>
+                </div>
+                <div class="dd-modal-footer" id="dd-res-modal-actions"></div>
+                <div class="dd-modal-loading" id="dd-res-modal-loading" style="display:none">
+                    <span>Loading…</span>
+                </div>
+            </div>
+        </div>
+
         <script>
         (function () {
             // Show/hide custom date input based on range pill selection
@@ -773,6 +816,201 @@ class DD_Reservations_Admin {
                         showToast('Network error', 'error');
                         bulkApply.disabled = false;
                     });
+                });
+            }
+
+            // ── Accept modal — reuses this same IIFE's `nonce`/`showToast` ──────
+            var resModal        = document.getElementById('dd-res-modal');
+            var resModalActions = document.getElementById('dd-res-modal-actions');
+            var resModalLoading = document.getElementById('dd-res-modal-loading');
+
+            var RES_STATUS_LABELS = {
+                pending: 'Pending', confirmed: 'Confirmed', cancelled: 'Cancelled',
+                no_show: 'No-show', pending_payment: 'Awaiting Payment', auto_cancelled: 'Auto-Cancelled'
+            };
+            var RES_DEPOSIT_LABELS = {
+                none: '—', pending: '⏳ Awaiting', claimed: '🙋 Claimed (unverified)',
+                paid: '✅ Paid', failed: '✗ Failed', refunded: '↩ Refunded'
+            };
+
+            document.querySelectorAll('.dd-res-open-modal-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openResModal(this.dataset.id);
+                });
+            });
+
+            document.getElementById('dd-res-modal-close').addEventListener('click', closeResModal);
+            resModal.addEventListener('click', function (e) {
+                if (e.target === resModal) closeResModal();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && resModal.style.display !== 'none') closeResModal();
+            });
+
+            function openResModal(id) {
+                resModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                fetchReservation(id);
+            }
+
+            function closeResModal() {
+                resModal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
+
+            function setResLoading(on) {
+                resModalLoading.style.display = on ? 'flex' : 'none';
+            }
+
+            function ucfirstRes(s) {
+                return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+            }
+
+            function escRes(s) {
+                var d = document.createElement('div');
+                d.textContent = s;
+                return d.innerHTML;
+            }
+
+            function fetchReservation(id) {
+                setResLoading(true);
+                fetch(ajaxurl, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    new URLSearchParams({ action: 'dd_reservation_get', id: id, nonce: nonce })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    setResLoading(false);
+                    if (res.success) {
+                        renderResModal(res.data.reservation);
+                    } else {
+                        showToast((res.data && res.data.message) || 'Could not load reservation', 'error');
+                        closeResModal();
+                    }
+                })
+                .catch(function () {
+                    setResLoading(false);
+                    showToast('Network error — please try again', 'error');
+                    closeResModal();
+                });
+            }
+
+            function renderResModal(r) {
+                resModal.querySelector('.dd-res-modal-ref').textContent  = r.booking_ref;
+                resModal.querySelector('.dd-res-modal-date').textContent = r.date + ' · ' + r.time + ' (' + ucfirstRes(r.session) + ')';
+
+                resModal.querySelector('.dd-res-modal-name').textContent     = r.name;
+                resModal.querySelector('.dd-res-modal-whatsapp').textContent = r.whatsapp;
+
+                var detailsHtml = '<div class="dd-modal-total-row"><span>Guests</span><strong>' + r.guests + '</strong></div>';
+                if (r.special_requests) {
+                    detailsHtml += '<div class="dd-modal-total-row"><span>Requests</span><span>' + escRes(r.special_requests) + '</span></div>';
+                }
+                resModal.querySelector('.dd-res-modal-details').innerHTML = detailsHtml;
+
+                var badgeMod   = r.status;
+                var badgeLabel = RES_STATUS_LABELS[r.status] || r.status;
+                if (r.status === 'confirmed' && Number(r.deposit_required) === 1 && r.deposit_status !== 'paid') {
+                    badgeMod   = 'pending';
+                    badgeLabel = 'Confirmed — deposit unpaid';
+                }
+                resModal.querySelector('.dd-res-modal-status-badge').innerHTML =
+                    '<span class="dd-res-badge dd-res-badge--' + badgeMod + '">' + badgeLabel + '</span>';
+
+                var depositSection = resModal.querySelector('.dd-res-modal-deposit-section');
+                if (Number(r.deposit_required) === 1) {
+                    depositSection.style.display = '';
+                    resModal.querySelector('.dd-res-modal-deposit-info').innerHTML =
+                        '<div class="dd-modal-total-row"><span>' + (RES_DEPOSIT_LABELS[r.deposit_status] || r.deposit_status) + '</span>'
+                        + '<strong>' + Number(r.deposit_amount).toLocaleString('en-US') + ' RWF</strong></div>';
+                } else {
+                    depositSection.style.display = 'none';
+                }
+
+                // Footer actions
+                var actionsHtml = '';
+                if (r.status !== 'confirmed') {
+                    actionsHtml += '<button class="dd-btn dd-btn-primary dd-res-modal-confirm-btn" data-id="' + r.id + '">✓ Confirm</button>';
+                }
+                if (Number(r.deposit_required) === 1 && r.deposit_status !== 'paid') {
+                    if (r.pesapal_tracking_id) {
+                        actionsHtml += '<span style="font-size:12px;color:#6b7280;padding:8px 4px;">PesaPal payment already requested — awaiting customer.</span>';
+                    } else {
+                        actionsHtml += '<button class="dd-btn dd-res-action-btn--deposit dd-res-modal-pesapal-btn" data-id="' + r.id + '">🏦 Request PesaPal Payment</button>';
+                    }
+                }
+                resModalActions.innerHTML = actionsHtml;
+
+                var confirmBtn = resModalActions.querySelector('.dd-res-modal-confirm-btn');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', function () {
+                        confirmFromModal(r.id);
+                    });
+                }
+                var pesapalBtn = resModalActions.querySelector('.dd-res-modal-pesapal-btn');
+                if (pesapalBtn) {
+                    pesapalBtn.addEventListener('click', function () {
+                        requestPesapalDeposit(r.id, pesapalBtn);
+                    });
+                }
+            }
+
+            function confirmFromModal(id) {
+                setResLoading(true);
+                fetch(ajaxurl, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    new URLSearchParams({ action: 'dd_reservation_update_status', id: id, status: 'confirmed', nonce: nonce })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    setResLoading(false);
+                    if (data.success) {
+                        showToast('Reservation confirmed', 'success');
+                        setTimeout(function () { location.reload(); }, 800);
+                    } else {
+                        showToast((data.data && data.data.message) || 'Error confirming', 'error');
+                    }
+                })
+                .catch(function () {
+                    setResLoading(false);
+                    showToast('Network error — please try again', 'error');
+                });
+            }
+
+            function requestPesapalDeposit(id, btn) {
+                btn.disabled = true;
+                btn.textContent = 'Requesting…';
+                fetch(ajaxurl, {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body:    new URLSearchParams({ action: 'dd_reservation_pesapal_request', id: id, nonce: nonce })
+                })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.success) {
+                        showToast('Payment link created', 'success');
+                        if (data.data.whatsapp_url) {
+                            var link = document.createElement('a');
+                            link.href = data.data.whatsapp_url;
+                            link.target = '_blank';
+                            link.className = 'dd-btn dd-btn-whatsapp';
+                            link.textContent = '💬 Send Payment Link on WhatsApp';
+                            btn.replaceWith(link);
+                        } else {
+                            btn.textContent = '✓ Payment link created (no WhatsApp number on file)';
+                        }
+                    } else {
+                        showToast((data.data && data.data.message) || 'Error requesting payment', 'error');
+                        btn.disabled = false;
+                        btn.textContent = '🏦 Request PesaPal Payment';
+                    }
+                })
+                .catch(function () {
+                    showToast('Network error — please try again', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '🏦 Request PesaPal Payment';
                 });
             }
         })();

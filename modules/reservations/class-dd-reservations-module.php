@@ -29,8 +29,12 @@ class DD_Reservations_Module extends DD_Module {
         DD_Ajax::register( 'dd_reservation_mark_deposit_paid', [ $this, 'ajax_mark_deposit_paid' ], false );
         DD_Ajax::register( 'dd_reservation_update_status', [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_res_bulk_action',           [ $this, 'ajax_bulk_action'    ], false );
+        DD_Ajax::register( 'dd_reservation_pesapal_check_status', [ $this, 'ajax_pesapal_check_status' ], true );
+        DD_Ajax::register( 'dd_reservation_get',             [ $this, 'ajax_get_reservation' ], false );
+        DD_Ajax::register( 'dd_reservation_pesapal_request',  [ $this, 'ajax_pesapal_request_deposit' ], false );
 
         add_action( 'dd_reservation_autocancel',    [ $this, 'run_autocancel' ], 10, 1 );
+        add_action( 'woocommerce_api_wc_pesapal_gateway', [ $this, 'handle_pesapal_ipn' ] );
     }
 
     public function hide_sidebar_links(): void {
@@ -101,13 +105,15 @@ class DD_Reservations_Module extends DD_Module {
         }
 
         // 6. Deposit check — determines status and extra columns.
-        // Fixed deposits only (percent has no base value at booking time). When a
-        // deposit is required we store the real fixed amount and a 'pending'
-        // deposit_status (convention for this column: none|pending|claimed|paid|failed).
+        // Fixed or per-person only (a percentage of order value has no base to
+        // compute against at booking time — guests count, unlike order total, IS
+        // known here, which is what makes per-person possible). When a deposit is
+        // required we store the computed amount and a 'pending' deposit_status
+        // (convention for this column: none|pending|claimed|paid|failed).
         // Unpaid deposit bookings ('pending'/'claimed') are auto-cancelled after the
         // Auto-Cancel window (scheduled below in step 7B; see run_autocancel()).
         $deposit_enabled = get_option( 'dd_reservation_deposit_enabled', 0 ) ? 1 : 0;
-        $deposit_amount  = $deposit_enabled ? $this->calculate_deposit_amount() : 0;
+        $deposit_amount  = $deposit_enabled ? $this->calculate_deposit_amount( $guests ) : 0;
         $deposit_status  = $deposit_enabled ? 'pending' : 'none';
         $status          = 'pending';
 
@@ -441,10 +447,484 @@ class DD_Reservations_Module extends DD_Module {
 
     // ── Deposit helpers ────────────────────────────────────────────────────
 
-    private function calculate_deposit_amount(): int {
+    private function calculate_deposit_amount( int $guests ): int {
         $amount = (int) get_option( 'dd_reservation_deposit_amount', 2000 );
-        // Percentage type reserved for future — needs a base order value not available at booking time
+        $type   = get_option( 'dd_reservation_deposit_type', 'fixed' );
+
+        if ( 'per_person' === $type ) {
+            return $amount * $guests;
+        }
+
+        // Percentage-of-order type reserved for future — needs a base order value not available at booking time
         return $amount;
+    }
+
+    // ── PesaPal deposit orchestration ───────────────────────────────────────
+    // Mirrors class-dd-orders-module.php's idempotent create-then-promote PesaPal
+    // pattern, applied to wp_dishdash_reservations instead of wp_dishdash_orders.
+    // Unlike orders, the reservation row always already exists by the time PesaPal
+    // is involved (ajax_submit_reservation() inserts it up front regardless of
+    // deposit method) — so there is no "create from pending transient" fallback
+    // path here, only submit → stamp tracking id → promote on IPN/poll.
+    //
+    // Merchant reference prefix 'RES-' (not tracking id!) is what the shared IPN
+    // uses to route between this module and the orders module. PesaPal itself
+    // generates order_tracking_id (an opaque id on their side) — we cannot choose
+    // its prefix. The merchant reference is the 'id' field WE send in
+    // DD_PesaPal::submit_order(), and PesaPal echoes it back on both the IPN and
+    // (if ever needed) the transaction status lookup. Orders use prefix 'DD-'
+    // (class-dd-orders-module.php, ajax_place_order() pesapal branch) — confirmed
+    // via source, not assumed — so 'RES-' cannot collide with it.
+
+    /**
+     * Does wp_dishdash_reservations have the pesapal_tracking_id column yet?
+     * Cached per-request. Mirrors class-dd-orders-module.php's
+     * has_pesapal_tracking_column() exactly, targeting this module's own table —
+     * per the architecture rule that a module never queries another module's table,
+     * this cannot be shared code even though the logic is identical.
+     */
+    private function has_pesapal_tracking_column(): bool {
+        static $exists = null;
+        if ( null !== $exists ) {
+            return $exists;
+        }
+        global $wpdb;
+        $col    = $wpdb->get_var( $wpdb->prepare(
+            "SHOW COLUMNS FROM {$wpdb->prefix}dishdash_reservations LIKE %s",
+            'pesapal_tracking_id'
+        ) );
+        $exists = ! empty( $col );
+        return $exists;
+    }
+
+    /**
+     * Return the dishdash_reservations row for a PesaPal tracking id, or null.
+     * Mirrors find_pesapal_order() in the orders module.
+     */
+    private function find_pesapal_reservation( string $tracking_id ): ?object {
+        if ( ! $tracking_id || ! $this->has_pesapal_tracking_column() ) {
+            return null;
+        }
+        global $wpdb;
+        return $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, booking_ref, whatsapp, name, deposit_status, deposit_amount
+             FROM {$wpdb->prefix}dishdash_reservations
+             WHERE pesapal_tracking_id = %s LIMIT 1",
+            $tracking_id
+        ) );
+    }
+
+    /**
+     * Submit a reservation's deposit to PesaPal and stamp the returned tracking id
+     * onto the row. Mirrors the orders module's checkout-time PesaPal branch
+     * (class-dd-orders-module.php ajax_place_order(), 'pesapal' payment method) —
+     * the create-then-persist half of the pattern, adapted since the reservation
+     * row already exists (no "Option B" deferred-creation needed here).
+     *
+     * NOT YET CALLED BY ANYTHING — no AJAX action is registered for it in this
+     * pass. It exists as ready plumbing for the staff-facing accept modal (Part 2),
+     * which owns deciding when a deposit payment request is actually triggered.
+     *
+     * @return array{success:bool, redirect_url?:string, order_tracking_id?:string, error?:string}
+     */
+    private function submit_reservation_deposit_to_pesapal( int $reservation_id ): array {
+        global $wpdb;
+        $reservation = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}dishdash_reservations WHERE id = %d LIMIT 1",
+            $reservation_id
+        ) );
+
+        if ( ! $reservation ) {
+            return [ 'success' => false, 'error' => 'Reservation not found.' ];
+        }
+        if ( (int) $reservation->deposit_required !== 1 ) {
+            return [ 'success' => false, 'error' => 'This booking has no deposit.' ];
+        }
+        if ( 'paid' === $reservation->deposit_status ) {
+            return [ 'success' => false, 'error' => 'Deposit already paid.' ];
+        }
+        if ( $this->has_pesapal_tracking_column() && ! empty( $reservation->pesapal_tracking_id ) ) {
+            return [ 'success' => false, 'error' => 'A PesaPal payment has already been requested for this booking.' ];
+        }
+
+        $pesapal = new DD_PesaPal();
+        if ( ! $pesapal->is_configured() ) {
+            return [ 'success' => false, 'error' => 'PesaPal is not configured. Please contact the restaurant.' ];
+        }
+
+        $ref = 'RES-' . strtoupper( substr( md5( $reservation->whatsapp . microtime() ), 0, 12 ) );
+
+        $result = $pesapal->submit_order(
+            (float) $reservation->deposit_amount,
+            get_woocommerce_currency(),
+            $ref,
+            'Reservation deposit — ' . $reservation->booking_ref,
+            $reservation->whatsapp,
+            $reservation->name
+        );
+
+        if ( ! $result['success'] ) {
+            return [ 'success' => false, 'error' => $result['error'] ];
+        }
+
+        if ( $this->has_pesapal_tracking_column() ) {
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_reservations',
+                [ 'pesapal_tracking_id' => $result['order_tracking_id'] ],
+                [ 'id' => $reservation_id ],
+                [ '%s' ],
+                [ '%d' ]
+            );
+        }
+
+        return [
+            'success'           => true,
+            'redirect_url'      => $result['redirect_url'],
+            'order_tracking_id' => $result['order_tracking_id'],
+        ];
+    }
+
+    /**
+     * Promote a reservation's deposit from pending|claimed → paid exactly once.
+     * Mirrors promote_pesapal_order() — the conditional UPDATE only ever affects a
+     * row still in a not-yet-confirmed state, so a racing IPN + poll (or a PesaPal
+     * retry) can never double-fire. Writes the SAME 'paid' value and stamps
+     * deposit_paid_at exactly like the manual "Mark deposit paid" admin button
+     * (ajax_mark_deposit_paid()), so run_autocancel() recognizes it identically —
+     * this was the explicit risk flagged in the investigation: a parallel status
+     * value here would let auto-cancel wrongly kill a PesaPal-paid booking.
+     */
+    private function promote_pesapal_reservation( object $reservation, string $tracking_id ): void {
+        global $wpdb;
+
+        $promoted = $wpdb->query( $wpdb->prepare(
+            "UPDATE {$wpdb->prefix}dishdash_reservations
+             SET deposit_status = 'paid', deposit_paid_at = %s
+             WHERE id = %d AND deposit_status IN ( 'pending', 'claimed' )",
+            current_time( 'mysql' ),
+            (int) $reservation->id
+        ) );
+
+        if ( $promoted ) {
+            do_action( 'dd_track_event', 'deposit_confirmed_paid', null, null, [
+                'reservation_id' => (int) $reservation->id,
+                'method'         => 'pesapal',
+            ] );
+            // Staff notification — mirrors the orders module's PesaPal promote path
+            // (fire_pesapal_notifications(), the only channel that fires unattended
+            // from a server-side IPN with no user gesture to hang a tap-only WhatsApp
+            // link on). This module already owns its own admin-email sender
+            // (send_admin_email(), used for "new reservation") rather than delegating
+            // to DD_Notifications' order-shaped one — same channel, module-appropriate
+            // implementation, per architecture rules.
+            $this->send_deposit_paid_email( $reservation );
+        }
+        // $promoted === 0 → already paid (a racing caller won) or somehow already
+        // past 'pending'/'claimed' — no-op, matches promote_pesapal_order()'s
+        // "already paid / raced" no-re-notify behaviour (and correctly skips a
+        // duplicate email on the losing side of a race).
+    }
+
+    /**
+     * Notify the restaurant that a reservation deposit was just paid via PesaPal,
+     * unattended (no staff click triggered this — the IPN or a customer's poll did).
+     * Mirrors send_admin_email()'s template/option-read pattern exactly, new subject
+     * and content for this different event.
+     */
+    private function send_deposit_paid_email( object $reservation ): void {
+        $admin_email = get_option( 'dd_admin_email', get_option( 'admin_email' ) );
+        if ( ! $admin_email || ! is_email( $admin_email ) ) {
+            return;
+        }
+
+        $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+        $primary    = esc_attr( get_option( 'dish_dash_primary_color', '#65040d' ) );
+        $subject    = sprintf( '[%s] Deposit Paid — %s', $restaurant, $reservation->booking_ref );
+
+        $admin_link = add_query_arg(
+            [ 'page' => 'dd-reservations', 's' => $reservation->booking_ref ],
+            admin_url( 'admin.php' )
+        );
+
+        $body = '
+<div style="background:#F5EFE6;padding:24px 0;font-family:\'Segoe UI\',Arial,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+    <tr><td align="center">
+      <table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;background:#FBF7F1;border-radius:12px;overflow:hidden;">
+
+        <!-- Header -->
+        <tr><td style="background:' . $primary . ';padding:24px 28px;">
+          <div style="color:#fff;font-size:18px;font-weight:700;">💳 Deposit Paid via PesaPal</div>
+          <div style="color:#E6C9CC;font-size:13px;margin-top:4px;">' . esc_html( $restaurant ) . '</div>
+        </td></tr>
+
+        <!-- Booking ref banner -->
+        <tr><td style="padding:20px 28px 8px;">
+          <div style="color:#6E5B4C;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Booking Reference</div>
+          <div style="color:' . $primary . ';font-size:22px;font-weight:700;letter-spacing:1px;">' . esc_html( $reservation->booking_ref ) . '</div>
+        </td></tr>
+
+        <!-- Details -->
+        <tr><td style="padding:8px 28px 4px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;border-top:1px solid #EADFCE;">
+            <tr><td style="padding:10px 0 6px;color:#6E5B4C;">Customer</td>
+                <td style="padding:10px 0 6px;text-align:right;font-weight:600;color:#221B19;">' . esc_html( $reservation->name ) . '</td></tr>
+            <tr><td style="padding:6px 0;color:#6E5B4C;">Amount</td>
+                <td style="padding:6px 0;text-align:right;font-weight:600;color:#221B19;">' . esc_html( number_format( (int) $reservation->deposit_amount ) ) . ' RWF</td></tr>
+          </table>
+        </td></tr>
+
+        <!-- CTA button -->
+        <tr><td style="padding:20px 28px 28px;" align="center">
+          <a href="' . esc_url( $admin_link ) . '"
+             style="display:inline-block;background:' . $primary . ';color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;">
+             View Reservation →
+          </a>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="background:#F0E7D8;padding:14px 28px;text-align:center;">
+          <div style="color:#6E5B4C;font-size:12px;">' . esc_html( $restaurant ) . ' reservation system</div>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</div>';
+
+        $from_address = get_option( 'woocommerce_email_from_address', $admin_email );
+        $headers = [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: ' . $restaurant . ' <' . $from_address . '>',
+        ];
+        wp_mail( $admin_email, $subject, $body, $headers );
+    }
+
+    // ── AJAX: Reservation-deposit PesaPal status poll (guest, unauthenticated) ──
+    // Mirrors ajax_pesapal_check_status() in the orders module. nopriv=true —
+    // reservation customers are never logged in, same reasoning as the order poll.
+
+    public function ajax_pesapal_check_status(): void {
+        DD_Ajax::verify_nonce();
+
+        $tracking_id = sanitize_text_field( $_POST['order_tracking_id'] ?? '' );
+        if ( ! $tracking_id ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        $existing = $this->find_pesapal_reservation( $tracking_id );
+        if ( ! $existing ) {
+            wp_send_json_error( [ 'message' => 'Reservation not found for this payment.' ] );
+            return;
+        }
+
+        if ( 'paid' === $existing->deposit_status ) {
+            wp_send_json_success( [
+                'paid'        => true,
+                'status'      => 'COMPLETED',
+                'booking_ref' => $existing->booking_ref,
+            ] );
+            return;
+        }
+
+        // Verify the real status server-side (authoritative numeric status_code) —
+        // never trust the client for this.
+        $pesapal = new DD_PesaPal();
+        $status  = $pesapal->get_transaction_status( $tracking_id );
+
+        if ( 'COMPLETED' === $status ) {
+            $this->promote_pesapal_reservation( $existing, $tracking_id );
+            wp_send_json_success( [
+                'paid'        => true,
+                'status'      => 'COMPLETED',
+                'booking_ref' => $existing->booking_ref,
+            ] );
+            return;
+        }
+
+        if ( in_array( $status, [ 'FAILED', 'REVERSED' ], true ) ) {
+            wp_send_json_success( [ 'paid' => false, 'status' => $status ] );
+            return;
+        }
+
+        // INVALID / PENDING / UNKNOWN → not terminal: keep polling.
+        wp_send_json_success( [ 'paid' => false, 'status' => 'PENDING' ] );
+    }
+
+    // ── PesaPal server-to-server IPN — reservation deposits only ────────────
+    // Registered on the SAME 'woocommerce_api_wc_pesapal_gateway' action as the
+    // orders module's handler (DD_PesaPal::submit_order() hardcodes one shared
+    // callback_url for every caller — there is no way to give reservations their
+    // own URL without changing that generic class). Both handlers can be
+    // registered on one WP action; each independently no-ops (a plain `return`,
+    // NOT an exit) when the merchant reference isn't theirs, so exactly one of
+    // them ever reaches its own pesapal_ipn_respond() → exit. The orders module's
+    // handle_pesapal_ipn() has the symmetric guard (skips 'RES-' merchant refs).
+
+    public function handle_pesapal_ipn(): void {
+        $tracking_id = sanitize_text_field(
+            $_REQUEST['OrderTrackingId'] ?? ( $_REQUEST['orderTrackingId'] ?? '' )
+        );
+        $merchant_ref = sanitize_text_field(
+            $_REQUEST['OrderMerchantReference'] ?? ( $_REQUEST['orderMerchantReference'] ?? '' )
+        );
+
+        if ( ! $merchant_ref || ! str_starts_with( $merchant_ref, 'RES-' ) ) {
+            return; // Not a reservation deposit — the orders module's handler owns it.
+        }
+
+        if ( ! $tracking_id ) {
+            $this->pesapal_ipn_respond( 400, '', $merchant_ref );
+            return;
+        }
+
+        $existing = $this->find_pesapal_reservation( $tracking_id );
+
+        if ( ! $existing ) {
+            // Exactly the silent-failure risk flagged in the investigation: a
+            // 'RES-' IPN with no matching row must be logged loudly, not just
+            // acknowledged and dropped.
+            error_log( 'DD PesaPal Reservation IPN: RES- merchant_ref=' . $merchant_ref . ' tracking_id=' . $tracking_id . ' — no matching reservation row. Needs manual reconciliation.' );
+            $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+            return;
+        }
+
+        if ( 'paid' === $existing->deposit_status ) {
+            $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+            return;
+        }
+
+        $pesapal = new DD_PesaPal();
+        $status  = $pesapal->get_transaction_status( $tracking_id );
+
+        if ( 'COMPLETED' === $status ) {
+            $this->promote_pesapal_reservation( $existing, $tracking_id );
+        } elseif ( in_array( $status, [ 'FAILED', 'REVERSED' ], true ) ) {
+            global $wpdb;
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE {$wpdb->prefix}dishdash_reservations
+                 SET deposit_status = 'failed'
+                 WHERE id = %d AND deposit_status IN ( 'pending', 'claimed' )",
+                (int) $existing->id
+            ) );
+        }
+        // PENDING / INVALID / UNKNOWN → leave as-is; PesaPal re-notifies.
+
+        $this->pesapal_ipn_respond( 200, $tracking_id, $merchant_ref );
+    }
+
+    /**
+     * Emit the PesaPal IPN acknowledgement JSON. Duplicated (not shared) from the
+     * orders module's private method of the same purpose — matches this
+     * codebase's own precedent for cross-module-identical-but-separate helpers
+     * (see RELEASE.md v3.10.74, footers "kept DUPLICATED, no shared helper").
+     */
+    private function pesapal_ipn_respond( int $http_status, string $tracking_id, string $merchant_ref ): void {
+        status_header( $http_status );
+        nocache_headers();
+        header( 'Content-Type: application/json; charset=utf-8' );
+        echo wp_json_encode( [
+            'orderNotificationType'  => 'IPNCHANGE',
+            'orderTrackingId'        => $tracking_id,
+            'orderMerchantReference' => $merchant_ref,
+            'status'                 => $http_status,
+        ] );
+        exit;
+    }
+
+    // ── AJAX: Admin — fetch one reservation (accept modal) ──────────────────
+    // Same auth pattern as ajax_mark_deposit_paid(): admin nonce + capability
+    // check, registered nopriv=false — matches every other staff-only action in
+    // this module.
+
+    public function ajax_get_reservation(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_reservations' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+            return;
+        }
+
+        $id = intval( $_POST['id'] ?? 0 );
+        if ( $id < 1 ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        global $wpdb;
+        $reservation = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}dishdash_reservations WHERE id = %d LIMIT 1",
+            $id
+        ) );
+
+        if ( ! $reservation ) {
+            wp_send_json_error( [ 'message' => 'Reservation not found.' ] );
+            return;
+        }
+
+        wp_send_json_success( [ 'reservation' => $reservation ] );
+    }
+
+    // ── AJAX: Admin — request PesaPal deposit payment (accept modal) ────────
+    // Staff-triggered call into submit_reservation_deposit_to_pesapal() (Part 1,
+    // previously unwired). Returns a ready wa.me URL (built here, server-side,
+    // matching the rest of this module's inline-WhatsApp-URL convention — see
+    // render_page()'s "Send Confirmation" button — rather than DD_Notifications,
+    // which is orders-shaped) so staff can hand the PesaPal payment link to the
+    // customer with one tap.
+
+    public function ajax_pesapal_request_deposit(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_reservations' ) ) {
+            wp_send_json_error( [ 'message' => 'Unauthorized' ], 403 );
+            return;
+        }
+
+        $id = intval( $_POST['id'] ?? 0 );
+        if ( $id < 1 ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        $result = $this->submit_reservation_deposit_to_pesapal( $id );
+        if ( ! $result['success'] ) {
+            wp_send_json_error( [ 'message' => $result['error'] ] );
+            return;
+        }
+
+        global $wpdb;
+        $reservation = $wpdb->get_row( $wpdb->prepare(
+            "SELECT booking_ref, name, whatsapp, deposit_amount
+             FROM {$wpdb->prefix}dishdash_reservations WHERE id = %d LIMIT 1",
+            $id
+        ) );
+
+        $whatsapp_url = '';
+        $wa_num       = $reservation ? preg_replace( '/\D/', '', $reservation->whatsapp ) : '';
+        if ( $reservation && $wa_num ) {
+            $restaurant = get_option( 'dish_dash_restaurant_name', 'Khana Khazana' );
+            $lines      = [
+                'DEPOSIT PAYMENT LINK 💳',
+                $restaurant,
+                '',
+                "Hi {$reservation->name}, please complete your deposit payment to secure your table:",
+                '',
+                "Ref: {$reservation->booking_ref}",
+                'Amount: ' . number_format( (int) $reservation->deposit_amount ) . ' RWF',
+                '',
+                'Pay here: ' . $result['redirect_url'],
+                '',
+                'Your booking will be confirmed once payment is received.',
+            ];
+            $whatsapp_url = 'https://wa.me/' . $wa_num . '?text=' . rawurlencode( implode( "\n", $lines ) );
+        }
+
+        wp_send_json_success( [
+            'redirect_url' => $result['redirect_url'],
+            'whatsapp_url' => $whatsapp_url,
+        ] );
     }
 
     // ── AJAX: Customer deposit claim ("I have paid") ───────────────────────

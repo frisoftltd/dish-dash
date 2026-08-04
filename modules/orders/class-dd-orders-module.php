@@ -1524,6 +1524,14 @@ class DD_Orders_Module extends DD_Module {
             $_REQUEST['OrderMerchantReference'] ?? ( $_REQUEST['orderMerchantReference'] ?? '' )
         );
 
+        // Reservation deposit IPNs share this callback URL (DD_PesaPal::submit_order()
+        // hardcodes one callback_url for every caller) but are fully owned by the
+        // reservations module's own handler, also registered on this action — this
+        // is a plain `return`, not an exit, so WordPress still invokes that handler.
+        if ( $merchant_ref && str_starts_with( $merchant_ref, 'RES-' ) ) {
+            return;
+        }
+
         error_log( 'DD_DIAG: IPN entry OrderTrackingId=' . $tracking_id . ' OrderMerchantReference=' . $merchant_ref );
 
         if ( ! $tracking_id ) {

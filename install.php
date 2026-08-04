@@ -204,6 +204,11 @@ class DD_Install {
         // party_size, reservation_date/time, notes) and new (booking_ref, whatsapp,
         // session, guests, deposit_*) columns preserved per no-drop policy.
         // duration_minutes present on live DB but absent from both old installer files.
+        // pesapal_tracking_id (v3.13.x, Paid Reservations v1 Part 1) matches the
+        // dishdash_orders column's role exactly (idempotency key for the PesaPal
+        // IPN/poll promote path) but NOT its type — that column is a live-DB-only
+        // manual ALTER never added to install.php (see class-dd-orders-module.php
+        // has_pesapal_tracking_column()), VARCHAR(64) with a UNIQUE KEY. Matched here.
         // Schema verified Q2 2026-06-02.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_reservations (
@@ -236,9 +241,11 @@ class DD_Install {
                 deposit_status    VARCHAR(20)         NOT NULL DEFAULT 'none',
                 deposit_paid_at   DATETIME                     DEFAULT NULL,
                 payment_ref       VARCHAR(100)                 DEFAULT NULL,
+                pesapal_tracking_id VARCHAR(64)                DEFAULT NULL,
                 is_test           TINYINT(1)          NOT NULL DEFAULT 0,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   booking_ref (booking_ref),
+                UNIQUE KEY   pesapal_tracking_id (pesapal_tracking_id),
                 KEY          table_id (table_id),
                 KEY          branch_id (branch_id),
                 KEY          reservation_date (reservation_date),

@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.13.7 (2026-08-03)
+> Last updated: v3.14.0 (2026-08-04)
 
 ---
 
@@ -91,7 +91,7 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.13.7 |
+| **Deployed version** | v3.14.0 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
@@ -666,6 +666,14 @@ Every page before shipping must pass:
 | `woocommerce_payment_complete` hook wired to `DD_Notifications` | Any future gateway fires notifications automatically |
 | OPcache/auto-update race condition causes fatal errors | Mitigated with `class_exists` guard + `opcache_reset()` on `upgrader_process_complete` |
 | Minification removed in v3.10.20 | `asset_url()` now returns source files directly — no `.min` lookup. GitHub Actions no longer generates `.min` files. LiteSpeed Cache handles production compression. The minifier was failing silently (copying originals), so `.min` files provided no benefit. |
+
+---
+
+## ⚠️ Known Issues
+
+| Issue | Detail |
+|---|---|
+| `wp_dishdash_orders.pesapal_tracking_id` missing from `install.php` | The column (idempotency key for the PesaPal IPN/poll promote path, `VARCHAR(64) NULL` + `UNIQUE KEY`) only exists on the live DB via a manual `ALTER TABLE` documented in `report.md` (v3.11.2) — it was never added to `install.php`'s `CREATE TABLE dishdash_orders`. Fresh installs run with PesaPal order idempotency **off** by default (safe — `has_pesapal_tracking_column()` gates every reference, degrading gracefully) until someone runs the ALTER manually. Found during Paid Reservations v1 (v3.13.x) while adding the equivalent column to `wp_dishdash_reservations` — that one WAS added to `install.php` correctly (see `CREATE TABLE dishdash_reservations`). Not fixed here — flagged for a future cleanup release: add `pesapal_tracking_id` to `install.php`'s orders table definition so new installs get the column via the normal auto-migration guard instead of a manual step. |
 
 ---
 

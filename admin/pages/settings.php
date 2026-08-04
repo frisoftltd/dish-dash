@@ -94,7 +94,8 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
 
     // Reservation Settings
     update_option( 'dd_reservation_deposit_enabled',    isset( $_POST['dd_reservation_deposit_enabled'] ) ? 1 : 0 );
-    update_option( 'dd_reservation_deposit_type',       sanitize_text_field( $_POST['dd_reservation_deposit_type'] ?? 'fixed' ) );
+    $dd_deposit_type_posted = sanitize_text_field( $_POST['dd_reservation_deposit_type'] ?? 'fixed' );
+    update_option( 'dd_reservation_deposit_type',       in_array( $dd_deposit_type_posted, [ 'fixed', 'per_person' ], true ) ? $dd_deposit_type_posted : 'fixed' );
     update_option( 'dd_reservation_deposit_amount',     absint( $_POST['dd_reservation_deposit_amount'] ?? 2000 ) );
     update_option( 'dd_reservation_autocancel_hours',   absint( $_POST['dd_reservation_autocancel_hours'] ?? 2 ) );
     update_option( 'dd_reservation_refund_enabled',     isset( $_POST['dd_reservation_refund_enabled'] ) ? 1 : 0 );
@@ -635,10 +636,12 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
             <div class="dd-field-grid">
                 <div class="dd-field-label">Deposit Type</div>
                 <div class="dd-field-control">
+                    <?php $dd_deposit_type_saved = get_option( 'dd_reservation_deposit_type', 'fixed' ); ?>
                     <select name="dd_reservation_deposit_type" class="dd-input dd-input--medium">
-                        <option value="fixed" selected>Fixed amount (RWF)</option>
+                        <option value="fixed" <?php selected( $dd_deposit_type_saved, 'fixed' ); ?>>Fixed amount (RWF)</option>
+                        <option value="per_person" <?php selected( $dd_deposit_type_saved, 'per_person' ); ?>>Per person (RWF per guest)</option>
                     </select>
-                    <p class="description">Fixed amount only — a percentage has no order value to compute against at booking time.</p>
+                    <p class="description">Fixed = one flat deposit per booking. Per person = the amount below × number of guests. (A percentage of order value is still not offered — no order total exists at booking time.)</p>
                 </div>
             </div>
 
@@ -648,7 +651,7 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                     <input type="number" name="dd_reservation_deposit_amount"
                            value="<?php echo esc_attr( get_option( 'dd_reservation_deposit_amount', 2000 ) ); ?>"
                            min="0" step="100" class="dd-input dd-input--short" />
-                    <p class="description">Fixed deposit amount charged per booking, in RWF.</p>
+                    <p class="description">RWF. Charged once per booking when Deposit Type is Fixed, or once per guest when Per Person.</p>
                 </div>
             </div>
 
