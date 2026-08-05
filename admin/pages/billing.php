@@ -27,7 +27,15 @@ if ( ! current_user_can( 'dd_view_billing' ) ) wp_die( __( 'Access denied.', 'di
 
 global $wpdb;
 $ot  = $wpdb->prefix . 'dishdash_orders';
+$ct  = $wpdb->prefix . 'dishdash_customers';
 $fee = (int) get_option( 'dd_per_order_fee', 750 );
+
+// ── Test-customer exclusion (v3.15.6) ───────────────────────────────────────────
+// dd_customer_id/customer_id are nullable (orphan orders/reservations with no
+// resolvable customer link) — LEFT JOIN + NULL-safe WHERE, never INNER JOIN, so
+// orphans stay counted (and billed) as non-test. See investigation-testflag.md §1.
+$o_test_join  = "LEFT JOIN `{$ct}` c ON c.id = o.dd_customer_id";
+$o_test_where = "o.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
 
 // ── Date ranges ───────────────────────────────────────────────────────────────
 $month_start  = current_time( 'Y-m-' ) . '01 00:00:00';
@@ -38,45 +46,45 @@ $last_month_e = date( 'Y-m-t 23:59:59',  strtotime( 'last day of last month' ) )
 
 // This month
 $this_month_orders = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}`
-     WHERE status = 'delivered' AND platform_fee > 0 AND created_at >= %s AND is_test = 0",
+    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join}
+     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at >= %s AND {$o_test_where}",
     $month_start
 ) );
 $this_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}`
-     WHERE status = 'delivered' AND platform_fee > 0 AND created_at >= %s AND is_test = 0",
+    "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join}
+     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at >= %s AND {$o_test_where}",
     $month_start
 ) );
 
 // Last month
 $last_month_orders = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}`
-     WHERE status = 'delivered' AND platform_fee > 0 AND created_at BETWEEN %s AND %s AND is_test = 0",
+    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join}
+     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at BETWEEN %s AND %s AND {$o_test_where}",
     $last_month_s, $last_month_e
 ) );
 $last_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}`
-     WHERE status = 'delivered' AND platform_fee > 0 AND created_at BETWEEN %s AND %s AND is_test = 0",
+    "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join}
+     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at BETWEEN %s AND %s AND {$o_test_where}",
     $last_month_s, $last_month_e
 ) );
 
 // All time
 $alltime_orders = (int) $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE status = 'delivered' AND platform_fee > 0 AND is_test = 0"
+    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.platform_fee > 0 AND {$o_test_where}"
 );
 $alltime_fees = (int) $wpdb->get_var(
-    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}` WHERE status = 'delivered' AND platform_fee > 0 AND is_test = 0"
+    "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.platform_fee > 0 AND {$o_test_where}"
 );
 
 // Monthly history — last 6 months
 $monthly_history = $wpdb->get_results(
     "SELECT
-         DATE_FORMAT(created_at, '%Y-%m') AS month,
+         DATE_FORMAT(o.created_at, '%Y-%m') AS month,
          COUNT(*) AS orders,
-         SUM(platform_fee) AS fees
-     FROM `{$ot}`
-     WHERE status = 'delivered' AND platform_fee > 0 AND is_test = 0
-     GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+         SUM(o.platform_fee) AS fees
+     FROM `{$ot}` o {$o_test_join}
+     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND {$o_test_where}
+     GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
      ORDER BY month DESC
      LIMIT 6"
 );
@@ -97,11 +105,11 @@ $billing_nonce = wp_create_nonce( 'dish_dash_admin' );
 
 // Only delivered (billable) and cancelled (not billable)
 $status_breakdown = $wpdb->get_results(
-    "SELECT status, COUNT(*) AS cnt, COALESCE(SUM(platform_fee),0) AS fees
-     FROM `{$ot}`
-     WHERE status IN ('delivered','cancelled') AND is_test = 0
-     GROUP BY status
-     ORDER BY FIELD(status,'delivered','cancelled')"
+    "SELECT o.status, COUNT(*) AS cnt, COALESCE(SUM(o.platform_fee),0) AS fees
+     FROM `{$ot}` o {$o_test_join}
+     WHERE o.status IN ('delivered','cancelled') AND {$o_test_where}
+     GROUP BY o.status
+     ORDER BY FIELD(o.status,'delivered','cancelled')"
 );
 
 // ── Reservations (v3.14.8) — mirrors the orders queries above exactly,
@@ -112,44 +120,47 @@ $status_breakdown = $wpdb->get_results(
 // for how platform_fee gets zeroed/restored to keep this query cheap.
 $rt        = $wpdb->prefix . 'dishdash_reservations';
 $res_fee   = (int) get_option( 'dd_per_reservation_fee', 750 );
-$res_billable_sql = "platform_fee > 0 AND (
-        ( deposit_required = 1 AND deposit_status = 'paid' )
-        OR ( deposit_required = 0 AND status = 'confirmed' )
+$res_billable_sql = "r.platform_fee > 0 AND (
+        ( r.deposit_required = 1 AND r.deposit_status = 'paid' )
+        OR ( r.deposit_required = 0 AND r.status = 'confirmed' )
     )";
+// Test-customer exclusion for reservations — same rationale as $o_test_join above.
+$r_test_join  = "LEFT JOIN `{$ct}` c ON c.id = r.customer_id";
+$r_test_where = "r.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
 
 $res_this_month_count = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at >= %s AND is_test = 0",
+    "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at >= %s AND {$r_test_where}",
     $month_start
 ) );
 $res_this_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at >= %s AND is_test = 0",
+    "SELECT COALESCE(SUM(r.platform_fee),0) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at >= %s AND {$r_test_where}",
     $month_start
 ) );
 
 $res_last_month_count = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at BETWEEN %s AND %s AND is_test = 0",
+    "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at BETWEEN %s AND %s AND {$r_test_where}",
     $last_month_s, $last_month_e
 ) );
 $res_last_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$rt}` WHERE {$res_billable_sql} AND created_at BETWEEN %s AND %s AND is_test = 0",
+    "SELECT COALESCE(SUM(r.platform_fee),0) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at BETWEEN %s AND %s AND {$r_test_where}",
     $last_month_s, $last_month_e
 ) );
 
 $res_alltime_count = (int) $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$rt}` WHERE {$res_billable_sql} AND is_test = 0"
+    "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND {$r_test_where}"
 );
 $res_alltime_fees = (int) $wpdb->get_var(
-    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$rt}` WHERE {$res_billable_sql} AND is_test = 0"
+    "SELECT COALESCE(SUM(r.platform_fee),0) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND {$r_test_where}"
 );
 
 $res_monthly_history = $wpdb->get_results(
     "SELECT
-         DATE_FORMAT(created_at, '%Y-%m') AS month,
+         DATE_FORMAT(r.created_at, '%Y-%m') AS month,
          COUNT(*) AS bookings,
-         SUM(platform_fee) AS fees
-     FROM `{$rt}`
-     WHERE {$res_billable_sql} AND is_test = 0
-     GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+         SUM(r.platform_fee) AS fees
+     FROM `{$rt}` r {$r_test_join}
+     WHERE {$res_billable_sql} AND {$r_test_where}
+     GROUP BY DATE_FORMAT(r.created_at, '%Y-%m')
      ORDER BY month DESC
      LIMIT 6"
 );
@@ -159,12 +170,12 @@ $res_monthly_history = $wpdb->get_results(
 // passes for that row (so e.g. a 'confirmed' deposit-required-but-unpaid
 // row correctly shows RWF 0, not the snapshotted-but-not-yet-billable fee).
 $res_status_breakdown = $wpdb->get_results(
-    "SELECT status, COUNT(*) AS cnt,
-            COALESCE(SUM(CASE WHEN {$res_billable_sql} THEN platform_fee ELSE 0 END), 0) AS fees
-     FROM `{$rt}`
-     WHERE is_test = 0
-     GROUP BY status
-     ORDER BY FIELD(status,'confirmed','pending','cancelled','no_show','auto_cancelled')"
+    "SELECT r.status, COUNT(*) AS cnt,
+            COALESCE(SUM(CASE WHEN {$res_billable_sql} THEN r.platform_fee ELSE 0 END), 0) AS fees
+     FROM `{$rt}` r {$r_test_join}
+     WHERE {$r_test_where}
+     GROUP BY r.status
+     ORDER BY FIELD(r.status,'confirmed','pending','cancelled','no_show','auto_cancelled')"
 );
 
 // Combined total — orders + reservations, this month (v3.14.8).

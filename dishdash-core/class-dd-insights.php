@@ -23,6 +23,9 @@ class DD_Insights {
     private string $ct;
     private int    $total_orders;
 
+    private string $o_test_join;
+    private string $o_test_where;
+
     public function __construct() {
         global $wpdb;
         $this->wpdb  = $wpdb;
@@ -30,8 +33,14 @@ class DD_Insights {
         $this->oit   = $wpdb->prefix . 'dishdash_order_items';
         $this->ct    = $wpdb->prefix . 'dishdash_customers';
 
+        // Test-customer exclusion (v3.15.6) — LEFT JOIN + NULL-safe WHERE, never
+        // INNER, so orphan orders (no resolvable customer link) stay counted as
+        // non-test. See investigation-testflag.md §1.
+        $this->o_test_join  = "LEFT JOIN `{$this->ct}` c ON c.id = o.dd_customer_id";
+        $this->o_test_where = "o.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
+
         $this->total_orders = (int) $wpdb->get_var(
-            "SELECT COUNT(*) FROM `{$this->ot}` WHERE is_test = 0"
+            "SELECT COUNT(*) FROM `{$this->ot}` o {$this->o_test_join} WHERE {$this->o_test_where}"
         );
     }
 
@@ -96,10 +105,10 @@ class DD_Insights {
 
     private function detect_confirm_delay(): ?array {
         $avg_seconds = (float) $this->wpdb->get_var(
-            "SELECT AVG(TIMESTAMPDIFF(SECOND, created_at, confirmed_at))
-             FROM `{$this->ot}`
-             WHERE confirmed_at IS NOT NULL AND is_test = 0
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+            "SELECT AVG(TIMESTAMPDIFF(SECOND, o.created_at, o.confirmed_at))
+             FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.confirmed_at IS NOT NULL AND {$this->o_test_where}
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
         if ( $avg_seconds <= 0 ) return null;
         $avg_min = round( $avg_seconds / 60, 1 );
@@ -118,18 +127,18 @@ class DD_Insights {
 
     private function detect_cook_time_rising(): ?array {
         $this_month = (float) $this->wpdb->get_var(
-            "SELECT AVG(TIMESTAMPDIFF(MINUTE, confirmed_at, ready_at))
-             FROM `{$this->ot}`
-             WHERE confirmed_at IS NOT NULL AND ready_at IS NOT NULL AND is_test = 0
-               AND MONTH(created_at) = MONTH(CURDATE())
-               AND YEAR(created_at)  = YEAR(CURDATE())"
+            "SELECT AVG(TIMESTAMPDIFF(MINUTE, o.confirmed_at, o.ready_at))
+             FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.confirmed_at IS NOT NULL AND o.ready_at IS NOT NULL AND {$this->o_test_where}
+               AND MONTH(o.created_at) = MONTH(CURDATE())
+               AND YEAR(o.created_at)  = YEAR(CURDATE())"
         );
         $last_month = (float) $this->wpdb->get_var(
-            "SELECT AVG(TIMESTAMPDIFF(MINUTE, confirmed_at, ready_at))
-             FROM `{$this->ot}`
-             WHERE confirmed_at IS NOT NULL AND ready_at IS NOT NULL AND is_test = 0
-               AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
-               AND YEAR(created_at)  = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))"
+            "SELECT AVG(TIMESTAMPDIFF(MINUTE, o.confirmed_at, o.ready_at))
+             FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.confirmed_at IS NOT NULL AND o.ready_at IS NOT NULL AND {$this->o_test_where}
+               AND MONTH(o.created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+               AND YEAR(o.created_at)  = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))"
         );
         if ( $this_month <= 0 || $last_month <= 0 ) return null;
         $delta_pct = ( ( $this_month - $last_month ) / $last_month ) * 100;
@@ -150,17 +159,17 @@ class DD_Insights {
 
     private function detect_peak_hour_slowdown(): ?array {
         $overall_avg = (float) $this->wpdb->get_var(
-            "SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, delivered_at))
-             FROM `{$this->ot}`
-             WHERE delivered_at IS NOT NULL AND is_test = 0
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+            "SELECT AVG(TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at))
+             FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.delivered_at IS NOT NULL AND {$this->o_test_where}
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
         $peak_avg = (float) $this->wpdb->get_var(
-            "SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, delivered_at))
-             FROM `{$this->ot}`
-             WHERE delivered_at IS NOT NULL AND is_test = 0
-               AND HOUR(created_at) BETWEEN 19 AND 21
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+            "SELECT AVG(TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at))
+             FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.delivered_at IS NOT NULL AND {$this->o_test_where}
+               AND HOUR(o.created_at) BETWEEN 19 AND 21
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
         if ( $overall_avg <= 0 || $peak_avg <= 0 ) return null;
         if ( $peak_avg < $overall_avg * 1.4 ) return null;
@@ -180,15 +189,15 @@ class DD_Insights {
 
     private function detect_revenue_change(): ?array {
         $this_week = (float) $this->wpdb->get_var(
-            "SELECT COALESCE(SUM(total),0) FROM `{$this->ot}`
-             WHERE status = 'delivered' AND is_test = 0
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
+            "SELECT COALESCE(SUM(o.total),0) FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.status = 'delivered' AND {$this->o_test_where}
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)"
         );
         $last_week = (float) $this->wpdb->get_var(
-            "SELECT COALESCE(SUM(total),0) FROM `{$this->ot}`
-             WHERE status = 'delivered' AND is_test = 0
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
-               AND created_at <  DATE_SUB(NOW(), INTERVAL 7 DAY)"
+            "SELECT COALESCE(SUM(o.total),0) FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.status = 'delivered' AND {$this->o_test_where}
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+               AND o.created_at <  DATE_SUB(NOW(), INTERVAL 7 DAY)"
         );
         if ( $last_week <= 0 ) return null;
         $delta_pct = ( ( $this_week - $last_week ) / $last_week ) * 100;
@@ -211,10 +220,10 @@ class DD_Insights {
 
     private function detect_dead_hours(): ?array {
         $rows = $this->wpdb->get_results(
-            "SELECT HOUR(created_at) as hr, DATE(created_at) as day
-             FROM `{$this->ot}`
-             WHERE is_test = 0
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+            "SELECT HOUR(o.created_at) as hr, DATE(o.created_at) as day
+             FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE {$this->o_test_where}
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
              GROUP BY hr, day",
             ARRAY_A
         );
@@ -246,10 +255,10 @@ class DD_Insights {
 
     private function detect_weak_day(): ?array {
         $rows = $this->wpdb->get_results(
-            "SELECT DAYOFWEEK(created_at) as dow, COUNT(*) as cnt
-             FROM `{$this->ot}`
-             WHERE is_test = 0
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)
+            "SELECT DAYOFWEEK(o.created_at) as dow, COUNT(*) as cnt
+             FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE {$this->o_test_where}
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 60 DAY)
              GROUP BY dow ORDER BY cnt DESC",
             ARRAY_A
         );
@@ -278,7 +287,8 @@ class DD_Insights {
             "SELECT oi.item_name, COUNT(*) as cnt
              FROM `{$this->oit}` oi
              JOIN `{$this->ot}` o ON o.id = oi.order_id
-             WHERE o.is_test = 0
+             {$this->o_test_join}
+             WHERE {$this->o_test_where}
                AND MONTH(o.created_at) = MONTH(CURDATE())
                AND YEAR(o.created_at)  = YEAR(CURDATE())
              GROUP BY oi.item_name ORDER BY cnt DESC LIMIT 10",
@@ -288,7 +298,8 @@ class DD_Insights {
             "SELECT oi.item_name, COUNT(*) as cnt
              FROM `{$this->oit}` oi
              JOIN `{$this->ot}` o ON o.id = oi.order_id
-             WHERE o.is_test = 0
+             {$this->o_test_join}
+             WHERE {$this->o_test_where}
                AND MONTH(o.created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
                AND YEAR(o.created_at)  = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
              GROUP BY oi.item_name ORDER BY cnt DESC",
@@ -322,7 +333,8 @@ class DD_Insights {
             "SELECT oi.item_name
              FROM `{$this->oit}` oi
              JOIN `{$this->ot}` o ON o.id = oi.order_id
-             WHERE o.is_test = 0
+             {$this->o_test_join}
+             WHERE {$this->o_test_where}
                AND MONTH(o.created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
                AND YEAR(o.created_at)  = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
              GROUP BY oi.item_name ORDER BY COUNT(*) DESC LIMIT 5"
@@ -331,7 +343,8 @@ class DD_Insights {
             "SELECT oi.item_name
              FROM `{$this->oit}` oi
              JOIN `{$this->ot}` o ON o.id = oi.order_id
-             WHERE o.is_test = 0
+             {$this->o_test_join}
+             WHERE {$this->o_test_where}
                AND MONTH(o.created_at) = MONTH(CURDATE())
                AND YEAR(o.created_at)  = YEAR(CURDATE())
              GROUP BY oi.item_name ORDER BY COUNT(*) DESC LIMIT 10"
@@ -358,6 +371,7 @@ class DD_Insights {
                     DATEDIFF(NOW(), last_order_at) as days_silent
              FROM `{$this->ct}`
              WHERE total_orders >= 10
+               AND is_test = 0
                AND last_order_at < DATE_SUB(NOW(), INTERVAL 21 DAY)
              ORDER BY total_orders DESC LIMIT 1",
             ARRAY_A
@@ -379,17 +393,17 @@ class DD_Insights {
 
     private function detect_loyalty_signal(): ?array {
         $total_rev = (float) $this->wpdb->get_var(
-            "SELECT COALESCE(SUM(o.total),0) FROM `{$this->ot}` o
-             WHERE o.status='delivered' AND o.is_test=0
+            "SELECT COALESCE(SUM(o.total),0) FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.status='delivered' AND {$this->o_test_where}
                AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
         if ( $total_rev <= 0 ) return null;
         $returning_rev = (float) $this->wpdb->get_var(
             "SELECT COALESCE(SUM(o.total),0)
              FROM `{$this->ot}` o
-             JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
+             LEFT JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
              WHERE o.status='delivered' AND o.is_test=0
-               AND c.total_orders > 1
+               AND c.total_orders > 1 AND (c.is_test IS NULL OR c.is_test = 0)
                AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
         $pct = round( ( $returning_rev / $total_rev ) * 100 );
@@ -407,15 +421,15 @@ class DD_Insights {
 
     private function detect_aov_trend(): ?array {
         $this_aov = (float) $this->wpdb->get_var(
-            "SELECT AVG(total) FROM `{$this->ot}`
-             WHERE status='delivered' AND is_test=0
-               AND MONTH(created_at)=MONTH(CURDATE()) AND YEAR(created_at)=YEAR(CURDATE())"
+            "SELECT AVG(o.total) FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.status='delivered' AND {$this->o_test_where}
+               AND MONTH(o.created_at)=MONTH(CURDATE()) AND YEAR(o.created_at)=YEAR(CURDATE())"
         );
         $last_aov = (float) $this->wpdb->get_var(
-            "SELECT AVG(total) FROM `{$this->ot}`
-             WHERE status='delivered' AND is_test=0
-               AND MONTH(created_at)=MONTH(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))
-               AND YEAR(created_at)=YEAR(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))"
+            "SELECT AVG(o.total) FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE o.status='delivered' AND {$this->o_test_where}
+               AND MONTH(o.created_at)=MONTH(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))
+               AND YEAR(o.created_at)=YEAR(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))"
         );
         if ( $last_aov <= 0 || $this_aov <= 0 ) return null;
         $delta_pct = ( ( $this_aov - $last_aov ) / $last_aov ) * 100;
@@ -437,14 +451,14 @@ class DD_Insights {
 
     private function detect_cash_dominance(): ?array {
         $total = (int) $this->wpdb->get_var(
-            "SELECT COUNT(*) FROM `{$this->ot}`
-             WHERE is_test=0 AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+            "SELECT COUNT(*) FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE {$this->o_test_where} AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
         if ( $total < 10 ) return null;
         $cash = (int) $this->wpdb->get_var(
-            "SELECT COUNT(*) FROM `{$this->ot}`
-             WHERE is_test=0 AND payment_method='cod'
-               AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
+            "SELECT COUNT(*) FROM `{$this->ot}` o {$this->o_test_join}
+             WHERE {$this->o_test_where} AND o.payment_method='cod'
+               AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
         );
         $pct = round( ( $cash / $total ) * 100 );
         if ( $pct < 50 ) return null;
@@ -467,7 +481,8 @@ class DD_Insights {
              FROM `{$this->oit}` a
              JOIN `{$this->oit}` b ON b.order_id = a.order_id AND b.item_name > a.item_name
              JOIN `{$this->ot}` o ON o.id = a.order_id
-             WHERE o.is_test = 0
+             {$this->o_test_join}
+             WHERE {$this->o_test_where}
                AND o.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY)
              GROUP BY a.item_name, b.item_name
              ORDER BY together DESC LIMIT 1",
@@ -502,15 +517,17 @@ class DD_Insights {
         $fast_return_rate = (float) $this->wpdb->get_var(
             "SELECT AVG(c.total_orders)
              FROM `{$this->ot}` o
-             JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
+             LEFT JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
              WHERE o.delivered_at IS NOT NULL AND o.is_test = 0
+               AND (c.is_test IS NULL OR c.is_test = 0)
                AND TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at) < 30"
         );
         $slow_return_rate = (float) $this->wpdb->get_var(
             "SELECT AVG(c.total_orders)
              FROM `{$this->ot}` o
-             JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
+             LEFT JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
              WHERE o.delivered_at IS NOT NULL AND o.is_test = 0
+               AND (c.is_test IS NULL OR c.is_test = 0)
                AND TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at) > 45"
         );
         if ( $fast_return_rate <= 0 || $slow_return_rate <= 0 ) return null;

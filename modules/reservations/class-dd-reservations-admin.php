@@ -41,6 +41,16 @@ class DD_Reservations_Admin {
     public function render_page(): void {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_reservations';
+        $ct    = $wpdb->prefix . 'dishdash_customers';
+
+        // ── Test-customer exclusion (v3.15.6) ───────────────────────────────
+        // customer_id is nullable (orphan reservations with no resolvable
+        // customer link) — LEFT JOIN + NULL-safe WHERE, never INNER JOIN, so
+        // orphans stay counted as non-test. See investigation-testflag.md §1.
+        // The reservation-level "Test" filter tab (is_test = 1) is untouched —
+        // this only layers onto the non-test views.
+        $r_test_join  = "LEFT JOIN {$ct} c ON c.id = r.customer_id";
+        $r_test_where = "r.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
 
         // ── Status update action (POST fallback) ──────────────────────────
         if (
@@ -78,43 +88,43 @@ class DD_Reservations_Admin {
         $params = [];
 
         if ( $filter_status === 'test' ) {
-            $where .= ' AND is_test = 1';
+            $where .= ' AND r.is_test = 1';
         } elseif ( $filter_status === 'awaiting_deposit' ) {
             // Deposit required, customer hasn't paid or claimed yet. Deliberately
             // excludes 'claimed' (MoMo "I have paid", unverified) — those still need
             // staff eyes before auto-cancel and stay visible on their normal status
             // tab; this tab is only for bookings nobody has acted on at all.
-            $where .= " AND is_test = 0 AND deposit_required = 1 AND deposit_status = 'pending'";
+            $where .= " AND {$r_test_where} AND r.deposit_required = 1 AND r.deposit_status = 'pending'";
         } else {
-            $where .= ' AND is_test = 0';
+            $where .= " AND {$r_test_where}";
             if ( $filter_status ) {
-                $where   .= ' AND status = %s';
+                $where   .= ' AND r.status = %s';
                 $params[] = $filter_status;
             } else {
                 // Bare "All" view only — hide deposit-required bookings still
                 // awaiting customer payment (visible via the "Awaiting Payment"
                 // tab instead). Explicit status tabs (Pending/Confirmed/etc.)
                 // are untouched and still include these rows if they match.
-                $where .= " AND NOT ( deposit_required = 1 AND deposit_status = 'pending' )";
+                $where .= " AND NOT ( r.deposit_required = 1 AND r.deposit_status = 'pending' )";
             }
         }
 
         // Date range filter
         if ( $date_range === 'today' ) {
-            $where .= ' AND date = CURDATE()';
+            $where .= ' AND r.date = CURDATE()';
         } elseif ( $date_range === '7' ) {
-            $where .= ' AND date >= DATE_SUB( CURDATE(), INTERVAL 7 DAY )';
+            $where .= ' AND r.date >= DATE_SUB( CURDATE(), INTERVAL 7 DAY )';
         } elseif ( $date_range === '30' ) {
-            $where .= ' AND date >= DATE_SUB( CURDATE(), INTERVAL 30 DAY )';
+            $where .= ' AND r.date >= DATE_SUB( CURDATE(), INTERVAL 30 DAY )';
         } elseif ( $date_range === '90' ) {
-            $where .= ' AND date >= DATE_SUB( CURDATE(), INTERVAL 90 DAY )';
+            $where .= ' AND r.date >= DATE_SUB( CURDATE(), INTERVAL 90 DAY )';
         } elseif ( $date_range === 'custom' && $res_date ) {
-            $where   .= ' AND date = %s';
+            $where   .= ' AND r.date = %s';
             $params[] = $res_date;
         }
 
         if ( $search ) {
-            $where   .= ' AND (name LIKE %s OR whatsapp LIKE %s OR booking_ref LIKE %s)';
+            $where   .= ' AND (r.name LIKE %s OR r.whatsapp LIKE %s OR r.booking_ref LIKE %s)';
             $like     = '%' . $wpdb->esc_like( $search ) . '%';
             $params[] = $like;
             $params[] = $like;
@@ -122,21 +132,25 @@ class DD_Reservations_Admin {
         }
 
         // ── Total matching rows (for pagination) ──────────────────────────
-        $count_sql  = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
+        $count_sql  = "SELECT COUNT(*) FROM {$table} r {$r_test_join} WHERE {$where}";
         $total_rows = $params
             ? (int) $wpdb->get_var( $wpdb->prepare( $count_sql, $params ) )
             : (int) $wpdb->get_var( $count_sql );
 
         // ── Fetch page ────────────────────────────────────────────────────
-        $order_sql = ' ORDER BY created_at DESC, id DESC';
+        // SELECT r.* (not *) — the LEFT JOIN pulls in `c` columns that overlap
+        // reservation columns by name (id, created_at, updated_at, is_test,
+        // name, whatsapp); a bare SELECT * would let customer columns silently
+        // clobber reservation columns in the object result keyed by column name.
+        $order_sql = ' ORDER BY r.created_at DESC, r.id DESC';
 
         if ( $per_page === 'all' ) {
-            $sql          = "SELECT * FROM {$table} WHERE {$where}{$order_sql}";
+            $sql          = "SELECT r.* FROM {$table} r {$r_test_join} WHERE {$where}{$order_sql}";
             $query_params = $params;
         } else {
             $pp           = (int) $per_page;
             $offset       = ( $current_page - 1 ) * $pp;
-            $sql          = "SELECT * FROM {$table} WHERE {$where}{$order_sql} LIMIT %d OFFSET %d";
+            $sql          = "SELECT r.* FROM {$table} r {$r_test_join} WHERE {$where}{$order_sql} LIMIT %d OFFSET %d";
             $query_params = array_merge( $params, [ $pp, $offset ] );
         }
 
@@ -157,7 +171,7 @@ class DD_Reservations_Admin {
 
         // ── Counts per status (unfiltered) for KPIs + tabs ───────────────
         $counts_raw = $wpdb->get_results(
-            "SELECT status, COUNT(*) AS n FROM {$table} WHERE is_test = 0 GROUP BY status",
+            "SELECT r.status, COUNT(*) AS n FROM {$table} r {$r_test_join} WHERE {$r_test_where} GROUP BY r.status",
             OBJECT_K
         );
         $counts = [];
@@ -169,8 +183,8 @@ class DD_Reservations_Admin {
 
         // ── Today's confirmed bookings + covers ───────────────────────────
         $today_row = $wpdb->get_row( $wpdb->prepare(
-            "SELECT COUNT(*) AS confirmed_today, COALESCE(SUM(guests), 0) AS guests_today
-             FROM {$table} WHERE date = %s AND status = 'confirmed' AND is_test = 0",
+            "SELECT COUNT(*) AS confirmed_today, COALESCE(SUM(r.guests), 0) AS guests_today
+             FROM {$table} r {$r_test_join} WHERE r.date = %s AND r.status = 'confirmed' AND {$r_test_where}",
             date( 'Y-m-d' )
         ) );
         $today_confirmed = (int) ( $today_row->confirmed_today ?? 0 );
@@ -265,7 +279,7 @@ class DD_Reservations_Admin {
             // is a separate column from `status`, so it isn't part of $counts
             // (which is GROUP BY status).
             $awaiting_deposit_count = (int) $wpdb->get_var(
-                "SELECT COUNT(*) FROM {$table} WHERE is_test = 0 AND deposit_required = 1 AND deposit_status = 'pending'"
+                "SELECT COUNT(*) FROM {$table} r {$r_test_join} WHERE {$r_test_where} AND r.deposit_required = 1 AND r.deposit_status = 'pending'"
             );
             // "All" badge must reflect what the All view actually shows now that
             // it excludes awaiting-deposit rows — $kpi_total (the KPI card above)

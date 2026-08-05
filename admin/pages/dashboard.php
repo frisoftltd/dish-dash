@@ -67,17 +67,26 @@ $ot = $wpdb->prefix . 'dishdash_orders';
 $ct = $wpdb->prefix . 'dishdash_customers';
 $rt = $wpdb->prefix . 'dishdash_reservations';
 
+// ── Test-customer exclusion (v3.15.6) ───────────────────────────────────────────
+// dd_customer_id/customer_id are nullable (orphan orders/reservations with no
+// resolvable customer link) — LEFT JOIN + NULL-safe WHERE, never INNER JOIN, so
+// orphans stay counted as non-test. See investigation-testflag.md §1.
+$o_test_join  = "LEFT JOIN `{$ct}` c ON o.dd_customer_id = c.id";
+$o_test_where = "o.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
+$r_test_join  = "LEFT JOIN `{$ct}` c ON r.customer_id = c.id";
+$r_test_where = "r.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
+
 // ── KPI queries ───────────────────────────────────────────────────────────────
 $kpi_orders   = (int)   $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE created_at >= %s AND is_test = 0", $since
+    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.created_at >= %s AND {$o_test_where}", $since
 ) );
 $kpi_revenue  = (float) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0", $since
+    "SELECT COALESCE(SUM(o.total),0) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.created_at >= %s AND {$o_test_where}", $since
 ) );
 // Fees this month — always current month regardless of $range filter
 $month_start_for_fees = current_time( 'Y-m-' ) . '01 00:00:00';
 $kpi_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}` WHERE status = 'delivered' AND platform_fee > 0 AND created_at >= %s AND is_test = 0",
+    "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at >= %s AND {$o_test_where}",
     $month_start_for_fees
 ) );
 // Check if this month is marked as paid
@@ -93,35 +102,35 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '{$bp_table}'" ) === $bp_table ) {
 }
 
 $kpi_pending  = (int)   $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','confirmed','ready') AND is_test = 0"
+    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status IN ('pending','confirmed','ready') AND {$o_test_where}"
 );
 $kpi_delivered = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0", $since
+    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.created_at >= %s AND {$o_test_where}", $since
 ) );
 $kpi_aov = $kpi_delivered > 0 ? round( $kpi_revenue / $kpi_delivered ) : 0;
 $kpi_new_cust = (int)   $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ct}` WHERE first_order_at >= %s", $since
+    "SELECT COUNT(*) FROM `{$ct}` WHERE first_order_at >= %s AND is_test = 0", $since
 ) );
 $today_date   = date( 'Y-m-d', $ts );
 $kpi_res      = (int)   $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$rt}` WHERE date = %s AND status IN ('confirmed','pending')", $today_date
+    "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.date = %s AND r.status IN ('confirmed','pending') AND {$r_test_where}", $today_date
 ) );
 $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
 
 // ── Chart data ────────────────────────────────────────────────────────────────
 if ( $range === 'today' ) {
     $chart_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT HOUR(created_at) as period, COALESCE(SUM(total),0) as revenue
-         FROM `{$ot}` WHERE status = 'delivered' AND DATE(created_at) = %s AND is_test = 0
-         GROUP BY HOUR(created_at) ORDER BY period ASC",
+        "SELECT HOUR(o.created_at) as period, COALESCE(SUM(o.total),0) as revenue
+         FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND DATE(o.created_at) = %s AND {$o_test_where}
+         GROUP BY HOUR(o.created_at) ORDER BY period ASC",
         $today_date
     ), ARRAY_A );
     $chart_labels  = array_map( function( $r ) { return sprintf( '%02d:00', $r['period'] ); }, $chart_rows );
 } else {
     $chart_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT DATE(created_at) as period, COALESCE(SUM(total),0) as revenue
-         FROM `{$ot}` WHERE status = 'delivered' AND created_at >= %s AND is_test = 0
-         GROUP BY DATE(created_at) ORDER BY period ASC",
+        "SELECT DATE(o.created_at) as period, COALESCE(SUM(o.total),0) as revenue
+         FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.created_at >= %s AND {$o_test_where}
+         GROUP BY DATE(o.created_at) ORDER BY period ASC",
         $since
     ), ARRAY_A );
     $chart_labels = array_map( function( $r ) { return date( 'D d', strtotime( $r['period'] ) ); }, $chart_rows );
@@ -130,8 +139,8 @@ $chart_revenue = array_column( $chart_rows, 'revenue' );
 
 // ── Recent orders ─────────────────────────────────────────────────────────────
 $recent_orders = $wpdb->get_results(
-    "SELECT id, customer_name, total, status, created_at
-     FROM `{$ot}` WHERE is_test = 0 ORDER BY created_at DESC LIMIT 6",
+    "SELECT o.id, o.customer_name, o.total, o.status, o.created_at
+     FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} ORDER BY o.created_at DESC LIMIT 6",
     ARRAY_A
 );
 
@@ -151,7 +160,8 @@ if ( $table_exists ) {
         "SELECT oi.item_name as product_name, COUNT(*) as cnt
          FROM `{$items_table}` oi
          JOIN `{$ot}` o ON o.id = oi.order_id
-         WHERE o.is_test = 0
+         {$o_test_join}
+         WHERE {$o_test_where}
          GROUP BY oi.item_name
          ORDER BY cnt DESC LIMIT 5",
         ARRAY_A
@@ -162,21 +172,22 @@ if ( $table_exists ) {
 $max_item_count = ! empty( $top_items ) ? (int) $top_items[0]['cnt'] : 1;
 
 // ── Customer tiers ────────────────────────────────────────────────────────────
-$tier_new      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_orders = 0" );
-$tier_regular  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_orders >= 1 AND total_spent < 100000" );
-$tier_vip      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_spent >= 100000 AND total_spent < 250000" );
-$tier_champion = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_spent >= 250000 AND total_spent < 500000" );
-$tier_diamond  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_spent >= 500000" );
+$tier_new      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_orders = 0 AND is_test = 0" );
+$tier_regular  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_orders >= 1 AND total_spent < 100000 AND is_test = 0" );
+$tier_vip      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_spent >= 100000 AND total_spent < 250000 AND is_test = 0" );
+$tier_champion = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_spent >= 250000 AND total_spent < 500000 AND is_test = 0" );
+$tier_diamond  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ct}` WHERE total_spent >= 500000 AND is_test = 0" );
 $tier_total    = max( 1, $tier_new + $tier_regular + $tier_vip + $tier_champion + $tier_diamond );
 
 // ── Stale orders (unchanged for 24+ hours, not in terminal status) ────────────
 $stale_orders = $wpdb->get_results(
-    "SELECT id, customer_name, status, updated_at
-     FROM `{$ot}`
-     WHERE status NOT IN ('delivered', 'cancelled')
-     AND is_test = 0
-     AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)
-     ORDER BY updated_at ASC
+    "SELECT o.id, o.customer_name, o.status, o.updated_at
+     FROM `{$ot}` o
+     {$o_test_join}
+     WHERE o.status NOT IN ('delivered', 'cancelled')
+     AND {$o_test_where}
+     AND o.updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)
+     ORDER BY o.updated_at ASC
      LIMIT 10",
     ARRAY_A
 );
@@ -353,11 +364,12 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
   <!-- ── Kitchen Queue ───────────────────────────────────────────────────── -->
   <?php
   $kitchen_orders = $wpdb->get_results(
-      "SELECT id, order_number, customer_name, total, order_type, confirmed_at
-       FROM {$wpdb->prefix}dishdash_orders
-       WHERE status = 'confirmed'
-       AND is_test = 0
-       ORDER BY confirmed_at ASC",
+      "SELECT o.id, o.order_number, o.customer_name, o.total, o.order_type, o.confirmed_at
+       FROM {$wpdb->prefix}dishdash_orders o
+       {$o_test_join}
+       WHERE o.status = 'confirmed'
+       AND {$o_test_where}
+       ORDER BY o.confirmed_at ASC",
       ARRAY_A
   );
   $prep_time = (int) get_option( 'dd_kitchen_prep_time', 30 );

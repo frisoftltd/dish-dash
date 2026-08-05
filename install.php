@@ -384,9 +384,11 @@ class DD_Install {
                 last_order_at     DATETIME                 DEFAULT NULL,
                 created_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                is_test           TINYINT(1)      NOT NULL DEFAULT 0,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   whatsapp (whatsapp),
-                UNIQUE KEY   uniq_user_id (user_id)
+                UNIQUE KEY   uniq_user_id (user_id),
+                KEY          is_test (is_test)
             ) $charset_collate;
         " );
 

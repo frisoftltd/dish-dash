@@ -37,24 +37,36 @@ class DD_Customer_Manager {
 
         $table    = $wpdb->prefix . 'dishdash_customers';
         $existing = $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, total_orders, total_spent FROM {$table} WHERE whatsapp = %s LIMIT 1",
+            "SELECT id, total_orders, total_spent, is_test FROM {$table} WHERE whatsapp = %s LIMIT 1",
             $whatsapp
         ) );
 
         $now = current_time( 'mysql' );
 
         if ( $existing ) {
+            // Test customers (admin-flagged, never set here) keep their name/address
+            // fresh but never accrue lifetime stats — those stats feed tier badges
+            // and revenue-adjacent displays, so a test account inflating them would
+            // be exactly the kind of pollution this flag exists to prevent.
+            $is_test = (int) $existing->is_test === 1;
+            $fields  = [
+                'name'             => $name,
+                'delivery_address' => $delivery_address,
+            ];
+            $formats = [ '%s', '%s' ];
+            if ( ! $is_test ) {
+                $fields['total_orders']  = (int) $existing->total_orders + 1;
+                $fields['total_spent']   = (float) $existing->total_spent + $order_total;
+                $fields['last_order_at'] = $now;
+                $formats[] = '%d';
+                $formats[] = '%f';
+                $formats[] = '%s';
+            }
             $wpdb->update(
                 $table,
-                [
-                    'name'             => $name,
-                    'delivery_address' => $delivery_address,
-                    'total_orders'     => (int) $existing->total_orders + 1,
-                    'total_spent'      => (float) $existing->total_spent + $order_total,
-                    'last_order_at'    => $now,
-                ],
+                $fields,
                 [ 'id' => (int) $existing->id ],
-                [ '%s', '%s', '%d', '%f', '%s' ],
+                $formats,
                 [ '%d' ]
             );
             return [

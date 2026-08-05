@@ -2210,11 +2210,17 @@ class DD_Orders_Module extends DD_Module {
         $table   = $wpdb->prefix . 'dd_billing_payments';
 
         // Get current amount for this month from orders table
+        // Test-customer exclusion (v3.15.6): LEFT JOIN + NULL-safe WHERE, never
+        // INNER, so orphan orders (no resolvable customer link) still get billed.
+        // See investigation-testflag.md §1.
         $ot           = $wpdb->prefix . 'dishdash_orders';
+        $ct           = $wpdb->prefix . 'dishdash_customers';
         $order_amount = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}`
-             WHERE status = 'delivered' AND platform_fee > 0
-             AND DATE_FORMAT(created_at, '%%Y-%%m') = %s AND is_test = 0",
+            "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o
+             LEFT JOIN `{$ct}` c ON c.id = o.dd_customer_id
+             WHERE o.status = 'delivered' AND o.platform_fee > 0
+             AND DATE_FORMAT(o.created_at, '%%Y-%%m') = %s
+             AND o.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)",
             $month
         ) );
 

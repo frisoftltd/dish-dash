@@ -1289,14 +1289,20 @@ class DD_Reservations_Module extends DD_Module {
 
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_reservations';
+        $ct    = $wpdb->prefix . 'dishdash_customers';
 
+        // Test-customer exclusion (v3.15.6): LEFT JOIN + NULL-safe WHERE, never
+        // INNER, so orphan reservations (no resolvable customer link) still get
+        // billed. See investigation-testflag.md §1.
         $amount = $wpdb->get_var( $wpdb->prepare(
-            "SELECT COALESCE(SUM(platform_fee),0) FROM `{$table}`
-             WHERE platform_fee > 0 AND (
-                 ( deposit_required = 1 AND deposit_status = 'paid' )
-                 OR ( deposit_required = 0 AND status = 'confirmed' )
+            "SELECT COALESCE(SUM(r.platform_fee),0) FROM `{$table}` r
+             LEFT JOIN `{$ct}` c ON c.id = r.customer_id
+             WHERE r.platform_fee > 0 AND (
+                 ( r.deposit_required = 1 AND r.deposit_status = 'paid' )
+                 OR ( r.deposit_required = 0 AND r.status = 'confirmed' )
              )
-             AND DATE_FORMAT(created_at, '%%Y-%%m') = %s AND is_test = 0",
+             AND DATE_FORMAT(r.created_at, '%%Y-%%m') = %s
+             AND r.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)",
             $month
         ) );
 

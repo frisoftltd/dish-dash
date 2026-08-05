@@ -11,6 +11,15 @@ if ( ! current_user_can( 'dd_manage_orders' ) ) return;
 
 global $wpdb;
 $ot = $wpdb->prefix . 'dishdash_orders';
+$ct = $wpdb->prefix . 'dishdash_customers';
+
+// ── Test-customer exclusion (v3.15.6) ───────────────────────────────────────────
+// dd_customer_id is nullable (orphan orders with no resolvable customer link) —
+// LEFT JOIN + NULL-safe WHERE, never INNER JOIN, so orphans stay counted as
+// non-test. See investigation-testflag.md §1. The order-level "Test" filter tab
+// (is_test = 1) is untouched — this only layers onto the non-test views.
+$o_test_join  = "LEFT JOIN `{$ct}` c ON c.id = o.dd_customer_id";
+$o_test_where = "o.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
 
 // ── Handle status update POST ─────────────────────────────────────────────────
 if (
@@ -130,9 +139,9 @@ $filter_date_to   = isset( $_GET['dd_date_to'] )   ? sanitize_text_field( $_GET[
 $filter_payment   = isset( $_GET['dd_payment'] )   ? sanitize_key( $_GET['dd_payment'] ) : '';
 
 // ── Summary stats ─────────────────────────────────────────────────────────────
-$total_orders  = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test = 0" );
-$total_revenue = (float) $wpdb->get_var( "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE is_test = 0" );
-$total_pending = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE status IN ('pending','processing') AND is_test = 0" );
+$total_orders  = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where}" );
+$total_revenue = (float) $wpdb->get_var( "SELECT COALESCE(SUM(o.total),0) FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where}" );
+$total_pending = (int)   $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status IN ('pending','processing') AND {$o_test_where}" );
 $total_today   = (int)   $wpdb->get_var( $wpdb->prepare(
     "SELECT COUNT(*) FROM `{$ot}` WHERE DATE(created_at) = %s",
     current_time( 'Y-m-d' )
@@ -144,11 +153,11 @@ $where_values  = [];
 
 // Test / non-test base filter (always first — ensures $where_clauses is never empty)
 if ( $status_filter === 'test' ) {
-    $where_clauses[] = 'is_test = 1';
+    $where_clauses[] = 'o.is_test = 1';
 } else {
-    $where_clauses[] = 'is_test = 0';
+    $where_clauses[] = $o_test_where;
     if ( $status_filter !== 'all' ) {
-        $where_clauses[] = 'status = %s';
+        $where_clauses[] = 'o.status = %s';
         $where_values[]  = $status_filter;
     }
 }
@@ -156,32 +165,36 @@ if ( $status_filter === 'test' ) {
 // Search: order number, customer name, customer phone
 if ( $search_query !== '' ) {
     $like            = '%' . $wpdb->esc_like( $search_query ) . '%';
-    $where_clauses[] = 'order_number LIKE %s';
+    $where_clauses[] = 'o.order_number LIKE %s';
     $where_values[]  = $like;
 }
 
 // Date from
 if ( $filter_date_from !== '' ) {
-    $where_clauses[] = 'created_at >= %s';
+    $where_clauses[] = 'o.created_at >= %s';
     $where_values[]  = $filter_date_from . ' 00:00:00';
 }
 
 // Date to
 if ( $filter_date_to !== '' ) {
-    $where_clauses[] = 'created_at <= %s';
+    $where_clauses[] = 'o.created_at <= %s';
     $where_values[]  = $filter_date_to . ' 23:59:59';
 }
 
 // Payment method
 if ( $filter_payment !== '' ) {
-    $where_clauses[] = 'payment_method = %s';
+    $where_clauses[] = 'o.payment_method = %s';
     $where_values[]  = $filter_payment;
 }
 
 $where_sql = 'WHERE ' . implode( ' AND ', $where_clauses );
 
-$count_sql              = "SELECT COUNT(*) FROM `{$ot}` {$where_sql}";
-$list_sql               = "SELECT * FROM `{$ot}` {$where_sql} ORDER BY created_at DESC LIMIT %d OFFSET %d";
+// SELECT o.* (not *) — the LEFT JOIN below pulls in `c` columns that overlap
+// order columns by name (id, created_at, updated_at, is_test); a bare SELECT *
+// would let customer columns silently clobber order columns in the ARRAY_A
+// result keyed by column name.
+$count_sql              = "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} {$where_sql}";
+$list_sql               = "SELECT o.* FROM `{$ot}` o {$o_test_join} {$where_sql} ORDER BY o.created_at DESC LIMIT %d OFFSET %d";
 $where_values_paginated = array_merge( $where_values, [ $per_page, $offset ] );
 
 $paginated_total = ! empty( $where_values )
@@ -195,7 +208,7 @@ $total_pages = ( $paginated_total > 0 && $per_page > 0 ) ? (int) ceil( $paginate
 // ── Per-status counts for filter tabs ─────────────────────────────────────────
 $status_counts = [];
 $counts_raw = $wpdb->get_results(
-    "SELECT status, COUNT(*) as cnt FROM `{$ot}` WHERE is_test = 0 GROUP BY status",
+    "SELECT o.status, COUNT(*) as cnt FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} GROUP BY o.status",
     ARRAY_A
 );
 foreach ( $counts_raw as $row ) {
@@ -205,7 +218,7 @@ $test_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$ot}` WHERE is_test 
 
 // ── Payment methods for filter dropdown ───────────────────────────────────────
 $payment_methods = $wpdb->get_col(
-    "SELECT DISTINCT payment_method FROM `{$ot}` WHERE is_test = 0 AND payment_method != '' ORDER BY payment_method ASC"
+    "SELECT DISTINCT o.payment_method FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.payment_method != '' ORDER BY o.payment_method ASC"
 );
 
 // ── Base query args for pagination links (preserves active filters) ───────────

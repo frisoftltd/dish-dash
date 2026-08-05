@@ -16,6 +16,15 @@ $oit = $wpdb->prefix . 'dishdash_order_items';
 $ct  = $wpdb->prefix . 'dishdash_customers';
 $rt  = $wpdb->prefix . 'dishdash_reservations';
 
+// ── Test-customer exclusion (v3.15.6) ───────────────────────────────────────────
+// dd_customer_id/customer_id are nullable (orphan rows with no resolvable
+// customer link) — LEFT JOIN + NULL-safe WHERE, never INNER JOIN, so orphans
+// stay counted as non-test. See investigation-testflag.md §1.
+$o_test_join  = "LEFT JOIN `{$ct}` c ON c.id = o.dd_customer_id";
+$o_test_where = "o.is_test=0 AND (c.is_test IS NULL OR c.is_test=0)";
+$r_test_join  = "LEFT JOIN `{$ct}` c ON c.id = r.customer_id";
+$r_test_where = "r.is_test=0 AND (c.is_test IS NULL OR c.is_test=0)";
+
 // ── Active tab ────────────────────────────────────────────────────────────────
 $active_tab = ( isset( $_GET['dd_tab'] ) && $_GET['dd_tab'] === 'reservations' ) ? 'reservations' : 'orders';
 $tab_base   = admin_url( 'admin.php?page=dish-dash-analytics' );
@@ -86,45 +95,51 @@ function dd_fmt_duration( float $seconds ): string {
 if ( $active_tab === 'orders' ) {
 
     $kpi_revenue = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status='delivered' AND is_test=0 AND created_at>=%s", $since
+        "SELECT COALESCE(SUM(o.total),0) FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
     $kpi_fees_analytics = $fees_enabled ? (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COALESCE(SUM(platform_fee),0) FROM `{$ot}`
-         WHERE status = 'delivered' AND platform_fee > 0
-         AND created_at >= %s AND is_test = 0",
+        "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join}
+         WHERE o.status = 'delivered' AND o.platform_fee > 0
+         AND o.created_at >= %s AND {$o_test_where}",
         $since
     ) ) : 0;
     $kpi_orders = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$ot}` WHERE is_test=0 AND created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $kpi_delivered = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$ot}` WHERE status='delivered' AND is_test=0 AND created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $kpi_aov = $kpi_delivered > 0 ? round( $kpi_revenue / $kpi_delivered ) : 0;
 
+    // NOTE: total_customers below counts DISTINCT customer_id — that column is the
+    // WP user ID (not wp_dishdash_customers.id), a pre-existing, separate gap
+    // documented in investigation.md/investigation-b.md and deliberately not part
+    // of the 6-JOIN fix in Release 2 or the test-flag wiring here — it cannot be
+    // joined against c.is_test without repeating that same ID-space mistake, so
+    // it's left untouched. See release Observations.
     $total_customers = (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COUNT(DISTINCT customer_id) FROM `{$ot}` WHERE is_test=0 AND created_at>=%s AND customer_id IS NOT NULL", $since
     ) );
     $returning = (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COUNT(DISTINCT o.dd_customer_id) FROM `{$ot}` o
-         JOIN `{$ct}` c ON c.id=o.dd_customer_id
-         WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1", $since
+         LEFT JOIN `{$ct}` c ON c.id=o.dd_customer_id
+         WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1 AND (c.is_test IS NULL OR c.is_test=0)", $since
     ) );
     $kpi_return_rate = $total_customers > 0 ? round( ($returning/$total_customers)*100 ) : 0;
 
     $prior_revenue = $prior_orders = $prior_aov = 0;
     if ( $since_prior ) {
         $prior_revenue = (float) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COALESCE(SUM(total),0) FROM `{$ot}` WHERE status='delivered' AND is_test=0 AND created_at>=%s AND created_at<%s",
+            "SELECT COALESCE(SUM(o.total),0) FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s AND o.created_at<%s",
             $since_prior, $until_prior
         ) );
         $prior_orders = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$ot}` WHERE is_test=0 AND created_at>=%s AND created_at<%s",
+            "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s AND o.created_at<%s",
             $since_prior, $until_prior
         ) );
         $prior_delivered = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$ot}` WHERE status='delivered' AND is_test=0 AND created_at>=%s AND created_at<%s",
+            "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s AND o.created_at<%s",
             $since_prior, $until_prior
         ) );
         $prior_aov = $prior_delivered > 0 ? round( $prior_revenue / $prior_delivered ) : 0;
@@ -133,63 +148,63 @@ if ( $active_tab === 'orders' ) {
     $today_date = date('Y-m-d', $ts);
     if ( $range === 'today' ) {
         $chart_rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT HOUR(created_at) as period, COALESCE(SUM(total),0) as revenue
-             FROM `{$ot}` WHERE status='delivered' AND DATE(created_at)=%s AND is_test=0
-             GROUP BY HOUR(created_at) ORDER BY period ASC", $today_date
+            "SELECT HOUR(o.created_at) as period, COALESCE(SUM(o.total),0) as revenue
+             FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND DATE(o.created_at)=%s AND {$o_test_where}
+             GROUP BY HOUR(o.created_at) ORDER BY period ASC", $today_date
         ), ARRAY_A );
         $chart_labels = array_map( fn($r) => sprintf('%02d:00', $r['period']), $chart_rows );
     } elseif ( $range === 'all' ) {
         $chart_rows = $wpdb->get_results(
-            "SELECT DATE_FORMAT(created_at,'%Y-%m') as period, COALESCE(SUM(total),0) as revenue
-             FROM `{$ot}` WHERE status='delivered' AND is_test=0
-             GROUP BY DATE_FORMAT(created_at,'%Y-%m') ORDER BY period ASC", ARRAY_A
+            "SELECT DATE_FORMAT(o.created_at,'%Y-%m') as period, COALESCE(SUM(o.total),0) as revenue
+             FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where}
+             GROUP BY DATE_FORMAT(o.created_at,'%Y-%m') ORDER BY period ASC", ARRAY_A
         );
         $chart_labels = array_map( fn($r) => $r['period'], $chart_rows );
     } else {
         $chart_rows = $wpdb->get_results( $wpdb->prepare(
-            "SELECT DATE(created_at) as period, COALESCE(SUM(total),0) as revenue
-             FROM `{$ot}` WHERE status='delivered' AND created_at>=%s AND is_test=0
-             GROUP BY DATE(created_at) ORDER BY period ASC", $since
+            "SELECT DATE(o.created_at) as period, COALESCE(SUM(o.total),0) as revenue
+             FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND o.created_at>=%s AND {$o_test_where}
+             GROUP BY DATE(o.created_at) ORDER BY period ASC", $since
         ), ARRAY_A );
         $chart_labels = array_map( fn($r) => date('D d', strtotime($r['period'])), $chart_rows );
     }
     $chart_revenue = array_map( 'floatval', array_column($chart_rows, 'revenue') );
 
     $speed_confirm = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(TIMESTAMPDIFF(SECOND, created_at, confirmed_at))
-         FROM `{$ot}` WHERE confirmed_at IS NOT NULL AND is_test=0 AND created_at>=%s", $since
+        "SELECT AVG(TIMESTAMPDIFF(SECOND, o.created_at, o.confirmed_at))
+         FROM `{$ot}` o {$o_test_join} WHERE o.confirmed_at IS NOT NULL AND {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $speed_cook = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(TIMESTAMPDIFF(SECOND, confirmed_at, ready_at))
-         FROM `{$ot}` WHERE confirmed_at IS NOT NULL AND ready_at IS NOT NULL AND is_test=0 AND created_at>=%s", $since
+        "SELECT AVG(TIMESTAMPDIFF(SECOND, o.confirmed_at, o.ready_at))
+         FROM `{$ot}` o {$o_test_join} WHERE o.confirmed_at IS NOT NULL AND o.ready_at IS NOT NULL AND {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $speed_delivery = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(TIMESTAMPDIFF(SECOND, ready_at, delivered_at))
-         FROM `{$ot}` WHERE ready_at IS NOT NULL AND delivered_at IS NOT NULL AND is_test=0 AND created_at>=%s", $since
+        "SELECT AVG(TIMESTAMPDIFF(SECOND, o.ready_at, o.delivered_at))
+         FROM `{$ot}` o {$o_test_join} WHERE o.ready_at IS NOT NULL AND o.delivered_at IS NOT NULL AND {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $speed_total = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(TIMESTAMPDIFF(SECOND, created_at, delivered_at))
-         FROM `{$ot}` WHERE delivered_at IS NOT NULL AND is_test=0 AND created_at>=%s", $since
+        "SELECT AVG(TIMESTAMPDIFF(SECOND, o.created_at, o.delivered_at))
+         FROM `{$ot}` o {$o_test_join} WHERE o.delivered_at IS NOT NULL AND {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $has_speed_data = $speed_total > 0;
 
     $prior_speed_total = $since_prior ? (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(TIMESTAMPDIFF(SECOND, created_at, delivered_at))
-         FROM `{$ot}` WHERE delivered_at IS NOT NULL AND is_test=0 AND created_at>=%s AND created_at<%s",
+        "SELECT AVG(TIMESTAMPDIFF(SECOND, o.created_at, o.delivered_at))
+         FROM `{$ot}` o {$o_test_join} WHERE o.delivered_at IS NOT NULL AND {$o_test_where} AND o.created_at>=%s AND o.created_at<%s",
         $since_prior, $until_prior
     ) ) : 0;
 
     $speed_trend_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT DATE(created_at) as day, AVG(TIMESTAMPDIFF(MINUTE, created_at, delivered_at)) as avg_min
-         FROM `{$ot}` WHERE delivered_at IS NOT NULL AND is_test=0 AND created_at>=%s
-         GROUP BY DATE(created_at) ORDER BY day ASC", $since
+        "SELECT DATE(o.created_at) as day, AVG(TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at)) as avg_min
+         FROM `{$ot}` o {$o_test_join} WHERE o.delivered_at IS NOT NULL AND {$o_test_where} AND o.created_at>=%s
+         GROUP BY DATE(o.created_at) ORDER BY day ASC", $since
     ), ARRAY_A );
     $speed_trend_labels = array_map( fn($r) => date('D d', strtotime($r['day'])), $speed_trend_rows );
     $speed_trend_data   = array_map( fn($r) => round((float)$r['avg_min'],1), $speed_trend_rows );
 
     $slowest_orders = $wpdb->get_results( $wpdb->prepare(
-        "SELECT id, customer_name, created_at, TIMESTAMPDIFF(MINUTE, created_at, delivered_at) as mins
-         FROM `{$ot}` WHERE delivered_at IS NOT NULL AND is_test=0 AND created_at>=%s
+        "SELECT o.id, o.customer_name, o.created_at, TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at) as mins
+         FROM `{$ot}` o {$o_test_join} WHERE o.delivered_at IS NOT NULL AND {$o_test_where} AND o.created_at>=%s
          ORDER BY mins DESC LIMIT 5", $since
     ), ARRAY_A );
 
@@ -211,45 +226,46 @@ if ( $active_tab === 'orders' ) {
     }
 
     $status_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT status, COUNT(*) as cnt FROM `{$ot}` WHERE is_test=0 AND created_at>=%s GROUP BY status ORDER BY cnt DESC", $since
+        "SELECT o.status, COUNT(*) as cnt FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s GROUP BY o.status ORDER BY cnt DESC", $since
     ), ARRAY_A );
     $status_map = [];
     foreach ( $status_rows as $r ) $status_map[$r['status']] = (int)$r['cnt'];
 
     $peak_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT HOUR(created_at) as hr, COUNT(*) as cnt FROM `{$ot}` WHERE is_test=0 AND created_at>=%s GROUP BY HOUR(created_at)", $since
+        "SELECT HOUR(o.created_at) as hr, COUNT(*) as cnt FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s GROUP BY HOUR(o.created_at)", $since
     ), ARRAY_A );
     $peak_by_hour = array_fill(0, 24, 0);
     foreach ( $peak_rows as $r ) $peak_by_hour[(int)$r['hr']] = (int)$r['cnt'];
 
     $new_customers = (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COUNT(DISTINCT o.dd_customer_id) FROM `{$ot}` o
-         JOIN `{$ct}` c ON c.id=o.dd_customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders=1", $since
+         LEFT JOIN `{$ct}` c ON c.id=o.dd_customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders=1 AND (c.is_test IS NULL OR c.is_test=0)", $since
     ) );
     $returning_customers = (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COUNT(DISTINCT o.dd_customer_id) FROM `{$ot}` o
-         JOIN `{$ct}` c ON c.id=o.dd_customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1", $since
+         LEFT JOIN `{$ct}` c ON c.id=o.dd_customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1 AND (c.is_test IS NULL OR c.is_test=0)", $since
     ) );
 
     $top_items = $wpdb->get_results( $wpdb->prepare(
         "SELECT oi.item_name, COUNT(*) as cnt, COALESCE(SUM(oi.line_total),0) as revenue
          FROM `{$oit}` oi JOIN `{$ot}` o ON o.id=oi.order_id
-         WHERE o.status='delivered' AND o.is_test=0 AND o.created_at>=%s
+         {$o_test_join}
+         WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s
          GROUP BY oi.item_name ORDER BY cnt DESC LIMIT 10", $since
     ), ARRAY_A );
     $top_item_max = !empty($top_items) ? (int)$top_items[0]['cnt'] : 1;
 
-    $tier_new      = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_orders=0");
-    $tier_regular  = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_orders>=1 AND total_spent<100000");
-    $tier_vip      = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_spent>=100000 AND total_spent<250000");
-    $tier_champion = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_spent>=250000 AND total_spent<500000");
-    $tier_diamond  = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_spent>=500000");
+    $tier_new      = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_orders=0 AND is_test=0");
+    $tier_regular  = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_orders>=1 AND total_spent<100000 AND is_test=0");
+    $tier_vip      = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_spent>=100000 AND total_spent<250000 AND is_test=0");
+    $tier_champion = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_spent>=250000 AND total_spent<500000 AND is_test=0");
+    $tier_diamond  = (int)$wpdb->get_var("SELECT COUNT(*) FROM `{$ct}` WHERE total_spent>=500000 AND is_test=0");
 
     $payment_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT payment_method, COUNT(*) as cnt FROM `{$ot}` WHERE is_test=0 AND created_at>=%s GROUP BY payment_method ORDER BY cnt DESC", $since
+        "SELECT o.payment_method, COUNT(*) as cnt FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s GROUP BY o.payment_method ORDER BY cnt DESC", $since
     ), ARRAY_A );
     $type_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT order_type, COUNT(*) as cnt FROM `{$ot}` WHERE is_test=0 AND created_at>=%s GROUP BY order_type ORDER BY cnt DESC", $since
+        "SELECT o.order_type, COUNT(*) as cnt FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s GROUP BY o.order_type ORDER BY cnt DESC", $since
     ), ARRAY_A );
 
     $insights_engine = new DD_Insights();
@@ -261,70 +277,70 @@ if ( $active_tab === 'orders' ) {
 if ( $active_tab === 'reservations' ) {
 
     $kpi_total = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE created_at>=%s AND is_test=0", $since
+        "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $kpi_confirmed = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE status='confirmed' AND created_at>=%s AND is_test=0", $since
+        "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.status='confirmed' AND r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $kpi_noshow = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE status='no_show' AND created_at>=%s AND is_test=0", $since
+        "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.status='no_show' AND r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $kpi_avg_guests = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(guests) FROM `{$rt}` WHERE created_at>=%s AND is_test=0", $since
+        "SELECT AVG(r.guests) FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $confirm_rate = $kpi_total    > 0 ? round(($kpi_confirmed/$kpi_total)*100)    : 0;
     $noshow_rate  = $kpi_confirmed > 0 ? round(($kpi_noshow/$kpi_confirmed)*100)  : 0;
 
     $bookings_over_time = $wpdb->get_results( $wpdb->prepare(
-        "SELECT DATE(created_at) as day, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0
-         GROUP BY DATE(created_at) ORDER BY day ASC", $since
+        "SELECT DATE(r.created_at) as day, COUNT(*) as cnt FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where}
+         GROUP BY DATE(r.created_at) ORDER BY day ASC", $since
     ), ARRAY_A );
     $bot_labels = array_map( fn($r) => date('D d', strtotime($r['day'])), $bookings_over_time );
     $bot_data   = array_map( fn($r) => (int)$r['cnt'], $bookings_over_time );
 
     $res_status_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT status, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0 GROUP BY status", $since
+        "SELECT r.status, COUNT(*) as cnt FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where} GROUP BY r.status", $since
     ), ARRAY_A );
     $res_status_map = [];
     foreach ($res_status_rows as $r) $res_status_map[$r['status']] = (int)$r['cnt'];
 
     $session_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT session, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0 GROUP BY session ORDER BY cnt DESC", $since
+        "SELECT r.session, COUNT(*) as cnt FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where} GROUP BY r.session ORDER BY cnt DESC", $since
     ), ARRAY_A );
 
     $dow_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT DAYOFWEEK(date) as dow, COUNT(*) as cnt FROM `{$rt}` WHERE created_at>=%s AND is_test=0 GROUP BY dow ORDER BY dow ASC", $since
+        "SELECT DAYOFWEEK(r.date) as dow, COUNT(*) as cnt FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where} GROUP BY dow ORDER BY dow ASC", $since
     ), ARRAY_A );
     $dow_names = [1=>'Sun',2=>'Mon',3=>'Tue',4=>'Wed',5=>'Thu',6=>'Fri',7=>'Sat'];
     $dow_data  = array_fill(1, 7, 0);
     foreach ($dow_rows as $r) $dow_data[(int)$r['dow']] = (int)$r['cnt'];
 
     $party_buckets = [
-        '1–2' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 1 AND 2 AND created_at>=%s AND is_test=0",$since)),
-        '3–4' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 3 AND 4 AND created_at>=%s AND is_test=0",$since)),
-        '5–6' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests BETWEEN 5 AND 6 AND created_at>=%s AND is_test=0",$since)),
-        '7+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE guests >= 7 AND created_at>=%s AND is_test=0",$since)),
+        '1–2' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.guests BETWEEN 1 AND 2 AND r.created_at>=%s AND {$r_test_where}",$since)),
+        '3–4' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.guests BETWEEN 3 AND 4 AND r.created_at>=%s AND {$r_test_where}",$since)),
+        '5–6' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.guests BETWEEN 5 AND 6 AND r.created_at>=%s AND {$r_test_where}",$since)),
+        '7+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.guests >= 7 AND r.created_at>=%s AND {$r_test_where}",$since)),
     ];
 
     $advance_buckets = [
-        'Same day' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))=0 AND created_at>=%s AND is_test=0",$since)),
-        '1 day'    => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))=1 AND created_at>=%s AND is_test=0",$since)),
-        '2–3 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at)) BETWEEN 2 AND 3 AND created_at>=%s AND is_test=0",$since)),
-        '4–7 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at)) BETWEEN 4 AND 7 AND created_at>=%s AND is_test=0",$since)),
-        '1 week+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` WHERE DATEDIFF(date,DATE(created_at))>7 AND created_at>=%s AND is_test=0",$since)),
+        'Same day' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE DATEDIFF(r.date,DATE(r.created_at))=0 AND r.created_at>=%s AND {$r_test_where}",$since)),
+        '1 day'    => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE DATEDIFF(r.date,DATE(r.created_at))=1 AND r.created_at>=%s AND {$r_test_where}",$since)),
+        '2–3 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE DATEDIFF(r.date,DATE(r.created_at)) BETWEEN 2 AND 3 AND r.created_at>=%s AND {$r_test_where}",$since)),
+        '4–7 days' => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE DATEDIFF(r.date,DATE(r.created_at)) BETWEEN 4 AND 7 AND r.created_at>=%s AND {$r_test_where}",$since)),
+        '1 week+'  => (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE DATEDIFF(r.date,DATE(r.created_at))>7 AND r.created_at>=%s AND {$r_test_where}",$since)),
     ];
     $avg_advance = (float) $wpdb->get_var( $wpdb->prepare(
-        "SELECT AVG(DATEDIFF(date,DATE(created_at))) FROM `{$rt}` WHERE created_at>=%s AND is_test=0", $since
+        "SELECT AVG(DATEDIFF(r.date,DATE(r.created_at))) FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where}", $since
     ) );
 
     $deposit_total = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE deposit_required=1 AND created_at>=%s AND is_test=0", $since
+        "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.deposit_required=1 AND r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $deposit_paid = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE deposit_required=1 AND deposit_status='paid' AND created_at>=%s AND is_test=0", $since
+        "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.deposit_required=1 AND r.deposit_status='paid' AND r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $deposit_autocancelled = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$rt}` WHERE status='auto_cancelled' AND created_at>=%s AND is_test=0", $since
+        "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.status='auto_cancelled' AND r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $show_deposit = $deposit_total > 0;
 

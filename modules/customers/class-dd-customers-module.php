@@ -82,11 +82,54 @@ class DD_Customers_Module extends DD_Module {
     //  RENDER
     // ─────────────────────────────────────────
     public function render_admin_page(): void {
+        $this->handle_bulk_action();
         if ( isset( $_GET['export'] ) && $_GET['export'] === 'csv' ) {
             $this->export_csv();
             exit;
         }
         $this->render_page();
+    }
+
+    // ─────────────────────────────────────────
+    //  BULK TEST-FLAG TOGGLE
+    //  Mirrors Orders' dd_bulk_action / mark_test / unmark_test pattern
+    //  (admin/pages/orders.php) — same POST + nonce + redirect shape, no AJAX.
+    //  Gated on dd_view_customers, matching ajax_save_customer() below: this
+    //  module has no separate "manage" capability, only "view" (confirmed via
+    //  install.php's capability list), so that's what already gates every
+    //  write action on this page.
+    // ─────────────────────────────────────────
+    private function handle_bulk_action(): void {
+        if (
+            ! isset( $_POST['dd_bulk_action'], $_POST['dd_bulk_customer_ids'] ) ||
+            ! check_admin_referer( 'dd_bulk_customers' )
+        ) {
+            return;
+        }
+        if ( ! current_user_can( 'dd_view_customers' ) ) return;
+
+        $action       = sanitize_key( $_POST['dd_bulk_action'] );
+        $customer_ids = array_filter( array_map( 'absint', (array) $_POST['dd_bulk_customer_ids'] ) );
+
+        if ( $customer_ids && in_array( $action, [ 'mark_test', 'unmark_test' ], true ) ) {
+            global $wpdb;
+            $table        = $wpdb->prefix . 'dishdash_customers';
+            $placeholders = implode( ',', array_fill( 0, count( $customer_ids ), '%d' ) );
+            $flag         = $action === 'mark_test' ? 1 : 0;
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE `{$table}` SET is_test = %d WHERE id IN ({$placeholders})",
+                $flag,
+                ...$customer_ids
+            ) );
+        }
+
+        $redirect = add_query_arg(
+            'tab',
+            sanitize_key( $_POST['current_tab'] ?? 'orders' ),
+            admin_url( 'admin.php?page=dish-dash-customers' )
+        );
+        wp_safe_redirect( $redirect );
+        exit;
     }
 
     private function render_page(): void {
@@ -133,7 +176,8 @@ class DD_Customers_Module extends DD_Module {
                             ? $per_page_raw : 25;
         $page             = max( 1, isset( $_GET['paged'] ) ? (int) $_GET['paged'] : 1 );
         $offset           = ( $page - 1 ) * $per_page;
-        $active_tab       = ( isset( $_GET['tab'] ) && $_GET['tab'] === 'reservations' ) ? 'reservations' : 'orders';
+        $active_tab       = ( isset( $_GET['tab'] ) && in_array( $_GET['tab'], [ 'reservations', 'test' ], true ) )
+                            ? $_GET['tab'] : 'orders';
 
         // ── Stats ──────────────────────────────────────
         $res_table = $wpdb->prefix . 'dishdash_reservations';
@@ -170,7 +214,7 @@ class DD_Customers_Module extends DD_Module {
                 ? $wpdb->get_var( $wpdb->prepare( $qc, ...$date_params ) )
                 : $wpdb->get_var( $qc ) );
 
-        } else {
+        } elseif ( $active_tab === 'reservations' ) {
 
             if ( $date_from && $date_to ) {
                 $date_where = "AND DATE(c.created_at) >= %s AND DATE(c.created_at) <= %s";
@@ -190,6 +234,17 @@ class DD_Customers_Module extends DD_Module {
                 : $wpdb->get_row( $q );
 
             $new_this_month = null; // not used on reservations tab
+
+        } else { // test
+
+            $stats = $wpdb->get_row(
+                "SELECT
+                    COUNT(*)                    AS total_customers,
+                    SUM(total_orders > 0)       AS with_orders,
+                    SUM(total_orders = 0)       AS reservation_only
+                 FROM {$table} WHERE is_test = 1"
+            );
+            $new_this_month = null; // not used on test tab
 
         }
 
@@ -226,10 +281,13 @@ class DD_Customers_Module extends DD_Module {
         if ( $active_tab === 'orders' ) {
             $where_tab   = 'AND c.total_orders > 0';
             $from_clause = "{$table} c";
-        } else {
+        } elseif ( $active_tab === 'reservations' ) {
             $where_tab   = 'AND r.id IS NOT NULL AND c.total_orders = 0';
             $from_clause = "{$table} c
                 LEFT JOIN {$wpdb->prefix}dishdash_reservations r ON r.customer_id = c.id";
+        } else { // test
+            $where_tab   = 'AND c.is_test = 1';
+            $from_clause = "{$table} c";
         }
 
         // ── Rows ───────────────────────────────────────
@@ -286,6 +344,8 @@ class DD_Customers_Module extends DD_Module {
 
             $orders_url       = add_query_arg( [ 'tab' => 'orders',       'paged' => 1 ], $tab_base );
             $reservations_url = add_query_arg( [ 'tab' => 'reservations', 'paged' => 1 ], $tab_base );
+            $test_url         = add_query_arg( [ 'tab' => 'test',        'paged' => 1 ], $tab_base );
+            $test_tab_count   = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE is_test = 1" );
             ?>
             <div class="dd-tabs">
                 <a href="<?php echo esc_url( $orders_url ); ?>"
@@ -295,6 +355,10 @@ class DD_Customers_Module extends DD_Module {
                 <a href="<?php echo esc_url( $reservations_url ); ?>"
                    class="dd-tab<?php echo $active_tab === 'reservations' ? ' dd-tab--active' : ''; ?>">
                     🪑 Reservation Guests
+                </a>
+                <a href="<?php echo esc_url( $test_url ); ?>"
+                   class="dd-tab<?php echo $active_tab === 'test' ? ' dd-tab--active' : ''; ?>">
+                    🧪 Test<?php if ( $test_tab_count > 0 ) : ?> <span class="dd-tab-count"><?php echo $test_tab_count; ?></span><?php endif; ?>
                 </a>
             </div>
 
@@ -318,7 +382,7 @@ class DD_Customers_Module extends DD_Module {
                     <div class="dd-kpi-value"><?php echo number_format( $new_this_month ); ?></div>
                 </div>
             </div>
-            <?php else : ?>
+            <?php elseif ( $active_tab === 'reservations' ) : ?>
             <div class="dd-kpi-grid dd-kpi-grid--4">
                 <div class="dd-kpi-card">
                     <div class="dd-kpi-label">Reservation Guests</div>
@@ -335,6 +399,21 @@ class DD_Customers_Module extends DD_Module {
                 <div class="dd-kpi-card">
                     <div class="dd-kpi-label">Avg Party Size</div>
                     <div class="dd-kpi-value"><?php echo number_format( (float) $stats->avg_party, 1 ); ?></div>
+                </div>
+            </div>
+            <?php else : ?>
+            <div class="dd-kpi-grid dd-kpi-grid--4">
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Test Customers</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->total_customers ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">With Orders</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->with_orders ); ?></div>
+                </div>
+                <div class="dd-kpi-card">
+                    <div class="dd-kpi-label">Reservation-only</div>
+                    <div class="dd-kpi-value"><?php echo number_format( (int) $stats->reservation_only ); ?></div>
                 </div>
             </div>
             <?php endif; ?>
@@ -473,6 +552,23 @@ class DD_Customers_Module extends DD_Module {
                 </div>
             </div>
 
+            <form method="POST" action="<?php echo esc_url( admin_url( 'admin.php?page=dish-dash-customers' ) ); ?>" id="dd-cust-bulk-form">
+                <?php wp_nonce_field( 'dd_bulk_customers' ); ?>
+                <input type="hidden" name="current_tab" value="<?php echo esc_attr( $active_tab ); ?>">
+                <input type="hidden" name="dd_bulk_action" id="dd-cust-bulk-action-input" value="">
+
+                <!-- Bulk action bar (hidden until rows selected) -->
+                <div class="dd-bulk-bar" id="dd-cust-bulk-bar" style="display:none">
+                    <span class="dd-bulk-count" id="dd-cust-bulk-count">0 selected</span>
+                    <select class="dd-bulk-select" id="dd-cust-bulk-select">
+                        <option value="">Change to...</option>
+                        <option value="mark_test">Mark as Test</option>
+                        <option value="unmark_test">Remove Test flag</option>
+                    </select>
+                    <button type="button" class="dd-bulk-apply" id="dd-cust-bulk-apply">Apply</button>
+                    <button type="button" class="dd-bulk-clear" id="dd-cust-bulk-clear">Clear</button>
+                </div>
+
             <div class="dd-card dd-card--table">
                 <?php if ( empty( $customers ) ) : ?>
                 <div class="dd-coming-soon">
@@ -484,6 +580,9 @@ class DD_Customers_Module extends DD_Module {
                 <table class="dd-cust-table">
                     <thead>
                         <tr>
+                            <th class="dd-col-check">
+                                <input type="checkbox" id="dd-cust-check-all" class="dd-check">
+                            </th>
                             <th><?php esc_html_e( 'Customer', 'dish-dash' ); ?></th>
                             <th><?php esc_html_e( 'WhatsApp', 'dish-dash' ); ?></th>
                             <th><?php esc_html_e( 'Birthday', 'dish-dash' ); ?></th>
@@ -508,6 +607,11 @@ class DD_Customers_Module extends DD_Module {
                         $initial = mb_strtoupper( mb_substr( trim( $c->name ), 0, 1 ) );
                     ?>
                     <tr>
+                        <td class="dd-col-check" onclick="event.stopPropagation()">
+                            <input type="checkbox" name="dd_bulk_customer_ids[]"
+                                value="<?php echo (int) $c->id; ?>"
+                                class="dd-row-check dd-check">
+                        </td>
                         <td>
                             <div class="dd-cust-name-cell">
                                 <div class="dd-cust-avatar"><?php echo esc_html( $initial ); ?></div>
@@ -527,6 +631,9 @@ class DD_Customers_Module extends DD_Module {
                             <span class="dd-tier-badge dd-tier-badge--<?php echo esc_attr( $tier_slug ); ?>">
                                 <?php echo $tier_icon . ' ' . esc_html( $tier_label ); ?>
                             </span>
+                            <?php if ( ! empty( $c->is_test ) ) : ?>
+                            <span class="dd-test-badge">Test</span>
+                            <?php endif; ?>
                         </td>
                         <td class="dd-cust-joined"><?php echo esc_html( date_i18n( 'M j, Y', strtotime( $c->created_at ) ) ); ?></td>
                     </tr>
@@ -553,6 +660,65 @@ class DD_Customers_Module extends DD_Module {
                 ?>
             </div>
             <?php endif; ?>
+            </form>
+
+            <script>
+            (function() {
+                var checkAll  = document.getElementById( 'dd-cust-check-all' );
+                var bulkBar   = document.getElementById( 'dd-cust-bulk-bar' );
+                var bulkCount = document.getElementById( 'dd-cust-bulk-count' );
+                var bulkApply = document.getElementById( 'dd-cust-bulk-apply' );
+                var bulkClear = document.getElementById( 'dd-cust-bulk-clear' );
+                var bulkSel   = document.getElementById( 'dd-cust-bulk-select' );
+                var actionInp = document.getElementById( 'dd-cust-bulk-action-input' );
+                var form      = document.getElementById( 'dd-cust-bulk-form' );
+
+                function getChecked() {
+                    return document.querySelectorAll( '.dd-row-check:checked' );
+                }
+
+                function updateBar() {
+                    var checked = getChecked().length;
+                    bulkBar.style.display = checked > 0 ? 'flex' : 'none';
+                    bulkCount.textContent = checked + ' customer' + ( checked !== 1 ? 's' : '' ) + ' selected';
+                    var all = document.querySelectorAll( '.dd-row-check' );
+                    if ( checkAll ) checkAll.indeterminate = checked > 0 && checked < all.length;
+                    if ( checkAll ) checkAll.checked = checked > 0 && checked === all.length;
+                }
+
+                if ( checkAll ) {
+                    checkAll.addEventListener( 'change', function () {
+                        document.querySelectorAll( '.dd-row-check' ).forEach( function ( cb ) {
+                            cb.checked = checkAll.checked;
+                        } );
+                        updateBar();
+                    } );
+                }
+
+                document.querySelectorAll( '.dd-row-check' ).forEach( function ( cb ) {
+                    cb.addEventListener( 'change', updateBar );
+                } );
+
+                if ( bulkApply ) {
+                    bulkApply.addEventListener( 'click', function () {
+                        var action = bulkSel.value;
+                        if ( ! action ) { alert( 'Please select an action.' ); return; }
+                        if ( getChecked().length === 0 ) { alert( 'Please select at least one customer.' ); return; }
+                        if ( ! confirm( 'Apply "' + bulkSel.options[ bulkSel.selectedIndex ].text + '" to ' + getChecked().length + ' customers?' ) ) return;
+                        actionInp.value = action;
+                        form.submit();
+                    } );
+                }
+
+                if ( bulkClear ) {
+                    bulkClear.addEventListener( 'click', function () {
+                        document.querySelectorAll( '.dd-row-check' ).forEach( function ( cb ) { cb.checked = false; } );
+                        if ( checkAll ) checkAll.checked = false;
+                        updateBar();
+                    } );
+                }
+            })();
+            </script>
 
         </div><!-- /dd-page-wrap -->
         </div><!-- /wrap dd-admin-wrap -->

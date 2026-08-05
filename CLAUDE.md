@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.15.5 (2026-08-05)
+> Last updated: v3.15.6 (2026-08-05)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.15.5 |
+| **Deployed version** | v3.15.6 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.13.5 — internal-only CSV menu import tool added to Tools page (`admin/pages/csv-menu-import.php`, rendered via `DD_Admin::render_tools()`). Two-step preview-then-commit flow: parses/validates a CSV (name, regular_price required; description, short_description, category, image_url, prep_time optional), previews counts with zero writes, then requires a typed restaurant-name confirmation before wiping all WooCommerce products and reimporting. Categories upserted by name (never deleted), images de-duped via `_dd_csv_source_url` postmeta (never deleted), whole commit wrapped in a DB transaction with rollback on failure. Gated to manage_options users who do NOT hold `dd_restaurant_owner`/`dd_restaurant_manager` (those roles have manage_options directly per install.php, so a plain capability check isn't sufficient). Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.15.6 — Test Customer Flag shipped. `is_test TINYINT(1) NOT NULL DEFAULT 0` added to `wp_dishdash_customers` (admin-toggle only, mirrors the existing Orders/Reservations "mark as test" pattern — new "🧪 Test" tab/badge/bulk-action on the Customers admin page). `DD_Customer_Manager::upsert()` reads the flag and skips lifetime-stat increments for test customers, never writes it. Wired into every consuming query across Dashboard, Analytics (the 6 JOINs fixed in v3.15.5), AI Insights, Orders list, Reservations list, and Billing (incl. the "Mark Paid" ledger re-sum) via `LEFT JOIN wp_dishdash_customers c ON ...dd_customer_id/customer_id = c.id WHERE (c.is_test IS NULL OR c.is_test = 0)` — LEFT JOIN only, per the caveat in `investigation-testflag.md` §1: orphan orders/reservations (NULL customer link) must stay counted as non-test, an INNER JOIN would silently drop them. Removed `scripts/dd-b-backfill.php` (its one-time job — confirmed run on live, 21 linked / 1 orphan). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
