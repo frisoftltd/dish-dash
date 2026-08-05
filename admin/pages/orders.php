@@ -944,6 +944,33 @@ window.ddOrdersData = {
                          + '↩ Reopen as Pending</button>';
         }
 
+        // v3.16.1 — fallback actions for the two statuses no automated flow
+        // and no admin button previously covered (investigation-pending-orders.md
+        // §6). processing = WC-routed checkout already confirmed paid
+        // (payment_status='paid' set by wc_payment_completed()) — same action
+        // pair as 'pending' gets, since it's equally ready for kitchen handoff.
+        if ( status === 'processing' ) {
+            actionsHtml += btn( 'confirmed', '✓ Confirm', 'dd-btn-primary', id );
+            actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
+        }
+
+        // pending_payment = PesaPal, payment not yet confirmed. Deliberately
+        // NO Confirm button here — that would bypass the v3.16.0 payment-status
+        // gate entirely. Cancel handles dead/abandoned attempts (like #14).
+        // Recheck re-runs the exact same authoritative PesaPal verification the
+        // customer-facing poll already uses (dd_pesapal_check_status) — if it
+        // finds COMPLETED it promotes the row server-side (pending/paid) via
+        // the existing, already-idempotent promote_pesapal_order(), same as a
+        // real customer poll would.
+        if ( status === 'pending_payment' ) {
+            if ( order.pesapal_tracking_id ) {
+                actionsHtml += '<button type="button" class="dd-btn dd-btn-primary dd-modal-recheck-btn" '
+                             + 'data-order-id="' + id + '" data-tracking-id="' + esc( order.pesapal_tracking_id ) + '">'
+                             + '🔄 Recheck Payment</button>';
+            }
+            actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
+        }
+
         modalActions.innerHTML = actionsHtml;
 
         // Wire action buttons
@@ -992,6 +1019,48 @@ window.ddOrdersData = {
                 this.disabled    = true;
             } );
         } );
+
+        // Recheck Payment (v3.16.1, pending_payment only)
+        modalActions.querySelectorAll( '.dd-modal-recheck-btn' ).forEach( function ( b ) {
+            b.addEventListener( 'click', function () {
+                recheckPesapalStatus( this.dataset.orderId, this.dataset.trackingId, this );
+            } );
+        } );
+    }
+
+    // Re-runs the same authoritative PesaPal status check the customer-facing
+    // poll uses (dd_pesapal_check_status — nopriv-registered, so the existing
+    // frontend nonce works here unchanged). On COMPLETED it promotes the order
+    // server-side exactly as a real poll would, then refreshes the modal.
+    function recheckPesapalStatus( orderId, trackingId, btnEl ) {
+        if ( btnEl ) { btnEl.disabled = true; btnEl.textContent = 'Checking…'; }
+        setLoading( true );
+        var data = new FormData();
+        data.append( 'action', 'dd_pesapal_check_status' );
+        data.append( 'order_tracking_id', trackingId );
+        data.append( 'nonce', window.ddOrdersData.nonce );
+
+        fetch( window.ddOrdersData.ajaxUrl, { method: 'POST', body: data } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                setLoading( false );
+                if ( res.success && res.data && res.data.paid ) {
+                    var row = document.querySelector( 'tr[data-order-id="' + orderId + '"]' );
+                    if ( row ) {
+                        var badge = row.querySelector( '.dd-status-badge-cell' );
+                        if ( badge ) badge.innerHTML = renderBadge( 'pending' );
+                    }
+                    fetchOrder( orderId );
+                } else {
+                    if ( btnEl ) { btnEl.disabled = false; btnEl.textContent = '🔄 Recheck Payment'; }
+                    var statusMsg = ( res.data && res.data.status ) ? res.data.status : 'still pending';
+                    alert( 'Not paid yet — PesaPal reports: ' + statusMsg );
+                }
+            } )
+            .catch( function () {
+                setLoading( false );
+                if ( btnEl ) { btnEl.disabled = false; btnEl.textContent = '🔄 Recheck Payment'; }
+            } );
     }
 
     function updateStatus( orderId, newStatus ) {

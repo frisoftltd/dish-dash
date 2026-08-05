@@ -111,11 +111,18 @@ function dd_valid_order_type( string $type ): string {
  */
 function dd_order_status_transitions(): array {
     return [
-        'pending'   => [ 'confirmed', 'cancelled' ],
-        'confirmed' => [ 'ready', 'cancelled' ],
-        'ready'     => [ 'delivered', 'cancelled' ],
-        'delivered' => [ 'ready' ],
-        'cancelled' => [ 'pending' ],
+        'pending'         => [ 'confirmed', 'cancelled' ],
+        'confirmed'       => [ 'ready', 'cancelled' ],
+        'ready'           => [ 'delivered', 'cancelled' ],
+        'delivered'       => [ 'ready' ],
+        'cancelled'       => [ 'pending' ],
+        // v3.16.1 — fallback action buttons for the two orphan statuses
+        // (investigation-pending-orders.md §6). pending_payment (PesaPal,
+        // unpaid) only allows Cancel — never Confirm, that would bypass the
+        // payment-status gate entirely. processing (WC-routed, already
+        // payment_status='paid') allows the same pair 'pending' gets.
+        'pending_payment' => [ 'cancelled' ],
+        'processing'      => [ 'confirmed', 'cancelled' ],
     ];
 }
 

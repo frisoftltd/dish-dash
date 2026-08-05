@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.16.0 (2026-08-05)
+> Last updated: v3.16.1 (2026-08-05)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.16.0 |
+| **Deployed version** | v3.16.1 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.16.0 — Guarded the Dashboard's "mark stale orders delivered" tool (`dd_bulk_deliver_stale`, `admin/pages/dashboard.php`) against unpaid orders. Previously it bulk-marked any order older than 24h and not already `delivered`/`cancelled` as `delivered` regardless of `payment_status` — using it on an abandoned/unpaid PesaPal `pending_payment` order (found live during `investigation-pending-orders.md`, order #14, 70,200 RWF) would have set `status='delivered'`, triggered `recalculate_fee_for_status_change()` to assign a `platform_fee`, and injected phantom revenue into Analytics/Billing. Fixed with `AND (payment_method='cod' OR payment_status='paid')` on both the candidate-select and the update query. COD is deliberately exempted from the `payment_status` check — cash is collected in person at delivery, so COD orders never get `payment_status` set to `'paid'` anywhere in the codebase (confirmed by reading every write site); gating on `payment_status` alone would have permanently broken the tool for COD, its main use case. `momo_manual`'s "I have paid" tap only ever reaches `claimed` (an unverified customer attestation, by design never `'paid'`) so it's correctly still excluded. Unpaid non-COD orders are excluded from candidacy entirely (never selected, never updated) rather than skipped-with-a-message, since the handler had no notice infrastructure to begin with — they stay visible on the Orders admin page for manual handling. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.16.1 — Added fallback order-detail-modal action buttons for the two statuses that previously rendered zero buttons: `pending_payment` (PesaPal, awaiting payment — gets Cancel + a new "🔄 Recheck Payment" button that re-runs the same authoritative check the customer-facing poll uses, `dd_pesapal_check_status`, no new backend endpoint needed) and `processing` (WC-routed checkout, already `payment_status='paid'` — gets the same Confirm + Cancel pair `pending` has). Also had to add both statuses to `dd_order_status_transitions()` (`dishdash-core/class-dd-helpers.php`) — `update_status()` validates every transition against this allow-list, so the buttons would have silently failed without it. Deliberately no Confirm button on `pending_payment` — that would bypass the v3.16.0 payment-status gate. This closes the dead-end found in `investigation-pending-orders.md` §6 (order #14 needed a direct DB query to resolve because no UI action existed). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
