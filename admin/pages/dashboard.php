@@ -12,6 +12,19 @@ if ( ! current_user_can( 'read' ) ) return;
 global $wpdb;
 
 // ── Bulk mark stale orders as Delivered ───────────────────────────────────────
+// Payment-status gate (v3.16.0): payment_status='paid' is only ever set by a
+// verified gateway callback (PesaPal poll/IPN, MTN MoMo, WooCommerce bridge,
+// IremboPay) — never for COD, and never for momo_manual (its "I have paid" tap
+// only reaches 'claimed', an unverified customer attestation, by design never
+// 'paid'). COD is the one legitimate exception: cash is collected in person at
+// delivery, so payment_status stays 'unpaid' for a COD order's entire life,
+// including after a real delivery — gating on payment_status alone would
+// permanently exclude COD, this tool's main use case. So: COD is always
+// eligible; every other payment method requires payment_status='paid'.
+// Unpaid non-COD orders (e.g. an abandoned PesaPal pending_payment order) are
+// excluded from candidacy entirely — never selected, never updated — and stay
+// visible on the Orders admin page for manual handling, same as before this
+// change. See investigation-pending-orders.md §6.
 if (
     isset( $_POST['dd_bulk_deliver_stale'] ) &&
     check_admin_referer( 'dd_bulk_deliver_stale' )
@@ -20,6 +33,7 @@ if (
         "SELECT id, status FROM `{$wpdb->prefix}dishdash_orders`
          WHERE status NOT IN ('delivered','cancelled')
          AND is_test = 0
+         AND ( payment_method = 'cod' OR payment_status = 'paid' )
          AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
     );
     $wpdb->query(
@@ -27,6 +41,7 @@ if (
          SET status = 'delivered', updated_at = NOW()
          WHERE status NOT IN ('delivered','cancelled')
          AND is_test = 0
+         AND ( payment_method = 'cod' OR payment_status = 'paid' )
          AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
     );
     if ( class_exists( 'DD_Orders_Module' ) ) {

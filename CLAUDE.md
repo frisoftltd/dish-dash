@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.15.9 (2026-08-05)
+> Last updated: v3.16.0 (2026-08-05)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.15.9 |
+| **Deployed version** | v3.16.0 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.15.9 — Cosmetic fix: the "Orders by Status" and "Bookings by Status" breakdown tables added in v3.15.8 (reusing `.dd-speed-table`) had zero horizontal cell padding on the Analytics page, sitting flush against the card edge. Root cause: `.dd-analytics-wrap .dd-speed-table td/th` intentionally has `padding: Npx 0` (no horizontal padding) because its one prior user — the Order Speed "slowest orders" table — gets its edge padding from a wrapper div (`.dd-speed-slowest`, which IS in the `.dd-dash-card > *` 24px-padding list), not from the table itself; the new breakdown tables sit directly in `.dd-dash-card` with no such wrapper, so they got none. Fixed by adding a second class (`dd-status-table`) to just the two new tables and a scoped CSS rule giving their first/last cell 24px padding — `.dd-speed-table`'s own rules and the Order Speed table are untouched. CSS-only, no query/logic changes. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.16.0 — Guarded the Dashboard's "mark stale orders delivered" tool (`dd_bulk_deliver_stale`, `admin/pages/dashboard.php`) against unpaid orders. Previously it bulk-marked any order older than 24h and not already `delivered`/`cancelled` as `delivered` regardless of `payment_status` — using it on an abandoned/unpaid PesaPal `pending_payment` order (found live during `investigation-pending-orders.md`, order #14, 70,200 RWF) would have set `status='delivered'`, triggered `recalculate_fee_for_status_change()` to assign a `platform_fee`, and injected phantom revenue into Analytics/Billing. Fixed with `AND (payment_method='cod' OR payment_status='paid')` on both the candidate-select and the update query. COD is deliberately exempted from the `payment_status` check — cash is collected in person at delivery, so COD orders never get `payment_status` set to `'paid'` anywhere in the codebase (confirmed by reading every write site); gating on `payment_status` alone would have permanently broken the tool for COD, its main use case. `momo_manual`'s "I have paid" tap only ever reaches `claimed` (an unverified customer attestation, by design never `'paid'`) so it's correctly still excluded. Unpaid non-COD orders are excluded from candidacy entirely (never selected, never updated) rather than skipped-with-a-message, since the handler had no notice infrastructure to begin with — they stay visible on the Orders admin page for manual handling. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
