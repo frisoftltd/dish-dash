@@ -104,8 +104,12 @@ if ( $active_tab === 'orders' ) {
          AND o.created_at >= %s AND {$o_test_where}",
         $since
     ) ) : 0;
+    // Total Orders — delivered only (v3.15.8), matching Total Revenue's scope.
+    // Previously unfiltered (counted every status, including cancelled/pending/
+    // processing/pending_payment rows that contributed nothing to revenue) —
+    // see investigation-analytics-status.md §3.
     $kpi_orders = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s", $since
+        "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s", $since
     ) );
     $kpi_delivered = (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s", $since
@@ -135,7 +139,7 @@ if ( $active_tab === 'orders' ) {
             $since_prior, $until_prior
         ) );
         $prior_orders = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s AND o.created_at<%s",
+            "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status='delivered' AND {$o_test_where} AND o.created_at>=%s AND o.created_at<%s",
             $since_prior, $until_prior
         ) );
         $prior_delivered = (int) $wpdb->get_var( $wpdb->prepare(
@@ -225,11 +229,25 @@ if ( $active_tab === 'orders' ) {
             'body'=>'Customers who wait over 45 minutes are significantly less likely to reorder. Identify the slowest stage above and tackle it first.' ];
     }
 
+    // Status breakdown (v3.15.8) — count + value per status, every status that
+    // has rows in range (never hidden — the point is visibility into
+    // stuck/lost orders like pending_payment). $status_map (counts only)
+    // still feeds the existing ddStatusChart doughnut unchanged; $status_rows
+    // itself (count + revenue) feeds the new breakdown table.
     $status_rows = $wpdb->get_results( $wpdb->prepare(
-        "SELECT o.status, COUNT(*) as cnt FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s GROUP BY o.status ORDER BY cnt DESC", $since
+        "SELECT o.status, COUNT(*) as cnt, COALESCE(SUM(o.total),0) as revenue FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s GROUP BY o.status ORDER BY cnt DESC", $since
     ), ARRAY_A );
     $status_map = [];
     foreach ( $status_rows as $r ) $status_map[$r['status']] = (int)$r['cnt'];
+    $order_status_labels = [
+        'pending'         => 'Pending',
+        'confirmed'       => 'Confirmed',
+        'ready'           => 'Ready',
+        'delivered'       => 'Delivered',
+        'cancelled'       => 'Cancelled',
+        'processing'      => 'Processing',
+        'pending_payment' => 'Pending Payment',
+    ];
 
     $peak_rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT HOUR(o.created_at) as hr, COUNT(*) as cnt FROM `{$ot}` o {$o_test_join} WHERE {$o_test_where} AND o.created_at>=%s GROUP BY HOUR(o.created_at)", $since
@@ -298,11 +316,21 @@ if ( $active_tab === 'reservations' ) {
     $bot_labels = array_map( fn($r) => date('D d', strtotime($r['day'])), $bookings_over_time );
     $bot_data   = array_map( fn($r) => (int)$r['cnt'], $bookings_over_time );
 
+    // Status breakdown (v3.15.8) — count only. No value column exists on a
+    // reservation row that represents order value (see
+    // investigation-analytics-status.md §5) — do not fabricate one.
     $res_status_rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT r.status, COUNT(*) as cnt FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where} GROUP BY r.status", $since
     ), ARRAY_A );
     $res_status_map = [];
     foreach ($res_status_rows as $r) $res_status_map[$r['status']] = (int)$r['cnt'];
+    $res_status_labels = [
+        'pending'        => 'Pending',
+        'confirmed'      => 'Confirmed',
+        'cancelled'      => 'Cancelled',
+        'no_show'        => 'No-show',
+        'auto_cancelled' => 'Auto-Cancelled',
+    ];
 
     $session_rows = $wpdb->get_results( $wpdb->prepare(
         "SELECT r.session, COUNT(*) as cnt FROM `{$rt}` r {$r_test_join} WHERE r.created_at>=%s AND {$r_test_where} GROUP BY r.session ORDER BY cnt DESC", $since
@@ -341,6 +369,14 @@ if ( $active_tab === 'reservations' ) {
     ) );
     $deposit_autocancelled = (int) $wpdb->get_var( $wpdb->prepare(
         "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE r.status='auto_cancelled' AND r.created_at>=%s AND {$r_test_where}", $since
+    ) );
+    // Deposits Collected (v3.15.8) — the only real system-processed money on
+    // reservations. Explicitly NOT labeled "Revenue": deposit_amount is a
+    // partial hold-fee, not an estimate of what the table will spend — see
+    // investigation-analytics-status.md §5. deposit_status='paid' already
+    // implies deposit_required=1 (the column defaults to 'none' otherwise).
+    $deposits_collected = (float) $wpdb->get_var( $wpdb->prepare(
+        "SELECT COALESCE(SUM(r.deposit_amount),0) FROM `{$rt}` r {$r_test_join} WHERE r.deposit_status='paid' AND r.created_at>=%s AND {$r_test_where}", $since
     ) );
     $show_deposit = $deposit_total > 0;
 
@@ -582,6 +618,20 @@ if ( $active_tab === 'reservations' ) {
       <div class="dd-dash-card">
         <div class="dd-card-header"><span class="dd-card-title">Orders by Status</span></div>
         <div class="dd-chart-wrap" style="height:240px"><canvas id="ddStatusChart"></canvas></div>
+        <table class="dd-speed-table">
+          <thead><tr><th>Status</th><th>Count</th><th>Value</th></tr></thead>
+          <tbody>
+          <?php foreach ($status_rows as $sr):
+            $lbl = $order_status_labels[$sr['status']] ?? ucfirst(str_replace('_',' ',$sr['status']));
+          ?>
+            <tr>
+              <td><?php echo esc_html($lbl); ?></td>
+              <td><?php echo number_format((int)$sr['cnt']); ?></td>
+              <td><?php echo dd_an_rwf((float)$sr['revenue']); ?></td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
       </div>
     </div>
     <div class="dd-col-right">
@@ -736,6 +786,19 @@ if ( $active_tab === 'reservations' ) {
     <div class="dd-dash-card">
       <div class="dd-card-header"><span class="dd-card-title">Bookings by Status</span></div>
       <div class="dd-chart-wrap" style="height:220px"><canvas id="ddResStatusChart"></canvas></div>
+      <table class="dd-speed-table">
+        <thead><tr><th>Status</th><th>Count</th></tr></thead>
+        <tbody>
+        <?php foreach ($res_status_rows as $sr):
+          $lbl = $res_status_labels[$sr['status']] ?? ucfirst(str_replace('_',' ',$sr['status']));
+        ?>
+          <tr>
+            <td><?php echo esc_html($lbl); ?></td>
+            <td><?php echo number_format((int)$sr['cnt']); ?></td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
     </div>
     <div class="dd-dash-card">
       <div class="dd-card-header"><span class="dd-card-title">Bookings by Session</span></div>
@@ -801,6 +864,10 @@ if ( $active_tab === 'reservations' ) {
       <div class="dd-kpi-card" style="--kpi-accent:#DC2626">
         <div class="dd-kpi-label">Auto-Cancelled</div>
         <div class="dd-kpi-value"><?php echo number_format($deposit_autocancelled); ?></div>
+      </div>
+      <div class="dd-kpi-card" style="--kpi-accent:#7C3AED">
+        <div class="dd-kpi-label">Deposits Collected</div>
+        <div class="dd-kpi-value"><?php echo dd_an_rwf($deposits_collected); ?></div>
       </div>
     </div>
   </div>
