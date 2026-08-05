@@ -1536,6 +1536,18 @@ a.dd-badge-link:hover {
 }
 .dd-analytics-wrap .dd-speed-table tr:last-child td { border-bottom: none; }
 
+/* Status breakdown tables (v3.15.8, Orders by Status / Bookings by Status) —
+   these sit directly inside .dd-dash-card with no wrapper div, unlike the
+   Order Speed "slowest orders" table (wrapped in .dd-speed-slowest, which is
+   what gives IT its 24px left/right padding at the container level — see the
+   ".dd-dash-card > .dd-speed-slowest" rule above). Scoped to .dd-status-table
+   only, so this doesn't touch .dd-speed-table's own padding rules or affect
+   the Order Speed table. */
+.dd-analytics-wrap .dd-status-table th:first-child,
+.dd-analytics-wrap .dd-status-table td:first-child { padding-left: 24px; }
+.dd-analytics-wrap .dd-status-table th:last-child,
+.dd-analytics-wrap .dd-status-table td:last-child { padding-right: 24px; }
+
 /* hbar padding inside cards */
 .dd-analytics-wrap .dd-dash-card .dd-hbar-row {
     display: flex;

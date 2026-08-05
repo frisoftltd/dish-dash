@@ -618,7 +618,7 @@ if ( $active_tab === 'reservations' ) {
       <div class="dd-dash-card">
         <div class="dd-card-header"><span class="dd-card-title">Orders by Status</span></div>
         <div class="dd-chart-wrap" style="height:240px"><canvas id="ddStatusChart"></canvas></div>
-        <table class="dd-speed-table">
+        <table class="dd-speed-table dd-status-table">
           <thead><tr><th>Status</th><th>Count</th><th>Value</th></tr></thead>
           <tbody>
           <?php foreach ($status_rows as $sr):
@@ -786,7 +786,7 @@ if ( $active_tab === 'reservations' ) {
     <div class="dd-dash-card">
       <div class="dd-card-header"><span class="dd-card-title">Bookings by Status</span></div>
       <div class="dd-chart-wrap" style="height:220px"><canvas id="ddResStatusChart"></canvas></div>
-      <table class="dd-speed-table">
+      <table class="dd-speed-table dd-status-table">
         <thead><tr><th>Status</th><th>Count</th></tr></thead>
         <tbody>
         <?php foreach ($res_status_rows as $sr):

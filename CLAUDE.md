@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.15.8 (2026-08-05)
+> Last updated: v3.15.9 (2026-08-05)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.15.8 |
+| **Deployed version** | v3.15.9 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.15.8 — Analytics status breakdown, orders + reservations. Total Orders KPI (Orders tab) now filters `status='delivered'`, same as Total Revenue — was previously unfiltered, counting cancelled/pending/processing/pending_payment rows that contributed zero revenue (`investigation-analytics-status.md` §3). New per-status breakdown table under "Orders by Status" (count + `SUM(total)` value per status — extends the existing `GROUP BY status` query that already fed the doughnut chart; every status with rows shown, none hidden, so stuck orders like `pending_payment` are now visible). New per-status breakdown table under "Bookings by Status" on the Reservations tab — count only, no fabricated value column, since no order-value field exists on a reservation row. New "Deposits Collected" KPI card (`SUM(deposit_amount) WHERE deposit_status='paid'`) in the Reservations tab's Deposit Analytics block — the only real system-processed money on reservations, deliberately never labeled "Revenue". All new/changed queries preserve the v3.15.6/7 test-customer LEFT-JOIN exclusion. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.15.9 — Cosmetic fix: the "Orders by Status" and "Bookings by Status" breakdown tables added in v3.15.8 (reusing `.dd-speed-table`) had zero horizontal cell padding on the Analytics page, sitting flush against the card edge. Root cause: `.dd-analytics-wrap .dd-speed-table td/th` intentionally has `padding: Npx 0` (no horizontal padding) because its one prior user — the Order Speed "slowest orders" table — gets its edge padding from a wrapper div (`.dd-speed-slowest`, which IS in the `.dd-dash-card > *` 24px-padding list), not from the table itself; the new breakdown tables sit directly in `.dd-dash-card` with no such wrapper, so they got none. Fixed by adding a second class (`dd-status-table`) to just the two new tables and a scoped CSS rule giving their first/last cell 24px padding — `.dd-speed-table`'s own rules and the Order Speed table are untouched. CSS-only, no query/logic changes. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
