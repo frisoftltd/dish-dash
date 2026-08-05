@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.15.6 (2026-08-05)
+> Last updated: v3.15.7 (2026-08-05)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.15.6 |
+| **Deployed version** | v3.15.7 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.15.6 — Test Customer Flag shipped. `is_test TINYINT(1) NOT NULL DEFAULT 0` added to `wp_dishdash_customers` (admin-toggle only, mirrors the existing Orders/Reservations "mark as test" pattern — new "🧪 Test" tab/badge/bulk-action on the Customers admin page). `DD_Customer_Manager::upsert()` reads the flag and skips lifetime-stat increments for test customers, never writes it. Wired into every consuming query across Dashboard, Analytics (the 6 JOINs fixed in v3.15.5), AI Insights, Orders list, Reservations list, and Billing (incl. the "Mark Paid" ledger re-sum) via `LEFT JOIN wp_dishdash_customers c ON ...dd_customer_id/customer_id = c.id WHERE (c.is_test IS NULL OR c.is_test = 0)` — LEFT JOIN only, per the caveat in `investigation-testflag.md` §1: orphan orders/reservations (NULL customer link) must stay counted as non-test, an INNER JOIN would silently drop them. Removed `scripts/dd-b-backfill.php` (its one-time job — confirmed run on live, 21 linked / 1 orphan). Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.15.7 — Customers admin page's own Ordering Customers and Reservation Guests tabs now filter `is_test = 0` (list queries + all stat cards), closing a gap left by v3.15.6: that release wired every *downstream* consumer (Dashboard, Analytics, Insights, Orders list, Reservations list, Billing) but never retrofitted the exclusion onto the Customers page's own two default tabs, so test customers kept showing up (and skewing revenue/tier stat cards) right on the page that hosts the Test-tab toggle. Fix is a plain `AND is_test = 0` on the 5 affected query sites in `modules/customers/class-dd-customers-module.php` — no LEFT JOIN needed here (unlike the v3.15.6 fixes), since this page queries `wp_dishdash_customers` directly and `is_test` is a native, `NOT NULL` column on the row already being selected. Test tab (`is_test = 1`, 3 query sites) left untouched — it was already correct. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

@@ -204,12 +204,12 @@ class DD_Customers_Module extends DD_Module {
                     SUM(total_spent >= 250000 AND total_spent < 500000)         AS tier_champion,
                     SUM(total_spent >= 500000)                                  AS tier_diamond
                  FROM {$table}
-                 WHERE total_orders > 0 {$date_where}";
+                 WHERE total_orders > 0 AND is_test = 0 {$date_where}";
             $stats = $date_params
                 ? $wpdb->get_row( $wpdb->prepare( $q, ...$date_params ) )
                 : $wpdb->get_row( $q );
 
-            $qc             = "SELECT COUNT(*) FROM {$table} WHERE total_orders > 0 {$date_where}";
+            $qc             = "SELECT COUNT(*) FROM {$table} WHERE total_orders > 0 AND is_test = 0 {$date_where}";
             $new_this_month = (int) ( $date_params
                 ? $wpdb->get_var( $wpdb->prepare( $qc, ...$date_params ) )
                 : $wpdb->get_var( $qc ) );
@@ -228,7 +228,7 @@ class DD_Customers_Module extends DD_Module {
                  FROM {$table} c
                  LEFT JOIN {$res_table} r ON r.customer_id = c.id
                  WHERE c.total_orders = 0
-                   AND r.id IS NOT NULL {$date_where}";
+                   AND r.id IS NOT NULL AND c.is_test = 0 {$date_where}";
             $stats = $date_params
                 ? $wpdb->get_row( $wpdb->prepare( $q, ...$date_params ) )
                 : $wpdb->get_row( $q );
@@ -279,10 +279,10 @@ class DD_Customers_Module extends DD_Module {
 
         // ── Tab filter ─────────────────────────────────
         if ( $active_tab === 'orders' ) {
-            $where_tab   = 'AND c.total_orders > 0';
+            $where_tab   = 'AND c.total_orders > 0 AND c.is_test = 0';
             $from_clause = "{$table} c";
         } elseif ( $active_tab === 'reservations' ) {
-            $where_tab   = 'AND r.id IS NOT NULL AND c.total_orders = 0';
+            $where_tab   = 'AND r.id IS NOT NULL AND c.total_orders = 0 AND c.is_test = 0';
             $from_clause = "{$table} c
                 LEFT JOIN {$wpdb->prefix}dishdash_reservations r ON r.customer_id = c.id";
         } else { // test
