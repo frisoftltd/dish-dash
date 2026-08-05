@@ -97,6 +97,14 @@ class DD_Install {
         " );
 
         // ── 2. dishdash_orders ───────────────────────────────────────────────
+        // dd_customer_id (v3.15.5, order<->customer link fix, Release B Stage 2) —
+        // the REAL wp_dishdash_customers.id, resolved via the same
+        // dd_resolve_customer_id filter reservations already use. Deliberately a
+        // NEW column, not a repurpose of `customer_id` below — that one stores the
+        // WordPress user ID and is load-bearing for order-ownership/permission
+        // checks (order_permission(), ajax_get_order()'s ownership gate, customer
+        // order-history lookup) that must keep working unchanged. See
+        // investigation-b.md for the full reasoning.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_orders (
                 id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -130,6 +138,7 @@ class DD_Install {
                 cancelled_at         DATETIME                 NULL,
                 is_test              TINYINT(1)      NOT NULL DEFAULT 0,
                 platform_fee         INT UNSIGNED    NOT NULL DEFAULT 0,
+                dd_customer_id       BIGINT UNSIGNED          DEFAULT NULL,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   order_number (order_number),
                 KEY          branch_id (branch_id),
@@ -137,7 +146,8 @@ class DD_Install {
                 KEY          status (status),
                 KEY          created_at (created_at),
                 KEY          is_test (is_test),
-                KEY          branch_status (branch_id, status)
+                KEY          branch_status (branch_id, status),
+                KEY          dd_customer_id (dd_customer_id)
             ) $charset_collate;
         " );
 

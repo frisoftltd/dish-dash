@@ -107,8 +107,8 @@ if ( $active_tab === 'orders' ) {
         "SELECT COUNT(DISTINCT customer_id) FROM `{$ot}` WHERE is_test=0 AND created_at>=%s AND customer_id IS NOT NULL", $since
     ) );
     $returning = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(DISTINCT o.customer_id) FROM `{$ot}` o
-         JOIN `{$ct}` c ON c.id=o.customer_id
+        "SELECT COUNT(DISTINCT o.dd_customer_id) FROM `{$ot}` o
+         JOIN `{$ct}` c ON c.id=o.dd_customer_id
          WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1", $since
     ) );
     $kpi_return_rate = $total_customers > 0 ? round( ($returning/$total_customers)*100 ) : 0;
@@ -223,12 +223,12 @@ if ( $active_tab === 'orders' ) {
     foreach ( $peak_rows as $r ) $peak_by_hour[(int)$r['hr']] = (int)$r['cnt'];
 
     $new_customers = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(DISTINCT o.customer_id) FROM `{$ot}` o
-         JOIN `{$ct}` c ON c.id=o.customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders=1", $since
+        "SELECT COUNT(DISTINCT o.dd_customer_id) FROM `{$ot}` o
+         JOIN `{$ct}` c ON c.id=o.dd_customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders=1", $since
     ) );
     $returning_customers = (int) $wpdb->get_var( $wpdb->prepare(
-        "SELECT COUNT(DISTINCT o.customer_id) FROM `{$ot}` o
-         JOIN `{$ct}` c ON c.id=o.customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1", $since
+        "SELECT COUNT(DISTINCT o.dd_customer_id) FROM `{$ot}` o
+         JOIN `{$ct}` c ON c.id=o.dd_customer_id WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1", $since
     ) );
 
     $top_items = $wpdb->get_results( $wpdb->prepare(

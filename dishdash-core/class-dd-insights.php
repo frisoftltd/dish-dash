@@ -387,7 +387,7 @@ class DD_Insights {
         $returning_rev = (float) $this->wpdb->get_var(
             "SELECT COALESCE(SUM(o.total),0)
              FROM `{$this->ot}` o
-             JOIN `{$this->ct}` c ON c.id = o.customer_id
+             JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
              WHERE o.status='delivered' AND o.is_test=0
                AND c.total_orders > 1
                AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)"
@@ -502,14 +502,14 @@ class DD_Insights {
         $fast_return_rate = (float) $this->wpdb->get_var(
             "SELECT AVG(c.total_orders)
              FROM `{$this->ot}` o
-             JOIN `{$this->ct}` c ON c.id = o.customer_id
+             JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
              WHERE o.delivered_at IS NOT NULL AND o.is_test = 0
                AND TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at) < 30"
         );
         $slow_return_rate = (float) $this->wpdb->get_var(
             "SELECT AVG(c.total_orders)
              FROM `{$this->ot}` o
-             JOIN `{$this->ct}` c ON c.id = o.customer_id
+             JOIN `{$this->ct}` c ON c.id = o.dd_customer_id
              WHERE o.delivered_at IS NOT NULL AND o.is_test = 0
                AND TIMESTAMPDIFF(MINUTE, o.created_at, o.delivered_at) > 45"
         );

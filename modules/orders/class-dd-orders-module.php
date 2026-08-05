@@ -526,6 +526,29 @@ class DD_Orders_Module extends DD_Module {
         );
     }
 
+    /**
+     * Stamp dd_customer_id on an order from a DD_Customer_Manager::upsert()
+     * result (v3.15.5, Release B Stage 2). upsert()'s 'customer_id' is already
+     * the real wp_dishdash_customers.id — never the WP user ID (that's the
+     * SEPARATE, untouched `customer_id` column) — so this is a direct copy,
+     * not a resolution. No-op if the customer couldn't be resolved (phone
+     * didn't normalize) — dd_customer_id just stays NULL, same as an orphan
+     * from the Stage 2 backfill.
+     */
+    private function set_order_dd_customer_id( int $order_id, array $customer_result ): void {
+        if ( $order_id < 1 || empty( $customer_result['customer_id'] ) ) {
+            return;
+        }
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'dishdash_orders',
+            [ 'dd_customer_id' => (int) $customer_result['customer_id'] ],
+            [ 'id' => $order_id ],
+            [ '%d' ],
+            [ '%d' ]
+        );
+    }
+
     public function get_order_items( int $order_id ): array {
         global $wpdb;
         return $wpdb->get_results(
@@ -989,7 +1012,8 @@ class DD_Orders_Module extends DD_Module {
             set_transient( 'dd_irembopay_invoice_' . $order_id, $invoice_number, 2 * HOUR_IN_SECONDS );
 
             $cart->clear();
-            DD_Customer_Manager::upsert( $whatsapp, $customer_name, $delivery_address, (float) $total );
+            $customer_result = DD_Customer_Manager::upsert( $whatsapp, $customer_name, $delivery_address, (float) $total );
+            $this->set_order_dd_customer_id( $order_id, $customer_result );
 
             wp_send_json_success( [
                 'irembopay'      => true,
@@ -1224,6 +1248,7 @@ class DD_Orders_Module extends DD_Module {
             $delivery_address,
             (float) $result['total']
         );
+        $this->set_order_dd_customer_id( (int) $result['order_id'], $customer_result );
 
         // Schedule birthday WhatsApp — first order only, never repeats
         if (
@@ -1345,7 +1370,8 @@ class DD_Orders_Module extends DD_Module {
             );
 
             delete_transient( 'dd_momo_pending_' . $reference_id );
-            DD_Customer_Manager::upsert( $pending['customer_phone'], $pending['customer_name'], $pending['delivery_address'], (float) $pending['total'] );
+            $customer_result = DD_Customer_Manager::upsert( $pending['customer_phone'], $pending['customer_name'], $pending['delivery_address'], (float) $pending['total'] );
+            $this->set_order_dd_customer_id( (int) $order_id, $customer_result );
 
             wp_send_json_success( [
                 'paid'         => true,
@@ -1705,12 +1731,13 @@ class DD_Orders_Module extends DD_Module {
             'items'            => $items,
         ] );
 
-        DD_Customer_Manager::upsert(
+        $customer_result = DD_Customer_Manager::upsert(
             $order->customer_phone,
             $order->customer_name,
             $delivery_address,
             (float) $order->total
         );
+        $this->set_order_dd_customer_id( (int) $order->id, $customer_result );
     }
 
     /**
@@ -1884,12 +1911,13 @@ class DD_Orders_Module extends DD_Module {
         }
 
         // 4. Customer upsert.
-        DD_Customer_Manager::upsert(
+        $customer_result = DD_Customer_Manager::upsert(
             $pending['customer_phone'],
             $pending['customer_name'],
             $pending['delivery_address'],
             (float) ( $pending['total'] ?? $result['total'] )
         );
+        $this->set_order_dd_customer_id( (int) $order_id, $customer_result );
 
         // Fire notifications (dashboard + email/WhatsApp). Build the payload the
         // same way the offline path does (mirrors ajax_place_order's section 6).
