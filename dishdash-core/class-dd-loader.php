@@ -88,6 +88,8 @@ class DD_Loader {
             'DD_Profile_Module'   => 'modules/profile/class-dd-profile-module.php',
             // Audit module — automated pillar scans + WP-CLI regression suite
             'DD_Audit_Module'     => 'modules/audit/class-dd-audit-module.php',
+            // Billing Ledger module — append-only per-branch billable event log
+            'DD_Billing_Ledger_Module' => 'modules/billing-ledger/class-dd-billing-ledger-module.php',
             // Coming soon:
             // 'DD_Delivery_Module'     => 'modules/delivery/class-dd-delivery-module.php',
             'DD_Reservations_Module' => 'modules/reservations/class-dd-reservations-module.php',

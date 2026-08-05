@@ -1251,27 +1251,47 @@ class DD_Reservations_Module extends DD_Module {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_reservations';
 
-        $current_fee = $wpdb->get_var( $wpdb->prepare(
-            "SELECT platform_fee FROM {$table} WHERE id = %d",
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT platform_fee, branch_id, is_test FROM {$table} WHERE id = %d",
             $reservation_id
         ) );
-        if ( null === $current_fee || (int) $current_fee !== 0 ) {
+        if ( ! $row ) {
             return;
         }
+        $current_fee = (int) $row->platform_fee;
 
-        $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
-        $rate         = $fees_enabled ? absint( get_option( 'dd_per_reservation_fee', 750 ) ) : 0;
-        if ( $rate === 0 ) {
-            return;
+        if ( $current_fee === 0 ) {
+            $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
+            $rate         = $fees_enabled ? absint( get_option( 'dd_per_reservation_fee', 750 ) ) : 0;
+            if ( $rate > 0 ) {
+                $wpdb->update(
+                    $table,
+                    [ 'platform_fee' => $rate ],
+                    [ 'id'           => $reservation_id ],
+                    [ '%d' ],
+                    [ '%d' ]
+                );
+                $current_fee = $rate;
+            }
         }
 
-        $wpdb->update(
-            $table,
-            [ 'platform_fee' => $rate ],
-            [ 'id'           => $reservation_id ],
-            [ '%d' ],
-            [ '%d' ]
-        );
+        // Billing ledger — called unconditionally from the two deposit-paid
+        // write sites (ajax_mark_deposit_paid(), promote_pesapal_reservation()),
+        // so this function firing IS "deposit just confirmed paid," regardless
+        // of whether a fee was just assigned above or was already snapshotted
+        // at booking time (the common case since v3.15.0). Fires per the
+        // locked billing rule: deposit-paid always bills, even if the guest
+        // later no-shows. The ledger's own UNIQUE KEY(source_type, source_id)
+        // guards against a double-fire, not this function's own logic.
+        if ( $current_fee > 0 ) {
+            do_action( 'dd_log_billing_event', [
+                'source_type' => 'reservation',
+                'source_id'   => $reservation_id,
+                'branch_id'   => (int) $row->branch_id,
+                'is_test'     => (int) $row->is_test,
+                'amount'      => $current_fee,
+            ] );
+        }
     }
 
     /**

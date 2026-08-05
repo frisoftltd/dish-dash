@@ -458,6 +458,35 @@ class DD_Install {
             ) $charset_collate;
         " );
 
+        // ── 16. dishdash_billing_ledger ──────────────────────────────────────
+        // Append-only, per-branch billable event log — one row per order that
+        // reaches 'delivered' and per reservation whose deposit is confirmed
+        // 'paid' (fired from the fee-recalculation choke points, not the WP
+        // status-change hooks — see investigation-billing-ledger.md §1). A
+        // separate reconciliation sweep logs no-deposit reservations once
+        // their date has passed the grace period and they're still
+        // 'confirmed' (§3 — no single write-site event exists for that case).
+        // UNIQUE KEY(source_type, source_id) is load-bearing: it is what makes
+        // a reopen-then-redeliver order (or any repeat trigger) a silent
+        // no-op instead of a duplicate row — see investigation-billing-ledger.md §4.
+        dbDelta( "
+            CREATE TABLE {$wpdb->prefix}dishdash_billing_ledger (
+                id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                source_type    VARCHAR(20)     NOT NULL,
+                source_id      BIGINT UNSIGNED NOT NULL,
+                branch_id      BIGINT UNSIGNED NOT NULL DEFAULT 1,
+                is_test        TINYINT(1)      NOT NULL DEFAULT 0,
+                amount         DECIMAL(10,2)   NOT NULL DEFAULT '0.00',
+                billable_month VARCHAR(7)      NOT NULL,
+                created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY   source (source_type, source_id),
+                KEY          branch_month (branch_id, billable_month),
+                KEY          billable_month (billable_month),
+                KEY          is_test (is_test)
+            ) $charset_collate;
+        " );
+
         // ── Migration: add is_test to reservations if missing ─────────────────
         $col = $wpdb->get_results( "SHOW COLUMNS FROM `{$wpdb->prefix}dishdash_reservations` LIKE 'is_test'" );
         if ( empty( $col ) ) {

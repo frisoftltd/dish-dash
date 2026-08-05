@@ -637,6 +637,24 @@ class DD_Hooks {
     do_action( 'dish_dash_before_menu_render', array $args )
         Fires just before the menu shortcode outputs HTML.
 
+    do_action( 'dd_log_billing_event', array $args )
+        Decoupled entry point for the billing ledger (DD_Billing_Ledger_Module,
+        modules/billing-ledger/). Fired from recalculate_fee_for_status_change()
+        (orders) and assign_reservation_fee_if_zero() (reservations) — NOT from
+        dish_dash_order_status_changed, which the stale-bulk-deliver path in
+        dashboard.php never fires (see investigation-billing-ledger.md §1).
+        $args: source_type ('order'|'reservation'), source_id, branch_id,
+        is_test, amount. Silently no-ops on a duplicate (source_type, source_id)
+        — the ledger table's own UNIQUE KEY is the guard, not the caller.
+
+    do_action( 'dd_billing_reconcile_sweep' )
+        Daily cron (DD_Billing_Ledger_Module::run_reconcile_sweep()). Logs
+        no-deposit reservations that are still 'confirmed' once their date/time
+        passes the grace period (dd_billing_reconcile_grace_hours option,
+        default 48h) — there is no single write-site event for "this no-deposit
+        booking is now final," only a state that can still reverse to no_show
+        (see investigation-billing-ledger.md §3).
+
     ─────────────────────────────────────────────────────────────
      CUSTOM FILTERS — reference list
     ─────────────────────────────────────────────────────────────

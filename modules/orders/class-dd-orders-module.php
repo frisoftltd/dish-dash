@@ -679,7 +679,7 @@ class DD_Orders_Module extends DD_Module {
         $table = $wpdb->prefix . 'dishdash_orders';
 
         $row = $wpdb->get_row( $wpdb->prepare(
-            "SELECT platform_fee, wc_order_id FROM {$table} WHERE id = %d",
+            "SELECT platform_fee, wc_order_id, branch_id, is_test FROM {$table} WHERE id = %d",
             $order_id
         ) );
 
@@ -690,7 +690,8 @@ class DD_Orders_Module extends DD_Module {
         $current_fee = (int) $row->platform_fee;
         $wc_order_id = $row->wc_order_id ? (int) $row->wc_order_id : 0;
 
-        $target_fee = null;
+        $target_fee   = null;
+        $newly_delivered = false;
 
         if ( $new_status === 'cancelled' ) {
             $target_fee = 0;
@@ -699,6 +700,7 @@ class DD_Orders_Module extends DD_Module {
         } elseif ( $new_status === 'delivered' && $old_status !== 'delivered' && $current_fee === 0 ) {
             $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
             $target_fee   = $fees_enabled ? (int) get_option( 'dd_per_order_fee', 750 ) : 0;
+            $newly_delivered = true;
         }
 
         if ( $target_fee === null ) {
@@ -723,6 +725,25 @@ class DD_Orders_Module extends DD_Module {
                 $wc_order->update_meta_data( '_dd_platform_fee', $target_fee );
                 $wc_order->save();
             }
+        }
+
+        // Billing ledger — one row per order that ever becomes billable. Fired
+        // from here (not the dish_dash_order_status_changed hook) because this
+        // is the ONE function both delivery write paths funnel through — the
+        // hook itself is never fired by dashboard.php's stale-bulk-deliver
+        // action (see investigation-billing-ledger.md §1). The ledger's own
+        // UNIQUE KEY(source_type, source_id) is the real duplicate guard (a
+        // reopen-then-redeliver cycle re-enters this exact branch a second
+        // time, target_fee>0 again) — this call is expected to sometimes be a
+        // silent no-op, that's by design, not an error.
+        if ( $newly_delivered && $target_fee > 0 ) {
+            do_action( 'dd_log_billing_event', [
+                'source_type' => 'order',
+                'source_id'   => $order_id,
+                'branch_id'   => (int) $row->branch_id,
+                'is_test'     => (int) $row->is_test,
+                'amount'      => $target_fee,
+            ] );
         }
     }
 

@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.16.1 (2026-08-05)
+> Last updated: v3.17.0 (2026-08-05)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.16.1 |
+| **Deployed version** | v3.17.0 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.16.1 — Added fallback order-detail-modal action buttons for the two statuses that previously rendered zero buttons: `pending_payment` (PesaPal, awaiting payment — gets Cancel + a new "🔄 Recheck Payment" button that re-runs the same authoritative check the customer-facing poll uses, `dd_pesapal_check_status`, no new backend endpoint needed) and `processing` (WC-routed checkout, already `payment_status='paid'` — gets the same Confirm + Cancel pair `pending` has). Also had to add both statuses to `dd_order_status_transitions()` (`dishdash-core/class-dd-helpers.php`) — `update_status()` validates every transition against this allow-list, so the buttons would have silently failed without it. Deliberately no Confirm button on `pending_payment` — that would bypass the v3.16.0 payment-status gate. This closes the dead-end found in `investigation-pending-orders.md` §6 (order #14 needed a direct DB query to resolve because no UI action existed). Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.17.0 — Billing ledger. New `wp_dishdash_billing_ledger` table (append-only, `UNIQUE KEY(source_type, source_id)` — the load-bearing duplicate guard) and new `DD_Billing_Ledger_Module` (`modules/billing-ledger/`), following the existing Activity Log module's decoupled `do_action` entry-point pattern (`dd_log_billing_event`) but deliberately NOT its insert-every-time shape, since this table is an aggregation billing will SUM, not an audit trail. Three triggers: (1) orders → `recalculate_fee_for_status_change()` fires on a newly-billable delivery — anchored there, not the `dish_dash_order_status_changed` hook, because the Dashboard's stale-bulk-deliver path never fires that hook (confirmed in `investigation-billing-ledger.md` §1); (2) reservation deposits → `assign_reservation_fee_if_zero()` fires unconditionally whenever a deposit is confirmed paid, regardless of whether the fee was just assigned there or already snapshotted at booking time; (3) no-deposit reservations → new daily cron (`dd_billing_reconcile_sweep`, mirrors `run_autocancel()`'s pattern) since there's no single write-site event for "this no-deposit booking is now final" — a confirmed booking can still reverse to `no_show` — so it's a state checked after a grace period (`dd_billing_reconcile_grace_hours` option, default 48h), not an event hook. `INSERT IGNORE` used throughout (not `$wpdb->insert()`) so a repeat trigger — reopen/redeliver, a re-run sweep match — is a silent no-op, not a surfaced DB error. `is_test`/`branch_id` snapshotted directly onto every ledger row, no join needed for invoice queries. No reversal/credit mechanism in v1 (deferred, logged as a known limitation, not a bug). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
