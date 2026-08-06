@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.17.1 (2026-08-06)
+> Last updated: v3.17.2 (2026-08-06)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.17.1 |
+| **Deployed version** | v3.17.2 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.17.1 — Billing page: Orders Monthly History now shows the frozen combined amount from `wp_dd_billing_payments` for months already marked Paid, instead of always live-recalculating (`investigation-billing-page-vs-ledger.md` found the frozen `amount` column was written at Mark-Paid time but never read anywhere — a Paid month's displayed total could silently drift from what was actually invoiced, e.g. after a late no-show mark). `wp_dd_billing_payments.amount` is a COMBINED orders+reservations total, no per-category split is stored — confirmed via `ajax_mark_month_paid()` (`$amount = $order_amount + $res_amount`, only the sum persisted) — so per developer decision this fix applies to the Orders Monthly History table only, clearly labeled "🔒 combined, frozen" with a tooltip explaining it includes reservations too. Reservations' own Monthly History table is unchanged, still always live. Unpaid months on both tables are unaffected — still live, as before. Mark Paid/Unpaid action and all other cards (This Month/Last Month/All Time/Fee Per Order/Status Breakdown) untouched. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.17.2 — One-time backfill script (`scripts/dd-billing-backfill.php`, dry-run/commit, not yet run) to populate `wp_dishdash_billing_ledger` with the ~2 months of billing history that predate the v3.17.0 ledger. Scans the same 3 criteria the live triggers use (orders `status='delivered'`; deposit reservations `deposit_status='paid'`, deliberately never checking `status` so a later no-show still bills; no-deposit reservations `status='confirmed'` past the same grace period the live reconciliation sweep uses) and writes through `DD_Billing_Ledger_Module::log()` (the exact same entry point live triggers use, via `dd_log_billing_event`) — not a hand-rolled INSERT — so backfilled rows are guaranteed consistent with go-forward ones. `log()` gained one small backward-compatible addition: an optional `billable_month` override, since backfilled rows need to land in their real historical invoice month, not the month the backfill happens to run in (existing callers don't pass it, so live-trigger behavior is unchanged). `INSERT IGNORE` + the ledger's own `UNIQUE KEY` mean re-running the script, or running it after some rows were already logged live, is always safe. Read-only against `orders`/`reservations` — only ever `SELECT`s from them. Test rows (`is_test=1`) are scanned and inserted like any other row, filtered only at invoice-query time, consistent with existing design. **Not yet run on nyarutarama** — developer needs to dry-run, review the numbers, then commit. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

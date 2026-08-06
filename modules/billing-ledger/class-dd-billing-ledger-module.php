@@ -97,11 +97,19 @@ class DD_Billing_Ledger_Module extends DD_Module {
      * this was actually logged" is the only value guaranteed to always exist.
      *
      * @param array $args {
-     *     @type string $source_type 'order' | 'reservation'
+     *     @type string $source_type    'order' | 'reservation'
      *     @type int    $source_id
      *     @type int    $branch_id
      *     @type int    $is_test
-     *     @type float  $amount      Must be > 0 — zero/negative amounts are not logged.
+     *     @type float  $amount         Must be > 0 — zero/negative amounts are not logged.
+     *     @type string $billable_month Optional, 'YYYY-MM'. Defaults to the current
+     *                                  month (the moment-of-event month, correct for
+     *                                  every live trigger). A historical backfill
+     *                                  (scripts/dd-billing-backfill.php) passes the
+     *                                  event's own historical month here instead, so
+     *                                  old rows land in their real invoice bucket
+     *                                  rather than the month the backfill happens to
+     *                                  run in. Silently ignored if not 'YYYY-MM'.
      * }
      */
     public static function log( array $args ): void {
@@ -118,6 +126,10 @@ class DD_Billing_Ledger_Module extends DD_Module {
             return;
         }
 
+        $billable_month = ( isset( $args['billable_month'] ) && preg_match( '/^\d{4}-\d{2}$/', (string) $args['billable_month'] ) )
+            ? $args['billable_month']
+            : current_time( 'Y-m' );
+
         $table = $wpdb->prefix . 'dishdash_billing_ledger';
 
         $wpdb->query( $wpdb->prepare(
@@ -129,7 +141,7 @@ class DD_Billing_Ledger_Module extends DD_Module {
             absint( $args['branch_id'] ?? 1 ),
             empty( $args['is_test'] ) ? 0 : 1,
             $amount,
-            current_time( 'Y-m' ),
+            $billable_month,
             current_time( 'mysql' )
         ) );
     }
