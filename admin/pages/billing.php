@@ -8,10 +8,18 @@
  *          a combined "Total This Month" hero. Read-only reporting page.
  *
  * Dependencies:
- *   - wp_dishdash_orders / wp_dishdash_reservations tables (platform_fee
- *     column — orders added v3.4.91, reservations added v3.15.0)
+ *   - wp_dishdash_billing_ledger (v3.17.0, backfilled v3.17.2) — This Month /
+ *     Last Month / All Time / Monthly History read from here as of v3.17.3,
+ *     not live platform_fee queries. Append-only, snapshotted once at the
+ *     moment an order/reservation became billable.
+ *   - wp_dishdash_orders / wp_dishdash_reservations (platform_fee column —
+ *     orders added v3.4.91, reservations added v3.15.0) — still used
+ *     directly by the Status Breakdown cards only (full status distribution
+ *     isn't something the ledger tracks) and by DD_Billing_Ledger_Module's
+ *     own triggers, not by this file's totals anymore.
  *   - dd_per_order_fee / dd_per_reservation_fee wp_options (Settings →
- *     Pricing & Fees), dd_fees_enabled toggle shared by both
+ *     Pricing & Fees), dd_fees_enabled toggle shared by both — rate
+ *     *displays* only now, not used to compute historical totals here.
  *   - admin.css's dd-status-* status-badge color rules (colors only — all
  *     structural classes below, dd-billing-*, are self-contained in this
  *     file's own <style> blocks, not admin.css)
@@ -19,7 +27,7 @@
  *     set on :root/body from the restaurant's own primary color) — the
  *     v3.15.3 visual redesign uses these exclusively, no hardcoded brand hex
  *
- * Last modified: v3.15.3
+ * Last modified: v3.17.3
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -28,87 +36,101 @@ if ( ! current_user_can( 'dd_view_billing' ) ) wp_die( __( 'Access denied.', 'di
 global $wpdb;
 $ot  = $wpdb->prefix . 'dishdash_orders';
 $ct  = $wpdb->prefix . 'dishdash_customers';
+$rt  = $wpdb->prefix . 'dishdash_reservations';
+$lt  = $wpdb->prefix . 'dishdash_billing_ledger';
 $fee = (int) get_option( 'dd_per_order_fee', 750 );
+$res_fee = (int) get_option( 'dd_per_reservation_fee', 750 );
 
-// ── Test-customer exclusion (v3.15.6) ───────────────────────────────────────────
-// dd_customer_id/customer_id are nullable (orphan orders/reservations with no
-// resolvable customer link) — LEFT JOIN + NULL-safe WHERE, never INNER JOIN, so
-// orphans stay counted (and billed) as non-test. See investigation-testflag.md §1.
+// ── Test-customer exclusion (v3.15.6) — still needed below for the Status
+// Breakdown cards, which stay live-querying the source tables (see note
+// there). Not needed for the ledger queries — is_test is already snapshotted
+// directly onto every ledger row, no join required.
 $o_test_join  = "LEFT JOIN `{$ct}` c ON c.id = o.dd_customer_id";
 $o_test_where = "o.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
+$r_test_join  = "LEFT JOIN `{$ct}` c ON c.id = r.customer_id";
+$r_test_where = "r.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
+$res_billable_sql = "r.platform_fee > 0 AND (
+        ( r.deposit_required = 1 AND r.deposit_status = 'paid' )
+        OR ( r.deposit_required = 0 AND r.status = 'confirmed' )
+    )";
 
-// ── Date ranges ───────────────────────────────────────────────────────────────
-$month_start  = current_time( 'Y-m-' ) . '01 00:00:00';
-$last_month_s = date( 'Y-m-01 00:00:00', strtotime( 'first day of last month' ) );
-$last_month_e = date( 'Y-m-t 23:59:59',  strtotime( 'last day of last month' ) );
+$this_month_key = current_time( 'Y-m' );
+$last_month_key = date( 'Y-m', strtotime( 'first day of last month' ) );
 
-// ── Queries ───────────────────────────────────────────────────────────────────
-
-// This month
+// ── This Month / Last Month / All Time / Monthly History — billing ledger
+// (v3.17.3, switched from live platform_fee queries). The ledger is
+// append-only and snapshotted once, at the moment an order/reservation
+// actually became billable — immune to the two instability sources the live
+// queries had: (1) a no-deposit reservation's billable status changing after
+// the fact (a late no-show silently un-counting it on the next page load),
+// and (2) platform_fee itself being zeroed by a later event (e.g. disabling
+// the flat fee), which erased historical billing truth under the old live
+// query. See investigation-billing-ledger.md and
+// investigation-billing-page-vs-ledger.md for the full reasoning; the ledger
+// was backfilled with pre-go-live history via scripts/dd-billing-backfill.php
+// (v3.17.2) before this cutover.
 $this_month_orders = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join}
-     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at >= %s AND {$o_test_where}",
-    $month_start
+    "SELECT COUNT(*) FROM `{$lt}` WHERE source_type = 'order' AND is_test = 0 AND billable_month = %s",
+    $this_month_key
 ) );
 $this_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join}
-     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at >= %s AND {$o_test_where}",
-    $month_start
+    "SELECT COALESCE(SUM(amount),0) FROM `{$lt}` WHERE source_type = 'order' AND is_test = 0 AND billable_month = %s",
+    $this_month_key
 ) );
 
-// Last month
 $last_month_orders = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join}
-     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at BETWEEN %s AND %s AND {$o_test_where}",
-    $last_month_s, $last_month_e
+    "SELECT COUNT(*) FROM `{$lt}` WHERE source_type = 'order' AND is_test = 0 AND billable_month = %s",
+    $last_month_key
 ) );
 $last_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join}
-     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND o.created_at BETWEEN %s AND %s AND {$o_test_where}",
-    $last_month_s, $last_month_e
+    "SELECT COALESCE(SUM(amount),0) FROM `{$lt}` WHERE source_type = 'order' AND is_test = 0 AND billable_month = %s",
+    $last_month_key
 ) );
 
-// All time
 $alltime_orders = (int) $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.platform_fee > 0 AND {$o_test_where}"
+    "SELECT COUNT(*) FROM `{$lt}` WHERE source_type = 'order' AND is_test = 0"
 );
 $alltime_fees = (int) $wpdb->get_var(
-    "SELECT COALESCE(SUM(o.platform_fee),0) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.platform_fee > 0 AND {$o_test_where}"
+    "SELECT COALESCE(SUM(amount),0) FROM `{$lt}` WHERE source_type = 'order' AND is_test = 0"
 );
 
-// Monthly history — last 6 months
+// Monthly history — last 6 months present in the ledger. COALESCE/COUNT
+// naturally return 0 for a month with no rows (e.g. a pre-backfill gap), so
+// this never errors — it just doesn't produce a row for that month.
 $monthly_history = $wpdb->get_results(
-    "SELECT
-         DATE_FORMAT(o.created_at, '%Y-%m') AS month,
-         COUNT(*) AS orders,
-         SUM(o.platform_fee) AS fees
-     FROM `{$ot}` o {$o_test_join}
-     WHERE o.status = 'delivered' AND o.platform_fee > 0 AND {$o_test_where}
-     GROUP BY DATE_FORMAT(o.created_at, '%Y-%m')
-     ORDER BY month DESC
+    "SELECT billable_month AS month, COUNT(*) AS orders, COALESCE(SUM(amount),0) AS fees
+     FROM `{$lt}`
+     WHERE source_type = 'order' AND is_test = 0
+     GROUP BY billable_month
+     ORDER BY billable_month DESC
      LIMIT 6"
 );
 
-// Fetch paid status for each month
+// Fetch paid status for each month. amount is intentionally NOT read here —
+// it's a COMBINED orders+reservations figure (ajax_mark_month_paid() never
+// stored a per-category split) and, now that Monthly History itself reads
+// from the ledger (stable/append-only), each table's own ledger-sourced sum
+// already IS the correctly-split, frozen-equivalent number for a Paid month
+// — no separate frozen-amount workaround needed anymore (v3.17.1's is
+// removed below). See "Mark Paid/Unpaid" note in the release brief.
 $bp_table     = $wpdb->prefix . 'dd_billing_payments';
 $paid_months  = [];
 $payment_rows = $wpdb->get_results(
-    "SELECT month, paid, paid_at, amount FROM `{$bp_table}`"
+    "SELECT month, paid, paid_at FROM `{$bp_table}`"
 );
 foreach ( $payment_rows as $pr ) {
     $paid_months[ $pr->month ] = [
         'paid'    => (bool) $pr->paid,
         'paid_at' => $pr->paid_at,
-        // Frozen at Mark-Paid time (ajax_mark_month_paid()) — COMBINED
-        // orders+reservations total, there is no per-category split stored.
-        // Only the Orders Monthly History table displays this (labeled as
-        // combined); Reservations' table keeps showing its live total.
-        'amount'  => (int) $pr->amount,
     ];
 }
 $billing_nonce = wp_create_nonce( 'dish_dash_admin' );
 
-// Only delivered (billable) and cancelled (not billable)
+// ── Status Breakdown cards — deliberately NOT switched to the ledger. The
+// ledger only records billable events (one row per order/reservation that
+// became billable); it has no concept of the full status distribution
+// (pending/confirmed/ready/cancelled/etc.) these cards show. Stays live
+// against the source tables, unchanged from before this release.
 $status_breakdown = $wpdb->get_results(
     "SELECT o.status, COUNT(*) AS cnt, COALESCE(SUM(o.platform_fee),0) AS fees
      FROM `{$ot}` o {$o_test_join}
@@ -117,56 +139,37 @@ $status_breakdown = $wpdb->get_results(
      ORDER BY FIELD(o.status,'delivered','cancelled')"
 );
 
-// ── Reservations (v3.14.8) — mirrors the orders queries above exactly,
-// swapping the orders "status='delivered'" billability test for reservations'
-// two-path test: deposit-required bookings bill on deposit_status='paid';
-// no-deposit bookings bill on status='confirmed'. See
-// DD_Reservations_Module::recalculate_fee_for_reservation_status_change()
-// for how platform_fee gets zeroed/restored to keep this query cheap.
-$rt        = $wpdb->prefix . 'dishdash_reservations';
-$res_fee   = (int) get_option( 'dd_per_reservation_fee', 750 );
-$res_billable_sql = "r.platform_fee > 0 AND (
-        ( r.deposit_required = 1 AND r.deposit_status = 'paid' )
-        OR ( r.deposit_required = 0 AND r.status = 'confirmed' )
-    )";
-// Test-customer exclusion for reservations — same rationale as $o_test_join above.
-$r_test_join  = "LEFT JOIN `{$ct}` c ON c.id = r.customer_id";
-$r_test_where = "r.is_test = 0 AND (c.is_test IS NULL OR c.is_test = 0)";
-
 $res_this_month_count = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at >= %s AND {$r_test_where}",
-    $month_start
+    "SELECT COUNT(*) FROM `{$lt}` WHERE source_type = 'reservation' AND is_test = 0 AND billable_month = %s",
+    $this_month_key
 ) );
 $res_this_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(r.platform_fee),0) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at >= %s AND {$r_test_where}",
-    $month_start
+    "SELECT COALESCE(SUM(amount),0) FROM `{$lt}` WHERE source_type = 'reservation' AND is_test = 0 AND billable_month = %s",
+    $this_month_key
 ) );
 
 $res_last_month_count = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at BETWEEN %s AND %s AND {$r_test_where}",
-    $last_month_s, $last_month_e
+    "SELECT COUNT(*) FROM `{$lt}` WHERE source_type = 'reservation' AND is_test = 0 AND billable_month = %s",
+    $last_month_key
 ) );
 $res_last_month_fees = (int) $wpdb->get_var( $wpdb->prepare(
-    "SELECT COALESCE(SUM(r.platform_fee),0) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND r.created_at BETWEEN %s AND %s AND {$r_test_where}",
-    $last_month_s, $last_month_e
+    "SELECT COALESCE(SUM(amount),0) FROM `{$lt}` WHERE source_type = 'reservation' AND is_test = 0 AND billable_month = %s",
+    $last_month_key
 ) );
 
 $res_alltime_count = (int) $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND {$r_test_where}"
+    "SELECT COUNT(*) FROM `{$lt}` WHERE source_type = 'reservation' AND is_test = 0"
 );
 $res_alltime_fees = (int) $wpdb->get_var(
-    "SELECT COALESCE(SUM(r.platform_fee),0) FROM `{$rt}` r {$r_test_join} WHERE {$res_billable_sql} AND {$r_test_where}"
+    "SELECT COALESCE(SUM(amount),0) FROM `{$lt}` WHERE source_type = 'reservation' AND is_test = 0"
 );
 
 $res_monthly_history = $wpdb->get_results(
-    "SELECT
-         DATE_FORMAT(r.created_at, '%Y-%m') AS month,
-         COUNT(*) AS bookings,
-         SUM(r.platform_fee) AS fees
-     FROM `{$rt}` r {$r_test_join}
-     WHERE {$res_billable_sql} AND {$r_test_where}
-     GROUP BY DATE_FORMAT(r.created_at, '%Y-%m')
-     ORDER BY month DESC
+    "SELECT billable_month AS month, COUNT(*) AS bookings, COALESCE(SUM(amount),0) AS fees
+     FROM `{$lt}`
+     WHERE source_type = 'reservation' AND is_test = 0
+     GROUP BY billable_month
+     ORDER BY billable_month DESC
      LIMIT 6"
 );
 
@@ -174,6 +177,8 @@ $res_monthly_history = $wpdb->get_results(
 // orders' breakdown), fees only counted where the combined billable test
 // passes for that row (so e.g. a 'confirmed' deposit-required-but-unpaid
 // row correctly shows RWF 0, not the snapshotted-but-not-yet-billable fee).
+// Stays live against the source table — same reasoning as $status_breakdown
+// above, the ledger doesn't track full status distribution.
 $res_status_breakdown = $wpdb->get_results(
     "SELECT r.status, COUNT(*) AS cnt,
             COALESCE(SUM(CASE WHEN {$res_billable_sql} THEN r.platform_fee ELSE 0 END), 0) AS fees
@@ -281,14 +286,7 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
                 <tr data-month="<?php echo esc_attr( $month_key ); ?>">
                   <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
                   <td><?php echo number_format( (int) $row->orders ); ?></td>
-                  <td>
-                    <?php if ( $is_paid ) : ?>
-                      <strong>RWF <?php echo number_format( $paid_months[ $month_key ]['amount'] ); ?></strong>
-                      <span class="dd-frozen-note" title="Frozen combined total (orders + reservations) recorded when this month was marked Paid — may differ from the orders-only live total, which is no longer shown once a month is locked in.">🔒 combined, frozen</span>
-                    <?php else : ?>
-                      <strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong>
-                    <?php endif; ?>
-                  </td>
+                  <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
                   <td>
                     <?php if ( $is_paid ) : ?>
                       <span class="dd-paid-badge">✅ Paid</span>
@@ -413,7 +411,7 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
       <!-- Monthly History -->
       <div class="dd-billing-card">
         <h3 class="dd-billing-card__title">Monthly History</h3>
-        <p class="dd-billing-card__hint">Paid/Unpaid reflects the combined order+reservation ledger — toggle it from the Orders table above.</p>
+        <p class="dd-billing-card__hint">Paid/Unpaid reflects one combined order+reservation payment record — toggle it from the Orders table above.</p>
         <table class="dd-billing-table">
           <thead>
             <tr>
@@ -542,13 +540,6 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
     font-size: 11px;
     color: #9ca3af;
     margin-left: 6px;
-}
-.dd-frozen-note {
-    display: block;
-    font-size: 10.5px;
-    color: #9ca3af;
-    margin-top: 2px;
-    cursor: help;
 }
 .dd-mark-paid-btn {
     font-size: 12px;
