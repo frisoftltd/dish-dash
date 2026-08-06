@@ -154,6 +154,8 @@
                         '</button>' +
                     '</div>' +
                     '<p class="dd-momoqr__note" id="ddMomoQrCopyHint">Tap any detail above to copy.</p>' +
+                    '<label for="ddMomoQrProof" style="display:block;font-size:12px;color:#6b7280;margin:12px 0 6px;">Attach payment screenshot (optional)</label>' +
+                    '<input type="file" id="ddMomoQrProof" accept="image/*" style="display:block;width:100%;font-size:13px;margin-bottom:12px;">' +
                     '<button class="dd-momoqr__claim" id="ddMomoQrClaim" type="button">I have paid — notify restaurant</button>' +
                     '<p class="dd-momoqr__recorded" id="ddMomoQrRecorded" hidden>Payment recorded — you can close this.</p>' +
                 '</div>';
@@ -201,8 +203,16 @@
                         document.body.removeChild( a );
                     }
 
+                    // Optional proof screenshot, if the customer attached one (v3.18.4,
+                    // mirrors reservations.js's claimDeposit()). ajax()'s FormData
+                    // .append() accepts a File value directly — no separate fetch needed.
+                    var proofInput = document.getElementById( 'ddMomoQrProof' );
+                    var proofFile  = ( proofInput && proofInput.files && proofInput.files[ 0 ] ) ? proofInput.files[ 0 ] : null;
+                    var claimData  = { order_id: momoManualOrderId };
+                    if ( proofFile ) claimData.momo_proof = proofFile;
+
                     // Claim (always) — flip claimed_pending → claimed. Server is idempotent.
-                    ajax( 'dd_momo_claim_paid', { order_id: momoManualOrderId }, function () {
+                    ajax( 'dd_momo_claim_paid', claimData, function () {
                         markMomoClaimed();
                     }, function ( message ) {
                         // Allow a retry (claim is idempotent; WhatsApp already opened).
@@ -705,14 +715,16 @@
         momoManualWhatsappUrl = data.whatsapp_url || '';
 
         // Reset the claim UI (the panel is reused across orders in one session).
-        var claimBtn = document.getElementById( 'ddMomoQrClaim' );
-        var recorded = document.getElementById( 'ddMomoQrRecorded' );
+        var claimBtn   = document.getElementById( 'ddMomoQrClaim' );
+        var recorded   = document.getElementById( 'ddMomoQrRecorded' );
+        var proofReset = document.getElementById( 'ddMomoQrProof' );
         if ( claimBtn ) {
             claimBtn.disabled    = false;
             claimBtn.hidden      = false;
             claimBtn.textContent = 'I have paid — notify restaurant';
         }
         if ( recorded ) recorded.hidden = true;
+        if ( proofReset ) proofReset.value = ''; // don't carry a prior order's file into this one
 
         var orderNumEl = document.getElementById( 'ddMomoQrOrderNum' );
         var instrEl    = document.getElementById( 'ddMomoQrInstruction' );

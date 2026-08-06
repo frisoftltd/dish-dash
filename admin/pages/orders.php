@@ -249,6 +249,29 @@ function dd_orders_format_rwf( $n ) {
     return number_format( (float) $n, 0, '.', ',' );
 }
 
+// MoMo claim-status badge (v3.18.4) — momo_manual orders only; every other
+// payment method has no claim concept and renders nothing (empty string), so
+// the Payment column is visually unchanged for COD/gateway orders. Surfaces
+// the payment_status distinction that previously showed nowhere in this UI
+// (see investigation-momo-proof-orders.md §2). Same inline-style badge
+// convention as dd_orders_status_badge() above, not the --dd-brand CSS
+// variable — matches this specific component's existing pattern.
+function dd_orders_payment_claim_badge( $payment_method, $payment_status ) {
+    if ( 'momo_manual' !== $payment_method ) {
+        return '';
+    }
+    $map = [
+        'claimed_pending' => [ 'Unclaimed', '#fee2e2', '#991b1b' ],
+        'claimed'         => [ 'Claimed',   '#fef9c3', '#854d0e' ],
+        'paid'            => [ 'Paid',      '#dcfce7', '#166534' ],
+    ];
+    $s = $map[ $payment_status ] ?? [ ucfirst( $payment_status ), '#f3f4f6', '#374151' ];
+    return sprintf(
+        '<span class="dd-payment-claim-badge" style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:%s;color:%s">%s</span>',
+        esc_attr( $s[1] ), esc_attr( $s[2] ), esc_html( $s[0] )
+    );
+}
+
 $current_url = admin_url( 'admin.php?page=dish-dash-orders' );
 
 $filter_tabs = [
@@ -559,7 +582,10 @@ foreach ( $orders as $o ) {
                 <span class="dd-customer-phone"><?php echo esc_html( $o['customer_phone'] ); ?></span>
               <?php endif; ?>
             </td>
-            <td><?php echo esc_html( dd_format_payment_method( $o['payment_method'] ) ); ?></td>
+            <td class="dd-payment-claim-cell">
+              <?php echo esc_html( dd_format_payment_method( $o['payment_method'] ) ); ?>
+              <?php echo dd_orders_payment_claim_badge( $o['payment_method'], $o['payment_status'] ?? '' ); ?>
+            </td>
             <td class="dd-orders-col-total">
               <span class="dd-order-total"><?php echo dd_orders_format_rwf( $o['total'] ); ?></span>
               <span class="dd-order-currency">RWF</span>
@@ -737,6 +763,14 @@ window.ddOrdersData = {
                 <div class="dd-modal-items"></div>
                 <div class="dd-modal-totals"></div>
             </div>
+            <!-- v3.18.4 — MoMo claim status, proof thumbnail, Confirm Payment.
+                 Only populated (dd-modal-payment-info) for momo_manual orders;
+                 hidden entirely otherwise. Mirrors the reservations accept
+                 modal's .dd-res-modal-deposit-info section. -->
+            <div class="dd-modal-section dd-modal-payment-section" style="display:none">
+                <div class="dd-modal-label">PAYMENT</div>
+                <div class="dd-modal-payment-info"></div>
+            </div>
             <div class="dd-modal-section dd-modal-status-section">
                 <div class="dd-modal-label">STATUS</div>
                 <div class="dd-modal-status-badge"></div>
@@ -876,6 +910,42 @@ window.ddOrdersData = {
             '<div class="dd-modal-total-row"><span>Total</span><strong>' + formatRwf( parseFloat( order.total ) ) + ' RWF</strong></div>'
             + '<div class="dd-modal-total-row dd-modal-payment"><span>Payment</span><span>' + method + '</span></div>';
 
+        // Payment section (v3.18.4) — MoMo claim status + proof thumbnail.
+        // momo_manual only; hidden entirely for every other payment method,
+        // same as the Payment badge in the list table. Mirrors the
+        // reservations accept modal's deposit-info + proof-thumbnail section.
+        var paymentSection = modal.querySelector( '.dd-modal-payment-section' );
+        if ( order.payment_method === 'momo_manual' ) {
+            paymentSection.style.display = '';
+            var claimLabels = {
+                claimed_pending: 'Unclaimed — customer hasn’t tapped "I have paid" yet',
+                claimed:         'Claimed — customer says they’ve paid, not yet confirmed',
+                paid:            'Paid — confirmed by staff'
+            };
+            var paymentInfoHtml =
+                '<div class="dd-modal-total-row"><span>Status</span>'
+                + '<strong>' + esc( claimLabels[ order.payment_status ] || ucfirst( order.payment_status || '' ) ) + '</strong></div>';
+            if ( order.momo_proof_url ) {
+                paymentInfoHtml +=
+                    '<div style="margin-top:10px;">'
+                    + '<div class="dd-modal-label" style="margin-bottom:6px;">PAYMENT PROOF</div>'
+                    + '<img src="' + esc( order.momo_proof_url ) + '" alt="Payment proof screenshot — click to enlarge" '
+                    + 'class="dd-order-proof-thumb" '
+                    + 'style="max-width:100%;border-radius:8px;border:1px solid #e5e7eb;display:block;cursor:zoom-in;">'
+                    + '</div>';
+            }
+            modal.querySelector( '.dd-modal-payment-info' ).innerHTML = paymentInfoHtml;
+
+            var proofThumb = modal.querySelector( '.dd-order-proof-thumb' );
+            if ( proofThumb ) {
+                proofThumb.addEventListener( 'click', function () {
+                    openMomoProofLightbox( proofThumb.src );
+                } );
+            }
+        } else {
+            paymentSection.style.display = 'none';
+        }
+
         // Status badge
         modal.querySelector( '.dd-modal-status-badge' ).innerHTML =
             '<span class="dd-modal-status dd-status-' + status + '">' + ( labels[ status ] || ucfirst( status ) ) + '</span>';
@@ -971,6 +1041,17 @@ window.ddOrdersData = {
             actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
         }
 
+        // Confirm Payment (v3.18.4) — momo_manual only, independent of order
+        // status (a staff member may reconcile payment before or after moving
+        // the order through confirmed/ready). Deliberate staff action, proof
+        // upload alone never reaches this — see ajax_confirm_momo_payment()'s
+        // docblock. Not shown once already 'paid' (idempotent no-op avoided
+        // in the UI, not just server-side).
+        if ( order.payment_method === 'momo_manual' && order.payment_status !== 'paid' ) {
+            actionsHtml += '<button type="button" class="dd-btn dd-btn-primary dd-modal-confirm-payment-btn" '
+                         + 'data-order-id="' + id + '">✅ Confirm Payment</button>';
+        }
+
         modalActions.innerHTML = actionsHtml;
 
         // Wire action buttons
@@ -1026,6 +1107,14 @@ window.ddOrdersData = {
                 recheckPesapalStatus( this.dataset.orderId, this.dataset.trackingId, this );
             } );
         } );
+
+        // Confirm Payment (v3.18.4, momo_manual only)
+        modalActions.querySelectorAll( '.dd-modal-confirm-payment-btn' ).forEach( function ( b ) {
+            b.addEventListener( 'click', function () {
+                if ( ! confirm( 'Confirm that payment for this order has been received?' ) ) return;
+                confirmMomoPayment( this.dataset.orderId, this );
+            } );
+        } );
     }
 
     // Re-runs the same authoritative PesaPal status check the customer-facing
@@ -1062,6 +1151,78 @@ window.ddOrdersData = {
                 if ( btnEl ) { btnEl.disabled = false; btnEl.textContent = '🔄 Recheck Payment'; }
             } );
     }
+
+    // Staff-triggered, deliberate — the only client path that can result in
+    // payment_status='paid' for a momo_manual order (v3.18.4). Refetches the
+    // order on success so the modal (badge, thumbnail, button visibility) and
+    // the list row both reflect the new state, same refresh strategy
+    // recheckPesapalStatus() already uses above.
+    function confirmMomoPayment( orderId, btnEl ) {
+        if ( btnEl ) { btnEl.disabled = true; btnEl.textContent = 'Confirming…'; }
+        setLoading( true );
+        var data = new FormData();
+        data.append( 'action',   'dd_confirm_momo_payment' );
+        data.append( 'order_id', orderId );
+        data.append( 'nonce',    window.ddOrdersData.adminNonce );
+
+        fetch( window.ddOrdersData.ajaxUrl, { method: 'POST', body: data } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                setLoading( false );
+                if ( res.success ) {
+                    var row = document.querySelector( 'tr[data-order-id="' + orderId + '"]' );
+                    if ( row ) {
+                        var cell = row.querySelector( '.dd-payment-claim-cell' );
+                        var oldBadge = cell ? cell.querySelector( '.dd-payment-claim-badge' ) : null;
+                        if ( oldBadge ) oldBadge.outerHTML = renderPaymentClaimBadge( 'paid' );
+                    }
+                    fetchOrder( orderId );
+                } else {
+                    if ( btnEl ) { btnEl.disabled = false; btnEl.textContent = '✅ Confirm Payment'; }
+                    alert( ( res.data && res.data.message ) ? res.data.message : 'Could not confirm payment.' );
+                }
+            } )
+            .catch( function () {
+                setLoading( false );
+                if ( btnEl ) { btnEl.disabled = false; btnEl.textContent = '✅ Confirm Payment'; }
+            } );
+    }
+
+    // Payment-proof lightbox (v3.18.4) — same .dd-modal-overlay reuse pattern
+    // as the reservations accept modal's openProofLightbox(), a separate id
+    // so both can coexist without collision.
+    function openMomoProofLightbox( url ) {
+        var lb = document.getElementById( 'dd-order-proof-lightbox' );
+        if ( ! lb ) {
+            lb = document.createElement( 'div' );
+            lb.id = 'dd-order-proof-lightbox';
+            lb.className = 'dd-modal-overlay';
+            lb.style.display = 'none';
+            lb.innerHTML =
+                '<img id="dd-order-proof-lightbox-img" alt="Payment proof screenshot" '
+                + 'style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.4);">'
+                + '<button type="button" id="dd-order-proof-lightbox-close" aria-label="Close" '
+                + 'style="position:absolute;top:20px;right:20px;background:rgba(0,0,0,0.6);color:#fff;'
+                + 'border:none;border-radius:50%;width:40px;height:40px;font-size:18px;line-height:1;cursor:pointer;">✕</button>';
+            document.body.appendChild( lb );
+            lb.addEventListener( 'click', function ( e ) {
+                if ( e.target === lb || e.target.id === 'dd-order-proof-lightbox-close' ) closeMomoProofLightbox();
+            } );
+        }
+        document.getElementById( 'dd-order-proof-lightbox-img' ).src = url;
+        lb.style.display = 'flex';
+    }
+
+    function closeMomoProofLightbox() {
+        var lb = document.getElementById( 'dd-order-proof-lightbox' );
+        if ( lb ) lb.style.display = 'none';
+    }
+
+    document.addEventListener( 'keydown', function ( e ) {
+        if ( e.key !== 'Escape' ) return;
+        var lb = document.getElementById( 'dd-order-proof-lightbox' );
+        if ( lb && lb.style.display !== 'none' ) closeMomoProofLightbox();
+    } );
 
     function updateStatus( orderId, newStatus ) {
         setLoading( true );
@@ -1135,6 +1296,19 @@ window.ddOrdersData = {
         };
         var s = map[status] || [status,'#f3f4f6','#374151'];
         return '<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500;background:' + s[1] + ';color:' + s[2] + '">' + s[0] + '</span>';
+    }
+
+    // Mirrors dd_orders_payment_claim_badge() in this file's PHP — same map,
+    // same markup — so a client-side badge swap after Confirm Payment (v3.18.4)
+    // looks identical to a fresh server render.
+    function renderPaymentClaimBadge( paymentStatus ) {
+        var map = {
+            claimed_pending: ['Unclaimed', '#fee2e2','#991b1b'],
+            claimed:         ['Claimed',   '#fef9c3','#854d0e'],
+            paid:            ['Paid',      '#dcfce7','#166534'],
+        };
+        var s = map[ paymentStatus ] || [ ucfirst( paymentStatus ), '#f3f4f6', '#374151' ];
+        return '<span class="dd-payment-claim-badge" style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:' + s[1] + ';color:' + s[2] + '">' + s[0] + '</span>';
     }
 
     window.openModal = openModal;

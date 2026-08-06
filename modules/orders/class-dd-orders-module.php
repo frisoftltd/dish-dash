@@ -82,6 +82,7 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_update_status',     [ $this, 'ajax_update_status' ], false );
         DD_Ajax::register( 'dd_momo_check_status',   [ $this, 'ajax_momo_check_status' ],   true );
         DD_Ajax::register( 'dd_momo_claim_paid',     [ $this, 'ajax_momo_claim_paid' ],     true );
+        DD_Ajax::register( 'dd_confirm_momo_payment', [ $this, 'ajax_confirm_momo_payment' ], false );
         DD_Ajax::register( 'dd_irembopay_confirm',   [ $this, 'ajax_irembopay_confirm' ],   true );
         DD_Ajax::register( 'dd_pesapal_check_status', [ $this, 'ajax_pesapal_check_status' ], true );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
@@ -1329,6 +1330,14 @@ class DD_Orders_Module extends DD_Module {
             $item->special_note = esc_html( DD_Notifications::clean_note( $item->special_note ?? '' ) );
         }
 
+        // Resolve the MoMo proof screenshot (if any) to a displayable URL for the
+        // order-detail modal (v3.18.4) — the row itself only stores the attachment
+        // ID. Mirrors DD_Reservations_Module::ajax_get_reservation()'s
+        // deposit_proof_url resolution exactly.
+        $order->momo_proof_url = $order->momo_proof_attachment_id
+            ? ( wp_get_attachment_image_url( (int) $order->momo_proof_attachment_id, 'medium' ) ?: '' )
+            : '';
+
         $this->json_success( [
             'order' => $order,
             'items' => $items,
@@ -1421,7 +1430,10 @@ class DD_Orders_Module extends DD_Module {
      * Customer taps "I have paid" on the Scan-&-pay (momo_manual) screen.
      * Flips payment_status claimed_pending → claimed. This is a customer
      * ATTESTATION, not a verified settlement — the restaurant reconciles against
-     * their MoMo statement using the order reference. Never sets 'paid'.
+     * their MoMo statement using the order reference (or, as of v3.18.4, an
+     * optional attached screenshot — see maybe_upload_momo_proof() below).
+     * Never sets 'paid' — only ajax_confirm_momo_payment() (staff, deliberate)
+     * does that.
      *
      * Guard: the order must exist and be a momo_manual order. Idempotent — only
      * flips from claimed_pending, so a double-tap or replay is a harmless no-op.
@@ -1452,18 +1464,129 @@ class DD_Orders_Module extends DD_Module {
             return;
         }
 
+        // Optional payment-proof screenshot (v3.18.4, mirrors the reservations
+        // deposit-proof pattern exactly). Never blocks the claim — an upload
+        // failure just means no proof gets stored; the claim itself still
+        // succeeds exactly as it did before this existed.
+        $attachment_id = $this->maybe_upload_momo_proof();
+
+        $update_fields  = [];
+        $update_formats = [];
+
         // Only advance from the up-front claimed_pending state.
         if ( $order->payment_status === 'claimed_pending' ) {
+            $update_fields['payment_status'] = 'claimed';
+            $update_formats[]                = '%s';
+        }
+
+        if ( $attachment_id ) {
+            $update_fields['momo_proof_attachment_id'] = $attachment_id;
+            $update_formats[]                           = '%d';
+        }
+
+        if ( $update_fields ) {
             $wpdb->update(
                 $wpdb->prefix . 'dishdash_orders',
-                [ 'payment_status' => 'claimed' ],
+                $update_fields,
+                [ 'id' => $order_id ],
+                $update_formats,
+                [ '%d' ]
+            );
+        }
+
+        wp_send_json_success( [ 'claimed' => true, 'order_id' => $order_id ] );
+    }
+
+    /**
+     * Handle an optional payment-proof screenshot on the momo_manual "I have
+     * paid" claim (v3.18.4). Mirrors
+     * DD_Reservations_Module::maybe_upload_deposit_proof() exactly — same
+     * media_handle_upload() call, same image-only allow-list, same soft-fail
+     * contract (returns 0 on any failure, never throws/blocks the caller).
+     */
+    private function maybe_upload_momo_proof(): int {
+        if ( empty( $_FILES['momo_proof']['tmp_name'] ) || ! is_uploaded_file( $_FILES['momo_proof']['tmp_name'] ) ) {
+            return 0;
+        }
+
+        $filetype = wp_check_filetype_and_ext( $_FILES['momo_proof']['tmp_name'], $_FILES['momo_proof']['name'] );
+        $allowed  = [ 'image/jpeg', 'image/png', 'image/webp', 'image/gif' ];
+        if ( empty( $filetype['type'] ) || ! in_array( $filetype['type'], $allowed, true ) ) {
+            return 0;
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/file.php';
+        require_once ABSPATH . 'wp-admin/includes/image.php';
+        require_once ABSPATH . 'wp-admin/includes/media.php';
+
+        $attachment_id = media_handle_upload( 'momo_proof', 0 );
+        if ( is_wp_error( $attachment_id ) ) {
+            error_log( 'DD order MoMo payment proof upload failed: ' . $attachment_id->get_error_message() );
+            return 0;
+        }
+
+        return (int) $attachment_id;
+    }
+
+    /**
+     * Staff-facing "Confirm Payment" action (v3.18.4) — the deliberate
+     * counterpart to the customer's unverified claim above. Promotes
+     * payment_status to 'paid' for a momo_manual order, same capability as
+     * every other order-status action (dd_manage_orders — day-to-day
+     * fulfillment, not a financial-reconciliation action like Mark Paid on
+     * the Billing page, so NOT gated behind dd_is_platform_admin()). This is
+     * the ONLY place a momo_manual order's payment_status ever becomes
+     * 'paid' — proof upload alone (ajax_momo_claim_paid() above) never does
+     * this. Once 'paid', the order satisfies v3.16.0's stale-deliver guard
+     * (payment_method='cod' OR payment_status='paid') exactly like a COD or
+     * gateway-verified order — that guard's own logic is untouched here.
+     *
+     * Idempotent — only advances from claimed_pending/claimed, matching
+     * DD_Reservations_Module::ajax_mark_deposit_paid()'s exact idempotency
+     * shape (re-confirming an already-paid order is a harmless no-op).
+     */
+    public function ajax_confirm_momo_payment(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_orders' ) ) {
+            wp_send_json_error( [ 'message' => 'Permission denied.' ], 403 );
+            return;
+        }
+
+        $order_id = absint( $_POST['order_id'] ?? 0 );
+        if ( ! $order_id ) {
+            wp_send_json_error( [ 'message' => 'Invalid request.' ] );
+            return;
+        }
+
+        global $wpdb;
+        $order = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, payment_method, payment_status
+             FROM {$wpdb->prefix}dishdash_orders WHERE id = %d LIMIT 1",
+            $order_id
+        ) );
+
+        if ( ! $order ) {
+            wp_send_json_error( [ 'message' => 'Order not found.' ] );
+            return;
+        }
+
+        if ( $order->payment_method !== 'momo_manual' ) {
+            wp_send_json_error( [ 'message' => 'This order has no payment to confirm.' ] );
+            return;
+        }
+
+        if ( in_array( $order->payment_status, [ 'claimed_pending', 'claimed' ], true ) ) {
+            $wpdb->update(
+                $wpdb->prefix . 'dishdash_orders',
+                [ 'payment_status' => 'paid' ],
                 [ 'id'             => $order_id ],
                 [ '%s' ],
                 [ '%d' ]
             );
         }
 
-        wp_send_json_success( [ 'claimed' => true, 'order_id' => $order_id ] );
+        wp_send_json_success( [ 'payment_status' => 'paid', 'order_id' => $order_id ] );
     }
 
     public function ajax_pesapal_check_status(): void {

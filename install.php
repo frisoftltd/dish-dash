@@ -105,6 +105,12 @@ class DD_Install {
         // checks (order_permission(), ajax_get_order()'s ownership gate, customer
         // order-history lookup) that must keep working unchanged. See
         // investigation-b.md for the full reasoning.
+        // momo_proof_attachment_id (v3.18.4, MoMo payment proof upload for orders) —
+        // WP Media Library attachment ID for an optional customer-attached payment
+        // screenshot on the momo_manual "I have paid" claim. Nullable — claim works
+        // identically with no attachment, same as before this column existed.
+        // Mirrors dishdash_reservations.deposit_proof_attachment_id exactly (same
+        // type/default, same soft-fail upload contract).
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_orders (
                 id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -139,6 +145,7 @@ class DD_Install {
                 is_test              TINYINT(1)      NOT NULL DEFAULT 0,
                 platform_fee         INT UNSIGNED    NOT NULL DEFAULT 0,
                 dd_customer_id       BIGINT UNSIGNED          DEFAULT NULL,
+                momo_proof_attachment_id BIGINT UNSIGNED      DEFAULT NULL,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   order_number (order_number),
                 KEY          branch_id (branch_id),
