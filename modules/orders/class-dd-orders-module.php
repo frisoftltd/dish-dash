@@ -2213,7 +2213,11 @@ class DD_Orders_Module extends DD_Module {
     public function ajax_mark_month_paid(): void {
         check_ajax_referer( 'dish_dash_admin', 'nonce' );
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        // v3.18.0 — was current_user_can('manage_options'), which dd_restaurant_owner
+        // and dd_restaurant_manager also hold directly (install.php), so it never
+        // actually restricted this to platform admins. dd_is_platform_admin()
+        // excludes those two roles explicitly — see class-dd-helpers.php.
+        if ( ! dd_is_platform_admin() ) {
             wp_send_json_error( [ 'message' => 'Access denied.' ] );
         }
 

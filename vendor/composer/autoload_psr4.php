@@ -8,5 +8,10 @@ $baseDir = dirname($vendorDir);
 return array(
     'libphonenumber\\' => array($vendorDir . '/giggsey/libphonenumber-for-php/src'),
     'Symfony\\Polyfill\\Mbstring\\' => array($vendorDir . '/symfony/polyfill-mbstring'),
+    'Svg\\' => array($vendorDir . '/dompdf/php-svg-lib/src/Svg'),
+    'Sabberworm\\CSS\\' => array($vendorDir . '/sabberworm/php-css-parser/src'),
+    'Masterminds\\' => array($vendorDir . '/masterminds/html5/src'),
     'Giggsey\\Locale\\' => array($vendorDir . '/giggsey/locale/src'),
+    'FontLib\\' => array($vendorDir . '/dompdf/php-font-lib/src/FontLib'),
+    'Dompdf\\' => array($vendorDir . '/dompdf/dompdf/src'),
 );

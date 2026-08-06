@@ -34,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_save' ) ) {
     $fields = [
         'currency', 'currency_symbol', 'currency_position',
-        'tax_rate', 'tax_label', 'min_order', 'order_prefix',
+        'tax_rate', 'tax_label', 'min_order', 'order_prefix', 'invoice_prefix',
         'google_maps_key', 'claude_api_key',
         'enable_pickup', 'enable_delivery', 'enable_dinein',
         'enable_reservations', 'enable_pos',
@@ -350,6 +350,17 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                 <div class="dd-field-control">
                     <input type="text" name="dish_dash_order_prefix"
                            value="<?php echo esc_attr( get_option( 'dish_dash_order_prefix', 'DD-' ) ); ?>"
+                           class="dd-input dd-input--short" />
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">Invoice Number Prefix
+                    <span class="dd-label-hint">Used in Billing invoices as INV-{prefix}-{month}, e.g. INV-KHK-2026-08</span>
+                </div>
+                <div class="dd-field-control">
+                    <input type="text" name="dish_dash_invoice_prefix"
+                           value="<?php echo esc_attr( get_option( 'dish_dash_invoice_prefix', dd_invoice_default_prefix() ) ); ?>"
                            class="dd-input dd-input--short" />
                 </div>
             </div>

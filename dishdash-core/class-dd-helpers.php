@@ -17,12 +17,13 @@
  *   - Used by templates/page-dishdash.php (dd_cart_url, dd_menu_url etc.)
  *
  * Functions defined:
- *   dd_price(), dd_generate_order_number(), dd_get_branches(), dd_get_branch(),
+ *   dd_price(), dd_generate_order_number(), dd_is_platform_admin(),
+ *   dd_invoice_default_prefix(), dd_get_branches(), dd_get_branch(),
  *   dd_get_current_branch_id(), dd_is_enabled(), dd_valid_order_type(),
  *   dd_order_status_transitions(), dd_order_status_label(), dd_log(),
  *   dd_menu_url(), dd_cart_url(), dd_checkout_url(), dd_track_url()
  *
- * Last modified: v3.1.13
+ * Last modified: v3.18.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -52,6 +53,47 @@ function dd_generate_order_number(): string {
     $counter++;
     update_option( 'dish_dash_order_counter', $counter );
     return $prefix . str_pad( $counter, 5, '0', STR_PAD_LEFT );
+}
+
+/**
+ * True only for platform-level admins (Fri Soft staff / WordPress
+ * Administrator), never for dd_restaurant_owner or dd_restaurant_manager —
+ * both of those DishDash roles are granted manage_options DIRECTLY
+ * (install.php's register_roles()), so a plain current_user_can('manage_options')
+ * check cannot tell a true site administrator apart from a restaurant owner/
+ * manager. Role-exclusion first, capability second — same pattern already
+ * proven by admin/pages/csv-menu-import.php's access gate. Use this for any
+ * "admin-only, not owner/manager" gate (v3.18.0, billing actions).
+ */
+function dd_is_platform_admin(): bool {
+    $user             = wp_get_current_user();
+    $restaurant_roles = array_intersect( [ 'dd_restaurant_owner', 'dd_restaurant_manager' ], (array) $user->roles );
+    return empty( $restaurant_roles ) && current_user_can( 'manage_options' );
+}
+
+/**
+ * Default invoice-number prefix when dish_dash_invoice_prefix hasn't been
+ * explicitly set — derived from the restaurant's own name (initials),
+ * falling back to the plugin's generic "DD" if the name is empty. Mirrors
+ * dish_dash_contact_email's existing pattern of a dynamically-computed
+ * default (brand-identity.php) rather than a static one baked into
+ * install.php's set_default_options() — the restaurant name may not be set
+ * yet at install time, and this stays correct if it's changed later,
+ * right up until someone explicitly overrides the prefix in Settings.
+ */
+function dd_invoice_default_prefix(): string {
+    $name = trim( (string) get_option( 'dish_dash_restaurant_name', '' ) );
+    if ( '' === $name ) {
+        return 'DD';
+    }
+    $initials = '';
+    foreach ( preg_split( '/\s+/', $name ) as $word ) {
+        if ( '' !== $word ) {
+            $initials .= strtoupper( mb_substr( $word, 0, 1 ) );
+        }
+    }
+    $initials = substr( $initials, 0, 4 );
+    return '' !== $initials ? $initials : 'DD';
 }
 
 /**

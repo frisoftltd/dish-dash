@@ -424,16 +424,24 @@ class DD_Install {
         // ── 14. dd_billing_payments ──────────────────────────────────────────
         // Tracks which billing months have been marked as paid by the restaurant.
         // One row per month per restaurant (single-tenant for now).
+        // invoice_number (v3.18.0): deterministic "INV-{prefix}-{month}",
+        // persisted on first "Generate Invoice" click and reused on every
+        // regeneration after — see admin/pages/billing.php's
+        // dd_invoice_get_data(). Nullable: a month with no invoice generated
+        // yet simply has no number. ajax_mark_month_paid()'s UPDATE never
+        // references this column, so marking a month paid/unpaid never
+        // touches an already-generated invoice_number.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dd_billing_payments (
-                id         INT UNSIGNED    NOT NULL AUTO_INCREMENT,
-                month      VARCHAR(7)      NOT NULL,
-                amount     INT UNSIGNED    NOT NULL DEFAULT 0,
-                paid       TINYINT(1)      NOT NULL DEFAULT 0,
-                paid_at    DATETIME                 DEFAULT NULL,
-                notes      VARCHAR(255)    NOT NULL DEFAULT '',
-                created_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                id             INT UNSIGNED    NOT NULL AUTO_INCREMENT,
+                month          VARCHAR(7)      NOT NULL,
+                amount         INT UNSIGNED    NOT NULL DEFAULT 0,
+                paid           TINYINT(1)      NOT NULL DEFAULT 0,
+                paid_at        DATETIME                 DEFAULT NULL,
+                invoice_number VARCHAR(64)              DEFAULT NULL,
+                notes          VARCHAR(255)    NOT NULL DEFAULT '',
+                created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   month (month)
             ) $charset_collate;
