@@ -654,9 +654,10 @@ class DD_Orders_Module extends DD_Module {
     //  FEE RECALCULATION
     // ─────────────────────────────────────────
     /**
-     * Recalculate platform_fee when an order status changes.
+     * Recalculate platform_fee when an order status changes, and log the
+     * billing ledger event on delivery.
      *
-     * Policy:
+     * Fee policy:
      *  - Cancel: zero the fee
      *  - Revert from delivered: zero the fee
      *  - Re-deliver after revert (fee currently 0): restore from dd_per_order_fee
@@ -664,6 +665,18 @@ class DD_Orders_Module extends DD_Module {
      *
      * Idempotent: if fee is already at the target value, skips the DB write.
      * WC post meta _dd_platform_fee is mirrored for orders with wc_order_id set.
+     *
+     * Ledger policy (v3.18.2 — decoupled from the fee-restore branch above,
+     * see investigation-ledger-missing-orders.md): fires unconditionally on
+     * every transition TO delivered, matching assign_reservation_fee_if_zero()'s
+     * pattern on the reservation side. Previously only fired inside the
+     * platform_fee===0 branch, which — since platform_fee is stamped non-zero
+     * on every order at creation (place_order(), v3.4.91) — essentially never
+     * matches on a normal first delivery, so normal deliveries were silently
+     * never logged; only the periodic backfill script was populating the
+     * ledger's order rows. UNIQUE KEY(source_type, source_id) + INSERT IGNORE
+     * in DD_Billing_Ledger_Module::log() remains the sole duplicate guard for
+     * a reopen-then-redeliver cycle re-entering this method a second time.
      *
      * @param int    $order_id   dishdash_orders.id
      * @param string $old_status Status before transition
@@ -690,8 +703,7 @@ class DD_Orders_Module extends DD_Module {
         $current_fee = (int) $row->platform_fee;
         $wc_order_id = $row->wc_order_id ? (int) $row->wc_order_id : 0;
 
-        $target_fee   = null;
-        $newly_delivered = false;
+        $target_fee = null;
 
         if ( $new_status === 'cancelled' ) {
             $target_fee = 0;
@@ -700,50 +712,41 @@ class DD_Orders_Module extends DD_Module {
         } elseif ( $new_status === 'delivered' && $old_status !== 'delivered' && $current_fee === 0 ) {
             $fees_enabled = get_option( 'dd_fees_enabled', '1' ) === '1';
             $target_fee   = $fees_enabled ? (int) get_option( 'dd_per_order_fee', 750 ) : 0;
-            $newly_delivered = true;
         }
 
-        if ( $target_fee === null ) {
-            return;
-        }
+        if ( $target_fee !== null && $current_fee !== $target_fee ) {
+            $wpdb->update(
+                $table,
+                [ 'platform_fee' => $target_fee ],
+                [ 'id'           => $order_id ],
+                [ '%d' ],
+                [ '%d' ]
+            );
 
-        if ( $current_fee === $target_fee ) {
-            return;
-        }
-
-        $wpdb->update(
-            $table,
-            [ 'platform_fee' => $target_fee ],
-            [ 'id'           => $order_id ],
-            [ '%d' ],
-            [ '%d' ]
-        );
-
-        if ( $wc_order_id > 0 && function_exists( 'wc_get_order' ) ) {
-            $wc_order = wc_get_order( $wc_order_id );
-            if ( $wc_order ) {
-                $wc_order->update_meta_data( '_dd_platform_fee', $target_fee );
-                $wc_order->save();
+            if ( $wc_order_id > 0 && function_exists( 'wc_get_order' ) ) {
+                $wc_order = wc_get_order( $wc_order_id );
+                if ( $wc_order ) {
+                    $wc_order->update_meta_data( '_dd_platform_fee', $target_fee );
+                    $wc_order->save();
+                }
             }
         }
 
-        // Billing ledger — one row per order that ever becomes billable. Fired
-        // from here (not the dish_dash_order_status_changed hook) because this
-        // is the ONE function both delivery write paths funnel through — the
-        // hook itself is never fired by dashboard.php's stale-bulk-deliver
-        // action (see investigation-billing-ledger.md §1). The ledger's own
-        // UNIQUE KEY(source_type, source_id) is the real duplicate guard (a
-        // reopen-then-redeliver cycle re-enters this exact branch a second
-        // time, target_fee>0 again) — this call is expected to sometimes be a
-        // silent no-op, that's by design, not an error.
-        if ( $newly_delivered && $target_fee > 0 ) {
-            do_action( 'dd_log_billing_event', [
-                'source_type' => 'order',
-                'source_id'   => $order_id,
-                'branch_id'   => (int) $row->branch_id,
-                'is_test'     => (int) $row->is_test,
-                'amount'      => $target_fee,
-            ] );
+        // Billing ledger — fires on every transition TO delivered, using the
+        // order's effective fee: $target_fee if this transition just changed
+        // it (the revert/redeliver case above), otherwise $current_fee (the
+        // normal case — already correct since order creation).
+        if ( $new_status === 'delivered' && $old_status !== 'delivered' ) {
+            $billed_fee = $target_fee !== null ? $target_fee : $current_fee;
+            if ( $billed_fee > 0 ) {
+                do_action( 'dd_log_billing_event', [
+                    'source_type' => 'order',
+                    'source_id'   => $order_id,
+                    'branch_id'   => (int) $row->branch_id,
+                    'is_test'     => (int) $row->is_test,
+                    'amount'      => $billed_fee,
+                ] );
+            }
         }
     }
 

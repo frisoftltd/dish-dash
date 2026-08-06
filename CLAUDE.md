@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.1 (2026-08-06)
+> Last updated: v3.18.2 (2026-08-06)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.1 |
+| **Deployed version** | v3.18.2 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.1 — Invoice view now renders standalone, without WP admin chrome. Root cause: the Generate Invoice GET handler was intercepted from inside `admin/pages/billing.php`, which only runs via `render_billing()` — called by WordPress *after* `admin-header.php` already echoes the sidebar/admin bar, so the standalone page was nesting inside that chrome instead of replacing it. Fix: the intercept moved to a new `admin_init`-hooked `DD_Admin::maybe_serve_invoice()` (fires before any chrome output); the 5 backing functions (`dd_invoice_get_data()`, `dd_invoice_build_body_html()`, `dd_invoice_render_page()`, `dd_invoice_resolve_local_logo_path()`, `dd_invoice_stream_pdf()`) moved verbatim from `billing.php` to `dishdash-core/class-dd-helpers.php` (loaded at plugin boot, so available in time). No markup/content changes — access control, the PDF stream path, and the Monthly History "Generate Invoice" link are all unchanged. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.2 — Billing ledger now logs delivered orders unconditionally, fixing a live under-counting bug. **Root cause** (see `investigation-ledger-missing-orders.md`): the v3.17.0 ledger trigger inside `recalculate_fee_for_status_change()` was nested inside the `platform_fee === 0` branch, which v3.4.98 built solely to restore a fee after a cancel/revert cycle. Since `place_order()` stamps `platform_fee` non-zero on every order at creation (v3.4.91), that branch essentially never matches on a normal first delivery — so normal deliveries were never live-logged to `wp_dishdash_billing_ledger`; only the periodic `scripts/dd-billing-backfill.php` runs were populating order rows. Fix: the ledger-log call now fires on every transition to `delivered` unconditionally (checking `new_status==='delivered' && old_status!=='delivered'`, independent of whether a fee-restore write happened), matching the reservation side's `assign_reservation_fee_if_zero()` pattern exactly. Fee-restore logic (cancel/revert/re-deliver) and the reservation-side trigger are both untouched. Idempotency unchanged — still the existing `UNIQUE KEY(source_type, source_id)` + `INSERT IGNORE` in `DD_Billing_Ledger_Module::log()`. The Paid/Unpaid cycle originally suspected as a cause was confirmed uninvolved — `ajax_mark_month_paid()` never touches orders or the ledger. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
