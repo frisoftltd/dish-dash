@@ -93,12 +93,17 @@ $monthly_history = $wpdb->get_results(
 $bp_table     = $wpdb->prefix . 'dd_billing_payments';
 $paid_months  = [];
 $payment_rows = $wpdb->get_results(
-    "SELECT month, paid, paid_at FROM `{$bp_table}`"
+    "SELECT month, paid, paid_at, amount FROM `{$bp_table}`"
 );
 foreach ( $payment_rows as $pr ) {
     $paid_months[ $pr->month ] = [
         'paid'    => (bool) $pr->paid,
         'paid_at' => $pr->paid_at,
+        // Frozen at Mark-Paid time (ajax_mark_month_paid()) — COMBINED
+        // orders+reservations total, there is no per-category split stored.
+        // Only the Orders Monthly History table displays this (labeled as
+        // combined); Reservations' table keeps showing its live total.
+        'amount'  => (int) $pr->amount,
     ];
 }
 $billing_nonce = wp_create_nonce( 'dish_dash_admin' );
@@ -276,7 +281,14 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
                 <tr data-month="<?php echo esc_attr( $month_key ); ?>">
                   <td><?php echo esc_html( date( 'F Y', strtotime( $row->month . '-01' ) ) ); ?></td>
                   <td><?php echo number_format( (int) $row->orders ); ?></td>
-                  <td><strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong></td>
+                  <td>
+                    <?php if ( $is_paid ) : ?>
+                      <strong>RWF <?php echo number_format( $paid_months[ $month_key ]['amount'] ); ?></strong>
+                      <span class="dd-frozen-note" title="Frozen combined total (orders + reservations) recorded when this month was marked Paid — may differ from the orders-only live total, which is no longer shown once a month is locked in.">🔒 combined, frozen</span>
+                    <?php else : ?>
+                      <strong>RWF <?php echo number_format( (int) $row->fees ); ?></strong>
+                    <?php endif; ?>
+                  </td>
                   <td>
                     <?php if ( $is_paid ) : ?>
                       <span class="dd-paid-badge">✅ Paid</span>
@@ -530,6 +542,13 @@ $combined_this_month_fees = $this_month_fees + $res_this_month_fees;
     font-size: 11px;
     color: #9ca3af;
     margin-left: 6px;
+}
+.dd-frozen-note {
+    display: block;
+    font-size: 10.5px;
+    color: #9ca3af;
+    margin-top: 2px;
+    cursor: help;
 }
 .dd-mark-paid-btn {
     font-size: 12px;
