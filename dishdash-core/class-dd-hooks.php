@@ -408,7 +408,13 @@ class DD_Hooks {
         } );
 
         // CSS-only hiding for Dish Dash submenu items restricted to Fri Soft admins only
-        // (Settings, Tools, Template, Activity Log hidden for Owner / Manager).
+        // (Settings, Tools, Template, Activity Log, Audit hidden for Owner / Manager).
+        // Audit added v3.18.3 — it was registered with the same 'manage_options'
+        // capability as the other four but never added to this list, an omission
+        // rather than intentional exposure (see investigation-menu-order.md).
+        // The capability check itself is untouched — this is cosmetic sidebar
+        // visibility only, see DD_Audit_Module's own manage_options gate for the
+        // real access-control boundary.
         add_action( 'admin_head', function() {
             $user = wp_get_current_user();
             if ( ! array_intersect( [ 'dd_restaurant_owner', 'dd_restaurant_manager' ], $user->roles ) ) {
@@ -419,7 +425,8 @@ class DD_Hooks {
                 #adminmenu .wp-submenu a[href*="page=dish-dash-settings"],
                 #adminmenu .wp-submenu a[href*="page=dish-dash-tools"],
                 #adminmenu .wp-submenu a[href*="page=dish-dash-template"],
-                #adminmenu .wp-submenu a[href*="page=dish-dash-activity-log"] {
+                #adminmenu .wp-submenu a[href*="page=dish-dash-activity-log"],
+                #adminmenu .wp-submenu a[href*="page=dish-dash-audit"] {
                     display: none !important;
                 }
             </style>

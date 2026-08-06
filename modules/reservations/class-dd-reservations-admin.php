@@ -17,13 +17,20 @@ class DD_Reservations_Admin {
     }
 
     public function register_submenu(): void {
+        // $position=2 (v3.18.3) — see the matching note in
+        // DD_Customers_Module::register_admin_page(). DD_Reservations_Module
+        // instantiates after DD_Customers_Module (DD_Loader::register_modules()),
+        // so this splice at index 2 runs after Customers already claimed that
+        // slot, landing Reservations to its left — final order: Dashboard,
+        // Orders, Reservations, Customers, Analytics, ...
         add_submenu_page(
             'dish-dash',
             __( 'Reservations', 'dish-dash' ),
             '📅 Reservations',
             'dd_manage_reservations',
             'dd-reservations',
-            [ $this, 'render_page' ]
+            [ $this, 'render_page' ],
+            2
         );
     }
 

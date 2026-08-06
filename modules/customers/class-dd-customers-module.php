@@ -52,13 +52,26 @@ class DD_Customers_Module extends DD_Module {
     //  ADMIN MENU
     // ─────────────────────────────────────────
     public function register_admin_page(): void {
+        // $position=2 (v3.18.3) — inserts right after Orders (index 1), before
+        // the always-present-but-CSS-hidden Menu Items/Delivery/Branches/POS
+        // block DD_Admin registers at indices 2-5. DD_Reservations_Admin's own
+        // register_submenu() also targets position=2, registering later in the
+        // admin_menu hook execution order (DD_Loader instantiates Customers
+        // before Reservations) — its later splice at the same index lands
+        // Reservations to the left of Customers, giving the target sequence
+        // Dashboard, Orders, Reservations, Customers, Analytics, ... See
+        // investigation-menu-order.md for why hook-priority reordering alone
+        // can't achieve this (Orders and Analytics are both emitted inside one
+        // DD_Admin callback, so nothing can interleave between them without a
+        // position argument).
         add_submenu_page(
             'dish-dash',
             __( 'Customers', 'dish-dash' ),
             __( '👥 Customers', 'dish-dash' ),
             'dd_view_customers',
             'dish-dash-customers',
-            [ $this, 'render_admin_page' ]
+            [ $this, 'render_admin_page' ],
+            2
         );
     }
 
