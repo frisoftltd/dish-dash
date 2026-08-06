@@ -16,8 +16,11 @@
  *   - dishdash-core/class-dd-loader.php (instantiates DD_Admin)
  *
  * Hooks registered:
- *   - admin_menu          → register_admin_menus()
+ *   - admin_menu            → register_admin_menus()
  *   - admin_enqueue_scripts → enqueue_admin_assets()
+ *   - admin_init            → maybe_serve_invoice() (v3.18.1 — intercepts
+ *     the Generate Invoice GET link before wp-admin chrome is echoed;
+ *     calls dd_invoice_*() helpers in dishdash-core/class-dd-helpers.php)
  *
  * Admin pages owned:
  *   dish-dash (Dashboard), dish-dash-menu (redirect to CPT editor),
@@ -28,7 +31,7 @@
  *   assets/css/admin.css, assets/js/admin.js
  *   Localizes: window.dishDashAdmin (ajaxUrl, nonce, restUrl, version)
  *
- * Last modified: v3.1.13
+ * Last modified: v3.18.1
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -40,6 +43,47 @@ class DD_Admin extends DD_Module {
     public function init(): void {
         add_action( 'admin_menu',            [ $this, 'register_admin_menus' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
+        add_action( 'admin_init',            [ $this, 'maybe_serve_invoice' ] );
+    }
+
+    /**
+     * Intercepts the Generate Invoice GET link (?page=dish-dash-billing&dd_invoice=
+     * or &dd_invoice_pdf=) on admin_init — the earliest hook available before
+     * WordPress's admin-header.php echoes any wp-admin chrome (sidebar, admin
+     * bar). Handling this from inside billing.php (v3.18.0) was too late: that
+     * file only runs via render_billing(), which WordPress calls AFTER the
+     * chrome has already been output, so the standalone invoice page rendered
+     * nested inside the chrome instead of replacing it (v3.18.1 fix).
+     */
+    public function maybe_serve_invoice(): void {
+        if ( ( $_GET['page'] ?? '' ) !== 'dish-dash-billing' ) {
+            return;
+        }
+        if ( ! isset( $_GET['dd_invoice'] ) && ! isset( $_GET['dd_invoice_pdf'] ) ) {
+            return;
+        }
+
+        $month = sanitize_text_field( wp_unslash( $_GET['dd_invoice'] ?? $_GET['dd_invoice_pdf'] ?? '' ) );
+        if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
+            wp_die( esc_html__( 'Invalid month.', 'dish-dash' ) );
+        }
+
+        $nonce_ok = wp_verify_nonce(
+            sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ?? '' ) ),
+            'dd_invoice_' . $month
+        );
+        if ( ! dd_is_platform_admin() || ! $nonce_ok ) {
+            wp_die( esc_html__( 'Access denied.', 'dish-dash' ) );
+        }
+
+        $data = dd_invoice_get_data( $month );
+
+        if ( isset( $_GET['dd_invoice_pdf'] ) ) {
+            dd_invoice_stream_pdf( $data );
+        } else {
+            dd_invoice_render_page( $data );
+        }
+        exit;
     }
 
     public function register_admin_menus(): void {

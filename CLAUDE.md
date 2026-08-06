@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.0 (2026-08-06)
+> Last updated: v3.18.1 (2026-08-06)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.0 |
+| **Deployed version** | v3.18.1 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.0 — Monthly invoice generation (admin-only) + Mark Paid/Unpaid access-control fix. **Capability gap found and closed**: `ajax_mark_month_paid()` was gated `current_user_can('manage_options')`, but `dd_restaurant_owner`/`dd_restaurant_manager` both hold `manage_options` directly (`install.php`'s `register_roles()`), so it never actually restricted the action to true admins — owner/manager could already trigger it. New shared helper `dd_is_platform_admin()` (`class-dd-helpers.php`) does role-exclusion first (mirrors the existing `csv-menu-import.php` gate pattern), used to fix that handler AND gate the new "Generate Invoice" feature. Both Mark Paid/Unpaid and Generate Invoice buttons are now admin-only in the UI (owner/manager still see the Paid/Unpaid status label, read-only) *and* server-side. New: `dompdf/dompdf` added via composer (same vendoring pattern as `libphonenumber`, confirmed working — `vendor/` is deliberately whitelisted in `.gitignore` to ship with releases). New `invoice_number` column on `wp_dd_billing_payments` (nullable, deterministic `INV-{prefix}-{YYYY-MM}`, persisted on first generation and reused after — stable even if the prefix option changes later). New `dish_dash_invoice_prefix` option + Settings field, mirroring `dish_dash_order_prefix`, defaulting to restaurant-name initials via `dd_invoice_default_prefix()` when unset. "Generate Invoice" link on the Billing page's Orders Monthly History row opens a printable HTML view (Print button + Download PDF link) built from one shared `dd_invoice_build_body_html()` function so the on-screen and PDF versions can never drift apart; PDF logo embedding resolves the Brand Identity logo URL to a local filesystem path first (dompdf's `isRemoteEnabled` is off — no outbound HTTP fetch at render time on shared hosting). Invoice line items and totals come from `wp_dishdash_billing_ledger` (`is_test=0`, split by `source_type`), not touched or recalculated. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.1 — Invoice view now renders standalone, without WP admin chrome. Root cause: the Generate Invoice GET handler was intercepted from inside `admin/pages/billing.php`, which only runs via `render_billing()` — called by WordPress *after* `admin-header.php` already echoes the sidebar/admin bar, so the standalone page was nesting inside that chrome instead of replacing it. Fix: the intercept moved to a new `admin_init`-hooked `DD_Admin::maybe_serve_invoice()` (fires before any chrome output); the 5 backing functions (`dd_invoice_get_data()`, `dd_invoice_build_body_html()`, `dd_invoice_render_page()`, `dd_invoice_resolve_local_logo_path()`, `dd_invoice_stream_pdf()`) moved verbatim from `billing.php` to `dishdash-core/class-dd-helpers.php` (loaded at plugin boot, so available in time). No markup/content changes — access control, the PDF stream path, and the Monthly History "Generate Invoice" link are all unchanged. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
