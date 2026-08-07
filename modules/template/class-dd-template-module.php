@@ -859,8 +859,12 @@ class DD_Template_Module extends DD_Module {
         <?php echo self::build_root_tokens(); ?>
 
         /* ── Hide default theme header/footer — blank theme ── */
+        /* .dd-ml-header added v3.18.7 — Minimal Light's own header (no
+           shared markup — see templates/layouts/minimal-light/page-home.php)
+           was being caught and hidden by this same catch-all, written before
+           that class existed. */
         .site-header:not(.dd-header):not(.dd-global-header),
-        header:not(.dd-header):not(.dd-global-header),
+        header:not(.dd-header):not(.dd-global-header):not(.dd-ml-header),
         .site-footer:not(.dd-footer):not(.dd-global-footer),
         footer:not(.dd-footer):not(.dd-global-footer),
         #colophon, #masthead,
