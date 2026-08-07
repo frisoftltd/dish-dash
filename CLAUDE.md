@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.4 (2026-08-06)
+> Last updated: v3.18.5 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.4 |
+| **Deployed version** | v3.18.5 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.4 — MoMo payment proof upload + staff "Confirm Payment" for orders. `momo_manual` orders previously had an invisible claim state (`claimed_pending`/`claimed` never shown anywhere in the Orders admin UI) and no way for staff to verify a claim before marking delivered (see `investigation-momo-proof-orders.md`). New nullable `momo_proof_attachment_id BIGINT UNSIGNED` column on `wp_dishdash_orders` (auto-migration, mirrors `dishdash_reservations.deposit_proof_attachment_id`). Customer-facing: optional file input next to the existing "I have paid" button in `cart.js`'s `#ddPanelMomoManual` panel; upload handled by a new `maybe_upload_momo_proof()` that mirrors `DD_Reservations_Module::maybe_upload_deposit_proof()` exactly (`media_handle_upload()`, image-only allow-list, soft-fail — upload failure never blocks the claim). Staff-facing: the Orders list now shows a Claimed/Unclaimed/Paid badge next to the payment method for `momo_manual` rows (`dd_orders_payment_claim_badge()`), and the order-detail modal (same modal v3.16.1 touched) gained a PAYMENT section — status label, proof thumbnail with click-to-zoom (mirrors the reservations accept modal's lightbox), and a new "✅ Confirm Payment" button. Confirm Payment is a **deliberate staff action only** — proof upload alone never sets `payment_status='paid'`; new `ajax_confirm_momo_payment()` (capability `dd_manage_orders`, same as every other order-status action — NOT `dd_is_platform_admin()`, since this is routine fulfillment, not financial reconciliation like Billing's Mark Paid) is the only code path that does. Once `'paid'`, the order satisfies v3.16.0's stale-deliver guard (`payment_method='cod' OR payment_status='paid'`) like any COD/gateway order — that guard's own logic in `dashboard.php` was not touched. Reservations proof-upload code was not touched, only its pattern reused. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.5 — Minimal Light homepage template built and activated. Was a `coming_soon` registry stub with zero implementation (see `investigation-minimal-light.md`); now a real, working template. New `templates/layouts/minimal-light/page-home.php` (uses the same `page-dishdash.php` page-template marker + active-template registry resolution khana-khazana already uses — no WP page changes needed) and `assets/css/layouts/minimal-light.css` (CSS-custom-property token stylesheet, `--ml-*` namespace, no build step). Wired to every existing Homepage Settings field (hero incl. 3 CTAs/4 chips/bg image+overlay, Browse-by-Category, Featured Dishes incl. tag chips and a real-sales-data "Most Popular" sort via `wp_dishdash_order_items` — the same mechanism Analytics' "Top Menu Items" card uses, more accurate than WooCommerce's generic popularity meta — Reserve Table using the real working reservation modal via the existing `#dd-open-reservation`/`js-open-reservation` hooks, Selected Category tabs, Google Reviews via the reusable `DD_Homepage_Module::get_reviews()`, mobile Food Category List). Reuses `templates/partials/product-card.php` verbatim for every product card (guarantees add-to-cart/quick-view keep working via existing `frontend.js`/`cart.js` hooks — no shared JS touched). Header/footer are global chrome (`DD_Template_Module`) already shared across templates — re-skinned via CSS-only overrides, no shared PHP touched; confirmed and reused the existing `dd-desktop-only`/`dd-mobile-only` CSS-class responsive pattern the Homepage Settings toggles already assume (not the Menu page's separate dual-markup mobile pattern). Registry flipped `minimal-light`'s `status` to `available` in `class-dd-template-module.php` (one field) — the actual live template picker is the dynamic, registry-driven loop in that file's own `render_admin_page()`; `admin/pages/template-settings.php` is dead/orphaned code, confirmed never rendered, left untouched. Two pre-existing gaps found and reported, not fixed (out of scope): the Header section's "Show Track Order"/"Show Cart" toggles are unwired site-wide (no Track Order button exists anywhere in the shared header at all; Cart button has no toggle-check) — Cart's toggle was made functional for this template only via scoped CSS, Track Order's gap is documented, not invented. No mockup image was available in-session; visual design is original, built to the brief's "minimal light" description against real data, not a supplied file. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
@@ -415,7 +415,7 @@ dish-dash/
 | **Phase 5D** | ✅ | Full admin redesign + frontend template system |
 | **Phase 6** | ✅ | MoMo Payment Integration — MTN Mobile Money payment gateway, in-drawer payment flow |
 | **Phase 7** | ✅ | User Access Control — customer profiles, roles, permissions, order history |
-| **Phase 8** | ⏳ CURRENT | Feature Backlog — paid reservations (flat fee, per-person scaling, PesaPal deposit, accept modal), CSV menu import/export tool, admin dashboard cleanup, test customer flag, MoMo payment proof upload, ordering/reservation toggle, Minimal Light template, dishdash.rw marketing site redesign, WhatsApp Business API integration, Kiyovu branch deployment |
+| **Phase 8** | ⏳ CURRENT | Feature Backlog — paid reservations (flat fee, per-person scaling, PesaPal deposit, accept modal) ✅, CSV menu import/export tool ✅, admin dashboard cleanup, test customer flag, MoMo payment proof upload ✅, ordering/reservation toggle, Minimal Light template ✅, Modern Dark template, dishdash.rw marketing site redesign, WhatsApp Business API integration, Kiyovu branch deployment |
 | **Phase 9** | ⏳ | Analytics + AI — Python microservice, behavior engine, recommendations |
 | **Phase 10** | ⏳ | Loyalty & QR — points system, QR scan ordering |
 | **Phase 11** | ⏳ | Testing + Optimization |
@@ -547,7 +547,8 @@ Every page before shipping must pass:
 | Item | Status |
 |---|---|
 | Khana Khazana template | ✅ Default — built |
-| Additional templates | ⏳ Post-MVP |
+| Minimal Light template | ✅ Built v3.18.5 — `templates/layouts/minimal-light/`, `assets/css/layouts/minimal-light.css` |
+| Modern Dark template | ⏳ Post-MVP — next release, intended to reuse Minimal Light's markup/PHP against a different `--ml-*`-equivalent token block |
 
 ---
 

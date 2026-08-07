@@ -1,0 +1,520 @@
+/**
+ * File:    assets/css/layouts/minimal-light.css
+ * Purpose: Token stylesheet for the "Minimal Light" template (v3.18.5).
+ *          Loaded AFTER theme.css (registry-driven, dependent on
+ *          'dish-dash-theme' — see DD_Template_Module::enqueue_frontend_assets()),
+ *          so rules here override theme.css's khana-khazana defaults for the
+ *          shared global chrome (header/footer/cart button) and style the
+ *          markup rendered by templates/layouts/minimal-light/page-home.php.
+ *
+ * Architecture: every visual value (color, spacing, radius, type) is a CSS
+ * custom property under the --ml-* namespace, defined once in :root below.
+ * All component rules reference --ml-* variables, never a literal color/px
+ * value directly (aside from a few structural non-themeable values like
+ * z-index or one-off breakpoints). This is deliberate — the next release
+ * (Modern Dark) is expected to reuse the exact same markup/class names from
+ * page-home.php against a DIFFERENT token block, swapping just this file.
+ * --brand/--brand-dark (dish_dash_primary_color/dark_color, set inline by
+ * page-home.php on :root, same convention page-dishdash.php uses) still
+ * drive the one white-label accent color threaded through --ml-accent.
+ *
+ * No build step — plain CSS only, per architecture constraints.
+ *
+ * Last modified: v3.18.5
+ */
+
+/* ── TOKENS ─────────────────────────────────────────────────────────────── */
+:root {
+    /* Palette — light, airy, minimal. --brand flows in as the one accent. */
+    --ml-bg:            #ffffff;
+    --ml-surface:       #faf9f7;
+    --ml-surface-2:     #f2f0ec;
+    --ml-ink:           #17140f;
+    --ml-ink-soft:      #6b6459;
+    --ml-ink-faint:     #a39c8f;
+    --ml-line:          #eae7e0;
+    --ml-accent:        var(--brand, #6B1D1D);
+    --ml-accent-dark:   var(--brand-dark, #160F0D);
+    --ml-on-accent:     #ffffff;
+
+    /* Spacing scale */
+    --ml-sp-1:  4px;
+    --ml-sp-2:  8px;
+    --ml-sp-3:  12px;
+    --ml-sp-4:  16px;
+    --ml-sp-5:  24px;
+    --ml-sp-6:  32px;
+    --ml-sp-7:  48px;
+    --ml-sp-8:  72px;
+
+    /* Radius */
+    --ml-radius-sm:  8px;
+    --ml-radius:     14px;
+    --ml-radius-lg:  28px;
+    --ml-radius-full: 999px;
+
+    /* Typography */
+    --ml-font-heading: 'Cormorant Garamond', Georgia, serif;
+    --ml-font-body:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Shadow — one soft elevation, used sparingly */
+    --ml-shadow: 0 4px 24px rgba(23, 20, 15, 0.06);
+    --ml-shadow-lift: 0 12px 40px rgba(23, 20, 15, 0.10);
+}
+
+/* ── SHARED CHROME OVERRIDES (header/footer/cart button) ──────────────────
+   Header and footer are global (DD_Template_Module), rendered identically
+   regardless of active template. These rules re-skin them light/minimal
+   without touching that PHP — scoped by loading only when minimal-light is
+   the active template (registry-driven enqueue). */
+.dd-global-header {
+    background: var(--ml-bg);
+    border-bottom: 1px solid var(--ml-line);
+    box-shadow: none;
+}
+.dd-global-header .dd-brand__name,
+.dd-global-header .dd-nav a {
+    color: var(--ml-ink);
+    font-family: var(--ml-font-body);
+}
+.dd-global-header .dd-cart-top {
+    background: var(--ml-ink);
+    color: var(--ml-on-accent);
+    border-radius: var(--ml-radius-full);
+}
+.dd-global-header .dd-btn--brand {
+    background: var(--ml-accent);
+    border-color: var(--ml-accent);
+}
+
+.dd-global-footer {
+    background: var(--ml-surface);
+    color: var(--ml-ink-soft);
+}
+.dd-global-footer .dd-footer__heading { color: var(--ml-ink); }
+.dd-global-footer .dd-footer__list a,
+.dd-global-footer .dd-footer__copy { color: var(--ml-ink-soft); }
+.dd-global-footer .dd-footer__social-link {
+    background: var(--ml-surface-2);
+    color: var(--ml-ink);
+}
+.dd-global-footer .dd-footer__bottom {
+    background: var(--ml-surface-2) !important;
+    color: var(--ml-ink-faint) !important;
+}
+
+/* dd_header_show_cart='0' — the Cart button markup itself has no PHP toggle
+   (see investigation-frontend-pages.md-equivalent finding for this release:
+   the setting exists and saves, but no code anywhere reads it, header-wide,
+   pre-existing). This scoped rule is the one Homepage Settings toggle this
+   template CAN make functional without editing the shared header PHP that
+   khana-khazana also depends on — CSS-only, minimal-light-scoped via the
+   body class page-home.php sets. Injected as an inline <style> only when the
+   option is actually '0' (see page-home.php) so default behavior is
+   untouched. */
+body.dd-tpl-minimal-light.dd-hide-cart-btn #ddCartTopBtn,
+body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
+    display: none !important;
+}
+
+/* ── BASE ───────────────────────────────────────────────────────────────── */
+body.dd-tpl-minimal-light {
+    background: var(--ml-bg);
+    color: var(--ml-ink);
+    font-family: var(--ml-font-body);
+}
+.dd-ml-section {
+    padding: var(--ml-sp-8) 0;
+}
+.dd-ml-section--tight { padding: var(--ml-sp-7) 0; }
+.dd-ml-section--surface { background: var(--ml-surface); }
+.dd-ml-eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ml-accent);
+    margin-bottom: var(--ml-sp-2);
+}
+.dd-ml-title {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.15;
+    color: var(--ml-ink);
+    margin: 0 0 var(--ml-sp-2);
+}
+.dd-ml-title .dd-gold { color: var(--ml-accent); }
+.dd-ml-top {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--ml-sp-4);
+    margin-bottom: var(--ml-sp-6);
+    flex-wrap: wrap;
+}
+.dd-ml-arrows { display: flex; gap: var(--ml-sp-2); }
+.dd-ml-arrow-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--ml-line);
+    background: var(--ml-bg);
+    color: var(--ml-ink);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, color .15s;
+}
+.dd-ml-arrow-btn:hover { background: var(--ml-ink); color: var(--ml-bg); }
+.dd-ml-empty { color: var(--ml-ink-faint); font-size: 14px; padding: var(--ml-sp-5) 0; }
+
+/* ── HERO ───────────────────────────────────────────────────────────────── */
+.dd-ml-hero {
+    position: relative;
+    padding: var(--ml-sp-8) 0;
+    background: var(--ml-surface);
+    overflow: hidden;
+}
+.dd-ml-hero--has-bg {
+    background-size: cover;
+    background-position: center;
+    background-image: var(--ml-hero-bg-image, none);
+}
+.dd-ml-hero__overlay {
+    position: absolute; inset: 0;
+    background: var(--ml-hero-overlay-color, transparent);
+    pointer-events: none;
+}
+.dd-ml-hero__grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: var(--ml-sp-7);
+    align-items: center;
+}
+.dd-ml-hero__content { max-width: 560px; }
+.dd-ml-hero--has-bg .dd-ml-hero__content,
+.dd-ml-hero--has-bg .dd-ml-hero__content .dd-ml-copy { color: var(--ml-on-accent); }
+.dd-ml-hero--has-bg .dd-ml-eyebrow,
+.dd-ml-hero--has-bg .dd-ml-pill { color: var(--ml-on-accent); border-color: rgba(255,255,255,.4); }
+.dd-ml-pill {
+    display: inline-block;
+    padding: 6px 16px;
+    border: 1px solid var(--ml-line);
+    border-radius: var(--ml-radius-full);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ml-accent);
+    margin-bottom: var(--ml-sp-4);
+}
+.dd-ml-hero__title {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    font-size: clamp(34px, 5.5vw, 58px);
+    line-height: 1.1;
+    margin: 0 0 var(--ml-sp-3);
+}
+.dd-ml-hero__title .dd-gold { color: var(--ml-accent); }
+.dd-ml-copy {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--ml-ink-soft);
+    margin: 0 0 var(--ml-sp-5);
+    max-width: 46ch;
+}
+.dd-ml-hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ml-sp-3);
+    margin-bottom: var(--ml-sp-6);
+}
+.dd-ml-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 13px 26px;
+    border-radius: var(--ml-radius-full);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: transform .12s, box-shadow .12s;
+    font-family: var(--ml-font-body);
+}
+.dd-ml-btn:hover { transform: translateY(-1px); }
+.dd-ml-btn--primary { background: var(--ml-accent); color: var(--ml-on-accent); }
+.dd-ml-btn--secondary { background: transparent; border-color: currentColor; color: inherit; }
+.dd-ml-hero__content:not(.dd-ml-hero--on-image) .dd-ml-btn--secondary { color: var(--ml-ink); border-color: var(--ml-line); }
+.dd-ml-hero--has-bg .dd-ml-btn--secondary { color: var(--ml-on-accent); border-color: rgba(255,255,255,.5); }
+.dd-ml-btn--tertiary { background: var(--ml-surface-2); color: var(--ml-ink); }
+.dd-ml-hero--has-bg .dd-ml-btn--tertiary { background: rgba(255,255,255,.15); color: var(--ml-on-accent); }
+.dd-ml-hero__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ml-sp-2) var(--ml-sp-5);
+}
+.dd-ml-hero__chip {
+    font-size: 13px;
+    color: var(--ml-ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.dd-ml-hero--has-bg .dd-ml-hero__chip { color: rgba(255,255,255,.85); }
+.dd-ml-hero__chip::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--ml-accent);
+    flex-shrink: 0;
+}
+.dd-ml-hero--has-bg .dd-ml-hero__chip::before { background: var(--ml-on-accent); }
+
+.dd-ml-hero__card { position: relative; }
+.dd-ml-hero__card-img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--ml-radius-lg);
+    box-shadow: var(--ml-shadow-lift);
+    display: block;
+}
+.dd-ml-hero__card-overlay {
+    position: absolute;
+    left: var(--ml-sp-4); right: var(--ml-sp-4); bottom: var(--ml-sp-4);
+    background: var(--ml-bg);
+    border-radius: var(--ml-radius);
+    padding: var(--ml-sp-4) var(--ml-sp-5);
+    box-shadow: var(--ml-shadow);
+}
+.dd-ml-hero__card-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ml-accent);
+    margin-bottom: 4px;
+}
+.dd-ml-hero__card-name { font-family: var(--ml-font-heading); font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+.dd-ml-hero__card-desc { font-size: 13px; color: var(--ml-ink-soft); margin: 0; }
+
+/* ── FOOD CATEGORY LIST (mobile only) ──────────────────────────────────── */
+.dd-ml-food-cat-list { padding: var(--ml-sp-6) 0 var(--ml-sp-4); }
+.dd-ml-food-cat-row {
+    display: flex;
+    align-items: center;
+    gap: var(--ml-sp-3);
+    padding: var(--ml-sp-3) var(--ml-sp-2);
+    text-decoration: none;
+    color: var(--ml-ink);
+    border-bottom: 1px solid var(--ml-line);
+}
+.dd-ml-food-cat-row__thumb {
+    width: 52px; height: 52px;
+    border-radius: var(--ml-radius-sm);
+    overflow: hidden;
+    background: var(--ml-surface-2);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+}
+.dd-ml-food-cat-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.dd-ml-food-cat-row__initial { font-family: var(--ml-font-heading); font-weight: 600; color: var(--ml-accent); font-size: 18px; }
+.dd-ml-food-cat-row__info { flex: 1; min-width: 0; }
+.dd-ml-food-cat-row__name { font-weight: 600; font-size: 15px; }
+.dd-ml-food-cat-row__count { font-size: 12px; color: var(--ml-ink-faint); }
+.dd-ml-food-cat-row__arrow { width: 18px; height: 18px; color: var(--ml-ink-faint); flex-shrink: 0; }
+
+/* ── CATEGORY CIRCLES ───────────────────────────────────────────────────── */
+.dd-ml-cat-row {
+    display: flex;
+    gap: var(--ml-sp-5);
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding-bottom: var(--ml-sp-2);
+}
+.dd-ml-cat-row::-webkit-scrollbar { display: none; }
+.dd-ml-cat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--ml-sp-2);
+    border: none;
+    background: none;
+    cursor: pointer;
+    flex-shrink: 0;
+    width: 96px;
+    font-family: var(--ml-font-body);
+}
+.dd-ml-cat__circle {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ml-surface-2);
+    border: 1px solid var(--ml-line);
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .15s;
+}
+.dd-ml-cat.active .dd-ml-cat__circle,
+.dd-ml-cat:hover .dd-ml-cat__circle { border-color: var(--ml-accent); }
+.dd-ml-cat__circle img { width: 100%; height: 100%; object-fit: cover; }
+.dd-ml-cat__initial { font-family: var(--ml-font-heading); font-size: 26px; font-weight: 600; color: var(--ml-accent); }
+.dd-ml-cat__name { font-size: 13px; font-weight: 500; color: var(--ml-ink); text-align: center; }
+
+/* ── PRODUCT / DISH CARDS ───────────────────────────────────────────────────
+   Reuses templates/partials/product-card.php AS-IS (same .dd-dish-card /
+   .dd-add-btn markup khana-khazana uses) — that partial is already wired to
+   the real add-to-cart JS (frontend.js's .dd-add-btn delegation) and chip
+   filtering (data-filter). Re-skinned here via CSS only, same technique as
+   the shared header/footer overrides above — no markup or JS duplicated. */
+.dd-ml-dish-row .dd-dish-card,
+.dd-ml-tab-panel .dd-dish-card {
+    flex: 0 0 250px;
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-line);
+    border-radius: var(--ml-radius);
+    overflow: hidden;
+    box-shadow: none;
+    transition: box-shadow .15s, transform .15s;
+}
+.dd-ml-dish-row .dd-dish-card:hover,
+.dd-ml-tab-panel .dd-dish-card:hover { box-shadow: var(--ml-shadow); transform: translateY(-2px); }
+.dd-ml-dish-row .dd-dish-card__media,
+.dd-ml-tab-panel .dd-dish-card__media { aspect-ratio: 4/3; background: var(--ml-surface-2); }
+.dd-ml-dish-row .dd-dish-card__body,
+.dd-ml-tab-panel .dd-dish-card__body { padding: var(--ml-sp-4); }
+.dd-ml-dish-row .dd-dish-card__title,
+.dd-ml-tab-panel .dd-dish-card__title { font-family: var(--ml-font-body); font-weight: 600; font-size: 15px; margin: 0 0 4px; color: var(--ml-ink); }
+.dd-ml-dish-row .dd-dish-card__desc,
+.dd-ml-tab-panel .dd-dish-card__desc { font-size: 12.5px; color: var(--ml-ink-faint); }
+.dd-ml-dish-row .dd-price,
+.dd-ml-tab-panel .dd-price { font-weight: 700; color: var(--ml-accent); font-size: 14px; }
+.dd-ml-dish-row .dd-add-btn,
+.dd-ml-tab-panel .dd-add-btn {
+    background: var(--ml-ink);
+    border-color: var(--ml-ink);
+    border-radius: var(--ml-radius-full);
+}
+.dd-ml-dish-row .dd-add-btn:hover,
+.dd-ml-tab-panel .dd-add-btn:hover { background: var(--ml-accent); border-color: var(--ml-accent); }
+
+.dd-ml-dish-row {
+    display: flex;
+    gap: var(--ml-sp-5);
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding-bottom: var(--ml-sp-2);
+}
+.dd-ml-dish-row::-webkit-scrollbar { display: none; }
+
+/* ── FILTER CHIPS ───────────────────────────────────────────────────────── */
+.dd-ml-chips { display: flex; flex-wrap: wrap; gap: var(--ml-sp-2); margin-bottom: var(--ml-sp-5); }
+.dd-ml-chip {
+    padding: 8px 18px;
+    border-radius: var(--ml-radius-full);
+    border: 1px solid var(--ml-line);
+    background: var(--ml-bg);
+    color: var(--ml-ink-soft);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.dd-ml-chip.active { background: var(--ml-ink); color: var(--ml-bg); border-color: var(--ml-ink); }
+
+/* ── RESERVE TABLE ──────────────────────────────────────────────────────── */
+.dd-ml-reserve {
+    position: relative;
+    padding: var(--ml-sp-8) 0;
+    background-size: cover;
+    background-position: center;
+    background-color: var(--ml-ink);
+    background-image: var(--ml-reserve-bg-image, none);
+    text-align: center;
+}
+.dd-ml-reserve::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(23,20,15,.55);
+}
+.dd-ml-reserve__inner { position: relative; max-width: 620px; margin: 0 auto; }
+.dd-ml-reserve .dd-ml-eyebrow { color: rgba(255,255,255,.75); }
+.dd-ml-reserve__title {
+    font-family: var(--ml-font-heading);
+    font-size: clamp(26px, 3.6vw, 38px);
+    font-weight: 600;
+    color: var(--ml-on-accent);
+    margin: 0 0 var(--ml-sp-3);
+}
+.dd-ml-reserve__copy { color: rgba(255,255,255,.8); margin: 0 0 var(--ml-sp-5); font-size: 15px; line-height: 1.6; }
+.dd-ml-reserve__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 15px 32px;
+    border-radius: var(--ml-radius-full);
+    background: var(--ml-on-accent);
+    color: var(--ml-ink);
+    font-weight: 700;
+    font-size: 15px;
+    border: none;
+    cursor: pointer;
+}
+.dd-ml-reserve__cta:hover { background: var(--ml-accent); color: var(--ml-on-accent); }
+
+/* ── SELECTED CATEGORY (tabbed) ─────────────────────────────────────────── */
+.dd-ml-tabs { display: flex; gap: var(--ml-sp-2); overflow-x: auto; margin-bottom: var(--ml-sp-6); }
+.dd-ml-tabs::-webkit-scrollbar { display: none; }
+.dd-ml-tab {
+    flex-shrink: 0;
+    padding: 10px 20px;
+    border-radius: var(--ml-radius-full);
+    border: 1px solid var(--ml-line);
+    background: var(--ml-bg);
+    color: var(--ml-ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.dd-ml-tab.active { background: var(--ml-accent); color: var(--ml-on-accent); border-color: var(--ml-accent); }
+.dd-ml-tab-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--ml-sp-5); }
+.dd-ml-tab-panel[hidden] { display: none; }
+
+/* ── REVIEWS ────────────────────────────────────────────────────────────── */
+.dd-ml-reviews-row { display: flex; gap: var(--ml-sp-5); overflow-x: auto; scroll-behavior: smooth; padding-bottom: var(--ml-sp-2); }
+.dd-ml-reviews-row::-webkit-scrollbar { display: none; }
+.dd-ml-review {
+    flex: 0 0 320px;
+    background: var(--ml-surface);
+    border-radius: var(--ml-radius);
+    padding: var(--ml-sp-5);
+    border: 1px solid var(--ml-line);
+}
+.dd-ml-review__head { display: flex; align-items: center; gap: var(--ml-sp-3); margin-bottom: var(--ml-sp-3); }
+.dd-ml-review__avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.dd-ml-review__avatar--letter {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--ml-accent); color: var(--ml-on-accent);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-family: var(--ml-font-heading);
+}
+.dd-ml-review__name { font-weight: 600; font-size: 14px; }
+.dd-ml-review__time { font-size: 11px; color: var(--ml-ink-faint); }
+.dd-ml-review__stars { color: #e0a527; font-size: 14px; letter-spacing: 2px; margin-bottom: var(--ml-sp-2); }
+.dd-ml-review__text { font-size: 13.5px; line-height: 1.6; color: var(--ml-ink-soft); margin: 0; }
+
+/* ── RESPONSIVE ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+    .dd-ml-hero__grid { grid-template-columns: 1fr; }
+    .dd-ml-hero__card { order: -1; }
+    .dd-ml-tab-panel { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+    .dd-ml-section { padding: var(--ml-sp-7) 0; }
+    .dd-ml-dish { flex: 0 0 210px; }
+    .dd-ml-review { flex: 0 0 84%; }
+    .dd-ml-top { align-items: flex-start; }
+    .dd-ml-arrows { display: none; }
+}

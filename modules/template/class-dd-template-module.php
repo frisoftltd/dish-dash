@@ -547,7 +547,7 @@ class DD_Template_Module extends DD_Module {
             ],
             'minimal-light' => [
                 'label'    => 'Minimal Light',
-                'status'   => 'coming_soon',   // flips to available in R3
+                'status'   => 'available',   // v3.18.5 — built, see templates/layouts/minimal-light/page-home.php
                 'homepage' => 'layouts/minimal-light/page-home.php',
                 'css'      => [ 'layouts/minimal-light.css' ],   // relative to assets/css/
             ],
