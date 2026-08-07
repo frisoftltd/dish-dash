@@ -438,19 +438,24 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
    (v3.18.13's #ddMlSelcatTabsPrev/Next, stacked near the product panel's own
    arrows, read as ambiguous). A thin styled scrollbar under the tab row
    makes it visually obvious the row is swipeable, without touching the
-   underlying overflow-x scroll/swipe behavior at all. */
+   underlying overflow-x scroll/swipe behavior at all.
+   v3.18.15 — thumb now uses --ml-accent (same brand/accent variable as
+   .dd-ml-tab.active and the strip's .dd-add-btn hover, below) instead of
+   the neutral --ml-line, plus padding-bottom to give the scrollbar
+   breathing room instead of sitting flush against the tab buttons. */
 .dd-ml-tabs {
     display: flex;
     gap: var(--ml-sp-2);
     overflow-x: auto;
     margin-bottom: var(--ml-sp-5);
+    padding-bottom: var(--ml-sp-2);
     scrollbar-width: thin;
-    scrollbar-color: var(--ml-line) transparent;
+    scrollbar-color: var(--ml-accent) transparent;
 }
 .dd-ml-tabs::-webkit-scrollbar { height: 4px; }
 .dd-ml-tabs::-webkit-scrollbar-track { background: transparent; }
-.dd-ml-tabs::-webkit-scrollbar-thumb { background: var(--ml-line); border-radius: var(--ml-radius-full); }
-.dd-ml-tabs::-webkit-scrollbar-thumb:hover { background: var(--ml-ink-faint); }
+.dd-ml-tabs::-webkit-scrollbar-thumb { background: var(--ml-accent); border-radius: var(--ml-radius-full); }
+.dd-ml-tabs::-webkit-scrollbar-thumb:hover { background: var(--ml-accent-dark); }
 .dd-ml-tab {
     flex-shrink: 0;
     padding: 9px 18px;

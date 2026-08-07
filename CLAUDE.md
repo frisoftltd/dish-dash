@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.14 (2026-08-07)
+> Last updated: v3.18.15 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.14 |
+| **Deployed version** | v3.18.15 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.14 — Replaced Selected Category's tab-bar arrow pair (added in v3.18.13) with a visible scroll indicator instead. Stacked near the product panel's own existing arrows, the second pair read as ambiguous — two arrow pairs with no clear indication of which controlled what. Removed `#ddMlSelcatTabsPrev`/`#ddMlSelcatTabsNext` and their `setupMlArrows()` binding entirely; `#ddMlSelcatTabs`'s previously-hidden native scrollbar (`::-webkit-scrollbar { display: none; }`) is now shown as a thin styled bar (`scrollbar-width: thin` + `scrollbar-color` for Firefox, `::-webkit-scrollbar`/`-thumb`/`-track` for WebKit/Chromium) — a standard, unambiguous "this row scrolls" affordance requiring no JS and no change to the underlying `overflow-x` scroll/swipe mechanics. Selected Category now has exactly one arrow pair (`#ddMlSelcatPrev`/`#ddMlSelcatNext`, product panel), unchanged and unambiguous. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.15 — Styled Selected Category's tab-row scrollbar (added v3.18.14) with the template's brand color instead of neutral gray. `.dd-ml-tabs`'s scrollbar thumb now uses `--ml-accent` (the same variable already driving `.dd-ml-tab.active`'s background and `.dd-ml-strip .dd-add-btn`'s hover state — confirmed via grep rather than introducing a new hardcoded hex), `--ml-accent-dark` on thumb hover, both via `scrollbar-color` (Firefox) and `::-webkit-scrollbar-thumb` (Chromium/WebKit). Added `padding-bottom: var(--ml-sp-2)` so the scrollbar sits with a small visible gap below the tab buttons instead of flush against them. CSS-only, no JS/markup touched, scroll/swipe mechanics unchanged. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
