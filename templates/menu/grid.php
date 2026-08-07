@@ -29,7 +29,15 @@
  *   .dd-menu-container, .dd-menu-cats, .dd-menu-cat.is-active,
  *   .dd-menu-grid-section, .dd-menu-grid
  *
- * Last modified: v3.1.18
+ * v3.18.21: added .dd-menu-cat__count (per-category dish count, plus a
+ * sitewide total on the "All Dishes" button) to the category buttons —
+ * hidden by default (menu-page.css), revealed only for the Minimal Light
+ * sidebar (body.dd-tpl-minimal-light scope, same file). $dd_menu_cats is
+ * now fetched before the "All Dishes" button (was after) purely so its
+ * total can be computed from data already in scope — no new query, no
+ * behavior change for Khana Khazana.
+ *
+ * Last modified: v3.18.21
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -76,6 +84,22 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
                 </div>
             </div>
 
+            <?php
+            // Moved above the "All Dishes" button (was fetched after it)
+            // so its total dish count — used by the Minimal Light sidebar's
+            // count badge, v3.18.21 — can be computed from data already
+            // fetched here, with no new query. Khana Khazana's own markup
+            // order/behavior is otherwise unchanged.
+            $dd_menu_cats = get_terms( [
+                'taxonomy'   => 'product_cat',
+                'hide_empty' => true,
+                'exclude'    => [ get_option( 'default_product_cat' ) ],
+                'orderby'    => 'name',
+                'order'      => 'ASC',
+            ] );
+            if ( is_wp_error( $dd_menu_cats ) ) $dd_menu_cats = [];
+            $dd_menu_cats_total = array_sum( wp_list_pluck( $dd_menu_cats, 'count' ) );
+            ?>
             <div class="dd-menu-cats__track" id="ddMenuCatsTrack">
                 <!-- "All" pseudo-category -->
                 <button type="button" class="dd-menu-cat dd-menu-cat--all<?php echo ! $dd_deeplink_slug ? ' is-active' : ''; ?>" data-cat-slug="">
@@ -83,17 +107,10 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
                         <span class="dd-menu-cat__all-label">All</span>
                     </span>
                     <span class="dd-menu-cat__name">All Dishes</span>
+                    <span class="dd-menu-cat__count"><?php echo (int) $dd_menu_cats_total; ?></span>
                 </button>
 
-                <?php
-                $dd_menu_cats = get_terms( [
-                    'taxonomy'   => 'product_cat',
-                    'hide_empty' => true,
-                    'exclude'    => [ get_option( 'default_product_cat' ) ],
-                    'orderby'    => 'name',
-                    'order'      => 'ASC',
-                ] );
-                if ( ! is_wp_error( $dd_menu_cats ) && ! empty( $dd_menu_cats ) ) :
+                <?php if ( ! empty( $dd_menu_cats ) ) :
                     foreach ( $dd_menu_cats as $cat ) :
                         $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
                         $thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : '';
@@ -107,6 +124,7 @@ $dd_grid_title = $dd_deeplink_term ? esc_html( $dd_deeplink_term->name ) : 'All 
                             <?php endif; ?>
                         </span>
                         <span class="dd-menu-cat__name"><?php echo esc_html( $cat->name ); ?></span>
+                        <span class="dd-menu-cat__count"><?php echo (int) $cat->count; ?></span>
                     </button>
                 <?php
                     endforeach;

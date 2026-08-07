@@ -34,7 +34,16 @@
  * file's own !important rules above it, without depending on cross-file
  * stylesheet load order. Khana Khazana's rules above are untouched.
  *
- * Last modified: v3.18.20
+ * v3.18.21: sidebar now position:sticky (top offset matches Minimal
+ * Light's 72px header), dish-count badges (.dd-menu-cat__count, hidden by
+ * default near the base .dd-menu-cat__name rule, revealed in the Minimal
+ * Light section), refined active-state (thicker/clearer border-left +
+ * distinct background from hover), and the "All Dishes" row reordered
+ * (flexbox `order`, DOM position unchanged) to the bottom with a divider
+ * above it. CSS-only — grid.php gained the count markup (hidden by
+ * default for Khana Khazana), no AJAX/query/filtering logic touched.
+ *
+ * Last modified: v3.18.21
  */
 /* Hide desktop layout on mobile, hide mobile layout on desktop */
 .dd-menu-page--desktop { display: block; }
@@ -877,6 +886,14 @@
         max-width: 92px;
         line-height: 1.3;
     }
+    /* v3.18.21 — dish-count span added to grid.php's category buttons for
+       the Minimal Light sidebar's count badges. Hidden here by default so
+       Khana Khazana's circle-carousel (which never asked for this) stays
+       pixel-identical; revealed + styled only under the Minimal Light
+       scope below. */
+    .dd-menu-cat__count {
+        display: none;
+    }
     .dd-menu-cat.is-active .dd-menu-cat__circle {
         border-color: var(--brand, #6B1D1D);
         box-shadow: 0 0 0 3px rgba(var(--brand-rgb),.12);
@@ -1042,6 +1059,13 @@
     body.dd-tpl-minimal-light .dd-menu-cats {
         flex: 0 0 200px;
         margin-bottom: 0;
+        /* v3.18.21 — sticky sidebar. Offset accounts for the Minimal Light
+           header's own height (.dd-ml-header__inner is 72px, sticky at
+           top:0, z-index:40 — minimal-light.css) plus a small gap, so the
+           sidebar tucks in just below it instead of overlapping. */
+        position: sticky;
+        top: 88px;
+        z-index: 1;
     }
     body.dd-tpl-minimal-light .dd-menu-grid-section {
         flex: 1;
@@ -1087,7 +1111,7 @@
         padding: 10px 12px;
         border-left: 3px solid transparent;
         border-radius: 0 8px 8px 0;
-        transition: border-color .15s, background .15s;
+        transition: border-color .15s, background .15s, padding-left .15s;
     }
     body.dd-tpl-minimal-light .dd-menu-cat:hover {
         transform: none;
@@ -1106,15 +1130,34 @@
         color: var(--ml-accent, #6B1D1D);
     }
     body.dd-tpl-minimal-light .dd-menu-cat__name {
+        flex: 1;
+        min-width: 0;
         font-size: 14px;
         max-width: none;
         color: var(--ml-ink-soft, #6b6459);
         font-weight: 500;
     }
-    /* Active category — gold left-border treatment per the mockup */
+    /* Dish-count badge — v3.18.21, hidden by default (see the base rule
+       above), revealed + styled only here */
+    body.dd-tpl-minimal-light .dd-menu-cat__count {
+        display: inline-block;
+        flex-shrink: 0;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ml-ink-faint, #a39c8f);
+    }
+    /* Active category — refined gold-left-border treatment: slightly
+       thicker border + extra left padding (so text doesn't sit flush
+       against the border) + a visibly stronger background than hover's,
+       so the two states read as clearly distinct, not just a hover echo */
     body.dd-tpl-minimal-light .dd-menu-cat.is-active {
+        border-left-width: 3px;
         border-left-color: var(--ml-accent, #6B1D1D);
-        background: var(--ml-surface, #faf9f7);
+        background: var(--ml-surface-2, #f2f0ec);
+        padding-left: 15px;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat.is-active:hover {
+        background: var(--ml-surface-2, #f2f0ec);
     }
     body.dd-tpl-minimal-light .dd-menu-cat.is-active .dd-menu-cat__circle {
         border-color: transparent;
@@ -1123,6 +1166,21 @@
     body.dd-tpl-minimal-light .dd-menu-cat.is-active .dd-menu-cat__name {
         color: var(--ml-ink, #17140f);
         font-weight: 700;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat.is-active .dd-menu-cat__count {
+        color: var(--ml-accent, #6B1D1D);
+    }
+
+    /* "All Dishes" / "See all" — v3.18.21, moved visually to the bottom of
+       the list (flexbox order, DOM position unchanged so menu-page.js's
+       delegated click handler and existing behavior are untouched) with a
+       divider above it, per the mockup */
+    body.dd-tpl-minimal-light .dd-menu-cat--all {
+        order: 999;
+        margin-top: 8px;
+        padding-top: 16px;
+        border-top: 1px solid var(--ml-line, #e5e1d8);
+        border-radius: 0;
     }
 
     /* Product grid — 3 columns (narrower now the sidebar takes horizontal

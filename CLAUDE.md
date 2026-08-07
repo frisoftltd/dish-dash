@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.20 (2026-08-07)
+> Last updated: v3.18.21 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.20 |
+| **Deployed version** | v3.18.21 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.20 — Restyled the Menu page's desktop layout for Minimal Light: category carousel becomes a vertical left sidebar (~200px, gold-left-border active state), product grid narrows to 3 columns with bordered/no-shadow cards, gold price, and a small round "+" quick-add replacing the "Add to cart" text button. Entirely CSS, appended to `assets/css/menu-page.css` (not `minimal-light.css` — deliberately, so the new rules reliably beat that file's existing `!important` declarations in the same file/media block rather than depending on cross-file stylesheet load order), scoped under `body.dd-tpl-minimal-light` (the class v3.18.19 added). Zero markup/PHP/JS changes: the existing `.dd-menu-cats`/`.dd-menu-grid-section` siblings simply reflow into a two-column flex layout, and the existing `.dd-menu-cat`/`.dd-dish-card`/`.dd-add-btn` elements are restyled in place — same category data/query, same `?cat=` deep-link, same `dd_menu_load_products` AJAX switching, same product-modal click-delegate. The "+" button's closed-hours state (`.dd-add-btn--closed`, set by existing JS) is restored to a readable pill so "We're Closed" stays legible — confirmed via `investigation-menu-page.md` that this is the only other text state this specific button's JS ever sets (the modal's own "Adding…"/"✓ Added!" states belong to a different button entirely). Khana Khazana's horizontal circle-carousel and card grid are completely untouched. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.21 — Polished the Minimal Light Menu-page sidebar (added v3.18.20): now `position: sticky` (`top: 88px`, matching the 72px Minimal Light header + gap) so it stays in view while the product grid scrolls past it. Added per-category dish-count badges (`.dd-menu-cat__count`) plus a sitewide total on "All Dishes" — the one markup addition this release needed, since the count wasn't in the DOM at all before; hidden by default in `menu-page.css` so Khana Khazana's circle-carousel is unaffected, computed from data already fetched (`$dd_menu_cats`, just moved earlier in `grid.php` so its total is available before the "All Dishes" button renders — no new query). Refined the active-state indicator so hover and active no longer share the same background (`--ml-surface-2` vs. `--ml-surface`), plus extra left padding so text clears the border. "All Dishes" reordered to the bottom of the list via flexbox `order` (DOM position, and therefore `menu-page.js`'s click delegate, untouched) with a divider line above it. No filtering/AJAX/deep-linking/product-modal logic touched. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
