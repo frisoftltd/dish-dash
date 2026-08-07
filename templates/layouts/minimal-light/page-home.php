@@ -37,7 +37,12 @@
  * git log for the full list (DD_Template_Module, DD_API, DD_Homepage_Module,
  * templates/partials/product-card.php, WooCommerce).
  *
- * Last modified: v3.18.12
+ * v3.18.16: Reviews now fetched via DD_Homepage_Module::get_reviews_with_debug()
+ * — the shared pipeline extracted from Khana Khazana's page-dishdash.php
+ * (dual sort-order fetch, pooled/deduped, 24h refresh, debug diagnostics),
+ * replacing the previous simpler single-sort/12h-cache call.
+ *
+ * Last modified: v3.18.16
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -248,7 +253,14 @@ switch ( $dd_feat_orderby ) {
 
 $dd_cart_count  = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
 $dd_hours_state = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
-$dd_reviews     = class_exists( 'DD_Homepage_Module' ) ? DD_Homepage_Module::get_reviews() : [];
+
+// Shared Google Reviews pipeline (dual sort-order fetch, pooled/deduped,
+// 24h refresh, debug diagnostics) — extracted from Khana Khazana's
+// page-dishdash.php in v3.18.16, where it was originally built and
+// proven. Replaces the previous simpler single-sort/12h-cache call.
+$dd_reviews_result = class_exists( 'DD_Homepage_Module' ) ? DD_Homepage_Module::get_reviews_with_debug() : [ 'items' => [], 'debug' => [] ];
+$dd_reviews         = $dd_reviews_result['items'];
+$dd_reviews_debug   = $dd_reviews_result['debug'];
 
 $dd_maps_url = $dd_addr ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( $dd_addr ) : '';
 
@@ -589,6 +601,9 @@ if ( $food_cat_mob_on ) :
 <?php endif; ?>
 
 <!-- ══ "WHAT PEOPLE SAY" — Reviews, horizontal strip ═══════════════════════ -->
+<?php if ( $reviews_vis ) : ?>
+<!-- DD Reviews Debug: <?php echo esc_html( wp_json_encode( $dd_reviews_debug ) ); ?> -->
+<?php endif; ?>
 <?php if ( $reviews_vis && ! empty( $dd_reviews ) ) : ?>
 <section class="dd-ml-section dd-ml-section--surface <?php echo esc_attr( $reviews_class ); ?>" id="reviews">
     <div class="dd-container">

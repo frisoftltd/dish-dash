@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.15 (2026-08-07)
+> Last updated: v3.18.16 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.15 |
+| **Deployed version** | v3.18.16 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.15 — Styled Selected Category's tab-row scrollbar (added v3.18.14) with the template's brand color instead of neutral gray. `.dd-ml-tabs`'s scrollbar thumb now uses `--ml-accent` (the same variable already driving `.dd-ml-tab.active`'s background and `.dd-ml-strip .dd-add-btn`'s hover state — confirmed via grep rather than introducing a new hardcoded hex), `--ml-accent-dark` on thumb hover, both via `scrollbar-color` (Firefox) and `::-webkit-scrollbar-thumb` (Chromium/WebKit). Added `padding-bottom: var(--ml-sp-2)` so the scrollbar sits with a small visible gap below the tab buttons instead of flush against them. CSS-only, no JS/markup touched, scroll/swipe mechanics unchanged. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.16 — Extracted Khana Khazana's Google Reviews pipeline (dual sort-order fetch + pooling/dedupe into a growing set, 24h refresh, admin force-refresh, debug diagnostics) out of its inline `function_exists()`-guarded helpers in `templates/page-dishdash.php` into a new shared static method, `DD_Homepage_Module::get_reviews_with_debug()` (returns `['items', 'debug']`). Two rounds of investigation confirmed this pipeline genuinely works — real, current reviews independently verified against outside sources (`investigation-khana-khazana-reviews-live.md`) — while Minimal Light's separate, simpler `get_reviews()` call (single sort order defaulting to `most_relevant`, flat 12h cache, silent failure on error) explained why its reviews felt static (`investigation-google-reviews-static.md`). Both templates now call the same extracted method: Khana Khazana with zero behavior change (same option/pool keys, same debug comment, pool not reset), Minimal Light gaining the same pooling/freshness/diagnostics it previously lacked, including its own new `<!-- DD Reviews Debug: ... -->` comment. `DD_Homepage_Module::get_reviews()` (only caller: the pre-existing, currently-dead `dd_get_reviews` AJAX endpoint) becomes a thin wrapper around the new method — left otherwise untouched per guardrails, along with the two previously-logged Observations (dead AJAX endpoint, nopriv docblock mismatch). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
