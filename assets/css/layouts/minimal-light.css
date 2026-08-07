@@ -1,43 +1,52 @@
 /**
  * File:    assets/css/layouts/minimal-light.css
- * Purpose: Token stylesheet for the "Minimal Light" template (v3.18.5).
- *          Loaded AFTER theme.css (registry-driven, dependent on
- *          'dish-dash-theme' — see DD_Template_Module::enqueue_frontend_assets()),
- *          so rules here override theme.css's khana-khazana defaults for the
- *          shared global chrome (header/footer/cart button) and style the
- *          markup rendered by templates/layouts/minimal-light/page-home.php.
+ * Purpose: Token + structural stylesheet for the "Minimal Light" template
+ *          (v3.18.6 — structural rewrite; v3.18.5 was a token-only reskin
+ *          of Khana Khazana's own layout, which is not what this template
+ *          is meant to be). Loaded AFTER theme.css (registry-driven,
+ *          dependent on 'dish-dash-theme' — see
+ *          DD_Template_Module::enqueue_frontend_assets()).
  *
- * Architecture: every visual value (color, spacing, radius, type) is a CSS
- * custom property under the --ml-* namespace, defined once in :root below.
- * All component rules reference --ml-* variables, never a literal color/px
- * value directly (aside from a few structural non-themeable values like
- * z-index or one-off breakpoints). This is deliberate — the next release
- * (Modern Dark) is expected to reuse the exact same markup/class names from
- * page-home.php against a DIFFERENT token block, swapping just this file.
- * --brand/--brand-dark (dish_dash_primary_color/dark_color, set inline by
- * page-home.php on :root, same convention page-dishdash.php uses) still
- * drive the one white-label accent color threaded through --ml-accent.
+ * Architecture unchanged from v3.18.5: every visual value is a --ml-*
+ * custom property, defined once in :root. Modern Dark (next release) is
+ * expected to reuse page-home.php's markup/class names against a different
+ * token block — this file still only ever attaches to class names, never
+ * inline literal values, so that swap stays possible.
+ *
+ * Structural note (v3.18.6): this template no longer reuses Khana
+ * Khazana's shared global header markup (DD_Template_Module::
+ * render_global_header(), which has a visible horizontal nav + search bar
+ * + login/signup buttons — not the icon-driven, nav-bar-free header this
+ * design calls for). page-home.php renders its own header markup instead,
+ * but deliberately reuses the EXACT SAME element IDs/classes the shared
+ * header uses for the hamburger + nav-drawer + cart badge
+ * (#ddMenuToggle/.dd-menu-toggle, #ddNavDrawer/.dd-nav-drawer,
+ * #ddDrawerOverlay/.dd-drawer-overlay, #ddCartTopBtn/#ddCartCount) so the
+ * EXISTING frontend.js/cart.js click handlers and slide/animation CSS in
+ * theme.css (all ID- or class-based, not scoped to which PHP rendered
+ * them — verified before writing this) keep working completely unmodified.
+ * Only colors/spacing for those shared classes are overridden below, same
+ * technique already used for the footer. No JS file touched, no shared
+ * header PHP touched, khana-khazana unaffected.
  *
  * No build step — plain CSS only, per architecture constraints.
  *
- * Last modified: v3.18.5
+ * Last modified: v3.18.6
  */
 
 /* ── TOKENS ─────────────────────────────────────────────────────────────── */
 :root {
-    /* Palette — light, airy, minimal. --brand flows in as the one accent. */
     --ml-bg:            #ffffff;
     --ml-surface:       #faf9f7;
     --ml-surface-2:     #f2f0ec;
     --ml-ink:           #17140f;
     --ml-ink-soft:      #6b6459;
     --ml-ink-faint:     #a39c8f;
-    --ml-line:          #eae7e0;
+    --ml-line:          #e5e1d8;
     --ml-accent:        var(--brand, #6B1D1D);
     --ml-accent-dark:   var(--brand-dark, #160F0D);
     --ml-on-accent:     #ffffff;
 
-    /* Spacing scale */
     --ml-sp-1:  4px;
     --ml-sp-2:  8px;
     --ml-sp-3:  12px;
@@ -47,92 +56,128 @@
     --ml-sp-7:  48px;
     --ml-sp-8:  72px;
 
-    /* Radius */
-    --ml-radius-sm:  8px;
-    --ml-radius:     14px;
-    --ml-radius-lg:  28px;
+    --ml-radius-sm:   8px;
+    --ml-radius:      14px;
+    --ml-radius-lg:   28px;
     --ml-radius-full: 999px;
 
-    /* Typography */
     --ml-font-heading: 'Cormorant Garamond', Georgia, serif;
     --ml-font-body:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 
-    /* Shadow — one soft elevation, used sparingly */
-    --ml-shadow: 0 4px 24px rgba(23, 20, 15, 0.06);
+    --ml-shadow:      0 4px 24px rgba(23, 20, 15, 0.06);
     --ml-shadow-lift: 0 12px 40px rgba(23, 20, 15, 0.10);
 }
 
-/* ── SHARED CHROME OVERRIDES (header/footer/cart button) ──────────────────
-   Header and footer are global (DD_Template_Module), rendered identically
-   regardless of active template. These rules re-skin them light/minimal
-   without touching that PHP — scoped by loading only when minimal-light is
-   the active template (registry-driven enqueue). */
-.dd-global-header {
-    background: var(--ml-bg);
-    border-bottom: 1px solid var(--ml-line);
-    box-shadow: none;
-}
-.dd-global-header .dd-brand__name,
-.dd-global-header .dd-nav a {
-    color: var(--ml-ink);
-    font-family: var(--ml-font-body);
-}
-.dd-global-header .dd-cart-top {
-    background: var(--ml-ink);
-    color: var(--ml-on-accent);
-    border-radius: var(--ml-radius-full);
-}
-.dd-global-header .dd-btn--brand {
-    background: var(--ml-accent);
-    border-color: var(--ml-accent);
-}
-
-.dd-global-footer {
-    background: var(--ml-surface);
-    color: var(--ml-ink-soft);
-}
-.dd-global-footer .dd-footer__heading { color: var(--ml-ink); }
-.dd-global-footer .dd-footer__list a,
-.dd-global-footer .dd-footer__copy { color: var(--ml-ink-soft); }
-.dd-global-footer .dd-footer__social-link {
-    background: var(--ml-surface-2);
-    color: var(--ml-ink);
-}
-.dd-global-footer .dd-footer__bottom {
-    background: var(--ml-surface-2) !important;
-    color: var(--ml-ink-faint) !important;
-}
-
-/* dd_header_show_cart='0' — the Cart button markup itself has no PHP toggle
-   (see investigation-frontend-pages.md-equivalent finding for this release:
-   the setting exists and saves, but no code anywhere reads it, header-wide,
-   pre-existing). This scoped rule is the one Homepage Settings toggle this
-   template CAN make functional without editing the shared header PHP that
-   khana-khazana also depends on — CSS-only, minimal-light-scoped via the
-   body class page-home.php sets. Injected as an inline <style> only when the
-   option is actually '0' (see page-home.php) so default behavior is
-   untouched. */
-body.dd-tpl-minimal-light.dd-hide-cart-btn #ddCartTopBtn,
-body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
-    display: none !important;
-}
-
-/* ── BASE ───────────────────────────────────────────────────────────────── */
 body.dd-tpl-minimal-light {
     background: var(--ml-bg);
     color: var(--ml-ink);
     font-family: var(--ml-font-body);
 }
-.dd-ml-section {
-    padding: var(--ml-sp-8) 0;
+
+/* ── SHARED-CLASS OVERRIDES (hamburger + drawer + cart badge) ──────────────
+   Structural behavior (slide animation, off-canvas positioning, hamburger
+   bar animation) comes from theme.css, unmodified, always loaded. These
+   rules only restyle colors/type within the same classes. */
+body.dd-tpl-minimal-light .dd-nav-drawer {
+    background: var(--ml-bg);
 }
-.dd-ml-section--tight { padding: var(--ml-sp-7) 0; }
+body.dd-tpl-minimal-light .dd-nav-drawer__nav a {
+    font-family: var(--ml-font-body);
+    color: var(--ml-ink);
+    font-size: 15px;
+}
+body.dd-tpl-minimal-light .dd-menu-toggle__bar {
+    background: var(--ml-ink);
+}
+
+/* dd_header_show_cart='0' — see page-home.php's body class. The Header
+   toggle for the Cart icon IS wireable here (a real element); Track Order
+   has no corresponding element anywhere in this design or the shared
+   header — see the release report, not fabricated here. */
+body.dd-tpl-minimal-light.dd-hide-cart-btn .dd-ml-header__cart,
+body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
+    display: none !important;
+}
+
+/* ── CUSTOM HEADER (own markup — no shared nav bar) ────────────────────── */
+.dd-ml-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: var(--ml-bg);
+    border-bottom: 1px solid var(--ml-line);
+}
+.dd-ml-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+    gap: var(--ml-sp-4);
+}
+.dd-ml-header__logo {
+    display: flex;
+    align-items: center;
+    gap: var(--ml-sp-2);
+    text-decoration: none;
+    color: var(--ml-ink);
+}
+.dd-ml-header__logo-img { height: 34px; width: auto; display: block; }
+.dd-ml-header__logo-badge {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--ml-ink);
+    color: var(--ml-on-accent);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--ml-font-heading);
+    font-weight: 700;
+    font-size: 14px;
+}
+.dd-ml-header__logo-name {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    font-size: 19px;
+    letter-spacing: .01em;
+}
+.dd-ml-header__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--ml-sp-2);
+}
+.dd-ml-icon-btn {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--ml-ink);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+    text-decoration: none;
+}
+.dd-ml-icon-btn:hover { background: var(--ml-surface-2); }
+.dd-ml-icon-btn svg { width: 20px; height: 20px; }
+.dd-ml-header__cart .dd-cart-badge {
+    position: absolute;
+    top: 2px; right: 2px;
+    min-width: 16px; height: 16px;
+    padding: 0 3px;
+    border-radius: var(--ml-radius-full);
+    background: var(--ml-accent);
+    color: var(--ml-on-accent);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+}
+
+/* ── SECTION SHELL ──────────────────────────────────────────────────────── */
+.dd-ml-section { padding: var(--ml-sp-8) 0; }
 .dd-ml-section--surface { background: var(--ml-surface); }
 .dd-ml-eyebrow {
     display: inline-block;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: .14em;
+    letter-spacing: .16em;
     text-transform: uppercase;
     color: var(--ml-accent);
     margin-bottom: var(--ml-sp-2);
@@ -140,10 +185,10 @@ body.dd-tpl-minimal-light {
 .dd-ml-title {
     font-family: var(--ml-font-heading);
     font-weight: 600;
-    font-size: clamp(28px, 4vw, 42px);
+    font-size: clamp(26px, 3.6vw, 38px);
     line-height: 1.15;
     color: var(--ml-ink);
-    margin: 0 0 var(--ml-sp-2);
+    margin: 0;
 }
 .dd-ml-title .dd-gold { color: var(--ml-accent); }
 .dd-ml-top {
@@ -154,57 +199,25 @@ body.dd-tpl-minimal-light {
     margin-bottom: var(--ml-sp-6);
     flex-wrap: wrap;
 }
-.dd-ml-arrows { display: flex; gap: var(--ml-sp-2); }
-.dd-ml-arrow-btn {
-    width: 40px; height: 40px;
-    border-radius: 50%;
-    border: 1px solid var(--ml-line);
-    background: var(--ml-bg);
-    color: var(--ml-ink);
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: background .15s, color .15s;
-}
-.dd-ml-arrow-btn:hover { background: var(--ml-ink); color: var(--ml-bg); }
 .dd-ml-empty { color: var(--ml-ink-faint); font-size: 14px; padding: var(--ml-sp-5) 0; }
 
-/* ── HERO ───────────────────────────────────────────────────────────────── */
-.dd-ml-hero {
-    position: relative;
-    padding: var(--ml-sp-8) 0;
-    background: var(--ml-surface);
-    overflow: hidden;
-}
-.dd-ml-hero--has-bg {
-    background-size: cover;
-    background-position: center;
-    background-image: var(--ml-hero-bg-image, none);
-}
-.dd-ml-hero__overlay {
-    position: absolute; inset: 0;
-    background: var(--ml-hero-overlay-color, transparent);
-    pointer-events: none;
-}
+/* ── HERO (split-screen) ───────────────────────────────────────────────── */
+.dd-ml-hero { padding: var(--ml-sp-7) 0 var(--ml-sp-8); }
 .dd-ml-hero__grid {
-    position: relative;
     display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
+    grid-template-columns: 1fr 1fr;
     gap: var(--ml-sp-7);
     align-items: center;
 }
-.dd-ml-hero__content { max-width: 560px; }
-.dd-ml-hero--has-bg .dd-ml-hero__content,
-.dd-ml-hero--has-bg .dd-ml-hero__content .dd-ml-copy { color: var(--ml-on-accent); }
-.dd-ml-hero--has-bg .dd-ml-eyebrow,
-.dd-ml-hero--has-bg .dd-ml-pill { color: var(--ml-on-accent); border-color: rgba(255,255,255,.4); }
+.dd-ml-hero__content { max-width: 480px; }
 .dd-ml-pill {
     display: inline-block;
-    padding: 6px 16px;
+    padding: 5px 14px;
     border: 1px solid var(--ml-line);
     border-radius: var(--ml-radius-full);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: .06em;
+    letter-spacing: .1em;
     text-transform: uppercase;
     color: var(--ml-accent);
     margin-bottom: var(--ml-sp-4);
@@ -212,97 +225,80 @@ body.dd-tpl-minimal-light {
 .dd-ml-hero__title {
     font-family: var(--ml-font-heading);
     font-weight: 600;
-    font-size: clamp(34px, 5.5vw, 58px);
-    line-height: 1.1;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 1.08;
     margin: 0 0 var(--ml-sp-3);
 }
 .dd-ml-hero__title .dd-gold { color: var(--ml-accent); }
 .dd-ml-copy {
     font-size: 16px;
-    line-height: 1.6;
+    line-height: 1.65;
     color: var(--ml-ink-soft);
     margin: 0 0 var(--ml-sp-5);
-    max-width: 46ch;
+    max-width: 44ch;
 }
-.dd-ml-hero__actions {
+.dd-ml-hero__links {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: var(--ml-sp-3);
     margin-bottom: var(--ml-sp-6);
 }
-.dd-ml-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 13px 26px;
-    border-radius: var(--ml-radius-full);
+.dd-ml-text-link {
     font-size: 14px;
     font-weight: 600;
+    color: var(--ml-ink);
     text-decoration: none;
-    cursor: pointer;
-    border: 1.5px solid transparent;
-    transition: transform .12s, box-shadow .12s;
-    font-family: var(--ml-font-body);
+    border-bottom: 1.5px solid var(--ml-ink);
+    padding-bottom: 2px;
+    transition: color .15s, border-color .15s;
 }
-.dd-ml-btn:hover { transform: translateY(-1px); }
-.dd-ml-btn--primary { background: var(--ml-accent); color: var(--ml-on-accent); }
-.dd-ml-btn--secondary { background: transparent; border-color: currentColor; color: inherit; }
-.dd-ml-hero__content:not(.dd-ml-hero--on-image) .dd-ml-btn--secondary { color: var(--ml-ink); border-color: var(--ml-line); }
-.dd-ml-hero--has-bg .dd-ml-btn--secondary { color: var(--ml-on-accent); border-color: rgba(255,255,255,.5); }
-.dd-ml-btn--tertiary { background: var(--ml-surface-2); color: var(--ml-ink); }
-.dd-ml-hero--has-bg .dd-ml-btn--tertiary { background: rgba(255,255,255,.15); color: var(--ml-on-accent); }
+.dd-ml-text-link:hover { color: var(--ml-accent); border-color: var(--ml-accent); }
+.dd-ml-hero__links-sep { color: var(--ml-ink-faint); font-size: 14px; }
 .dd-ml-hero__chips {
     display: flex;
     flex-wrap: wrap;
     gap: var(--ml-sp-2) var(--ml-sp-5);
 }
 .dd-ml-hero__chip {
-    font-size: 13px;
-    color: var(--ml-ink-soft);
+    font-size: 12px;
+    color: var(--ml-ink-faint);
     display: flex;
     align-items: center;
     gap: 6px;
 }
-.dd-ml-hero--has-bg .dd-ml-hero__chip { color: rgba(255,255,255,.85); }
 .dd-ml-hero__chip::before {
     content: '';
-    width: 5px; height: 5px;
+    width: 4px; height: 4px;
     border-radius: 50%;
-    background: var(--ml-accent);
+    background: var(--ml-ink-faint);
     flex-shrink: 0;
 }
-.dd-ml-hero--has-bg .dd-ml-hero__chip::before { background: var(--ml-on-accent); }
-
-.dd-ml-hero__card { position: relative; }
-.dd-ml-hero__card-img {
+.dd-ml-hero__photo {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    aspect-ratio: 4 / 5;
     object-fit: cover;
     border-radius: var(--ml-radius-lg);
-    box-shadow: var(--ml-shadow-lift);
     display: block;
+    box-shadow: var(--ml-shadow-lift);
 }
-.dd-ml-hero__card-overlay {
-    position: absolute;
-    left: var(--ml-sp-4); right: var(--ml-sp-4); bottom: var(--ml-sp-4);
-    background: var(--ml-bg);
-    border-radius: var(--ml-radius);
-    padding: var(--ml-sp-4) var(--ml-sp-5);
-    box-shadow: var(--ml-shadow);
-}
-.dd-ml-hero__card-badge {
-    display: inline-block;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-    color: var(--ml-accent);
-    margin-bottom: 4px;
-}
-.dd-ml-hero__card-name { font-family: var(--ml-font-heading); font-size: 20px; font-weight: 600; margin: 0 0 4px; }
-.dd-ml-hero__card-desc { font-size: 13px; color: var(--ml-ink-soft); margin: 0; }
 
-/* ── FOOD CATEGORY LIST (mobile only) ──────────────────────────────────── */
+/* ── STORY (asymmetric two-column, right after hero) ───────────────────── */
+.dd-ml-story__grid {
+    display: grid;
+    grid-template-columns: 0.85fr 1.15fr;
+    gap: var(--ml-sp-7);
+    align-items: center;
+}
+.dd-ml-story__photo {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: cover;
+    border-radius: var(--ml-radius);
+}
+.dd-ml-story__text { max-width: 52ch; }
+
+/* ── FOOD CATEGORY LIST (mobile only — unchanged concept from v3.18.5) ──── */
 .dd-ml-food-cat-list { padding: var(--ml-sp-6) 0 var(--ml-sp-4); }
 .dd-ml-food-cat-row {
     display: flex;
@@ -328,51 +324,59 @@ body.dd-tpl-minimal-light {
 .dd-ml-food-cat-row__count { font-size: 12px; color: var(--ml-ink-faint); }
 .dd-ml-food-cat-row__arrow { width: 18px; height: 18px; color: var(--ml-ink-faint); flex-shrink: 0; }
 
-/* ── CATEGORY CIRCLES ───────────────────────────────────────────────────── */
-.dd-ml-cat-row {
+/* ── "THE MENU" — bordered table-style category index ──────────────────── */
+.dd-ml-index {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1px solid var(--ml-line);
+    border-left: 1px solid var(--ml-line);
+}
+.dd-ml-index__cell {
+    border-right: 1px solid var(--ml-line);
+    border-bottom: 1px solid var(--ml-line);
+    padding: var(--ml-sp-6) var(--ml-sp-5);
+    text-decoration: none;
+    color: var(--ml-ink);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 120px;
+    transition: background .15s;
+}
+.dd-ml-index__cell:hover { background: var(--ml-surface); }
+.dd-ml-index__num {
+    font-family: var(--ml-font-heading);
+    font-size: 13px;
+    color: var(--ml-ink-faint);
+}
+.dd-ml-index__name {
+    font-family: var(--ml-font-heading);
+    font-size: 22px;
+    font-weight: 600;
+    margin-top: var(--ml-sp-4);
+}
+.dd-ml-index__count {
+    font-size: 12px;
+    color: var(--ml-ink-faint);
+    margin-top: 4px;
+}
+
+/* ── HORIZONTAL-SCROLL STRIPS (Featured / Selected Category / Reviews) ──── */
+.dd-ml-strip {
     display: flex;
     gap: var(--ml-sp-5);
     overflow-x: auto;
     scroll-behavior: smooth;
     padding-bottom: var(--ml-sp-2);
 }
-.dd-ml-cat-row::-webkit-scrollbar { display: none; }
-.dd-ml-cat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--ml-sp-2);
-    border: none;
-    background: none;
-    cursor: pointer;
-    flex-shrink: 0;
-    width: 96px;
-    font-family: var(--ml-font-body);
-}
-.dd-ml-cat__circle {
-    width: 84px; height: 84px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: var(--ml-surface-2);
-    border: 1px solid var(--ml-line);
-    display: flex; align-items: center; justify-content: center;
-    transition: border-color .15s;
-}
-.dd-ml-cat.active .dd-ml-cat__circle,
-.dd-ml-cat:hover .dd-ml-cat__circle { border-color: var(--ml-accent); }
-.dd-ml-cat__circle img { width: 100%; height: 100%; object-fit: cover; }
-.dd-ml-cat__initial { font-family: var(--ml-font-heading); font-size: 26px; font-weight: 600; color: var(--ml-accent); }
-.dd-ml-cat__name { font-size: 13px; font-weight: 500; color: var(--ml-ink); text-align: center; }
+.dd-ml-strip::-webkit-scrollbar { display: none; }
+.dd-ml-strip[hidden] { display: none; }
 
-/* ── PRODUCT / DISH CARDS ───────────────────────────────────────────────────
-   Reuses templates/partials/product-card.php AS-IS (same .dd-dish-card /
-   .dd-add-btn markup khana-khazana uses) — that partial is already wired to
-   the real add-to-cart JS (frontend.js's .dd-add-btn delegation) and chip
-   filtering (data-filter). Re-skinned here via CSS only, same technique as
-   the shared header/footer overrides above — no markup or JS duplicated. */
-.dd-ml-dish-row .dd-dish-card,
-.dd-ml-tab-panel .dd-dish-card {
-    flex: 0 0 250px;
+/* Reuses templates/partials/product-card.php's real .dd-dish-card / .dd-add-btn
+   markup (already wired to the real add-to-cart JS + chip filtering) — restyled
+   here, not duplicated. */
+.dd-ml-strip .dd-dish-card {
+    flex: 0 0 240px;
     background: var(--ml-bg);
     border: 1px solid var(--ml-line);
     border-radius: var(--ml-radius);
@@ -380,37 +384,19 @@ body.dd-tpl-minimal-light {
     box-shadow: none;
     transition: box-shadow .15s, transform .15s;
 }
-.dd-ml-dish-row .dd-dish-card:hover,
-.dd-ml-tab-panel .dd-dish-card:hover { box-shadow: var(--ml-shadow); transform: translateY(-2px); }
-.dd-ml-dish-row .dd-dish-card__media,
-.dd-ml-tab-panel .dd-dish-card__media { aspect-ratio: 4/3; background: var(--ml-surface-2); }
-.dd-ml-dish-row .dd-dish-card__body,
-.dd-ml-tab-panel .dd-dish-card__body { padding: var(--ml-sp-4); }
-.dd-ml-dish-row .dd-dish-card__title,
-.dd-ml-tab-panel .dd-dish-card__title { font-family: var(--ml-font-body); font-weight: 600; font-size: 15px; margin: 0 0 4px; color: var(--ml-ink); }
-.dd-ml-dish-row .dd-dish-card__desc,
-.dd-ml-tab-panel .dd-dish-card__desc { font-size: 12.5px; color: var(--ml-ink-faint); }
-.dd-ml-dish-row .dd-price,
-.dd-ml-tab-panel .dd-price { font-weight: 700; color: var(--ml-accent); font-size: 14px; }
-.dd-ml-dish-row .dd-add-btn,
-.dd-ml-tab-panel .dd-add-btn {
+.dd-ml-strip .dd-dish-card:hover { box-shadow: var(--ml-shadow); transform: translateY(-2px); }
+.dd-ml-strip .dd-dish-card__media { aspect-ratio: 4/3; background: var(--ml-surface-2); }
+.dd-ml-strip .dd-dish-card__body { padding: var(--ml-sp-4); }
+.dd-ml-strip .dd-dish-card__title { font-family: var(--ml-font-body); font-weight: 600; font-size: 15px; margin: 0 0 4px; color: var(--ml-ink); }
+.dd-ml-strip .dd-dish-card__desc { font-size: 12.5px; color: var(--ml-ink-faint); }
+.dd-ml-strip .dd-price { font-weight: 700; color: var(--ml-accent); font-size: 14px; }
+.dd-ml-strip .dd-add-btn {
     background: var(--ml-ink);
     border-color: var(--ml-ink);
     border-radius: var(--ml-radius-full);
 }
-.dd-ml-dish-row .dd-add-btn:hover,
-.dd-ml-tab-panel .dd-add-btn:hover { background: var(--ml-accent); border-color: var(--ml-accent); }
+.dd-ml-strip .dd-add-btn:hover { background: var(--ml-accent); border-color: var(--ml-accent); }
 
-.dd-ml-dish-row {
-    display: flex;
-    gap: var(--ml-sp-5);
-    overflow-x: auto;
-    scroll-behavior: smooth;
-    padding-bottom: var(--ml-sp-2);
-}
-.dd-ml-dish-row::-webkit-scrollbar { display: none; }
-
-/* ── FILTER CHIPS ───────────────────────────────────────────────────────── */
 .dd-ml-chips { display: flex; flex-wrap: wrap; gap: var(--ml-sp-2); margin-bottom: var(--ml-sp-5); }
 .dd-ml-chip {
     padding: 8px 18px;
@@ -424,52 +410,11 @@ body.dd-tpl-minimal-light {
 }
 .dd-ml-chip.active { background: var(--ml-ink); color: var(--ml-bg); border-color: var(--ml-ink); }
 
-/* ── RESERVE TABLE ──────────────────────────────────────────────────────── */
-.dd-ml-reserve {
-    position: relative;
-    padding: var(--ml-sp-8) 0;
-    background-size: cover;
-    background-position: center;
-    background-color: var(--ml-ink);
-    background-image: var(--ml-reserve-bg-image, none);
-    text-align: center;
-}
-.dd-ml-reserve::before {
-    content: '';
-    position: absolute; inset: 0;
-    background: rgba(23,20,15,.55);
-}
-.dd-ml-reserve__inner { position: relative; max-width: 620px; margin: 0 auto; }
-.dd-ml-reserve .dd-ml-eyebrow { color: rgba(255,255,255,.75); }
-.dd-ml-reserve__title {
-    font-family: var(--ml-font-heading);
-    font-size: clamp(26px, 3.6vw, 38px);
-    font-weight: 600;
-    color: var(--ml-on-accent);
-    margin: 0 0 var(--ml-sp-3);
-}
-.dd-ml-reserve__copy { color: rgba(255,255,255,.8); margin: 0 0 var(--ml-sp-5); font-size: 15px; line-height: 1.6; }
-.dd-ml-reserve__cta {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 15px 32px;
-    border-radius: var(--ml-radius-full);
-    background: var(--ml-on-accent);
-    color: var(--ml-ink);
-    font-weight: 700;
-    font-size: 15px;
-    border: none;
-    cursor: pointer;
-}
-.dd-ml-reserve__cta:hover { background: var(--ml-accent); color: var(--ml-on-accent); }
-
-/* ── SELECTED CATEGORY (tabbed) ─────────────────────────────────────────── */
-.dd-ml-tabs { display: flex; gap: var(--ml-sp-2); overflow-x: auto; margin-bottom: var(--ml-sp-6); }
+.dd-ml-tabs { display: flex; gap: var(--ml-sp-2); overflow-x: auto; margin-bottom: var(--ml-sp-5); }
 .dd-ml-tabs::-webkit-scrollbar { display: none; }
 .dd-ml-tab {
     flex-shrink: 0;
-    padding: 10px 20px;
+    padding: 9px 18px;
     border-radius: var(--ml-radius-full);
     border: 1px solid var(--ml-line);
     background: var(--ml-bg);
@@ -479,12 +424,49 @@ body.dd-tpl-minimal-light {
     cursor: pointer;
 }
 .dd-ml-tab.active { background: var(--ml-accent); color: var(--ml-on-accent); border-color: var(--ml-accent); }
-.dd-ml-tab-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--ml-sp-5); }
-.dd-ml-tab-panel[hidden] { display: none; }
+
+/* ── RESERVE BAND (full-width dark contrast moment) ─────────────────────── */
+.dd-ml-reserve {
+    position: relative;
+    padding: var(--ml-sp-8) 0;
+    background-color: var(--ml-ink);
+    background-size: cover;
+    background-position: center;
+    background-image: var(--ml-reserve-bg-image, none);
+    text-align: center;
+}
+.dd-ml-reserve--has-image::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: rgba(23, 20, 15, .6);
+}
+.dd-ml-reserve__inner { position: relative; max-width: 560px; margin: 0 auto; }
+.dd-ml-reserve .dd-ml-eyebrow { color: rgba(255,255,255,.7); }
+.dd-ml-reserve__title {
+    font-family: var(--ml-font-heading);
+    font-size: clamp(26px, 3.4vw, 36px);
+    font-weight: 600;
+    color: var(--ml-on-accent);
+    margin: 0 0 var(--ml-sp-4);
+}
+.dd-ml-reserve__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ml-on-accent);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1.5px solid rgba(255,255,255,.5);
+    padding-bottom: 3px;
+    background: none;
+    border-top: none; border-left: none; border-right: none;
+    cursor: pointer;
+    font-family: var(--ml-font-body);
+}
+.dd-ml-reserve__link:hover { border-color: var(--ml-on-accent); }
 
 /* ── REVIEWS ────────────────────────────────────────────────────────────── */
-.dd-ml-reviews-row { display: flex; gap: var(--ml-sp-5); overflow-x: auto; scroll-behavior: smooth; padding-bottom: var(--ml-sp-2); }
-.dd-ml-reviews-row::-webkit-scrollbar { display: none; }
 .dd-ml-review {
     flex: 0 0 320px;
     background: var(--ml-surface);
@@ -505,16 +487,63 @@ body.dd-tpl-minimal-light {
 .dd-ml-review__stars { color: #e0a527; font-size: 14px; letter-spacing: 2px; margin-bottom: var(--ml-sp-2); }
 .dd-ml-review__text { font-size: 13.5px; line-height: 1.6; color: var(--ml-ink-soft); margin: 0; }
 
+/* ── FOOTER OVERRIDES (shared global chrome — three-column, eyebrow style) ─
+   Markup/data untouched (DD_Template_Module::inject_global_footer()); this
+   only restyles the same real classes, matching the pattern used above for
+   the header's shared elements. */
+.dd-global-footer {
+    background: var(--ml-surface);
+    color: var(--ml-ink-soft);
+    padding: var(--ml-sp-8) 0 0;
+}
+.dd-global-footer .dd-footer__heading {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ml-accent);
+    margin-bottom: var(--ml-sp-3);
+}
+.dd-global-footer .dd-footer__list a,
+.dd-global-footer .dd-footer__copy { color: var(--ml-ink-soft); font-size: 13.5px; line-height: 1.7; }
+.dd-global-footer .dd-footer__brand-name,
+.dd-global-footer .dd-footer__logo { font-family: var(--ml-font-heading); }
+.dd-global-footer .dd-footer__social-link {
+    background: var(--ml-surface-2);
+    color: var(--ml-ink);
+}
+.dd-global-footer .dd-footer__bottom {
+    background: transparent !important;
+    color: var(--ml-ink-faint) !important;
+    border-top: 1px solid var(--ml-line);
+    margin-top: var(--ml-sp-6);
+}
+
 /* ── RESPONSIVE ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
     .dd-ml-hero__grid { grid-template-columns: 1fr; }
-    .dd-ml-hero__card { order: -1; }
-    .dd-ml-tab-panel { grid-template-columns: repeat(2, 1fr); }
+    .dd-ml-hero__photo { order: -1; aspect-ratio: 4/3; }
+    .dd-ml-story__grid { grid-template-columns: 1fr; }
+    .dd-ml-story__photo { order: -1; aspect-ratio: 16/10; }
+    .dd-ml-index { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
     .dd-ml-section { padding: var(--ml-sp-7) 0; }
-    .dd-ml-dish { flex: 0 0 210px; }
+    .dd-ml-strip .dd-dish-card { flex: 0 0 200px; }
     .dd-ml-review { flex: 0 0 84%; }
-    .dd-ml-top { align-items: flex-start; }
-    .dd-ml-arrows { display: none; }
+    .dd-ml-index { grid-template-columns: 1fr; }
+    .dd-ml-index__cell { min-height: auto; padding: var(--ml-sp-5) var(--ml-sp-4); }
 }
+
+/* ── MOBILE BOTTOM NAV — unchanged, shared component (Home/Menu/Reserve/Cart).
+   See release notes: the mockup describes a 4th "Profile" icon here instead
+   of Cart, but this nav is rendered by the same function that owns the cart
+   drawer + floating cart button as its single source of truth
+   (DD_Template_Module::inject_cart_sidebar()) — forking it to swap one icon
+   would mean duplicating that shared cart markup, which the release
+   guardrails explicitly protect. Left unchanged; restyled only. */
+body.dd-tpl-minimal-light .dd-bottom-nav {
+    background: var(--ml-bg);
+    border-top: 1px solid var(--ml-line);
+}
+body.dd-tpl-minimal-light .dd-bottom-link { color: var(--ml-ink-soft); }

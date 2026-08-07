@@ -2,44 +2,39 @@
 /**
  * File:    templates/layouts/minimal-light/page-home.php
  * Template Name: DishDash (same "page-dishdash.php" meta marker khana-khazana
- *                uses — see DD_Template_Module::load_page_template(), which
- *                resolves the actual file dynamically from the active-template
- *                registry, not from page meta. No WP page needs to change to
- *                pick this up once minimal-light is activated in Settings →
- *                Template).
+ *                uses — DD_Template_Module::load_page_template() resolves the
+ *                actual file dynamically from the active-template registry).
  *
- * Purpose: "Minimal Light" homepage — desktop + mobile, driven entirely by
- *          the existing Homepage Settings admin page (modules/homepage/
- *          class-dd-homepage-module.php). Every option read below already
- *          exists and saves correctly; nothing here adds a new setting.
+ * Purpose: "Minimal Light" homepage — v3.18.6 structural rewrite. v3.18.5
+ *          shipped the same section order/shapes as Khana Khazana with only
+ *          different tokens; this version genuinely restructures the layout
+ *          per the approved mockups (icon-driven header with no nav bar,
+ *          split-screen hero, a Story section right after the hero,
+ *          horizontal-scroll strips instead of grids, a bordered
+ *          table-style category index, a full-width dark reserve band).
+ *          ALL data-fetching below is unchanged from v3.18.5 — reused
+ *          verbatim per the release brief, not re-investigated.
  *
- * Shared chrome (NOT rendered here — comes from wp_body_open()/wp_footer()
- * exactly like page-dishdash.php): global header, mobile bottom nav, cart
- * drawer, reservation modal, product modal, opening-hours banner, global
- * footer. Re-skinned via assets/css/layouts/minimal-light.css CSS-only
- * overrides — this file never duplicates that markup or touches the PHP
- * that renders it.
+ * Structural departure from v3.18.5 / khana-khazana: this file does NOT
+ * call wp_body_open() (which fires DD_Template_Module::inject_global_header()
+ * — a header with a visible nav bar, search, and login/signup buttons that
+ * this design explicitly must not have). It renders its own header markup
+ * instead, reusing the SAME element IDs/classes the shared header uses for
+ * the hamburger + nav-drawer + cart badge (#ddMenuToggle, #ddNavDrawer,
+ * #ddDrawerOverlay, #ddCartTopBtn, #ddCartCount, plus the .dd-menu-toggle/
+ * .dd-nav-drawer/.dd-drawer-overlay classes theme.css already animates) so
+ * the existing frontend.js/cart.js handlers keep working with zero JS
+ * changes. wp_footer() is still called unchanged — footer, cart drawer,
+ * mobile bottom nav, reservation modal, and product modal are all still
+ * the real shared chrome, untouched, restyled via CSS only (see
+ * minimal-light.css). Khana Khazana's own page-dishdash.php is not touched
+ * and still gets the full shared header as before.
  *
- * Dependencies:
- *   - DD_Template_Module (page-template resolution, global chrome injection)
- *   - assets/css/theme.css (base, always loaded) + assets/css/layouts/minimal-light.css
- *     (template-registry-driven override layer, loaded after theme.css)
- *   - assets/js/frontend.js, assets/js/cart.js, assets/js/reservations.js —
- *     consumed via existing hooks/classes only (.dd-add-btn, .dd-dish-card,
- *     .js-open-reservation, #dd-open-reservation) — none of these files are
- *     modified by this template.
- *   - templates/partials/product-card.php — reused verbatim for every
- *     product card (guarantees add-to-cart/quick-view keep working)
- *   - WooCommerce: wc_get_products(), product_cat taxonomy
- *   - DD_API::get_all_categories() if available (mirrors page-dishdash.php's
- *     own fallback pattern for the mobile Food Category List)
- *   - DD_Homepage_Module::get_reviews() (existing, reusable, handles both
- *     manual and Google Places sources — see implementation notes below)
+ * Dependencies: same as v3.18.5 — see that version's docblock history in
+ * git log for the full list (DD_Template_Module, DD_API, DD_Homepage_Module,
+ * templates/partials/product-card.php, WooCommerce).
  *
- * CSS variables set dynamically (same convention as page-dishdash.php):
- *   --brand, --brand-dark (dish_dash_primary_color / dish_dash_dark_color)
- *
- * Last modified: v3.18.5
+ * Last modified: v3.18.6
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -48,40 +43,35 @@ if ( ! function_exists( 'wc_get_products' ) ) {
     wp_die( 'WooCommerce is required for this page template.' );
 }
 
-// ─── Safe WooCommerce URL helpers (same fallbacks page-dishdash.php uses) ──
 if ( ! function_exists( 'dd_placeholder_img' ) ) {
     function dd_placeholder_img( $size = 'medium_large' ) {
         return function_exists( 'wc_placeholder_img_src' ) ? wc_placeholder_img_src( $size ) : '';
     }
 }
 
-// ─── Brand / restaurant identity ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+//  DATA PREP — unchanged from v3.18.5, reused verbatim (see release brief:
+//  "reuse all data-fetching/wiring logic already built... this is a
+//  structural/markup/CSS rewrite, not a re-investigation of data sources").
+// ═══════════════════════════════════════════════════════════════════════════
+
 $dd_name    = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
 $dd_primary = get_option( 'dish_dash_primary_color', '#6B1D1D' );
 $dd_dark    = get_option( 'dish_dash_dark_color', '#160F0D' );
+$dd_logo    = get_option( 'dish_dash_logo_url', '' );
+$dd_addr    = get_option( 'dish_dash_address', '' );
 
-// ─── Homepage Settings — Header ─────────────────────────────────────────────
-// dd_header_show_track_order has no corresponding element anywhere in the
-// shared global header (DD_Template_Module::render_global_header()) — no
-// Track Order button exists there at all, for any template, today. Wiring
-// it would mean adding new markup to that SHARED function (touches
-// khana-khazana too — explicitly out of scope for this release). Flagged in
-// the release report; not attempted here.
-// dd_header_show_cart DOES correspond to a real, always-rendered element
-// (#ddCartTopBtn / #ddBottomCartBtn) — hidden via a scoped CSS rule below
-// when off, without touching the shared header PHP.
 $dd_show_cart = get_option( 'dd_header_show_cart', '1' ) === '1';
+// dd_header_show_track_order has no corresponding element anywhere in this
+// design or the shared header (no Track Order button exists site-wide) —
+// see the release report. Not fabricated here.
 
-// ─── Homepage Settings — Hero ───────────────────────────────────────────────
 $dd_pill_show       = get_option( 'dd_hero_pill_show', '1' ) === '1';
 $dd_pill_text       = get_option( 'dd_hero_pill_text', '' );
 $dd_h_title         = get_option( 'dish_dash_hero_title', 'Best Flavor in Town' );
 $dd_h_sub           = get_option( 'dish_dash_hero_subtitle', '' );
 $dd_h_img           = get_option( 'dish_dash_hero_image', '' );
 $dd_hero_bg         = get_option( 'dd_hero_bg_image', '' );
-$dd_overlay_color   = get_option( 'dd_hero_overlay_color', '#6B1D1D' );
-$dd_overlay_opacity = (int) get_option( 'dd_hero_overlay_opacity', 85 );
-$dd_overlay_rgba    = 'rgba(' . implode( ',', array_map( 'hexdec', str_split( ltrim( $dd_overlay_color, '#' ), 2 ) ) ) . ',' . round( $dd_overlay_opacity / 100, 2 ) . ')';
 $dd_btn1_label      = get_option( 'dd_hero_btn1_label', 'Order Now' );
 $dd_btn1_link       = get_option( 'dd_hero_btn1_link', '#menu' );
 $dd_btn2_label      = get_option( 'dd_hero_btn2_label', 'Reserve Table' );
@@ -96,20 +86,21 @@ $dd_chips           = [
     get_option( 'dd_hero_chip_4', '' ),
 ];
 
-// ─── Homepage Settings — Browse by Category ─────────────────────────────────
 $cats_desk     = get_option( 'dd_section_categories_desktop', '1' ) === '1';
 $cats_mob      = get_option( 'dd_section_categories_mobile',  '0' ) === '1';
 $cats_vis      = $cats_desk || $cats_mob;
 $cats_class    = ( $cats_desk && ! $cats_mob ) ? 'dd-desktop-only' : ( ( ! $cats_desk && $cats_mob ) ? 'dd-mobile-only' : '' );
-$dd_cats_title = get_option( 'dd_categories_title', 'Choose your craving' );
+// Default fallback string only, changed to match the mockup's default copy
+// ("The Menu") — dd_categories_title itself is still fully respected
+// whenever an admin has configured it.
+$dd_cats_title = get_option( 'dd_categories_title', 'The Menu' );
 $dd_cats_count = (int) get_option( 'dd_categories_count', 0 );
 
-// ─── Homepage Settings — Featured Dishes ────────────────────────────────────
 $feat_desk       = get_option( 'dd_section_featured_desktop', '1' ) === '1';
 $feat_mob        = get_option( 'dd_section_featured_mobile',  '0' ) === '1';
 $feat_vis        = $feat_desk || $feat_mob;
 $feat_class      = ( $feat_desk && ! $feat_mob ) ? 'dd-desktop-only' : ( ( ! $feat_desk && $feat_mob ) ? 'dd-mobile-only' : '' );
-$dd_feat_title   = get_option( 'dd_featured_title', 'Best sellers today' );
+$dd_feat_title   = get_option( 'dd_featured_title', 'From the Kitchen' );
 $dd_feat_count   = (int) get_option( 'dd_featured_count', 8 );
 $dd_feat_orderby = get_option( 'dd_featured_orderby', 'popularity' );
 $dd_feat_tag     = get_option( 'dd_featured_tag', '' );
@@ -117,31 +108,42 @@ $dd_feat_chips   = get_option( 'dd_featured_show_chips', '1' ) === '1';
 $dd_chip_tags    = get_option( 'dd_featured_chip_tags', [] );
 if ( is_string( $dd_chip_tags ) ) $dd_chip_tags = array_filter( explode( ',', $dd_chip_tags ) );
 
-// ─── Homepage Settings — Reserve Table ──────────────────────────────────────
 $reserve_desk    = get_option( 'dd_section_reserve_desktop', '1' ) === '1';
 $reserve_mob     = get_option( 'dd_section_reserve_mobile',  '1' ) === '1';
 $reserve_vis     = $reserve_desk || $reserve_mob;
 $reserve_class   = ( $reserve_desk && ! $reserve_mob ) ? 'dd-desktop-only' : ( ( ! $reserve_desk && $reserve_mob ) ? 'dd-mobile-only' : '' );
 $dd_reserve_bg   = get_option( 'dd_reserve_bg_image', '' );
 
-// ─── Homepage Settings — Selected Category ──────────────────────────────────
 $selcat_desk       = get_option( 'dd_section_selcat_desktop', '1' ) === '1';
 $selcat_mob        = get_option( 'dd_section_selcat_mobile',  '0' ) === '1';
 $selcat_vis        = $selcat_desk || $selcat_mob;
 $selcat_class      = ( $selcat_desk && ! $selcat_mob ) ? 'dd-desktop-only' : ( ( ! $selcat_desk && $selcat_mob ) ? 'dd-mobile-only' : '' );
-$dd_selcat_title   = get_option( 'dd_selcat_title', 'Selected category' );
+// Default fallback string changed to match the mockup's "Chef's Selection"
+// copy — still just the prefix; dd_selcat_title remains fully admin-editable.
+$dd_selcat_title   = get_option( 'dd_selcat_title', "Chef's Selection" );
 $dd_selcat_count   = (int) get_option( 'dd_selcat_count', 8 );
 $dd_selcat_slugs   = get_option( 'dd_selcat_slugs', [] );
 if ( is_string( $dd_selcat_slugs ) ) $dd_selcat_slugs = array_filter( explode( ',', $dd_selcat_slugs ) );
 
-// ─── Homepage Settings — Google Reviews ─────────────────────────────────────
 $reviews_desk     = get_option( 'dd_section_reviews_desktop', '1' ) === '1';
 $reviews_mob      = get_option( 'dd_section_reviews_mobile',  '1' ) === '1';
 $reviews_vis      = $reviews_desk || $reviews_mob;
 $reviews_class    = ( $reviews_desk && ! $reviews_mob ) ? 'dd-desktop-only' : ( ( ! $reviews_desk && $reviews_mob ) ? 'dd-mobile-only' : '' );
-$dd_reviews_title = get_option( 'dd_reviews_title', 'What our customers say' );
+$dd_reviews_title = get_option( 'dd_reviews_title', 'What People Say' );
 
-// ─── Categories (shared source for Browse-by-Category + Selected Category) ─
+// Story section (new placement in v3.18.6 — no dedicated Homepage Settings
+// field exists for this, and the brief requires reusing existing data
+// sources only, not adding new ones. Uses dd_footer_description (already
+// real, admin-editable narrative-ish copy — same field the footer itself
+// shows) for the text, and the same hero-image fallback chain for the
+// photo. Respects the existing "Show Footer Description" toggle, since
+// that's the field actually driving this text — if it's off, the footer
+// won't show it either, and this section hides too rather than being the
+// only place stale/unwanted copy still appears.
+$dd_show_story    = get_option( 'dd_footer_show_description', '1' ) === '1';
+$dd_story_text    = get_option( 'dd_footer_description', '' );
+$dd_story_img     = $dd_h_img ?: $dd_hero_bg;
+
 $raw_cats = get_terms( [
     'taxonomy'   => 'product_cat',
     'hide_empty' => false,
@@ -155,11 +157,6 @@ if ( ! is_wp_error( $raw_cats ) ) {
     }
 }
 
-// All categories, unfiltered by dd_categories_count, for the Selected
-// Category slug lookup — mirrors page-dishdash.php's own approach of
-// filtering the already-fetched $dd_cats list, but that list is capped by
-// dd_categories_count; Selected Category has its own independent slug
-// picker so it must not silently lose categories the Browse section hid.
 $raw_cats_all = get_terms( [ 'taxonomy' => 'product_cat', 'hide_empty' => false, 'orderby' => 'menu_order' ] );
 $dd_cats_all  = [];
 if ( ! is_wp_error( $raw_cats_all ) ) {
@@ -176,7 +173,6 @@ if ( ! empty( $dd_selcat_slugs ) ) {
     $dd_selcat_cats = $dd_cats_all;
 }
 
-// ─── Products per selected category ─────────────────────────────────────────
 $dd_cat_products = [];
 foreach ( $dd_selcat_cats as $cat ) {
     $prods = wc_get_products( [
@@ -188,17 +184,11 @@ foreach ( $dd_selcat_cats as $cat ) {
 }
 
 /**
- * Featured/Best-sellers product fetch.
- *
- * 'popularity' uses REAL DishDash sales data — the same mechanism
- * admin/pages/analytics.php's "Top Menu Items" card uses (COUNT of
- * wp_dishdash_order_items rows joined to delivered, non-test orders),
- * resolved back to WC_Product objects via the order_items.menu_item_id
- * column — rather than WooCommerce's generic total_sales postmeta
- * (which is what wc_get_products('orderby'=>'popularity') would use, and
- * what khana-khazana's own homepage currently relies on). This is a
- * deliberate improvement scoped to this new file only — khana-khazana's
- * own query is untouched.
+ * Featured/Best-sellers product fetch — unchanged from v3.18.5. 'popularity'
+ * uses real DishDash sales data (same mechanism as Analytics' "Top Menu
+ * Items" card: wp_dishdash_order_items grouped/counted on delivered,
+ * non-test orders), resolved back to WC_Product objects — not WooCommerce's
+ * generic total_sales popularity meta.
  */
 function dd_ml_popular_products( int $limit, string $tag_slug = '' ): array {
     global $wpdb;
@@ -217,15 +207,13 @@ function dd_ml_popular_products( int $limit, string $tag_slug = '' ): array {
 
     $ids = array_map( fn( $r ) => (int) $r->menu_item_id, $rows );
     if ( empty( $ids ) ) {
-        // No delivered-order history yet (new install) — fall back to
-        // WooCommerce's own popularity signal rather than showing nothing.
         $args = [ 'limit' => $limit > 0 ? $limit : -1, 'orderby' => 'popularity', 'order' => 'DESC', 'status' => 'publish' ];
         if ( $tag_slug ) $args['tag'] = [ $tag_slug ];
         return wc_get_products( $args ) ?: [];
     }
 
-    $products    = wc_get_products( [ 'include' => $ids, 'status' => 'publish', 'limit' => -1 ] );
-    $by_id       = [];
+    $products = wc_get_products( [ 'include' => $ids, 'status' => 'publish', 'limit' => -1 ] );
+    $by_id    = [];
     foreach ( $products as $p ) $by_id[ $p->get_id() ] = $p;
 
     $ordered = [];
@@ -247,18 +235,15 @@ if ( $dd_feat_tag ) $feat_args['tag'] = [ $dd_feat_tag ];
 
 switch ( $dd_feat_orderby ) {
     case 'date':
-        $feat_args['orderby'] = 'date';
-        $feat_args['order']   = 'DESC';
+        $feat_args['orderby'] = 'date'; $feat_args['order'] = 'DESC';
         $dd_best = wc_get_products( $feat_args ) ?: [];
         break;
     case 'price':
-        $feat_args['orderby'] = 'price';
-        $feat_args['order']   = 'ASC';
+        $feat_args['orderby'] = 'price'; $feat_args['order'] = 'ASC';
         $dd_best = wc_get_products( $feat_args ) ?: [];
         break;
     case 'price-desc':
-        $feat_args['orderby'] = 'price';
-        $feat_args['order']   = 'DESC';
+        $feat_args['orderby'] = 'price'; $feat_args['order'] = 'DESC';
         $dd_best = wc_get_products( $feat_args ) ?: [];
         break;
     case 'rand':
@@ -273,13 +258,9 @@ switch ( $dd_feat_orderby ) {
 
 $dd_cart_count  = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
 $dd_hours_state = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
+$dd_reviews     = class_exists( 'DD_Homepage_Module' ) ? DD_Homepage_Module::get_reviews() : [];
 
-// ─── Reviews — reuses the existing, reusable static method (handles both
-// manual and Google sources with one consistent shape) rather than
-// duplicating page-dishdash.php's own separate, more complex inline
-// Google-pool implementation. Both are "existing mechanisms"; this one is
-// the one built to be called from elsewhere. ─────────────────────────────
-$dd_reviews = class_exists( 'DD_Homepage_Module' ) ? DD_Homepage_Module::get_reviews() : [];
+$dd_maps_url = $dd_addr ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( $dd_addr ) : '';
 
 ?>
 <!DOCTYPE html>
@@ -303,24 +284,91 @@ $dd_body_classes = [ 'dd-page', 'dd-tpl-minimal-light' ];
 if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
 ?>
 <body class="<?php echo esc_attr( implode( ' ', $dd_body_classes ) ); ?>" id="home">
-<?php wp_body_open(); ?>
 
 <?php if ( is_admin_bar_showing() ) : ?>
 <div style="height:32px"></div>
 <?php endif; ?>
 
-<!-- Header injected globally by DD_Template_Module -->
+<!-- ══ HEADER (own markup — icon-driven, no nav bar) ══════════════════════
+     Reuses the shared hamburger/drawer/cart-badge IDs+classes so existing
+     frontend.js/cart.js keeps working unmodified. wp_body_open() is NOT
+     called here (see file docblock) — the shared global header never fires
+     on this template. -->
+<header class="dd-ml-header">
+    <div class="dd-container dd-ml-header__inner">
+        <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-ml-header__logo">
+            <?php if ( $dd_logo ) : ?>
+            <img src="<?php echo esc_url( $dd_logo ); ?>" alt="<?php echo esc_attr( $dd_name ); ?>" class="dd-ml-header__logo-img">
+            <?php else : ?>
+            <span class="dd-ml-header__logo-badge"><?php echo esc_html( strtoupper( substr( $dd_name, 0, 2 ) ) ); ?></span>
+            <span class="dd-ml-header__logo-name"><?php echo esc_html( $dd_name ); ?></span>
+            <?php endif; ?>
+        </a>
+        <div class="dd-ml-header__actions">
+            <?php if ( $dd_maps_url ) : ?>
+            <a href="<?php echo esc_url( $dd_maps_url ); ?>" target="_blank" rel="noopener" class="dd-ml-icon-btn" aria-label="Find us">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            </a>
+            <?php endif; ?>
+            <button type="button" class="dd-ml-icon-btn dd-ml-header__cart" id="ddCartTopBtn" aria-label="Open cart">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                <span class="dd-cart-badge" id="ddCartCount" style="<?php echo $dd_cart_count > 0 ? '' : 'display:none'; ?>"><?php echo esc_html( $dd_cart_count ); ?></span>
+            </button>
+            <button class="dd-menu-toggle" id="ddMenuToggle" aria-label="Open menu" aria-expanded="false">
+                <span class="dd-menu-toggle__bar"></span>
+                <span class="dd-menu-toggle__bar"></span>
+                <span class="dd-menu-toggle__bar"></span>
+            </button>
+        </div>
+    </div>
+</header>
 
-<!-- ══ HERO ════════════════════════════════════════════════════════════════ -->
-<?php
-$dd_hero_has_bg = ! empty( $dd_hero_bg );
-$hero_style     = '';
-if ( $dd_hero_has_bg ) {
-    $hero_style = '--ml-hero-bg-image: url(' . esc_url( $dd_hero_bg ) . '); --ml-hero-overlay-color: ' . esc_attr( $dd_overlay_rgba ) . ';';
-}
-?>
-<section class="dd-ml-hero<?php echo $dd_hero_has_bg ? ' dd-ml-hero--has-bg' : ''; ?>" style="<?php echo esc_attr( $hero_style ); ?>">
-    <?php if ( $dd_hero_has_bg ) : ?><div class="dd-ml-hero__overlay"></div><?php endif; ?>
+<div class="dd-drawer-overlay" id="ddDrawerOverlay"></div>
+<aside class="dd-nav-drawer" id="ddNavDrawer" aria-label="Navigation">
+    <div class="dd-nav-drawer__header">
+        <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-brand">
+            <?php if ( $dd_logo ) : ?>
+            <img src="<?php echo esc_url( $dd_logo ); ?>" alt="<?php echo esc_attr( $dd_name ); ?>" class="dd-brand__logo">
+            <?php else : ?>
+            <span class="dd-brand__badge"><?php echo esc_html( strtoupper( substr( $dd_name, 0, 2 ) ) ); ?></span>
+            <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
+            <?php endif; ?>
+        </a>
+        <button class="dd-nav-drawer__close" id="ddDrawerClose" aria-label="Close">&#10005;</button>
+    </div>
+    <nav class="dd-nav-drawer__nav">
+        <?php
+        $dd_nav_html = wp_nav_menu( [
+            'theme_location' => 'dd-primary',
+            'container'      => false,
+            'items_wrap'     => '%3$s',
+            'fallback_cb'    => false,
+            'echo'           => false,
+        ] );
+        if ( $dd_nav_html ) {
+            echo $dd_nav_html; // phpcs:ignore WordPress.Security.EscapingOutput.OutputNotEscaped — wp_nav_menu returns safe markup
+        } else {
+            echo '<a href="' . esc_url( home_url( '/' ) ) . '">Home</a>';
+            echo '<a href="' . esc_url( home_url( '/restaurant-menu/' ) ) . '">Our Menu</a>';
+            echo '<a href="#reserve" class="js-open-reservation">Reserve a Table</a>';
+        }
+        ?>
+    </nav>
+    <div class="dd-nav-drawer__footer">
+        <?php if ( is_user_logged_in() ) :
+            $account_url = function_exists( 'wc_get_account_endpoint_url' ) ? wc_get_account_endpoint_url( 'my-profile' ) : home_url( '/my-account/my-profile/' );
+        ?>
+        <a href="<?php echo esc_url( $account_url ); ?>" class="dd-btn dd-btn--light dd-btn--block">&#128100; My Profile</a>
+        <button id="ddLogoutBtn" class="dd-nav-drawer__logout">Log out</button>
+        <?php else : ?>
+        <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--block" style="margin-bottom:10px;">&#128100; Create Account</button>
+        <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--block">Log in</button>
+        <?php endif; ?>
+    </div>
+</aside>
+
+<!-- ══ HERO (split-screen) ═════════════════════════════════════════════════ -->
+<section class="dd-ml-hero" id="top">
     <div class="dd-container dd-ml-hero__grid">
         <div class="dd-ml-hero__content">
             <?php if ( $dd_pill_show && '' !== trim( (string) $dd_pill_text ) ) : ?>
@@ -330,11 +378,29 @@ if ( $dd_hero_has_bg ) {
             <?php if ( $dd_h_sub ) : ?>
             <p class="dd-ml-copy"><?php echo esc_html( $dd_h_sub ); ?></p>
             <?php endif; ?>
-            <div class="dd-ml-hero__actions">
-                <a href="<?php echo esc_url( $dd_btn1_link ); ?>" class="dd-ml-btn dd-ml-btn--primary"><?php echo esc_html( $dd_btn1_label ); ?></a>
-                <a href="<?php echo esc_url( $dd_btn2_link ); ?>" class="dd-ml-btn dd-ml-btn--secondary js-open-reservation"><?php echo esc_html( $dd_btn2_label ); ?></a>
-                <a href="<?php echo esc_url( $dd_btn3_link ); ?>" class="dd-ml-btn dd-ml-btn--tertiary"><?php echo esc_html( $dd_btn3_label ); ?></a>
+
+            <?php
+            // All 3 configured CTAs render as understated text-links, in
+            // configured order, separated by " · " — confirmed with the
+            // developer (2026-08-07): keep every Settings field visible
+            // rather than silently dropping btn3 to match a literal 2-link
+            // mockup count.
+            $dd_hero_links = [
+                [ $dd_btn1_label, $dd_btn1_link, false ],
+                [ $dd_btn2_label, $dd_btn2_link, true ],  // js-open-reservation, matches existing "#reserve" default convention
+                [ $dd_btn3_label, $dd_btn3_link, false ],
+            ];
+            $dd_hero_links = array_values( array_filter( $dd_hero_links, fn( $l ) => trim( (string) $l[0] ) !== '' ) );
+            ?>
+            <?php if ( $dd_hero_links ) : ?>
+            <div class="dd-ml-hero__links">
+                <?php foreach ( $dd_hero_links as $i => $link ) : ?>
+                <?php if ( $i > 0 ) : ?><span class="dd-ml-hero__links-sep">&middot;</span><?php endif; ?>
+                <a href="<?php echo esc_url( $link[1] ); ?>" class="dd-ml-text-link<?php echo $link[2] ? ' js-open-reservation' : ''; ?>"><?php echo esc_html( $link[0] ); ?></a>
+                <?php endforeach; ?>
             </div>
+            <?php endif; ?>
+
             <?php if ( $dd_show_chips && array_filter( $dd_chips ) ) : ?>
             <div class="dd-ml-hero__chips">
                 <?php foreach ( $dd_chips as $chip ) : if ( ! $chip ) continue; ?>
@@ -344,35 +410,40 @@ if ( $dd_hero_has_bg ) {
             <?php endif; ?>
         </div>
 
-        <div class="dd-ml-hero__card">
-            <?php
-            $hero_img     = $dd_h_img;
-            $hero_product = null;
-            if ( ! $hero_img && ! empty( $dd_best ) ) {
-                $hero_product = $dd_best[0];
-                $img_id       = $hero_product->get_image_id();
-                $hero_img     = $img_id ? wp_get_attachment_image_url( $img_id, 'large' ) : dd_placeholder_img( 'large' );
-            }
-            ?>
-            <?php if ( $hero_img ) : ?>
-            <img src="<?php echo esc_url( $hero_img ); ?>"
-                 alt="<?php echo $hero_product ? esc_attr( $hero_product->get_name() ) : esc_attr( $dd_name ); ?>"
-                 class="dd-ml-hero__card-img">
-            <?php if ( $hero_product ) :
-                $h_desc = wp_trim_words( strip_tags( $hero_product->get_short_description() ?: $hero_product->get_description() ), 16, '...' );
-            ?>
-            <div class="dd-ml-hero__card-overlay">
-                <span class="dd-ml-hero__card-badge">Chef's Pick</span>
-                <h3 class="dd-ml-hero__card-name"><?php echo esc_html( $hero_product->get_name() ); ?></h3>
-                <?php if ( $h_desc ) : ?><p class="dd-ml-hero__card-desc"><?php echo esc_html( $h_desc ); ?></p><?php endif; ?>
-            </div>
-            <?php endif; ?>
-            <?php endif; ?>
-        </div>
+        <?php
+        $hero_img     = $dd_h_img ?: $dd_hero_bg;
+        $hero_product = null;
+        if ( ! $hero_img && ! empty( $dd_best ) ) {
+            $hero_product = $dd_best[0];
+            $img_id       = $hero_product->get_image_id();
+            $hero_img     = $img_id ? wp_get_attachment_image_url( $img_id, 'large' ) : dd_placeholder_img( 'large' );
+        }
+        ?>
+        <?php if ( $hero_img ) : ?>
+        <img src="<?php echo esc_url( $hero_img ); ?>"
+             alt="<?php echo $hero_product ? esc_attr( $hero_product->get_name() ) : esc_attr( $dd_name ); ?>"
+             class="dd-ml-hero__photo">
+        <?php endif; ?>
     </div>
 </section>
 
-<!-- ══ FOOD CATEGORY LIST (MOBILE ONLY) ═══════════════════════════════════ -->
+<!-- ══ STORY (right after hero — see docblock note on data source) ═══════ -->
+<?php if ( $dd_show_story && trim( (string) $dd_story_text ) !== '' ) : ?>
+<section class="dd-ml-section" id="story">
+    <div class="dd-container dd-ml-story__grid">
+        <?php if ( $dd_story_img ) : ?>
+        <img src="<?php echo esc_url( $dd_story_img ); ?>" alt="<?php echo esc_attr( $dd_name ); ?>" class="dd-ml-story__photo">
+        <?php endif; ?>
+        <div class="dd-ml-story__text">
+            <div class="dd-ml-eyebrow">Our story</div>
+            <h2 class="dd-ml-title" style="margin-bottom:var(--ml-sp-4);"><?php echo esc_html( $dd_name ); ?></h2>
+            <p class="dd-ml-copy" style="max-width:60ch;"><?php echo nl2br( esc_html( $dd_story_text ) ); ?></p>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<!-- ══ FOOD CATEGORY LIST (MOBILE ONLY — unchanged concept) ═══════════════ -->
 <?php
 $food_cat_mob_on = get_option( 'dd_section_food_cat_list_mobile', '1' ) === '1';
 if ( $food_cat_mob_on ) :
@@ -420,7 +491,7 @@ if ( $food_cat_mob_on ) :
 <?php endif; ?>
 <?php endif; ?>
 
-<!-- ══ BROWSE BY CATEGORY ══════════════════════════════════════════════════ -->
+<!-- ══ "THE MENU" — bordered table-style category index ═══════════════════ -->
 <?php if ( $cats_vis && ! empty( $dd_cats ) ) : ?>
 <section class="dd-ml-section <?php echo esc_attr( $cats_class ); ?>" id="categories">
     <div class="dd-container">
@@ -430,20 +501,14 @@ if ( $food_cat_mob_on ) :
                 <h2 class="dd-ml-title"><?php echo esc_html( $dd_cats_title ); ?></h2>
             </div>
         </div>
-        <div class="dd-ml-cat-row">
-            <?php foreach ( $dd_cats as $cat ) :
-                $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
-                $thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : '';
-            ?>
-            <a class="dd-ml-cat" href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat->slug ) ); ?>">
-                <span class="dd-ml-cat__circle">
-                    <?php if ( $thumb_url ) : ?>
-                    <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>">
-                    <?php else : ?>
-                    <span class="dd-ml-cat__initial"><?php echo esc_html( strtoupper( substr( $cat->name, 0, 1 ) ) ); ?></span>
-                    <?php endif; ?>
+        <div class="dd-ml-index">
+            <?php foreach ( $dd_cats as $i => $cat ) : ?>
+            <a class="dd-ml-index__cell" href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat->slug ) ); ?>">
+                <span class="dd-ml-index__num"><?php echo esc_html( sprintf( '%02d', $i + 1 ) ); ?></span>
+                <span>
+                    <span class="dd-ml-index__name"><?php echo esc_html( $cat->name ); ?></span>
+                    <span class="dd-ml-index__count"><?php echo (int) $cat->count; ?> dishes</span>
                 </span>
-                <span class="dd-ml-cat__name"><?php echo esc_html( $cat->name ); ?></span>
             </a>
             <?php endforeach; ?>
         </div>
@@ -451,7 +516,7 @@ if ( $food_cat_mob_on ) :
 </section>
 <?php endif; ?>
 
-<!-- ══ FEATURED DISHES ═════════════════════════════════════════════════════ -->
+<!-- ══ "FROM THE KITCHEN" — Featured Dishes, horizontal strip ═════════════ -->
 <?php if ( $feat_vis ) : ?>
 <section class="dd-ml-section dd-ml-section--surface <?php echo esc_attr( $feat_class ); ?>" id="menu">
     <div class="dd-container">
@@ -474,7 +539,7 @@ if ( $food_cat_mob_on ) :
         </div>
         <?php endif; ?>
 
-        <div class="dd-ml-dish-row" id="ddMlFeatRow">
+        <div class="dd-ml-strip" id="ddMlFeatRow">
             <?php
             if ( ! empty( $dd_best ) ) {
                 foreach ( $dd_best as $product ) {
@@ -490,39 +555,39 @@ if ( $food_cat_mob_on ) :
 </section>
 <?php endif; ?>
 
-<!-- ══ RESERVE TABLE ═══════════════════════════════════════════════════════ -->
+<!-- ══ RESERVE BAND (full-width dark contrast moment) ═════════════════════ -->
 <?php if ( $reserve_vis ) :
-    $reserve_style = $dd_reserve_bg ? '--ml-reserve-bg-image: url(' . esc_url( $dd_reserve_bg ) . ');' : '';
+    $dd_reserve_has_img = ! empty( $dd_reserve_bg );
+    $reserve_style       = $dd_reserve_has_img ? '--ml-reserve-bg-image: url(' . esc_url( $dd_reserve_bg ) . ');' : '';
 ?>
-<section class="dd-ml-reserve <?php echo esc_attr( $reserve_class ); ?>" id="reserve" style="<?php echo esc_attr( $reserve_style ); ?>">
+<section class="dd-ml-reserve<?php echo $dd_reserve_has_img ? ' dd-ml-reserve--has-image' : ''; ?> <?php echo esc_attr( $reserve_class ); ?>" id="reserve" style="<?php echo esc_attr( $reserve_style ); ?>">
     <div class="dd-container dd-ml-reserve__inner">
         <div class="dd-ml-eyebrow">Reserve your table</div>
         <h2 class="dd-ml-reserve__title">A dining experience that feels as rich as the food.</h2>
-        <p class="dd-ml-reserve__copy">Whether you&#39;re planning a quiet dinner for two or a celebration with family — reserve your table in seconds.</p>
-        <button type="button" class="dd-ml-reserve__cta" id="dd-open-reservation">📅 Reserve a Table</button>
+        <button type="button" class="dd-ml-reserve__link" id="dd-open-reservation">Book now &rarr;</button>
     </div>
 </section>
 <?php endif; ?>
 
-<!-- ══ SELECTED CATEGORY ═══════════════════════════════════════════════════ -->
+<!-- ══ "CHEF'S SELECTION — [category]" — Selected Category, horizontal strip ═ -->
 <?php if ( $selcat_vis && ! empty( $dd_selcat_cats ) ) : ?>
 <section class="dd-ml-section <?php echo esc_attr( $selcat_class ); ?>" id="category-dishes">
     <div class="dd-container">
         <div class="dd-ml-top">
             <div>
-                <div class="dd-ml-eyebrow"><?php echo esc_html( $dd_selcat_title ); ?></div>
-                <h2 class="dd-ml-title">Find Your <span class="dd-gold">Favorite</span> Dish</h2>
+                <div class="dd-ml-eyebrow">Chef's picks</div>
+                <h2 class="dd-ml-title"><?php echo esc_html( $dd_selcat_title ); ?> &mdash; <span class="dd-gold" id="ddMlSelcatActiveCat"><?php echo esc_html( $dd_selcat_cats[0]->name ); ?></span></h2>
             </div>
         </div>
 
         <div class="dd-ml-tabs" id="ddMlSelcatTabs">
             <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
-            <button type="button" class="dd-ml-tab<?php echo $i === 0 ? ' active' : ''; ?>" data-slug="<?php echo esc_attr( $cat->slug ); ?>"><?php echo esc_html( $cat->name ); ?></button>
+            <button type="button" class="dd-ml-tab<?php echo $i === 0 ? ' active' : ''; ?>" data-slug="<?php echo esc_attr( $cat->slug ); ?>" data-name="<?php echo esc_attr( $cat->name ); ?>"><?php echo esc_html( $cat->name ); ?></button>
             <?php endforeach; ?>
         </div>
 
         <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
-        <div class="dd-ml-tab-panel" data-panel="<?php echo esc_attr( $cat->slug ); ?>" <?php echo $i !== 0 ? 'hidden' : ''; ?>>
+        <div class="dd-ml-strip" data-panel="<?php echo esc_attr( $cat->slug ); ?>" <?php echo $i !== 0 ? 'hidden' : ''; ?>>
             <?php
             if ( ! empty( $dd_cat_products[ $cat->slug ] ) ) {
                 foreach ( $dd_cat_products[ $cat->slug ] as $product ) {
@@ -539,9 +604,9 @@ if ( $food_cat_mob_on ) :
 </section>
 <?php endif; ?>
 
-<!-- ══ REVIEWS ══════════════════════════════════════════════════════════════ -->
+<!-- ══ "WHAT PEOPLE SAY" — Reviews, horizontal strip ═══════════════════════ -->
 <?php if ( $reviews_vis && ! empty( $dd_reviews ) ) : ?>
-<section class="dd-ml-section <?php echo esc_attr( $reviews_class ); ?>" id="reviews">
+<section class="dd-ml-section dd-ml-section--surface <?php echo esc_attr( $reviews_class ); ?>" id="reviews">
     <div class="dd-container">
         <div class="dd-ml-top">
             <div>
@@ -549,7 +614,7 @@ if ( $food_cat_mob_on ) :
                 <h2 class="dd-ml-title"><?php echo esc_html( $dd_reviews_title ); ?></h2>
             </div>
         </div>
-        <div class="dd-ml-reviews-row">
+        <div class="dd-ml-strip">
             <?php foreach ( $dd_reviews as $r ) :
                 $author  = trim( (string) ( $r['author'] ?? '' ) ) ?: 'Guest';
                 $initial = strtoupper( mb_substr( $author, 0, 1 ) );
@@ -577,13 +642,13 @@ if ( $food_cat_mob_on ) :
 </section>
 <?php endif; ?>
 
-<!-- Footer + cart drawer + reservation modal + product modal injected globally by DD_Template_Module via wp_footer -->
+<!-- Footer + cart drawer + mobile bottom nav + reservation modal + product
+     modal injected globally by DD_Template_Module via wp_footer (unchanged
+     shared chrome — see minimal-light.css for the restyling-only overrides). -->
 <?php wp_footer(); ?>
 
 <script>
 (function () {
-    // Featured chip filter — client-side against templates/partials/product-card.php's
-    // own data-filter attribute (already-existing convention, no new AJAX endpoint).
     var chipsWrap = document.getElementById('ddMlFeatChips');
     var featRow    = document.getElementById('ddMlFeatRow');
     if (chipsWrap && featRow) {
@@ -600,19 +665,18 @@ if ( $food_cat_mob_on ) :
         });
     }
 
-    // Selected-category tabs — same show/hide-panel pattern page-dishdash.php
-    // already uses for its own tabs, reimplemented here against this file's
-    // own markup (no shared JS touched).
-    var tabsWrap = document.getElementById('ddMlSelcatTabs');
+    var tabsWrap  = document.getElementById('ddMlSelcatTabs');
+    var activeCat = document.getElementById('ddMlSelcatActiveCat');
     if (tabsWrap) {
         tabsWrap.addEventListener('click', function (e) {
             var btn = e.target.closest('.dd-ml-tab');
             if (!btn) return;
             var slug = btn.dataset.slug;
             tabsWrap.querySelectorAll('.dd-ml-tab').forEach(function (b) { b.classList.toggle('active', b === btn); });
-            document.querySelectorAll('.dd-ml-tab-panel').forEach(function (panel) {
+            document.querySelectorAll('.dd-ml-strip[data-panel]').forEach(function (panel) {
                 panel.hidden = panel.dataset.panel !== slug;
             });
+            if (activeCat && btn.dataset.name) activeCat.textContent = btn.dataset.name;
         });
     }
 })();
