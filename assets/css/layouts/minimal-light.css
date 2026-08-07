@@ -31,7 +31,7 @@
  *
  * No build step — plain CSS only, per architecture constraints.
  *
- * Last modified: v3.18.10
+ * Last modified: v3.18.11
  */
 
 /* ── TOKENS ─────────────────────────────────────────────────────────────── */
@@ -349,10 +349,18 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 /* ── HORIZONTAL-SCROLL STRIPS (Featured / Selected Category / Reviews) ──── */
 .dd-ml-strip {
     display: flex;
+    align-items: flex-start; /* v3.18.11 — don't stretch every card to match
+        the tallest one in the row (flex default is stretch); each card
+        keeps its own natural height, which combined with the review-text
+        line-clamp below keeps the whole row visually consistent instead
+        of one long card distorting its neighbors. */
     gap: var(--ml-sp-5);
     overflow-x: auto;
     scroll-behavior: smooth;
     padding-bottom: var(--ml-sp-2);
+    padding-right: var(--ml-sp-2); /* small trailing clearance so the last
+        card doesn't sit flush against the scroll boundary when scrolled
+        all the way — matches the row's own left-edge breathing room. */
 }
 .dd-ml-strip::-webkit-scrollbar { display: none; }
 .dd-ml-strip[hidden] { display: none; }
@@ -454,23 +462,59 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 /* ── REVIEWS ────────────────────────────────────────────────────────────── */
 .dd-ml-review {
     flex: 0 0 320px;
+    min-width: 0; /* v3.18.11 — flex items default to min-width:auto, which
+        lets unbreakable long content (a long name, a URL in review text)
+        push the box wider than its 320px flex-basis despite flex-shrink:0.
+        This forces the box to respect its declared width and clip/wrap
+        content internally instead. */
     background: var(--ml-surface);
     border-radius: var(--ml-radius);
     padding: var(--ml-sp-5);
     border: 1px solid var(--ml-line);
 }
-.dd-ml-review__head { display: flex; align-items: center; gap: var(--ml-sp-3); margin-bottom: var(--ml-sp-3); }
-.dd-ml-review__avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+.dd-ml-review__head { display: flex; align-items: center; gap: var(--ml-sp-3); margin-bottom: var(--ml-sp-3); min-width: 0; }
+.dd-ml-review__avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .dd-ml-review__avatar--letter {
     width: 40px; height: 40px; border-radius: 50%;
     background: var(--ml-accent); color: var(--ml-on-accent);
     display: flex; align-items: center; justify-content: center;
     font-weight: 700; font-family: var(--ml-font-heading);
+    flex-shrink: 0;
 }
-.dd-ml-review__name { font-weight: 600; font-size: 14px; }
+.dd-ml-review__name { font-weight: 600; font-size: 14px; overflow-wrap: break-word; }
 .dd-ml-review__time { font-size: 11px; color: var(--ml-ink-faint); }
 .dd-ml-review__stars { color: #e0a527; font-size: 14px; letter-spacing: 2px; margin-bottom: var(--ml-sp-2); }
-.dd-ml-review__text { font-size: 13.5px; line-height: 1.6; color: var(--ml-ink-soft); margin: 0; }
+.dd-ml-review__text {
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--ml-ink-soft);
+    margin: 0;
+    overflow-wrap: break-word;
+}
+/* Truncation + "Read more" — same technique (and the same 160-char PHP
+   threshold, see page-home.php) Khana Khazana's own reviews section
+   already uses. Keeps every card a consistent height regardless of review
+   length; .dd-add-btn/.dd-dish-card aren't involved, this is scoped to
+   reviews only. */
+.dd-ml-review__text.is-collapsible[data-collapsed="1"] {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.dd-ml-review__more {
+    display: inline-block;
+    margin-top: var(--ml-sp-2);
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--ml-accent);
+    font-weight: 600;
+    font-size: 13px;
+    font-family: var(--ml-font-body);
+    cursor: pointer;
+}
+.dd-ml-review__more:hover { text-decoration: underline; }
 
 /* ── FOOTER OVERRIDES (shared global chrome — three-column, eyebrow style) ─
    Markup/data untouched (DD_Template_Module::inject_global_footer()); this

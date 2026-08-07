@@ -37,7 +37,7 @@
  * git log for the full list (DD_Template_Module, DD_API, DD_Homepage_Module,
  * templates/partials/product-card.php, WooCommerce).
  *
- * Last modified: v3.18.10
+ * Last modified: v3.18.11
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -594,6 +594,12 @@ if ( $food_cat_mob_on ) :
                 $initial = strtoupper( mb_substr( $author, 0, 1 ) );
                 $rating  = max( 1, min( 5, (int) ( $r['rating'] ?? 5 ) ) );
                 $text    = trim( (string) ( $r['text'] ?? '' ) );
+                // Same 160-char threshold + line-clamp/"Read more" pattern
+                // Khana Khazana's own reviews section already uses
+                // (templates/page-dishdash.php) — reused here rather than
+                // inventing a new truncation approach, keeps card height
+                // consistent regardless of review length.
+                $is_long = mb_strlen( $text ) > 160;
             ?>
             <article class="dd-ml-review">
                 <div class="dd-ml-review__head">
@@ -608,7 +614,12 @@ if ( $food_cat_mob_on ) :
                     </div>
                 </div>
                 <div class="dd-ml-review__stars"><?php for ( $s = 0; $s < $rating; $s++ ) echo '&#9733;'; ?></div>
-                <?php if ( $text ) : ?><p class="dd-ml-review__text"><?php echo nl2br( esc_html( $text ) ); ?></p><?php endif; ?>
+                <?php if ( $text ) : ?>
+                <p class="dd-ml-review__text<?php echo $is_long ? ' is-collapsible' : ''; ?>" data-collapsed="1"><?php echo nl2br( esc_html( $text ) ); ?></p>
+                <?php if ( $is_long ) : ?>
+                <button type="button" class="dd-ml-review__more">Read more</button>
+                <?php endif; ?>
+                <?php endif; ?>
             </article>
             <?php endforeach; ?>
         </div>
@@ -653,6 +664,20 @@ if ( $food_cat_mob_on ) :
             if (activeCat && btn.dataset.name) activeCat.textContent = btn.dataset.name;
         });
     }
+
+    // Review "Read more" — same collapsed/expanded toggle pattern as
+    // Khana Khazana's own reviews section (templates/page-dishdash.php),
+    // reimplemented against this file's own markup (no shared JS touched).
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.dd-ml-review__more');
+        if (!btn) return;
+        var card = btn.closest('.dd-ml-review');
+        var txt  = card && card.querySelector('.dd-ml-review__text');
+        if (!txt) return;
+        var collapsed = txt.getAttribute('data-collapsed') === '1';
+        txt.setAttribute('data-collapsed', collapsed ? '0' : '1');
+        btn.textContent = collapsed ? 'Show less' : 'Read more';
+    });
 })();
 </script>
 
