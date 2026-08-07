@@ -26,8 +26,12 @@
  *   - wp_enqueue_scripts → enqueue_frontend_assets() + remove_theme_conflicts()
  *   - template_redirect (priority 1) → redirect_woocommerce_pages()
  *   - wp_footer → inject_cart_sidebar() + inject_global_footer() + inject_product_modal()
- *   - wp_body_open → inject_global_header()
+ *   - wp_body_open → inject_global_header() (branches to render_minimal_light_header()
+ *     instead of render_global_header() when Minimal Light is active AND the
+ *     request is the Menu page — v3.18.19)
  *   - wp_head → inject_global_header_styles()
+ *   - body_class (filter) → maybe_add_minimal_light_body_class() — pairs with the
+ *     branch above, v3.18.19
  *   - init → remove_theme_header_hooks()
  *
  * Nav menu locations: dd-primary (main nav), dd-footer (footer nav)
@@ -78,6 +82,13 @@ class DD_Template_Module extends DD_Module {
         // ── Inject global header on specific pages ──
         add_action( 'wp_body_open', [ $this, 'inject_global_header' ] );
         add_action( 'wp_head',      [ $this, 'inject_global_header_styles' ] );
+
+        // ── Minimal Light header on the Menu page (v3.18.19) — pairs with
+        //    inject_global_header()'s own branch below; needed because the
+        //    Menu page's <body> tag comes from body_class(), not Minimal
+        //    Light's own hand-written <body> tag, so it wouldn't otherwise
+        //    carry the class several of that template's CSS rules target. ──
+        add_filter( 'body_class', [ $this, 'maybe_add_minimal_light_body_class' ] );
 
         // ── Inject global footer on all DD pages ──
         add_action( 'wp_footer', [ $this, 'inject_global_footer' ] );
@@ -1085,6 +1096,127 @@ class DD_Template_Module extends DD_Module {
     }
 
     /**
+     * Minimal Light's header on the Menu page — same markup/IDs as
+     * templates/layouts/minimal-light/page-home.php's own header
+     * (#ddMenuToggle, #ddNavDrawer, #ddDrawerOverlay, #ddCartTopBtn,
+     * #ddCartCount), duplicated here rather than shared via an include
+     * since page-home.php is itself a page-template file and out of scope
+     * to modify for this change. Also emits the same window.DD JS bridge
+     * render_global_header() provides (ajaxUrl/nonce/hours_state/etc.) —
+     * the homepage doesn't need this (its own JS reads the closed-hours
+     * state a different way), but the Menu page's menu-page.js reads
+     * window.DD.hours_state directly to disable Add to Cart while closed,
+     * so it's included here to keep that behavior working.
+     */
+    private function render_minimal_light_header(): void {
+        $dd_name       = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
+        $dd_logo       = get_option( 'dish_dash_logo_url', '' );
+        $dd_addr       = get_option( 'dish_dash_address', '' );
+        $dd_cart_count = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
+        $home_url      = home_url( '/' );
+        $dd_maps_url   = $dd_addr ? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( $dd_addr ) : '';
+
+        $nav_html = wp_nav_menu( array(
+            'theme_location' => 'dd-primary',
+            'container'      => false,
+            'items_wrap'     => '%3$s',
+            'fallback_cb'    => false,
+            'echo'           => false,
+        ) );
+        if ( ! $nav_html ) {
+            $nav_html  = '<a href="' . esc_url( $home_url ) . '">Home</a>';
+            $nav_html .= '<a href="' . esc_url( home_url( '/restaurant-menu/' ) ) . '">Our Menu</a>';
+            $nav_html .= '<a href="#reserve" class="js-open-reservation">Reserve a Table</a>';
+        }
+        ?>
+
+        <header class="dd-ml-header">
+            <div class="dd-container dd-ml-header__inner">
+                <a href="<?php echo esc_url( $home_url ); ?>" class="dd-ml-header__logo">
+                    <?php if ( $dd_logo ) : ?>
+                    <img src="<?php echo esc_url( $dd_logo ); ?>" alt="<?php echo esc_attr( $dd_name ); ?>" class="dd-ml-header__logo-img">
+                    <?php else : ?>
+                    <span class="dd-ml-header__logo-badge"><?php echo esc_html( strtoupper( substr( $dd_name, 0, 2 ) ) ); ?></span>
+                    <span class="dd-ml-header__logo-name"><?php echo esc_html( $dd_name ); ?></span>
+                    <?php endif; ?>
+                </a>
+                <div class="dd-ml-header__actions">
+                    <?php if ( $dd_maps_url ) : ?>
+                    <a href="<?php echo esc_url( $dd_maps_url ); ?>" target="_blank" rel="noopener" class="dd-ml-icon-btn" aria-label="Find us">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    </a>
+                    <?php endif; ?>
+                    <button type="button" class="dd-ml-icon-btn dd-ml-header__cart" id="ddCartTopBtn" aria-label="Open cart">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+                        <span class="dd-cart-badge" id="ddCartCount" style="<?php echo $dd_cart_count > 0 ? '' : 'display:none'; ?>"><?php echo esc_html( $dd_cart_count ); ?></span>
+                    </button>
+                    <button class="dd-menu-toggle" id="ddMenuToggle" aria-label="Open menu" aria-expanded="false">
+                        <span class="dd-menu-toggle__bar"></span>
+                        <span class="dd-menu-toggle__bar"></span>
+                        <span class="dd-menu-toggle__bar"></span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="dd-drawer-overlay" id="ddDrawerOverlay"></div>
+        <aside class="dd-nav-drawer" id="ddNavDrawer" aria-label="Navigation">
+            <div class="dd-nav-drawer__header">
+                <a href="<?php echo esc_url( $home_url ); ?>" class="dd-brand">
+                    <?php if ( $dd_logo ) : ?>
+                    <img src="<?php echo esc_url( $dd_logo ); ?>" alt="<?php echo esc_attr( $dd_name ); ?>" class="dd-brand__logo">
+                    <?php else : ?>
+                    <span class="dd-brand__badge"><?php echo esc_html( strtoupper( substr( $dd_name, 0, 2 ) ) ); ?></span>
+                    <div class="dd-brand__name"><?php echo esc_html( $dd_name ); ?></div>
+                    <?php endif; ?>
+                </a>
+                <button class="dd-nav-drawer__close" id="ddDrawerClose" aria-label="Close">&#10005;</button>
+            </div>
+            <nav class="dd-nav-drawer__nav"><?php echo $nav_html; ?></nav>
+            <div class="dd-nav-drawer__footer">
+                <?php if ( is_user_logged_in() ) :
+                    $account_url = function_exists( 'wc_get_account_endpoint_url' ) ? wc_get_account_endpoint_url( 'my-profile' ) : home_url( '/my-account/my-profile/' );
+                ?>
+                <a href="<?php echo esc_url( $account_url ); ?>" class="dd-btn dd-btn--light dd-btn--block">&#128100; My Profile</a>
+                <button id="ddLogoutBtn" class="dd-nav-drawer__logout">Log out</button>
+                <?php else : ?>
+                <button id="ddOpenRegister" class="dd-btn dd-btn--brand dd-btn--block" style="margin-bottom:10px;">&#128100; Create Account</button>
+                <button id="ddOpenLogin" class="dd-btn dd-btn--light dd-btn--block">Log in</button>
+                <?php endif; ?>
+            </div>
+        </aside>
+
+        <?php
+        $dd_hours_state  = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
+        $dd_next_open_ts = 0;
+        $dd_close_ts     = 0;
+        if ( class_exists( 'DD_Hours' ) ) {
+            if ( $dd_hours_state !== 'open' ) {
+                $dd_next_open_ts = DD_Hours::get_next_open_info_ts();
+            }
+            if ( in_array( $dd_hours_state, [ 'open', 'closing_soon' ], true ) ) {
+                $dd_close_ts = DD_Hours::get_current_close_ts();
+            }
+        }
+        ?>
+        <script>
+        window.DD = window.DD || {
+            ajaxUrl:      '<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>',
+            nonce:        '<?php echo esc_js( wp_create_nonce( 'dish_dash_frontend' ) ); ?>',
+            checkoutUrl:  '<?php echo esc_url( function_exists("wc_get_checkout_url") ? wc_get_checkout_url() : home_url("/checkout/") ); ?>',
+            deliveryFee:  <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
+            cartCount:    <?php echo (int) $dd_cart_count; ?>,
+            hours_state:  '<?php echo esc_js( $dd_hours_state ); ?>',
+            next_open_ts: <?php echo (int) $dd_next_open_ts; ?>,
+            close_ts:     <?php echo (int) $dd_close_ts; ?>,
+            whatsapp_admin: '<?php echo esc_js( get_option( 'dd_whatsapp_admin', '' ) ); ?>',
+            menu_url:     '/restaurant-menu/',
+        };
+        </script>
+        <?php
+    }
+
+    /**
      * Fresh, never-cached opening-hours state for the closed banner.
      *
      * window.DD.hours_state/next_open_ts/close_ts (set above in
@@ -1129,7 +1261,51 @@ class DD_Template_Module extends DD_Module {
      */
     public function inject_global_header(): void {
         if ( ! $this->is_global_header_page() ) return;
+
+        // v3.18.19 — Menu page gets Minimal Light's own header when that
+        // template is active, matching how the homepage opts out of this
+        // shared header. Hooked here (wp_body_open) rather than inside any
+        // page-template file, since this fires identically regardless of
+        // which generic wrapper (page-simple.php vs. the theme's own
+        // page.php) actually renders the Menu page — see
+        // investigation-menu-header-scope.md.
+        if ( self::active_template() === 'minimal-light' && $this->is_menu_page_request() ) {
+            $this->render_minimal_light_header();
+            return;
+        }
+
         $this->render_global_header();
+    }
+
+    /**
+     * Is the current request the Menu page? Duplicates
+     * DD_Menu_Module::is_menu_page()'s exact detection logic (stored
+     * page-ID option, slug fallback) rather than calling it directly —
+     * that method is private, and per this codebase's existing convention,
+     * reading the same wp_option from another module is fine; calling
+     * another module's method is not.
+     */
+    private function is_menu_page_request(): bool {
+        if ( ! is_page() ) return false;
+        $page_id = get_option( 'dish_dash_menu_page_id' );
+        if ( $page_id && is_page( (int) $page_id ) ) return true;
+        $slug = get_post_field( 'post_name' );
+        return in_array( $slug, [ 'restaurant-menu', 'menu' ], true );
+    }
+
+    /**
+     * Adds body.dd-tpl-minimal-light on the Menu page when Minimal Light
+     * is active, so that template's CSS (much of which is scoped to this
+     * class, e.g. body.dd-tpl-minimal-light .dd-nav-drawer) actually
+     * applies. The homepage sets this itself (it writes its own <body>
+     * tag directly); the Menu page's <body> comes from body_class()
+     * instead, which never carries it without this filter.
+     */
+    public function maybe_add_minimal_light_body_class( array $classes ): array {
+        if ( self::active_template() === 'minimal-light' && $this->is_menu_page_request() ) {
+            $classes[] = 'dd-tpl-minimal-light';
+        }
+        return $classes;
     }
 
     // ─────────────────────────────────────────

@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.18 (2026-08-07)
+> Last updated: v3.18.19 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.18 |
+| **Deployed version** | v3.18.19 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.18 — Converted Minimal Light's "Browse by Category" photo tiles (introduced v3.18.17 as a horizontal-scroll strip) into a static paginated 4-column × 2-row grid, 8 categories per page. `$dd_cats` is split via `array_chunk($dd_cats, 8)` into pre-rendered `.dd-ml-cat-grid[data-page]` pages, all present in the DOM at load and toggled with the `[hidden]` attribute — the same show/hide-panel technique already used by Selected Category's own tabs elsewhere on this page. `#ddMlCatsPrev`/`#ddMlCatsNext` now advance/retreat a JS-tracked page index instead of `scrollBy`, and disable at the first/last page (new `.dd-ml-arrow-btn:disabled { opacity:.35 }` rule, matching Khana Khazana's own `.dd-greviews-arrow:disabled` precedent in `page-dishdash.php`) — a deliberately different interaction model from this page's other always-visible scroll arrows, since pagination has real first/last boundaries a scroll strip doesn't. "See all (N)" link, category data source, and `menu_order` ordering all unchanged from v3.18.17. Added a 2-column tablet/mobile grid fallback for the (currently off-by-default) case this section gets enabled on mobile; the separate, always-mobile-only Food Category List section is untouched. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.19 — Gave the Menu page (`/restaurant-menu/`) Minimal Light's own header when that template is active, previously always showing Khana Khazana's shared header regardless of `dd_active_template`. Investigation (`investigation-menu-header-scope.md`) found the naive fix ("skip `get_header()` inside `page-simple.php`") had a real blast-radius risk: the plugin's own `install.php::create_pages()` never explicitly assigns the `page-simple.php` template to the pages it auto-creates, so the Menu page (and Cart/Checkout/Track/Reserve) may actually be rendering via the theme's separate, near-identical `page.php` fallback instead, depending on what's assigned in wp-admin — editing the wrong file would silently do nothing. Implemented instead as a two-part condition (`DD_Template_Module::active_template() === 'minimal-light'` AND is-Menu-page, the latter duplicating `DD_Menu_Module::is_menu_page()`'s exact stored-ID/slug-fallback logic rather than cross-module method-calling it) inside the already-hooked `inject_global_header()` (`wp_body_open`) — a point both possible page wrappers reach identically, making the fix correct regardless of which one is actually in play, and touching zero page-template files. New `render_minimal_light_header()` duplicates the homepage's exact header/drawer markup and IDs (`#ddMenuToggle`, `#ddNavDrawer`, `#ddDrawerOverlay`, `#ddCartTopBtn`, `#ddCartCount`) plus the `window.DD` JS bridge `render_global_header()` normally provides (needed here since `menu-page.js` reads `window.DD.hours_state` directly for closed-hours Add-to-Cart disabling — the homepage doesn't need this bridge itself, so duplicating it was a deliberate, verified addition, not a copy-paste oversight). Paired with a new `body_class` filter so the Menu page's `<body>` carries `dd-tpl-minimal-light` (the homepage sets this on its own hand-written `<body>` tag; the Menu page's comes from WordPress's own `body_class()` instead, which wouldn't otherwise carry it). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
