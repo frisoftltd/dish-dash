@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.12 (2026-08-07)
+> Last updated: v3.18.13 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.12 |
+| **Deployed version** | v3.18.13 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.12 — Added scroll arrows to all three horizontal strips (Featured Dishes, Selected Category, Reviews) and widened the trailing scroll padding, closing the loop on the item recommended-but-not-added in v3.18.11. Mirrors Khana Khazana's own category-row arrow pattern exactly (`assets/js/frontend.js`'s `setupArrows()`: `scrollBy(±300px)`, always visible/enabled, no hide/disable-at-boundary state) — reimplemented in `page-home.php`'s own script as `setupMlArrows()`, applied uniformly to all three strips for consistency (Selected Category's arrows re-bind to whichever tab panel is active, mirroring `frontend.js`'s own `activeSelCatRow` handling). Investigated the reported right-edge cutoff before assuming arrows alone would fix it: confirmed no ancestor `overflow:hidden` exists anywhere (checked `minimal-light.css` and the shared `theme.css`) — content was always fully reachable by scrolling, so this was a discoverability problem (no visible affordance), not a genuine clipping bug. Also widened `.dd-ml-strip`'s trailing `padding-right` from 8px to 24px (`--ml-sp-5`, matching the row's own left-edge gutter) since the scrolled-to-end state read as "still tight against the edge" even though nothing was clipped. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.13 — Added a second, independent scroll-arrow pair for Selected Category's tab-selector bar (`#ddMlSelcatTabs`). v3.18.12 only wired arrows to the section's product panel row (`#ddMlSelcatPrev`/`#ddMlSelcatNext`); the category tabs row above it was still swipe-only. Investigation (`investigation-featured-dishes-arrows.md`) confirmed this was the only real gap on the page — Featured Dishes' "Most Popular" sort correctly gates on real delivered-order history (not a bug, left as-is per developer instruction), and the "Browse by category" bordered index is a CSS grid that wraps rows, needing no arrows at all. New arrows use fresh IDs (`#ddMlSelcatTabsPrev`/`#ddMlSelcatTabsNext`) targeting `#ddMlSelcatTabs` specifically, same always-visible/fixed-300px-scrollBy `setupMlArrows()` pattern as every other strip, positioned in a small right-aligned row above the tabs so the buttons stay fixed while the tab row scrolls beneath them. No hardcoded category-count cap found anywhere in this path (reconfirmed) — scrolling reaches every configured category. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

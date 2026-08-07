@@ -434,6 +434,10 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 }
 .dd-ml-chip.active { background: var(--ml-ink); color: var(--ml-bg); border-color: var(--ml-ink); }
 
+/* v3.18.13 — dedicated arrow pair for the tab-selector bar itself, separate
+   from the section's product-panel arrows (#ddMlSelcatPrev/Next). Sits above
+   the scrollable tabs row so the buttons stay fixed while the row scrolls. */
+.dd-ml-tabs-top { display: flex; justify-content: flex-end; margin-bottom: var(--ml-sp-2); }
 .dd-ml-tabs { display: flex; gap: var(--ml-sp-2); overflow-x: auto; margin-bottom: var(--ml-sp-5); }
 .dd-ml-tabs::-webkit-scrollbar { display: none; }
 .dd-ml-tab {
