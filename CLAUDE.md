@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.21 (2026-08-07)
+> Last updated: v3.18.22 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.21 |
+| **Deployed version** | v3.18.22 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.21 — Polished the Minimal Light Menu-page sidebar (added v3.18.20): now `position: sticky` (`top: 88px`, matching the 72px Minimal Light header + gap) so it stays in view while the product grid scrolls past it. Added per-category dish-count badges (`.dd-menu-cat__count`) plus a sitewide total on "All Dishes" — the one markup addition this release needed, since the count wasn't in the DOM at all before; hidden by default in `menu-page.css` so Khana Khazana's circle-carousel is unaffected, computed from data already fetched (`$dd_menu_cats`, just moved earlier in `grid.php` so its total is available before the "All Dishes" button renders — no new query). Refined the active-state indicator so hover and active no longer share the same background (`--ml-surface-2` vs. `--ml-surface`), plus extra left padding so text clears the border. "All Dishes" reordered to the bottom of the list via flexbox `order` (DOM position, and therefore `menu-page.js`'s click delegate, untouched) with a divider line above it. No filtering/AJAX/deep-linking/product-modal logic touched. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.22 — Reskinned the shared product modal for Minimal Light, styling-only. Investigation (`investigation-product-modal.md`) found most of the modal's visual styling (typography, qty-stepper background, notes textarea, Add button) is set via inline `style=""` attributes inside `renderModal()`/`fetchProductEnrichment()` in `frontend.js`, not CSS — so `theme.css`'s `.dd-pm__*` rules for those properties are dead code, always overridden by the inline values. Fix: those two functions now compute local color/font variables gated on `document.body.classList.contains('dd-tpl-minimal-light')` and interpolate them into the same style strings — Minimal Light's palette (`--ml-accent`, `--ml-ink`, `--ml-ink-soft`, `--ml-ink-faint`, `--ml-surface`, `--ml-surface-2`, `--ml-line`, `--ml-font-heading`, `--ml-on-accent`) when active, Khana Khazana's exact existing hex values otherwise. Zero change to function signatures, DOM structure, element IDs/classes JS selects on, state variables, the click-delegate, quantity-stepper, attribute/spice-pill selection, notes textarea, or the `dd_cart_add`/`dd_get_product` AJAX calls. The CSS-only elements (modal shell chrome, attribute/spice pills) got scoped `body.dd-tpl-minimal-light` rules in `minimal-light.css` instead — no JS involved there. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

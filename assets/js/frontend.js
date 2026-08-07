@@ -1034,6 +1034,24 @@
             DDTrack.event('view_product', productId, null, { source: 'modal' });
         }
 
+        // Minimal Light palette (styling values only — reuses tokens already
+        // defined in assets/css/layouts/minimal-light.css, no new colors).
+        // Khana Khazana's literals below are unchanged.
+        var isML          = document.body.classList.contains('dd-tpl-minimal-light');
+        var pmNameFont     = isML ? 'font-family:var(--ml-font-heading);' : '';
+        var pmNameColor    = isML ? 'var(--ml-ink)'       : '#221B19';
+        var pmMutedColor   = isML ? 'var(--ml-ink-faint)' : '#7A6558';
+        var pmDescColor    = isML ? 'var(--ml-ink-soft)'  : '#7A6558';
+        var pmPriceColor   = isML ? 'var(--ml-accent)'    : '#E8832A';
+        var pmNotesBorder  = isML ? 'var(--ml-line)'      : '#EAD9CE';
+        var pmNotesBg      = isML ? 'var(--ml-surface)'   : '#fff';
+        var pmNotesColor   = isML ? 'var(--ml-ink)'       : '#221B19';
+        var pmQtyBg        = isML ? 'var(--ml-surface-2)' : '#F5EFE6';
+        var pmQtyBtnColor  = isML ? 'var(--ml-accent)'    : 'var(--brand)';
+        var pmAddBg        = isML ? 'var(--ml-accent)'    : 'var(--brand)';
+        var pmAddColor     = isML ? 'var(--ml-on-accent)' : '#fff';
+        var pmAddHoverBg   = isML ? 'var(--ml-accent-dark)' : 'var(--brand-dark)';
+
         content.innerHTML =
             '<div class="dd-pm__img-wrap">' +
                 (imgSrc
@@ -1041,27 +1059,27 @@
                     : '<div class="dd-pm__img-placeholder">&#127869;</div>') +
             '</div>' +
             '<div class="dd-pm__body">' +
-                '<h2 class="dd-pm__name dd-serif" style="font-size:1.3rem;font-weight:800;margin:0 0 0.35rem;color:#221B19;">' + escHtml(name) + '</h2>' +
-                '<div class="dd-pm__rating" id="ddPmRating" style="font-size:0.82rem;color:#7A6558;margin-bottom:0.4rem;min-height:18px;"></div>' +
-                '<div class="dd-pm__price" id="ddPmPrice" style="font-size:1.1rem;font-weight:800;color:#E8832A;margin-bottom:0.75rem;">' + escHtml(price) + '</div>' +
-                (desc ? '<p class="dd-pm__desc" style="font-size:0.88rem;color:#7A6558;margin:0 0 1rem;line-height:1.5;">' + escHtml(desc) + '</p>' : '') +
+                '<h2 class="dd-pm__name dd-serif" style="' + pmNameFont + 'font-size:1.3rem;font-weight:800;margin:0 0 0.35rem;color:' + pmNameColor + ';">' + escHtml(name) + '</h2>' +
+                '<div class="dd-pm__rating" id="ddPmRating" style="font-size:0.82rem;color:' + pmMutedColor + ';margin-bottom:0.4rem;min-height:18px;"></div>' +
+                '<div class="dd-pm__price" id="ddPmPrice" style="font-size:1.1rem;font-weight:800;color:' + pmPriceColor + ';margin-bottom:0.75rem;">' + escHtml(price) + '</div>' +
+                (desc ? '<p class="dd-pm__desc" style="font-size:0.88rem;color:' + pmDescColor + ';margin:0 0 1rem;line-height:1.5;">' + escHtml(desc) + '</p>' : '') +
                 '<div class="dd-pm__attrs" id="ddPmAttrs" style="margin-bottom:0.75rem;"></div>' +
                 '<div class="dd-pm__attrs" id="ddPmSpice" style="margin-bottom:0.75rem;"></div>' +
                 '<div class="dd-pm__notes-wrap" style="margin-bottom:1rem;">' +
                     '<textarea id="ddPmNotes" placeholder="Add special instructions (optional)..." rows="2" ' +
-                        'style="width:100%;box-sizing:border-box;padding:0.6rem 0.85rem;border:2px solid #EAD9CE;border-radius:10px;font-size:0.85rem;font-family:inherit;resize:none;outline:none;background:#fff;color:#221B19;">' +
+                        'style="width:100%;box-sizing:border-box;padding:0.6rem 0.85rem;border:2px solid ' + pmNotesBorder + ';border-radius:10px;font-size:0.85rem;font-family:inherit;resize:none;outline:none;background:' + pmNotesBg + ';color:' + pmNotesColor + ';">' +
                     '</textarea>' +
                 '</div>' +
                 '<div class="dd-pm__footer" style="display:flex;align-items:center;gap:12px;">' +
-                    '<div class="dd-pm__qty-wrap" style="display:flex;align-items:center;gap:8px;background:#F5EFE6;border-radius:999px;padding:4px 12px;">' +
+                    '<div class="dd-pm__qty-wrap" style="display:flex;align-items:center;gap:8px;background:' + pmQtyBg + ';border-radius:999px;padding:4px 12px;">' +
                         '<button class="dd-pm__qty-btn" id="ddPmMinus" aria-label="Decrease" ' +
-                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--brand);font-weight:700;line-height:1;padding:2px 4px;">&#8722;</button>' +
+                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:' + pmQtyBtnColor + ';font-weight:700;line-height:1;padding:2px 4px;">&#8722;</button>' +
                         '<span class="dd-pm__qty" id="ddPmQty" style="font-weight:700;font-size:1rem;min-width:24px;text-align:center;">1</span>' +
                         '<button class="dd-pm__qty-btn" id="ddPmPlus" aria-label="Increase" ' +
-                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:var(--brand);font-weight:700;line-height:1;padding:2px 4px;">&#43;</button>' +
+                            'style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:' + pmQtyBtnColor + ';font-weight:700;line-height:1;padding:2px 4px;">&#43;</button>' +
                     '</div>' +
                     '<button id="ddPmAddBtn" data-id="' + escHtml(productId) + '" ' +
-                        'style="flex:1;background:var(--brand);color:#fff;border:none;border-radius:999px;padding:0.75rem 1rem;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s;">' +
+                        'style="flex:1;background:' + pmAddBg + ';color:' + pmAddColor + ';border:none;border-radius:999px;padding:0.75rem 1rem;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s;">' +
                         'Add to Cart' +
                     '</button>' +
                 '</div>' +
@@ -1087,8 +1105,8 @@
         }
 
         if (pmAdd) {
-            pmAdd.addEventListener('mouseover', function() { this.style.background = 'var(--brand-dark)'; });
-            pmAdd.addEventListener('mouseout',  function() { this.style.background = 'var(--brand)'; });
+            pmAdd.addEventListener('mouseover', function() { this.style.background = pmAddHoverBg; });
+            pmAdd.addEventListener('mouseout',  function() { this.style.background = pmAddBg; });
 
             pmAdd.addEventListener('click', function() {
                 var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
@@ -1188,6 +1206,11 @@
             if (!res.success || !res.data) return;
             var p = res.data;
 
+            // Minimal Light palette (styling values only — same tokens as renderModal()).
+            var isML          = document.body.classList.contains('dd-tpl-minimal-light');
+            var pmMutedColor  = isML ? 'var(--ml-ink-faint)' : '#7A6558';
+            var pmAccentColor = isML ? 'var(--ml-accent)'    : '#E8832A';
+
             // Variable products: keep variations for match-on-select and show the
             // lowest variation price as the default (updated when a size is chosen).
             ddPmVariations = Array.isArray(p.variations) ? p.variations : [];
@@ -1206,8 +1229,8 @@
                     var stars = Math.min(5, Math.max(0, Math.round(parseFloat(p.average_rating))));
                     var starHtml = '★'.repeat(stars) + '☆'.repeat(5 - stars);
                     ratingEl.innerHTML =
-                        '<span style="color:#E8832A;">' + starHtml + '</span>' +
-                        '<span style="margin-left:5px;color:#7A6558;">(' + escHtml(String(p.rating_count)) + ' reviews)</span>';
+                        '<span style="color:' + pmAccentColor + ';">' + starHtml + '</span>' +
+                        '<span style="margin-left:5px;color:' + pmMutedColor + ';">(' + escHtml(String(p.rating_count)) + ' reviews)</span>';
                 }
             }
 
@@ -1226,7 +1249,7 @@
                 var html = '';
                 p.attributes.forEach(function(attr) {
                     html += '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">';
-                    html += '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#7A6558;margin-bottom:0.35rem;">' + escHtml(attr.name) + '</div>';
+                    html += '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + pmMutedColor + ';margin-bottom:0.35rem;">' + escHtml(attr.name) + '</div>';
                     html += '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
                     (attr.options || []).forEach(function(opt) {
                         html += '<button type="button" class="dd-pm__attr-pill dd-chip" data-attr="' + escHtml(attr.name) + '" data-val="' + escHtml(opt) + '">' + escHtml(opt) + '</button>';
@@ -1279,7 +1302,7 @@
             if (spiceEl) {
                 if (ddPmHasSpice) {
                     var sHtml = '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">' +
-                        '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#7A6558;margin-bottom:0.35rem;">Spice Level</div>' +
+                        '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + pmMutedColor + ';margin-bottom:0.35rem;">Spice Level</div>' +
                         '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
                     p.spice_options.forEach(function(o) {
                         sHtml += '<button type="button" class="dd-pm__attr-pill dd-chip" data-spice-slug="' + escHtml(o.slug) + '">' + escHtml(o.name) + '</button>';

@@ -628,3 +628,38 @@ body.dd-tpl-minimal-light .dd-bottom-nav {
     border-top: 1px solid var(--ml-line);
 }
 body.dd-tpl-minimal-light .dd-bottom-link { color: var(--ml-ink-soft); }
+
+/* ── PRODUCT MODAL — shell + attribute/spice pills ────────────────────────
+   Shared modal (class-dd-template-module.php inject_product_modal(), one
+   instance for both templates — see investigation-product-modal.md). Most
+   of the modal's inner content is styled via inline style="" attributes
+   written by frontend.js's renderModal()/fetchProductEnrichment(), which
+   this stylesheet cannot reach — those are branched in JS itself on
+   document.body.classList.contains('dd-tpl-minimal-light'), same tokens
+   as below. Only the CSS-class-only elements (shell chrome, attribute/
+   spice pills) are styled here. Zero JS touched by these rules. */
+body.dd-tpl-minimal-light .dd-product-modal__wrap {
+    background: var(--ml-bg);
+}
+body.dd-tpl-minimal-light .dd-product-modal__close {
+    background: rgba(255,255,255,0.9);
+    color: var(--ml-ink-soft);
+}
+body.dd-tpl-minimal-light .dd-product-modal__close:hover {
+    background: var(--ml-bg);
+}
+body.dd-tpl-minimal-light .dd-pm__img-wrap,
+body.dd-tpl-minimal-light .dd-pm__img-placeholder {
+    background: var(--ml-surface-2);
+}
+body.dd-tpl-minimal-light .dd-pm__attr-pill {
+    border-color: var(--ml-line);
+    background: var(--ml-surface);
+    color: var(--ml-ink);
+}
+body.dd-tpl-minimal-light .dd-pm__attr-pill:hover,
+body.dd-tpl-minimal-light .dd-pm__attr-pill.active {
+    background: var(--ml-ink) !important;
+    color: var(--ml-on-accent) !important;
+    border-color: var(--ml-ink) !important;
+}
