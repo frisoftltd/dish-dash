@@ -477,7 +477,16 @@ if ( $food_cat_mob_on ) :
 <?php endif; ?>
 <?php endif; ?>
 
-<!-- ══ "THE MENU" — bordered table-style category index ═══════════════════ -->
+<!-- ══ "BROWSE BY CATEGORY" — photo-tile horizontal strip ═════════════════
+     v3.18.17 — replaces the old bordered text-table index with photo
+     tiles, per approved mockup. Uses WooCommerce's existing category
+     Thumbnail field (thumbnail_id term meta — same mechanism already
+     read by DD_API::normalize_category() and this file's own mobile
+     Food Category List below), with the mobile list's proven
+     initial-letter fallback reused verbatim for categories without one.
+     $dd_cats itself is untouched — still the same get_terms() call with
+     menu_order ordering from the DATA PREP section above; this only
+     adds a per-category thumbnail_id lookup inside the existing loop. -->
 <?php if ( $cats_vis && ! empty( $dd_cats ) ) : ?>
 <section class="dd-ml-section <?php echo esc_attr( $cats_class ); ?>" id="categories">
     <div class="dd-container">
@@ -486,15 +495,31 @@ if ( $food_cat_mob_on ) :
                 <div class="dd-ml-eyebrow">Browse by category</div>
                 <h2 class="dd-ml-title"><?php echo esc_html( $dd_cats_title ); ?></h2>
             </div>
+            <div class="dd-ml-cat-controls">
+                <a href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>" class="dd-ml-text-link">See all (<?php echo count( $dd_cats ); ?>)</a>
+                <?php if ( count( $dd_cats ) > 1 ) : ?>
+                <div class="dd-ml-arrows">
+                    <button type="button" class="dd-ml-arrow-btn" id="ddMlCatsPrev" aria-label="Scroll left">&#8592;</button>
+                    <button type="button" class="dd-ml-arrow-btn" id="ddMlCatsNext" aria-label="Scroll right">&#8594;</button>
+                </div>
+                <?php endif; ?>
+            </div>
         </div>
-        <div class="dd-ml-index">
-            <?php foreach ( $dd_cats as $i => $cat ) : ?>
-            <a class="dd-ml-index__cell" href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat->slug ) ); ?>">
-                <span class="dd-ml-index__num"><?php echo esc_html( sprintf( '%02d', $i + 1 ) ); ?></span>
-                <span>
-                    <span class="dd-ml-index__name"><?php echo esc_html( $cat->name ); ?></span>
-                    <span class="dd-ml-index__count"><?php echo (int) $cat->count; ?> dishes</span>
-                </span>
+        <div class="dd-ml-strip" id="ddMlCatsRow">
+            <?php foreach ( $dd_cats as $cat ) :
+                $cat_tid = get_term_meta( $cat->term_id, 'thumbnail_id', true );
+                $cat_img = $cat_tid ? wp_get_attachment_image_url( $cat_tid, 'medium' ) : '';
+            ?>
+            <a class="dd-ml-cat-tile" href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat->slug ) ); ?>">
+                <div class="dd-ml-cat-tile__photo">
+                    <?php if ( $cat_img ) : ?>
+                    <img src="<?php echo esc_url( $cat_img ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy">
+                    <?php else : ?>
+                    <span class="dd-ml-cat-tile__initial"><?php echo esc_html( strtoupper( substr( $cat->name, 0, 1 ) ) ); ?></span>
+                    <?php endif; ?>
+                </div>
+                <span class="dd-ml-cat-tile__name"><?php echo esc_html( $cat->name ); ?></span>
+                <span class="dd-ml-cat-tile__count"><?php echo (int) $cat->count; ?> dishes</span>
             </a>
             <?php endforeach; ?>
         </div>
@@ -681,6 +706,7 @@ if ( $food_cat_mob_on ) :
         prev.addEventListener('click', function () { row.scrollBy({ left: -300, behavior: 'smooth' }); });
         next.addEventListener('click', function () { row.scrollBy({ left: 300, behavior: 'smooth' }); });
     }
+    setupMlArrows('ddMlCatsPrev', 'ddMlCatsNext', 'ddMlCatsRow');
     setupMlArrows('ddMlFeatPrev', 'ddMlFeatNext', 'ddMlFeatRow');
     setupMlArrows('ddMlReviewsPrev', 'ddMlReviewsNext', 'ddMlReviewsRow');
 
