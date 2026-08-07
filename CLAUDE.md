@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.17 (2026-08-07)
+> Last updated: v3.18.18 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.17 |
+| **Deployed version** | v3.18.18 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.17 — Replaced Minimal Light's "Browse by Category" section (`.dd-ml-index`, a bordered text-table grid) with a photo-tile horizontal-scroll strip (`.dd-ml-cat-tile` inside `.dd-ml-strip`), per approved mockup. Each tile reads WooCommerce's existing category Thumbnail field (`thumbnail_id` term meta — the same mechanism `DD_API::normalize_category()` and this file's own mobile Food Category List already use, confirmed via investigation `investigation-category-photos.md`), falling back to that same mobile section's proven initial-letter tile for categories without one set (all ~17 currently). Category data source/ordering deliberately unchanged — still the same `get_terms()`+`menu_order` call from the existing DATA PREP block; only a per-category `thumbnail_id` lookup was added inside the existing loop, specifically avoiding a switch to `DD_API::get_all_categories()` (which defaults to alphabetical ordering and would have silently reordered categories away from the admin's configured order). New header row adds a "See all (N)" link to `/restaurant-menu/` (no `?cat=`, confirmed via the menu page's own deep-link fallback logic to already show the full unfiltered menu — no new destination code needed) plus a scroll-arrow pair matching every other strip on this page (`setupMlArrows()`, reused verbatim). Orphaned `.dd-ml-index*` CSS and its responsive breakpoint overrides removed since nothing renders it anymore. Mobile Food Category List section fully untouched. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.18 — Converted Minimal Light's "Browse by Category" photo tiles (introduced v3.18.17 as a horizontal-scroll strip) into a static paginated 4-column × 2-row grid, 8 categories per page. `$dd_cats` is split via `array_chunk($dd_cats, 8)` into pre-rendered `.dd-ml-cat-grid[data-page]` pages, all present in the DOM at load and toggled with the `[hidden]` attribute — the same show/hide-panel technique already used by Selected Category's own tabs elsewhere on this page. `#ddMlCatsPrev`/`#ddMlCatsNext` now advance/retreat a JS-tracked page index instead of `scrollBy`, and disable at the first/last page (new `.dd-ml-arrow-btn:disabled { opacity:.35 }` rule, matching Khana Khazana's own `.dd-greviews-arrow:disabled` precedent in `page-dishdash.php`) — a deliberately different interaction model from this page's other always-visible scroll arrows, since pagination has real first/last boundaries a scroll strip doesn't. "See all (N)" link, category data source, and `menu_order` ordering all unchanged from v3.18.17. Added a 2-column tablet/mobile grid fallback for the (currently off-by-default) case this section gets enabled on mobile; the separate, always-mobile-only Food Category List section is untouched. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

@@ -220,11 +220,16 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     font-size: 16px;
     transition: background .15s, color .15s, border-color .15s;
 }
-.dd-ml-arrow-btn:hover {
+.dd-ml-arrow-btn:hover:not(:disabled) {
     background: var(--ml-ink);
     color: var(--ml-bg);
     border-color: var(--ml-ink);
 }
+/* v3.18.18 — disable-at-boundary state, used by the paginated category
+   grid below (values match Khana Khazana's own .dd-greviews-arrow:disabled
+   precedent, page-dishdash.php). Harmless on the other arrow pairs above,
+   which never set the disabled attribute — they stay always-visible. */
+.dd-ml-arrow-btn:disabled { opacity: .35; cursor: not-allowed; }
 
 /* ── HERO (split-screen) ───────────────────────────────────────────────── */
 .dd-ml-hero { padding: var(--ml-sp-7) 0 var(--ml-sp-8); }
@@ -334,15 +339,18 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 .dd-ml-food-cat-row__count { font-size: 12px; color: var(--ml-ink-faint); }
 .dd-ml-food-cat-row__arrow { width: 18px; height: 18px; color: var(--ml-ink-faint); flex-shrink: 0; }
 
-/* ── "BROWSE BY CATEGORY" — photo-tile strip (v3.18.17) ──────────────────
-   Replaces the old bordered text-table index. Tiles sit inside the same
-   .dd-ml-strip horizontal-scroll pattern as Featured Dishes/Reviews below,
-   sized to match .dd-dish-card's 240px so ~4 fit on a typical desktop
-   width before scrolling — same math, same arrow pattern, reused not
-   reinvented. */
+/* ── "BROWSE BY CATEGORY" — paginated photo-tile grid (v3.18.17, grid v3.18.18)
+   Was a horizontal-scroll strip (v3.18.17); now a static 4-column grid,
+   8 tiles/page — each page pre-rendered and toggled via [hidden], arrows
+   paginate between pages instead of scrolling (see the inline script). */
 .dd-ml-cat-controls { display: flex; align-items: center; gap: var(--ml-sp-4); flex-shrink: 0; }
+.dd-ml-cat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--ml-sp-5);
+}
+.dd-ml-cat-grid[hidden] { display: none; }
 .dd-ml-cat-tile {
-    flex: 0 0 240px;
     text-decoration: none;
     color: inherit;
     display: flex;
@@ -600,11 +608,11 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 @media (max-width: 900px) {
     .dd-ml-hero__grid { grid-template-columns: 1fr; }
     .dd-ml-hero__photo { order: -1; aspect-ratio: 4/3; }
+    .dd-ml-cat-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
     .dd-ml-section { padding: var(--ml-sp-7) 0; }
     .dd-ml-strip .dd-dish-card { flex: 0 0 200px; }
-    .dd-ml-strip .dd-ml-cat-tile { flex: 0 0 140px; }
     .dd-ml-review { flex: 0 0 84%; }
 }
 

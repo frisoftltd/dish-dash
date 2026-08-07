@@ -477,7 +477,7 @@ if ( $food_cat_mob_on ) :
 <?php endif; ?>
 <?php endif; ?>
 
-<!-- ══ "BROWSE BY CATEGORY" — photo-tile horizontal strip ═════════════════
+<!-- ══ "BROWSE BY CATEGORY" — paginated photo-tile grid ════════════════════
      v3.18.17 — replaces the old bordered text-table index with photo
      tiles, per approved mockup. Uses WooCommerce's existing category
      Thumbnail field (thumbnail_id term meta — same mechanism already
@@ -486,8 +486,15 @@ if ( $food_cat_mob_on ) :
      initial-letter fallback reused verbatim for categories without one.
      $dd_cats itself is untouched — still the same get_terms() call with
      menu_order ordering from the DATA PREP section above; this only
-     adds a per-category thumbnail_id lookup inside the existing loop. -->
-<?php if ( $cats_vis && ! empty( $dd_cats ) ) : ?>
+     adds a per-category thumbnail_id lookup inside the existing loop.
+     v3.18.18 — was a horizontal-scroll strip; now a static 4x2 grid
+     (8 tiles/page), all pages pre-rendered and toggled via [hidden] (same
+     show/hide-panel technique Selected Category's tabs already use below),
+     arrows paginate instead of scrollBy and disable at the first/last page. -->
+<?php if ( $cats_vis && ! empty( $dd_cats ) ) :
+    $dd_cats_pages      = array_chunk( $dd_cats, 8 );
+    $dd_cats_page_count = count( $dd_cats_pages );
+?>
 <section class="dd-ml-section <?php echo esc_attr( $cats_class ); ?>" id="categories">
     <div class="dd-container">
         <div class="dd-ml-top">
@@ -497,30 +504,34 @@ if ( $food_cat_mob_on ) :
             </div>
             <div class="dd-ml-cat-controls">
                 <a href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>" class="dd-ml-text-link">See all (<?php echo count( $dd_cats ); ?>)</a>
-                <?php if ( count( $dd_cats ) > 1 ) : ?>
+                <?php if ( $dd_cats_page_count > 1 ) : ?>
                 <div class="dd-ml-arrows">
-                    <button type="button" class="dd-ml-arrow-btn" id="ddMlCatsPrev" aria-label="Scroll left">&#8592;</button>
-                    <button type="button" class="dd-ml-arrow-btn" id="ddMlCatsNext" aria-label="Scroll right">&#8594;</button>
+                    <button type="button" class="dd-ml-arrow-btn" id="ddMlCatsPrev" aria-label="Previous categories" disabled>&#8592;</button>
+                    <button type="button" class="dd-ml-arrow-btn" id="ddMlCatsNext" aria-label="Next categories">&#8594;</button>
                 </div>
                 <?php endif; ?>
             </div>
         </div>
-        <div class="dd-ml-strip" id="ddMlCatsRow">
-            <?php foreach ( $dd_cats as $cat ) :
-                $cat_tid = get_term_meta( $cat->term_id, 'thumbnail_id', true );
-                $cat_img = $cat_tid ? wp_get_attachment_image_url( $cat_tid, 'medium' ) : '';
-            ?>
-            <a class="dd-ml-cat-tile" href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat->slug ) ); ?>">
-                <div class="dd-ml-cat-tile__photo">
-                    <?php if ( $cat_img ) : ?>
-                    <img src="<?php echo esc_url( $cat_img ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy">
-                    <?php else : ?>
-                    <span class="dd-ml-cat-tile__initial"><?php echo esc_html( strtoupper( substr( $cat->name, 0, 1 ) ) ); ?></span>
-                    <?php endif; ?>
-                </div>
-                <span class="dd-ml-cat-tile__name"><?php echo esc_html( $cat->name ); ?></span>
-                <span class="dd-ml-cat-tile__count"><?php echo (int) $cat->count; ?> dishes</span>
-            </a>
+        <div class="dd-ml-cat-pages" id="ddMlCatsPages">
+            <?php foreach ( $dd_cats_pages as $page_i => $page_cats ) : ?>
+            <div class="dd-ml-cat-grid" data-page="<?php echo (int) $page_i; ?>" <?php echo $page_i !== 0 ? 'hidden' : ''; ?>>
+                <?php foreach ( $page_cats as $cat ) :
+                    $cat_tid = get_term_meta( $cat->term_id, 'thumbnail_id', true );
+                    $cat_img = $cat_tid ? wp_get_attachment_image_url( $cat_tid, 'medium' ) : '';
+                ?>
+                <a class="dd-ml-cat-tile" href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat->slug ) ); ?>">
+                    <div class="dd-ml-cat-tile__photo">
+                        <?php if ( $cat_img ) : ?>
+                        <img src="<?php echo esc_url( $cat_img ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy">
+                        <?php else : ?>
+                        <span class="dd-ml-cat-tile__initial"><?php echo esc_html( strtoupper( substr( $cat->name, 0, 1 ) ) ); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <span class="dd-ml-cat-tile__name"><?php echo esc_html( $cat->name ); ?></span>
+                    <span class="dd-ml-cat-tile__count"><?php echo (int) $cat->count; ?> dishes</span>
+                </a>
+                <?php endforeach; ?>
+            </div>
             <?php endforeach; ?>
         </div>
     </div>
@@ -706,9 +717,45 @@ if ( $food_cat_mob_on ) :
         prev.addEventListener('click', function () { row.scrollBy({ left: -300, behavior: 'smooth' }); });
         next.addEventListener('click', function () { row.scrollBy({ left: 300, behavior: 'smooth' }); });
     }
-    setupMlArrows('ddMlCatsPrev', 'ddMlCatsNext', 'ddMlCatsRow');
     setupMlArrows('ddMlFeatPrev', 'ddMlFeatNext', 'ddMlFeatRow');
     setupMlArrows('ddMlReviewsPrev', 'ddMlReviewsNext', 'ddMlReviewsRow');
+
+    // Category grid — paginated (8/page), not a scroll strip, so arrows
+    // advance/retreat a page index and disable at the first/last page
+    // instead of scrollBy-ing (mirrors the disable-at-boundary approach
+    // already used for arrow buttons elsewhere on this page, e.g. Khana
+    // Khazana's own dd-greviews-arrow[disabled] pattern) rather than the
+    // always-visible scrollBy convention the other strips use.
+    (function setupMlCatsPagination() {
+        var wrap = document.getElementById('ddMlCatsPages');
+        var prev = document.getElementById('ddMlCatsPrev');
+        var next = document.getElementById('ddMlCatsNext');
+        if (!wrap || !prev || !next) return;
+
+        var pages = Array.prototype.slice.call(wrap.querySelectorAll('.dd-ml-cat-grid[data-page]'));
+        if (pages.length < 2) return;
+
+        var current = 0;
+
+        function render() {
+            pages.forEach(function (page, i) { page.hidden = i !== current; });
+            prev.disabled = current === 0;
+            next.disabled = current === pages.length - 1;
+        }
+
+        prev.addEventListener('click', function () {
+            if (current === 0) return;
+            current -= 1;
+            render();
+        });
+        next.addEventListener('click', function () {
+            if (current === pages.length - 1) return;
+            current += 1;
+            render();
+        });
+
+        render();
+    })();
 
     var chipsWrap = document.getElementById('ddMlFeatChips');
     var featRow    = document.getElementById('ddMlFeatRow');
