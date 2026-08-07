@@ -9,11 +9,14 @@
  *          shipped the same section order/shapes as Khana Khazana with only
  *          different tokens; this version genuinely restructures the layout
  *          per the approved mockups (icon-driven header with no nav bar,
- *          split-screen hero, a Story section right after the hero,
- *          horizontal-scroll strips instead of grids, a bordered
- *          table-style category index, a full-width dark reserve band).
- *          ALL data-fetching below is unchanged from v3.18.5 — reused
- *          verbatim per the release brief, not re-investigated.
+ *          split-screen hero, horizontal-scroll strips instead of grids, a
+ *          bordered table-style category index, a full-width dark reserve
+ *          band). ALL data-fetching below is unchanged from v3.18.5 —
+ *          reused verbatim per the release brief, not re-investigated.
+ *          (v3.18.6 also added an "Our Story" section reusing
+ *          dd_footer_description — removed in v3.18.10, see that version's
+ *          release notes: it wasn't a real Homepage Settings field, just a
+ *          footer field borrowed for content it was never meant to hold.)
  *
  * Structural departure from v3.18.5 / khana-khazana: this file does NOT
  * call wp_body_open() (which fires DD_Template_Module::inject_global_header()
@@ -34,7 +37,7 @@
  * git log for the full list (DD_Template_Module, DD_API, DD_Homepage_Module,
  * templates/partials/product-card.php, WooCommerce).
  *
- * Last modified: v3.18.6
+ * Last modified: v3.18.10
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -130,19 +133,6 @@ $reviews_mob      = get_option( 'dd_section_reviews_mobile',  '1' ) === '1';
 $reviews_vis      = $reviews_desk || $reviews_mob;
 $reviews_class    = ( $reviews_desk && ! $reviews_mob ) ? 'dd-desktop-only' : ( ( ! $reviews_desk && $reviews_mob ) ? 'dd-mobile-only' : '' );
 $dd_reviews_title = get_option( 'dd_reviews_title', 'What People Say' );
-
-// Story section (new placement in v3.18.6 — no dedicated Homepage Settings
-// field exists for this, and the brief requires reusing existing data
-// sources only, not adding new ones. Uses dd_footer_description (already
-// real, admin-editable narrative-ish copy — same field the footer itself
-// shows) for the text, and the same hero-image fallback chain for the
-// photo. Respects the existing "Show Footer Description" toggle, since
-// that's the field actually driving this text — if it's off, the footer
-// won't show it either, and this section hides too rather than being the
-// only place stale/unwanted copy still appears.
-$dd_show_story    = get_option( 'dd_footer_show_description', '1' ) === '1';
-$dd_story_text    = get_option( 'dd_footer_description', '' );
-$dd_story_img     = $dd_h_img ?: $dd_hero_bg;
 
 $raw_cats = get_terms( [
     'taxonomy'   => 'product_cat',
@@ -426,22 +416,6 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
         <?php endif; ?>
     </div>
 </section>
-
-<!-- ══ STORY (right after hero — see docblock note on data source) ═══════ -->
-<?php if ( $dd_show_story && trim( (string) $dd_story_text ) !== '' ) : ?>
-<section class="dd-ml-section" id="story">
-    <div class="dd-container dd-ml-story__grid">
-        <?php if ( $dd_story_img ) : ?>
-        <img src="<?php echo esc_url( $dd_story_img ); ?>" alt="<?php echo esc_attr( $dd_name ); ?>" class="dd-ml-story__photo">
-        <?php endif; ?>
-        <div class="dd-ml-story__text">
-            <div class="dd-ml-eyebrow">Our story</div>
-            <h2 class="dd-ml-title" style="margin-bottom:var(--ml-sp-4);"><?php echo esc_html( $dd_name ); ?></h2>
-            <p class="dd-ml-copy" style="max-width:60ch;"><?php echo nl2br( esc_html( $dd_story_text ) ); ?></p>
-        </div>
-    </div>
-</section>
-<?php endif; ?>
 
 <!-- ══ FOOD CATEGORY LIST (MOBILE ONLY — unchanged concept) ═══════════════ -->
 <?php

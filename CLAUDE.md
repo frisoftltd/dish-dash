@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.9 (2026-08-07)
+> Last updated: v3.18.10 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.9 |
+| **Deployed version** | v3.18.10 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.9 — Fixed the closed-hours bottom banner covering the cart drawer's checkout button. Root cause (see `investigation-closed-banner-overlap.md`): a different bug class from v3.18.8's header fix — not a stacking-order mistake (the banner's `z-index: 99998` was already, correctly, above the drawer's `10001`), but a physical layout collision: two independent fixed-to-bottom, full-width shared-chrome elements (the closed-hours banner, generated entirely in JS by `frontend.js`'s `setupHoursBanner()` — no static CSS file — and the cart drawer's footer) occupying the same screen rectangle with zero spatial coordination, so the banner (correctly) won the stacking fight but physically sat on top of the Checkout button, swallowing its clicks. Fix: `body:has(.dd-bottom-strip) .dd-cart-drawer__footer { padding-bottom: 80px; }` in `cart.css` — reserves clearance only while the banner is actually present, via `:has()`, with zero changes to `frontend.js` (no existing body-class hook existed to key off, and `:has()` avoids needing to add one). Same rule covers the desktop side panel and mobile bottom sheet (both share `.dd-cart-drawer__footer`) and every template, since both systems involved are unconditional shared chrome. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.10 — Removed the fabricated "Our Story" section from Minimal Light. First item off the post-launch punch list. The section (added v3.18.6) reused `dd_footer_description` — a real field, but meant for the footer, not a dedicated homepage story field; no such field exists in Homepage Settings. Removed entirely (data-prep vars, HTML block, and its now-unused `.dd-ml-story__*` CSS rules, including the mobile breakpoint override) — no replacement section, page now flows Hero → Food Category List (mobile) → Browse by Category directly. Footer's own use of `dd_footer_description` (`DD_Template_Module::inject_global_footer()`, a completely separate file, untouched) is unaffected. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
