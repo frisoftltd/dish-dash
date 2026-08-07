@@ -38,11 +38,16 @@
 }
 
 /* ── Overlay ────────────────────────────────────────────────── */
+/* z-index 10000 (v3.18.8) — must stay above the highest header z-index in
+   use (currently 9999 !important on Khana Khazana's .dd-global-header, see
+   inject_global_header_styles()), same reasoning already applied to the
+   mobile drawer tier below. Was 9100 — sat below the header, so the header
+   rendered undimmed and clickable on top of the open drawer. */
 .dd-cart-drawer-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 9100;
+    z-index: 10000;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -54,6 +59,8 @@
 }
 
 /* ── Drawer — Desktop: slides in from right ─────────────────── */
+/* z-index 10001 (v3.18.8) — see overlay comment above; must stay above the
+   highest header z-index in use. Was 9200. */
 .dd-cart-drawer {
     position: fixed;
     top: 0;
@@ -62,7 +69,7 @@
     max-width: 100vw;
     height: 100%;
     background: #fff;
-    z-index: 9200;
+    z-index: 10001;
     display: flex;
     flex-direction: column;
     transform: translateX(110%);

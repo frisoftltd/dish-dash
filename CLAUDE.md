@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.7 (2026-08-07)
+> Last updated: v3.18.8 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.7 |
+| **Deployed version** | v3.18.8 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.7 — Fixed Minimal Light's header being silently hidden. Root cause (see `investigation-minimal-light-header.md`): `DD_Template_Module::inject_global_header_styles()` (`wp_head`-hooked, template-agnostic, fires on every DishDash page) injects a defensive sitewide rule hiding any `<header>` not carrying `.dd-header`/`.dd-global-header` — written before Minimal Light's `.dd-ml-header` existed, so its entire header (logo, location-pin, cart icon, and critically the hamburger — meaning the nav drawer trigger itself) was being caught and hidden with `!important`. One-line fix: added `.dd-ml-header` as a third exception to that one selector. Not a PHP failure and not a wrong-hook assumption — the markup was always present and unconditional; `wp_body_open()` remains the correct, sole hook for the shared header and skipping it (v3.18.6) worked exactly as intended with no side effects on this separate, independently-hooked function. Khana Khazana unaffected (still matches `.dd-header`/`.dd-global-header`, untouched). Full per-version history, including v3.18.6's structural rewrite: see RELEASE.md. |
+| **Last working state** | v3.18.8 — Fixed the desktop cart drawer rendering below the header on Khana Khazana. Root cause (see `investigation-cart-padding.md`): not a padding/spacing value — a stale z-index. The desktop cart overlay (`9100`) and drawer panel (`9200`) both sat below `.dd-global-header`'s forced `z-index: 9999 !important`, so opening the cart on Khana Khazana left the header undimmed and clickable on top of the drawer. Git history showed this exact bug class was already fixed for the mobile tier (bumped 9999→10001 across two prior commits, "above mobile-app (9999) and bottom-nav (10000)") but never mirrored to desktop. Bumped desktop to `10000`/`10001` — now matches mobile's already-proven values exactly, one shared `cart.css` change, no per-template awareness needed. Minimal Light unaffected — its own header z-index (40) was already below the drawer, so the investigation flagged (and this fix doesn't touch) a possible separate cause if Minimal Light is still affected after this. Full per-version history, including v3.18.6's structural rewrite and v3.18.7's header-visibility fix: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |
