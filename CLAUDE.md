@@ -164,7 +164,7 @@ Always read from `get_option('dish_dash_primary_color')` in PHP.
 |---|---|
 | **Claude** (claude.ai) | Planning, architecture, investigation briefs, fix briefs, release notes |
 | **Claude Code** (CLI terminal) | Executes file edits based on briefs — never infers tasks, never acts without a brief |
-| **Developer** (human) | GitHub releases, deployment, testing, feedback |
+| **Developer** (human) | Deployment, testing, feedback |
 
 > **Communication style:** Claude (chat) gives SHORT, straight-to-the-point answers, uses lists, no long paragraphs.
 
@@ -185,7 +185,9 @@ Developer pastes report to Claude
 ↓
 Claude gives release instructions (tag, title, description)
 ↓
-Developer commits → creates GitHub release → deploys → tests
+Claude Code pushes → creates GitHub release (gh release create)
+↓
+Developer deploys → tests
 ↓
 Developer reports result with screenshot → Claude writes next brief
 ↓
@@ -206,7 +208,7 @@ Every Claude Code session MUST start with:
    - `* Version: X.X.X` in the plugin header comment
    - `define('DD_VERSION', 'X.X.X');` constant
 3. **CLAUDE.md updated in the same commit** — `Last updated` line in CLAUDE.md updated + new row appended to RELEASE.md
-4. Developer creates GitHub release with tag `vX.X.X` (**WITH the `v` prefix** — without it, Actions will not build the zip)
+4. Claude Code creates the GitHub release itself via `gh release create vX.X.X --title "..." --notes "..."` immediately after a successful push (**WITH the `v` prefix** — without it, Actions will not build the zip), using GitHub CLI (already installed and authenticated as frisoftltd on this machine). Confirm success with `gh release view vX.X.X` and report the release URL back.
 5. GitHub Actions builds `dish-dash.zip` automatically (~30 seconds)
 6. Deploy via ONE of:
 
@@ -280,7 +282,7 @@ Root cause, files changed, test steps only.
 - **Always check inline styles in PHP templates before CSS files** — past bugs caused by inline styles, not CSS
 - **Verify which template renders a given URL before editing** — wrong file = wasted release
 - **Push to `main` (lowercase)** — NEVER `Main` (capital M creates orphan branch)
-- **Do NOT create release tags** — developer does that via GitHub UI
+- **Claude Code creates release tags** via `gh release create vX.X.X --title "..." --notes "..."` immediately after a successful push — confirm with `gh release view vX.X.X` and report the release URL back
 
 ### Architecture Rules
 
