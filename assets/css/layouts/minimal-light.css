@@ -434,12 +434,23 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 }
 .dd-ml-chip.active { background: var(--ml-ink); color: var(--ml-bg); border-color: var(--ml-ink); }
 
-/* v3.18.13 — dedicated arrow pair for the tab-selector bar itself, separate
-   from the section's product-panel arrows (#ddMlSelcatPrev/Next). Sits above
-   the scrollable tabs row so the buttons stay fixed while the row scrolls. */
-.dd-ml-tabs-top { display: flex; justify-content: flex-end; margin-bottom: var(--ml-sp-2); }
-.dd-ml-tabs { display: flex; gap: var(--ml-sp-2); overflow-x: auto; margin-bottom: var(--ml-sp-5); }
-.dd-ml-tabs::-webkit-scrollbar { display: none; }
+/* v3.18.14 — visible scroll indicator instead of a dedicated arrow pair
+   (v3.18.13's #ddMlSelcatTabsPrev/Next, stacked near the product panel's own
+   arrows, read as ambiguous). A thin styled scrollbar under the tab row
+   makes it visually obvious the row is swipeable, without touching the
+   underlying overflow-x scroll/swipe behavior at all. */
+.dd-ml-tabs {
+    display: flex;
+    gap: var(--ml-sp-2);
+    overflow-x: auto;
+    margin-bottom: var(--ml-sp-5);
+    scrollbar-width: thin;
+    scrollbar-color: var(--ml-line) transparent;
+}
+.dd-ml-tabs::-webkit-scrollbar { height: 4px; }
+.dd-ml-tabs::-webkit-scrollbar-track { background: transparent; }
+.dd-ml-tabs::-webkit-scrollbar-thumb { background: var(--ml-line); border-radius: var(--ml-radius-full); }
+.dd-ml-tabs::-webkit-scrollbar-thumb:hover { background: var(--ml-ink-faint); }
 .dd-ml-tab {
     flex-shrink: 0;
     padding: 9px 18px;

@@ -564,12 +564,6 @@ if ( $food_cat_mob_on ) :
             </div>
         </div>
 
-        <div class="dd-ml-tabs-top">
-            <div class="dd-ml-arrows">
-                <button type="button" class="dd-ml-arrow-btn" id="ddMlSelcatTabsPrev" aria-label="Scroll categories left">&#8592;</button>
-                <button type="button" class="dd-ml-arrow-btn" id="ddMlSelcatTabsNext" aria-label="Scroll categories right">&#8594;</button>
-            </div>
-        </div>
         <div class="dd-ml-tabs" id="ddMlSelcatTabs">
             <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
             <button type="button" class="dd-ml-tab<?php echo $i === 0 ? ' active' : ''; ?>" data-slug="<?php echo esc_attr( $cat->slug ); ?>" data-name="<?php echo esc_attr( $cat->name ); ?>"><?php echo esc_html( $cat->name ); ?></button>
@@ -674,7 +668,6 @@ if ( $food_cat_mob_on ) :
     }
     setupMlArrows('ddMlFeatPrev', 'ddMlFeatNext', 'ddMlFeatRow');
     setupMlArrows('ddMlReviewsPrev', 'ddMlReviewsNext', 'ddMlReviewsRow');
-    setupMlArrows('ddMlSelcatTabsPrev', 'ddMlSelcatTabsNext', 'ddMlSelcatTabs');
 
     var chipsWrap = document.getElementById('ddMlFeatChips');
     var featRow    = document.getElementById('ddMlFeatRow');
