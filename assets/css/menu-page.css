@@ -21,7 +21,20 @@
  * Depends on CSS variables from theme.css:
  *   --brand, --brand-dark, --dd-gold, --dd-surface, --dd-line
  *
- * Last modified: v3.1.18
+ * v3.18.20: appended a body.dd-tpl-minimal-light-scoped section (end of the
+ * desktop media block) restyling the category carousel into a left sidebar
+ * and the product grid cards to match Minimal Light — active only when that
+ * template is active AND this is the Menu page (see
+ * DD_Template_Module::maybe_add_minimal_light_body_class(), v3.18.19). Also
+ * references --ml-* custom properties declared in assets/css/layouts/
+ * minimal-light.css (global :root scope, no import needed — that stylesheet
+ * is already loaded whenever this one is, since both fire off the same
+ * is_menu_page()-gated request). Deliberately placed in this file rather
+ * than minimal-light.css so it reliably wins the cascade against this
+ * file's own !important rules above it, without depending on cross-file
+ * stylesheet load order. Khana Khazana's rules above are untouched.
+ *
+ * Last modified: v3.18.20
  */
 /* Hide desktop layout on mobile, hide mobile layout on desktop */
 .dd-menu-page--desktop { display: block; }
@@ -1004,4 +1017,183 @@
         animation: dd-spin .8s linear infinite;
     }
     @keyframes dd-spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       MINIMAL LIGHT — desktop category sidebar + restyled product grid
+       (v3.18.20). Scoped entirely under body.dd-tpl-minimal-light (set by
+       DD_Template_Module::maybe_add_minimal_light_body_class(), v3.18.19
+       — only true when Minimal Light is active AND this is the Menu
+       page), so every rule above (Khana Khazana's horizontal circle
+       carousel + card grid) is completely untouched on every other
+       template/page. Same category data, same ?cat= deep-link, same
+       dd_menu_load_products AJAX switching, same product-card partial,
+       same product-modal click delegate — this section is layout/visual
+       only, no markup or JS changes. Added inside this file (rather than
+       minimal-light.css) so these rules reliably win the cascade against
+       the !important declarations above them, in the same file/media
+       block, without depending on cross-file stylesheet load order. ─── */
+
+    /* Two-column layout: category sidebar (left) + product grid (right) */
+    body.dd-tpl-minimal-light .dd-menu-container {
+        display: flex;
+        align-items: flex-start;
+        gap: 32px;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cats {
+        flex: 0 0 200px;
+        margin-bottom: 0;
+    }
+    body.dd-tpl-minimal-light .dd-menu-grid-section {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Sidebar shell — Minimal Light's own surface/border tokens instead
+       of Khana Khazana's white-card-with-shadow treatment */
+    body.dd-tpl-minimal-light .dd-menu-cats__inner {
+        background: var(--ml-bg, #ffffff);
+        border: 1px solid var(--ml-line, #e5e1d8);
+        border-radius: var(--ml-radius, 14px);
+        box-shadow: none;
+        padding: 20px 16px;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cats__title {
+        font-family: var(--ml-font-heading, serif) !important;
+        font-size: 20px !important;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cats__arrows {
+        display: none;
+    }
+
+    /* Vertical category list — was a horizontal circle-icon carousel;
+       same .dd-menu-cat/__circle/__name elements, same "All Dishes"
+       pseudo-category already first in DOM order, just restyled as
+       list rows instead of a scrolling row of circles */
+    body.dd-tpl-minimal-light .dd-menu-cats__track {
+        flex-direction: column;
+        overflow-x: visible;
+        overflow-y: auto;
+        max-height: 60vh;
+        gap: 2px;
+        padding: 0;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat {
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 12px;
+        width: 100%;
+        text-align: left;
+        padding: 10px 12px;
+        border-left: 3px solid transparent;
+        border-radius: 0 8px 8px 0;
+        transition: border-color .15s, background .15s;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat:hover {
+        transform: none;
+        background: var(--ml-surface, #faf9f7);
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat__circle {
+        width: 36px;
+        height: 36px;
+        border: none;
+        background: var(--ml-surface-2, #f2f0ec);
+        flex-shrink: 0;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat__initial,
+    body.dd-tpl-minimal-light .dd-menu-cat__all-label {
+        font-size: 15px;
+        color: var(--ml-accent, #6B1D1D);
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat__name {
+        font-size: 14px;
+        max-width: none;
+        color: var(--ml-ink-soft, #6b6459);
+        font-weight: 500;
+    }
+    /* Active category — gold left-border treatment per the mockup */
+    body.dd-tpl-minimal-light .dd-menu-cat.is-active {
+        border-left-color: var(--ml-accent, #6B1D1D);
+        background: var(--ml-surface, #faf9f7);
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat.is-active .dd-menu-cat__circle {
+        border-color: transparent;
+        box-shadow: none;
+    }
+    body.dd-tpl-minimal-light .dd-menu-cat.is-active .dd-menu-cat__name {
+        color: var(--ml-ink, #17140f);
+        font-weight: 700;
+    }
+
+    /* Product grid — 3 columns (narrower now the sidebar takes horizontal
+       space; still within the brief's "3-4 columns" range) */
+    body.dd-tpl-minimal-light .dd-menu-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        column-gap: 24px !important;
+        row-gap: 32px !important;
+    }
+
+    /* Restyled cards — Minimal Light's own bordered/no-shadow card look
+       instead of Khana Khazana's shadow-card treatment above */
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-dish-card {
+        border: 1px solid var(--ml-line, #e5e1d8) !important;
+        border-radius: var(--ml-radius, 14px) !important;
+        box-shadow: none !important;
+        transition: box-shadow .15s, transform .15s !important;
+    }
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-dish-card:hover {
+        box-shadow: 0 4px 24px rgba(23, 20, 15, 0.06) !important;
+        transform: translateY(-2px) !important;
+    }
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-dish-card__title {
+        font-family: var(--ml-font-body, sans-serif) !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        color: var(--ml-ink, #17140f) !important;
+    }
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-price {
+        color: var(--ml-accent, #6B1D1D) !important;
+    }
+
+    /* Small round "+" quick-add — same button, same data-id/data-nonce,
+       same document-level click delegate that opens the product modal
+       (frontend.js) — purely a visual reskin of the existing .dd-add-btn,
+       no markup/JS touched. The closed-hours state (.dd-add-btn--closed,
+       set by existing JS) is restored to a readable pill so "We're
+       Closed" stays legible — confirmed in investigation-menu-page.md
+       that this is the only other text state this specific button's JS
+       ever sets (the "Adding…"/"✓ Added!" states belong to the product
+       modal's own separate #ddPmAddBtn button, never this one). */
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-dish-card__footer .dd-add-btn {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 0 !important;
+        border-radius: 50% !important;
+        font-size: 0 !important;
+        line-height: 1 !important;
+        background: var(--ml-accent, #6B1D1D) !important;
+        border-color: var(--ml-accent, #6B1D1D) !important;
+        position: relative;
+        flex-shrink: 0 !important;
+    }
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-dish-card__footer .dd-add-btn::after {
+        content: '+';
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: var(--ml-on-accent, #ffffff);
+    }
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-dish-card__footer .dd-add-btn.dd-add-btn--closed {
+        width: auto !important;
+        height: auto !important;
+        padding: 8px 16px !important;
+        border-radius: var(--ml-radius-full, 999px) !important;
+        font-size: 13px !important;
+    }
+    body.dd-tpl-minimal-light .dd-menu-grid .dd-dish-card__footer .dd-add-btn.dd-add-btn--closed::after {
+        content: '';
+    }
 }
