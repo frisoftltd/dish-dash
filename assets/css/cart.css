@@ -272,6 +272,22 @@ body.dd-cart-open {
     gap: 10px;
 }
 
+/* Closed-hours bottom banner (.dd-bottom-strip, assets/js/frontend.js's
+   setupHoursBanner()) is fixed to the viewport bottom at z-index 99998 —
+   correctly above the cart drawer (10000/10001, v3.18.8), but with no
+   spatial coordination it physically covers the drawer's footer/checkout
+   button whenever both are on screen, swallowing clicks meant for
+   Checkout. Reserves clearance equal to the strip's rendered height
+   (~52px content + its own 12px top/bottom padding, rounded up for
+   two-line-wrap safety on narrow viewports), applied only while the
+   banner is actually present via :has() — no frontend.js changes needed,
+   no unnecessary spacing when the restaurant is open. Same rule covers
+   the desktop side panel and the mobile bottom sheet (both use this same
+   .dd-cart-drawer__footer), and every template (shared chrome). */
+body:has(.dd-bottom-strip) .dd-cart-drawer__footer {
+    padding-bottom: 80px;
+}
+
 .dd-cart-drawer__subtotal {
     display: flex;
     justify-content: space-between;
