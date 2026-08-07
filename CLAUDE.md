@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.11 (2026-08-07)
+> Last updated: v3.18.12 (2026-08-07)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.11 |
+| **Deployed version** | v3.18.12 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.11 — Fixed Google Reviews truncation and card overflow on Minimal Light (second item off the punch list). Two issues, one section: (1) full review text rendered untruncated, making cards tall and wildly inconsistent in height — fixed by mirroring Khana Khazana's own existing truncation pattern exactly (same 160-char PHP threshold, same `-webkit-line-clamp: 4` + `is-collapsible`/`data-collapsed` toggle technique, `templates/page-dishdash.php`), rather than inventing a new approach. (2) Cards overflowing/cutting off at the container edge — root cause investigated carefully: `box-sizing: border-box` turned out to already be globally set (`.dd-page *` in `theme.css`, scoped to a body class this template already carries) so that wasn't it; applied the two well-established, still-relevant fixes instead — `min-width: 0` on `.dd-ml-review` (flex items default to `min-width:auto`, which lets unbreakable long content push a box wider than its flex-basis despite `flex-shrink:0`) plus `overflow-wrap: break-word` on the review text/name, and `align-items: flex-start` on `.dd-ml-strip` so cards no longer stretch to match the tallest one in the row (flex default is `stretch`) — the truncation fix alone likely resolves most of what was visually reported, these are defensive on top of it. Recommended, not added: scroll arrows for Reviews — would be inconsistent with Featured/Selected-Category's existing swipe-only `.dd-ml-strip` behavior in the same template; flagged as a possible future consistency pass across all three strips together, not a one-section addition. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.12 — Added scroll arrows to all three horizontal strips (Featured Dishes, Selected Category, Reviews) and widened the trailing scroll padding, closing the loop on the item recommended-but-not-added in v3.18.11. Mirrors Khana Khazana's own category-row arrow pattern exactly (`assets/js/frontend.js`'s `setupArrows()`: `scrollBy(±300px)`, always visible/enabled, no hide/disable-at-boundary state) — reimplemented in `page-home.php`'s own script as `setupMlArrows()`, applied uniformly to all three strips for consistency (Selected Category's arrows re-bind to whichever tab panel is active, mirroring `frontend.js`'s own `activeSelCatRow` handling). Investigated the reported right-edge cutoff before assuming arrows alone would fix it: confirmed no ancestor `overflow:hidden` exists anywhere (checked `minimal-light.css` and the shared `theme.css`) — content was always fully reachable by scrolling, so this was a discoverability problem (no visible affordance), not a genuine clipping bug. Also widened `.dd-ml-strip`'s trailing `padding-right` from 8px to 24px (`--ml-sp-5`, matching the row's own left-edge gutter) since the scrolled-to-end state read as "still tight against the edge" even though nothing was clipped. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

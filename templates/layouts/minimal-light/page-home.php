@@ -37,7 +37,7 @@
  * git log for the full list (DD_Template_Module, DD_API, DD_Homepage_Module,
  * templates/partials/product-card.php, WooCommerce).
  *
- * Last modified: v3.18.11
+ * Last modified: v3.18.12
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -499,6 +499,12 @@ if ( $food_cat_mob_on ) :
                 <div class="dd-ml-eyebrow">Featured dishes</div>
                 <h2 class="dd-ml-title"><?php echo esc_html( $dd_feat_title ); ?></h2>
             </div>
+            <?php if ( ! empty( $dd_best ) && count( $dd_best ) > 1 ) : ?>
+            <div class="dd-ml-arrows">
+                <button type="button" class="dd-ml-arrow-btn" id="ddMlFeatPrev" aria-label="Scroll left">&#8592;</button>
+                <button type="button" class="dd-ml-arrow-btn" id="ddMlFeatNext" aria-label="Scroll right">&#8594;</button>
+            </div>
+            <?php endif; ?>
         </div>
 
         <?php if ( $dd_feat_chips && ! empty( $dd_chip_tags ) ) : ?>
@@ -552,6 +558,10 @@ if ( $food_cat_mob_on ) :
                 <div class="dd-ml-eyebrow">Chef's picks</div>
                 <h2 class="dd-ml-title"><?php echo esc_html( $dd_selcat_title ); ?> &mdash; <span class="dd-gold" id="ddMlSelcatActiveCat"><?php echo esc_html( $dd_selcat_cats[0]->name ); ?></span></h2>
             </div>
+            <div class="dd-ml-arrows">
+                <button type="button" class="dd-ml-arrow-btn" id="ddMlSelcatPrev" aria-label="Scroll left">&#8592;</button>
+                <button type="button" class="dd-ml-arrow-btn" id="ddMlSelcatNext" aria-label="Scroll right">&#8594;</button>
+            </div>
         </div>
 
         <div class="dd-ml-tabs" id="ddMlSelcatTabs">
@@ -561,7 +571,7 @@ if ( $food_cat_mob_on ) :
         </div>
 
         <?php foreach ( $dd_selcat_cats as $i => $cat ) : ?>
-        <div class="dd-ml-strip" data-panel="<?php echo esc_attr( $cat->slug ); ?>" <?php echo $i !== 0 ? 'hidden' : ''; ?>>
+        <div class="dd-ml-strip" id="ddMlSelcatPanel-<?php echo esc_attr( $cat->slug ); ?>" data-panel="<?php echo esc_attr( $cat->slug ); ?>" <?php echo $i !== 0 ? 'hidden' : ''; ?>>
             <?php
             if ( ! empty( $dd_cat_products[ $cat->slug ] ) ) {
                 foreach ( $dd_cat_products[ $cat->slug ] as $product ) {
@@ -587,8 +597,14 @@ if ( $food_cat_mob_on ) :
                 <div class="dd-ml-eyebrow">Loved by guests</div>
                 <h2 class="dd-ml-title"><?php echo esc_html( $dd_reviews_title ); ?></h2>
             </div>
+            <?php if ( count( $dd_reviews ) > 1 ) : ?>
+            <div class="dd-ml-arrows">
+                <button type="button" class="dd-ml-arrow-btn" id="ddMlReviewsPrev" aria-label="Scroll left">&#8592;</button>
+                <button type="button" class="dd-ml-arrow-btn" id="ddMlReviewsNext" aria-label="Scroll right">&#8594;</button>
+            </div>
+            <?php endif; ?>
         </div>
-        <div class="dd-ml-strip">
+        <div class="dd-ml-strip" id="ddMlReviewsRow">
             <?php foreach ( $dd_reviews as $r ) :
                 $author  = trim( (string) ( $r['author'] ?? '' ) ) ?: 'Guest';
                 $initial = strtoupper( mb_substr( $author, 0, 1 ) );
@@ -634,6 +650,25 @@ if ( $food_cat_mob_on ) :
 
 <script>
 (function () {
+    // Scroll arrows — same simple, always-visible, fixed-distance pattern
+    // as Khana Khazana's own category-row arrows (assets/js/frontend.js's
+    // setupArrows(): scrollBy 300px, no hide/disable-at-boundary logic).
+    // Reused verbatim here across all three strips for consistency, not a
+    // new/different behavior invented for Minimal Light.
+    function setupMlArrows(prevId, nextId, rowId) {
+        var row  = document.getElementById(rowId);
+        var prev = document.getElementById(prevId);
+        var next = document.getElementById(nextId);
+        if (!row || !prev || !next) return;
+        if (prev.dataset.bound === rowId) return;
+        prev.dataset.bound = rowId;
+        next.dataset.bound = rowId;
+        prev.addEventListener('click', function () { row.scrollBy({ left: -300, behavior: 'smooth' }); });
+        next.addEventListener('click', function () { row.scrollBy({ left: 300, behavior: 'smooth' }); });
+    }
+    setupMlArrows('ddMlFeatPrev', 'ddMlFeatNext', 'ddMlFeatRow');
+    setupMlArrows('ddMlReviewsPrev', 'ddMlReviewsNext', 'ddMlReviewsRow');
+
     var chipsWrap = document.getElementById('ddMlFeatChips');
     var featRow    = document.getElementById('ddMlFeatRow');
     if (chipsWrap && featRow) {
@@ -653,6 +688,12 @@ if ( $food_cat_mob_on ) :
     var tabsWrap  = document.getElementById('ddMlSelcatTabs');
     var activeCat = document.getElementById('ddMlSelcatActiveCat');
     if (tabsWrap) {
+        // Bind arrows to whichever panel is active at load (mirrors
+        // frontend.js's own activeSelCatRow handling for Khana Khazana's
+        // Selected Category tabs).
+        var firstPanel = document.querySelector('.dd-ml-strip[data-panel]:not([hidden])');
+        if (firstPanel) setupMlArrows('ddMlSelcatPrev', 'ddMlSelcatNext', firstPanel.id);
+
         tabsWrap.addEventListener('click', function (e) {
             var btn = e.target.closest('.dd-ml-tab');
             if (!btn) return;
@@ -662,6 +703,8 @@ if ( $food_cat_mob_on ) :
                 panel.hidden = panel.dataset.panel !== slug;
             });
             if (activeCat && btn.dataset.name) activeCat.textContent = btn.dataset.name;
+            // Re-bind arrows to the newly-visible panel.
+            setupMlArrows('ddMlSelcatPrev', 'ddMlSelcatNext', 'ddMlSelcatPanel-' + slug);
         });
     }
 

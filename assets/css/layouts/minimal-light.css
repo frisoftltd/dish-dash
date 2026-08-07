@@ -31,7 +31,7 @@
  *
  * No build step — plain CSS only, per architecture constraints.
  *
- * Last modified: v3.18.11
+ * Last modified: v3.18.12
  */
 
 /* ── TOKENS ─────────────────────────────────────────────────────────────── */
@@ -201,6 +201,31 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 }
 .dd-ml-empty { color: var(--ml-ink-faint); font-size: 14px; padding: var(--ml-sp-5) 0; }
 
+/* ── SCROLL ARROWS (v3.18.12) — Featured Dishes, Selected Category, Reviews.
+   Same simple always-visible pattern as Khana Khazana's own category-row
+   arrows (assets/js/frontend.js's setupArrows()) — no hide/disable-at-
+   boundary state, matching that established precedent for consistency. */
+.dd-ml-arrows { display: flex; gap: var(--ml-sp-2); flex-shrink: 0; }
+.dd-ml-arrow-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--ml-line);
+    background: var(--ml-bg);
+    color: var(--ml-ink);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.dd-ml-arrow-btn:hover {
+    background: var(--ml-ink);
+    color: var(--ml-bg);
+    border-color: var(--ml-ink);
+}
+
 /* ── HERO (split-screen) ───────────────────────────────────────────────── */
 .dd-ml-hero { padding: var(--ml-sp-7) 0 var(--ml-sp-8); }
 .dd-ml-hero__grid {
@@ -358,9 +383,15 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     overflow-x: auto;
     scroll-behavior: smooth;
     padding-bottom: var(--ml-sp-2);
-    padding-right: var(--ml-sp-2); /* small trailing clearance so the last
-        card doesn't sit flush against the scroll boundary when scrolled
-        all the way — matches the row's own left-edge breathing room. */
+    padding-right: var(--ml-sp-5); /* v3.18.12 — widened from --ml-sp-2 (8px).
+        Investigated the "cut off at the right edge" report directly: no
+        ancestor has overflow:hidden anywhere (checked this file and the
+        shared theme.css), so content was never actually clipped — it was
+        reachable by scrolling, just with no visible affordance to know
+        that (discoverability, fixed by the arrows above) and only 8px of
+        breathing room at the scrolled-to-end state, which reads as "still
+        tight against the edge" even though nothing is cut off. Matches the
+        row's own left-edge gutter now instead of a token gap-sized value. */
 }
 .dd-ml-strip::-webkit-scrollbar { display: none; }
 .dd-ml-strip[hidden] { display: none; }
