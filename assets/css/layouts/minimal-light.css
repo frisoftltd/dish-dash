@@ -313,31 +313,98 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     box-shadow: var(--ml-shadow-lift);
 }
 
-/* ── FOOD CATEGORY LIST (mobile only — unchanged concept from v3.18.5) ──── */
+/* ── FOOD CATEGORY LIST (mobile only) — circular 4-column grid (v3.18.24)
+   Replaces the v3.18.5 chevron-row list with the same circular category
+   grid component the Menu page's mobile Screen 1 uses (grid.php +
+   .dd-mobile-category-list/.dd-mobile-category-item/.dd-mobile-cat-tile__*
+   — originally added in menu-page.css v3.18.23, MOVED here so one shared
+   ruleset governs both places' appearance instead of two copies drifting
+   apart. Menu page still gets these rules — minimal-light.css always
+   loads there too (DD_Template_Module::enqueue_frontend_assets(), not
+   page-gated) — menu-page.css itself no longer defines them.
+   Homepage's version uses <a href> grid items (direct navigation to
+   /restaurant-menu/?cat=slug); the Menu page's version uses <li data-cat-id>
+   grid items (DDMobileMenu's JS click delegate, menu-page.js) — different
+   element/interaction per page as each already required, same classes,
+   same CSS, so both stay visually identical without hand-syncing two
+   stylesheets. See investigation-category-grid-overflow.md.
+   Includes the v3.18.24 overflow fix: min-width:0 on the grid item (CSS
+   Grid items default to min-width:auto, which floors shrinkage at content's
+   intrinsic min size — the actual cause of the v3.18.23 right-edge
+   cut-off), overflow-wrap as a text-break safety net, and box-sizing:
+   border-box on the photo circle (the Menu page's <body> never carries
+   the dd-page class theme.css's box-sizing:border-box reset is scoped to,
+   so the circle's 1px border was silently adding +2px under the default
+   content-box model). */
 .dd-ml-food-cat-list { padding: var(--ml-sp-6) 0 var(--ml-sp-4); }
-.dd-ml-food-cat-row {
-    display: flex;
-    align-items: center;
-    gap: var(--ml-sp-3);
-    padding: var(--ml-sp-3) var(--ml-sp-2);
-    text-decoration: none;
-    color: var(--ml-ink);
-    border-bottom: 1px solid var(--ml-line);
+body.dd-tpl-minimal-light .dd-mobile-category-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--ml-sp-4) var(--ml-sp-2);
+    list-style: none;
+    margin: 0;
+    padding: 0;
 }
-.dd-ml-food-cat-row__thumb {
-    width: 52px; height: 52px;
-    border-radius: var(--ml-radius-sm);
+body.dd-tpl-minimal-light .dd-mobile-category-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    min-width: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    min-height: 0;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
+body.dd-tpl-minimal-light .dd-mobile-category-item:active {
+    transform: scale(0.96);
+    box-shadow: none;
+}
+body.dd-tpl-minimal-light .dd-mobile-cat-tile__photo {
+    width: 64px;
+    height: 64px;
+    box-sizing: border-box;
+    border-radius: 50%;
     overflow: hidden;
     background: var(--ml-surface-2);
+    border: 1px solid var(--ml-line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
 }
-.dd-ml-food-cat-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
-.dd-ml-food-cat-row__initial { font-family: var(--ml-font-heading); font-weight: 600; color: var(--ml-accent); font-size: 18px; }
-.dd-ml-food-cat-row__info { flex: 1; min-width: 0; }
-.dd-ml-food-cat-row__name { font-weight: 600; font-size: 15px; }
-.dd-ml-food-cat-row__count { font-size: 12px; color: var(--ml-ink-faint); }
-.dd-ml-food-cat-row__arrow { width: 18px; height: 18px; color: var(--ml-ink-faint); flex-shrink: 0; }
+body.dd-tpl-minimal-light .dd-mobile-cat-tile__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+body.dd-tpl-minimal-light .dd-mobile-cat-tile__initial {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    font-size: 20px;
+    color: var(--ml-accent);
+}
+body.dd-tpl-minimal-light .dd-mobile-category-item__name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ml-ink);
+    line-height: 1.3;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+body.dd-tpl-minimal-light .dd-mobile-cat-tile__count {
+    font-size: 11px;
+    color: var(--ml-ink-faint);
+}
+body.dd-tpl-minimal-light .dd-mobile-cats-empty {
+    color: var(--ml-ink-faint);
+    font-family: var(--ml-font-body);
+}
 
 /* ── "BROWSE BY CATEGORY" — paginated photo-tile grid (v3.18.17, grid v3.18.18)
    Was a horizontal-scroll strip (v3.18.17); now a static 4-column grid,

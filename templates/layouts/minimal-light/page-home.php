@@ -443,6 +443,16 @@ if ( $food_cat_mob_on ) :
 <section id="food-category-list" class="dd-ml-food-cat-list dd-mobile-only">
     <div class="dd-container">
         <span class="dd-ml-eyebrow">Food Category</span>
+        <!-- v3.18.24: same circular 4-column grid component as the Menu
+             page's mobile Screen 1 (grid.php) — same classes, same CSS
+             (assets/css/layouts/minimal-light.css), so both stay visually
+             identical from one shared ruleset. Menu page's version uses
+             <li data-cat-id> (JS click delegate, menu-page.js); this one
+             uses <a href> for direct navigation, since there's no JS
+             screen-switch here — the only structural difference the two
+             contexts actually require. Data prep above this section
+             (dd_all_cats derivation) is unchanged — replacing markup only. -->
+        <div class="dd-mobile-category-list">
         <?php foreach ( $dd_all_cats as $cat ) :
             if ( is_array( $cat ) ) {
                 $cat_slug  = $cat['slug'] ?? '';
@@ -457,21 +467,19 @@ if ( $food_cat_mob_on ) :
                 $cat_img   = $tid ? wp_get_attachment_image_url( $tid, 'thumbnail' ) : '';
             }
         ?>
-        <a href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat_slug ) ); ?>" class="dd-ml-food-cat-row">
-            <div class="dd-ml-food-cat-row__thumb">
+        <a href="<?php echo esc_url( home_url( '/restaurant-menu/?cat=' . $cat_slug ) ); ?>" class="dd-mobile-category-item">
+            <span class="dd-mobile-cat-tile__photo">
                 <?php if ( $cat_img ) : ?>
                 <img src="<?php echo esc_url( $cat_img ); ?>" alt="<?php echo esc_attr( $cat_name ); ?>" loading="lazy">
                 <?php else : ?>
-                <span class="dd-ml-food-cat-row__initial"><?php echo esc_html( strtoupper( substr( $cat_name, 0, 1 ) ) ); ?></span>
+                <span class="dd-mobile-cat-tile__initial"><?php echo esc_html( strtoupper( substr( $cat_name, 0, 1 ) ) ); ?></span>
                 <?php endif; ?>
-            </div>
-            <div class="dd-ml-food-cat-row__info">
-                <div class="dd-ml-food-cat-row__name"><?php echo esc_html( $cat_name ); ?></div>
-                <div class="dd-ml-food-cat-row__count"><?php echo (int) $cat_count; ?> Items</div>
-            </div>
-            <svg class="dd-ml-food-cat-row__arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </span>
+            <span class="dd-mobile-category-item__name"><?php echo esc_html( $cat_name ); ?></span>
+            <span class="dd-mobile-cat-tile__count"><?php echo (int) $cat_count; ?></span>
         </a>
         <?php endforeach; ?>
+        </div>
     </div>
 </section>
 <?php endif; ?>
