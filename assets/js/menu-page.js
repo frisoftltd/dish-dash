@@ -223,6 +223,12 @@ class DDMobileMenu {
             searchClear: document.querySelector('.dd-mobile-search-clear'),
             cartBadge: document.querySelector('.dd-mobile-cart-badge'),
             bottomNavCart: document.getElementById('dd-bottom-nav-cart-count'),
+            // Minimal Light only — null on Khana Khazana (elements aren't in
+            // the DOM there, grid.php), every usage below is guarded on this.
+            allDishesWrap: document.getElementById('dd-mobile-all-dishes'),
+            allDishesList: document.getElementById('dd-mobile-all-dishes-list'),
+            catMetaName: document.getElementById('dd-mobile-cat-meta-name'),
+            catMetaCount: document.getElementById('dd-mobile-cat-meta-count'),
             singleProduct: {
                 heroImg: document.getElementById('dd-mobile-single-hero-img'),
                 name: document.getElementById('dd-mobile-single-name'),
@@ -338,6 +344,29 @@ class DDMobileMenu {
                     isSimple: card.dataset.isSimple === 'true'
                 };
                 this.showProductDetails(this.currentProduct.id);
+            });
+        }
+
+        // "All Dishes" grid click (Minimal Light only, element is null otherwise)
+        // — mirrors productList listener exactly, same showProductDetails() hand-off.
+        if (this.elements.allDishesList) {
+            this.elements.allDishesList.addEventListener('click', (e) => {
+                const quickAdd = e.target.closest('.dd-mobile-product-card__quick-add');
+                if (quickAdd) {
+                    e.stopPropagation();
+                    const card = quickAdd.closest('.dd-mobile-product-card');
+                    this.showProductDetails(card.dataset.id);
+                    return;
+                }
+                const card = e.target.closest('.dd-mobile-product-card');
+                if (!card) return;
+
+                if (window.innerWidth >= 1025) {
+                    document.dispatchEvent(new CustomEvent('dd:open-modal', { detail: { productId: card.dataset.id } }));
+                    return;
+                }
+
+                this.showProductDetails(card.dataset.id);
             });
         }
 
@@ -476,6 +505,12 @@ class DDMobileMenu {
             this.products = DD_MOBILE_DATA.products;
         }
 
+        // Minimal Light "All Dishes" grid — no-op when the element doesn't
+        // exist (Khana Khazana). Reuses renderProductList() unmodified.
+        if (this.elements.allDishesList && this.products) {
+            this.renderAllDishesGrid(this.products);
+        }
+
         // Update cart count
         this.updateCartCount(DD_MOBILE_DATA.cartCount || 0);
 
@@ -534,6 +569,35 @@ class DDMobileMenu {
         );
 
         this.renderProductList(filteredProducts);
+
+        // Minimal Light: category name + dish count header. No-op when the
+        // elements don't exist (Khana Khazana) — reads DD_MOBILE_DATA.categories,
+        // already-localized data, no new fetch. Runs on every category
+        // selection (list tap, pill tap, ?cat= deep-link) since this one
+        // function is already the shared funnel for all three.
+        if (this.elements.catMetaName && window.DD_MOBILE_DATA && DD_MOBILE_DATA.categories) {
+            const catObj = DD_MOBILE_DATA.categories.find(c => c.id === parseInt(categoryId));
+            if (catObj) {
+                this.elements.catMetaName.textContent = catObj.name;
+                if (this.elements.catMetaCount) {
+                    this.elements.catMetaCount.textContent =
+                        filteredProducts.length + (filteredProducts.length === 1 ? ' dish' : ' dishes');
+                }
+            }
+        }
+    }
+
+    // Minimal Light "All Dishes" grid (Screen 1) — reuses the existing
+    // renderProductList() via the same temporary-container swap pattern
+    // searchProducts() already uses below, so the card markup/behavior is
+    // byte-for-byte identical to Screen 2's list. renderProductList() itself
+    // is not modified.
+    renderAllDishesGrid(products) {
+        if (!this.elements.allDishesList) return;
+        const originalList = this.elements.productList;
+        this.elements.productList = this.elements.allDishesList;
+        this.renderProductList(products);
+        this.elements.productList = originalList;
     }
 
     renderProductList(products) {
@@ -924,6 +988,8 @@ class DDMobileMenu {
         if (!term) {
             wrap.style.display = 'none';
             list.innerHTML = '';
+            // Minimal Light: restore "All Dishes" grid (no-op if it doesn't exist)
+            if (this.elements.allDishesWrap) this.elements.allDishesWrap.style.display = '';
             return;
         }
 
@@ -933,6 +999,9 @@ class DDMobileMenu {
         );
 
         wrap.style.display = 'block';
+        // Minimal Light: hide "All Dishes" grid while search results are shown
+        // (no-op if it doesn't exist)
+        if (this.elements.allDishesWrap) this.elements.allDishesWrap.style.display = 'none';
 
         if (matches.length === 0) {
             list.innerHTML = '';

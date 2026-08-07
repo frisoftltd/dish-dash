@@ -737,6 +737,295 @@
 /* Outside media query: hide mobile app on desktop by default */
 @media (min-width: 1025px) { .dd-mobile-app { display: none; } }
 
+/* ═══════════════════════════════════════════════════════════════════
+   MINIMAL LIGHT — Mobile 3-screen menu (Screens 1-3) restyle (v3.18.23).
+   Scoped under body.dd-tpl-minimal-light + the same (max-width: 1024px)
+   breakpoint the base mobile rules above use, so Khana Khazana's mobile
+   experience (the unscoped rules above, byte-for-byte unchanged) renders
+   identically to before. Values only — every element restyled here is
+   the exact same element/class Khana Khazana uses, with two exceptions
+   explicitly called out below where they don't exist in Khana Khazana's
+   DOM at all (grid.php branches per-template, not CSS-hidden).
+   Zero JS behavior touched: DDMobileMenu's screen transitions, stepper,
+   attribute/spice selection, search filtering, and dd_cart_add call are
+   all unmodified — see menu-page.js and investigation-mobile-menu.md.
+   ─────────────────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  body.dd-tpl-minimal-light .dd-mobile-app,
+  body.dd-tpl-minimal-light .dd-mobile-screen {
+    background: var(--ml-bg);
+  }
+
+  /* ── Header (Screens 1 & 2) ── */
+  body.dd-tpl-minimal-light .dd-mobile-header {
+    background: var(--ml-bg);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-header--with-back {
+    border-bottom: 1px solid var(--ml-line);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-header--branded .dd-mobile-header__logo-wrap {
+    background: var(--ml-surface);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-header__initials {
+    background: var(--ml-accent);
+    color: var(--ml-on-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-header__back {
+    color: var(--ml-ink);
+  }
+
+  /* ── Screen 1: hero + search ── */
+  body.dd-tpl-minimal-light .dd-mobile-hero h1 {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    color: var(--ml-ink);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-hero__today {
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-search {
+    background: var(--ml-surface);
+    border: 1px solid var(--ml-line);
+    box-shadow: none;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-search__input {
+    color: var(--ml-ink);
+    font-family: var(--ml-font-body);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-search__filter-btn {
+    color: var(--ml-ink-faint);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-section-label {
+    font-family: var(--ml-font-body);
+    color: var(--ml-ink-faint);
+  }
+
+  /* ── Screen 1: category grid — circular tiles, 4 columns.
+     Markup difference is in grid.php (Minimal Light branch renders
+     .dd-mobile-cat-tile__photo/__initial instead of the row's __image/
+     __info/__arrow) — same .dd-mobile-category-item wrapper (data-cat-id/
+     -slug intact) and same .dd-mobile-category-item__name element the
+     click delegate and filterCategories() (menu-page.js) already select
+     on, so neither needs a JS change. */
+  body.dd-tpl-minimal-light .dd-mobile-category-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--ml-sp-4) var(--ml-sp-2);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-category-item {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    min-height: 0;
+    text-align: center;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-category-item:active {
+    transform: scale(0.96);
+    box-shadow: none;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-tile__photo {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--ml-surface-2);
+    border: 1px solid var(--ml-line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-tile__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-tile__initial {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    font-size: 20px;
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-category-item__name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--ml-ink);
+    line-height: 1.3;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-tile__count {
+    font-size: 11px;
+    color: var(--ml-ink-faint);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cats-empty {
+    color: var(--ml-ink-faint);
+    font-family: var(--ml-font-body);
+  }
+
+  /* ── Screen 1: "All Dishes" grid — Minimal Light only, the element
+     doesn't exist in Khana Khazana's DOM at all (grid.php). ── */
+  body.dd-tpl-minimal-light .dd-mobile-all-dishes {
+    margin-top: var(--ml-sp-5);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-all-dishes__list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--ml-sp-3);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-all-dishes__list .dd-mobile-product-card {
+    flex-direction: column;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-all-dishes__list .dd-mobile-product-card__image {
+    width: 100%;
+    height: 110px;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-all-dishes__list .dd-mobile-product-card__bottom-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-all-dishes__list .dd-mobile-product-card__quick-add {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* ── Screen 2: category pills ── */
+  body.dd-tpl-minimal-light .dd-mobile-cat-pills-wrapper {
+    background: var(--ml-bg);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-pill {
+    font-family: var(--ml-font-body);
+    border-color: var(--ml-line);
+    background: var(--ml-surface);
+    color: var(--ml-ink-soft);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-pill.is-active {
+    background: var(--ml-accent);
+    border-color: var(--ml-accent);
+    color: var(--ml-on-accent);
+  }
+
+  /* ── Screen 2: category name + dish count header — Minimal Light
+     only, doesn't exist in Khana Khazana's DOM at all (grid.php). ── */
+  body.dd-tpl-minimal-light .dd-mobile-cat-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 12px 20px 0;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-meta__name {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--ml-ink);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-cat-meta__count {
+    font-size: 13px;
+    color: var(--ml-ink-faint);
+  }
+
+  /* ── Product cards — shared by Screen 2's list, the search-results
+     panel (reuses the same class, renderProductList()), and the "All
+     Dishes" grid above ── */
+  body.dd-tpl-minimal-light .dd-mobile-product-card {
+    background: var(--ml-bg);
+    border: 1px solid var(--ml-line);
+    box-shadow: none;
+  }
+  body.dd-tpl-minimal-light .dd-mobile-product-card__name {
+    font-family: var(--ml-font-body);
+    color: var(--ml-ink);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-product-card__description,
+  body.dd-tpl-minimal-light .dd-mobile-product-card__rating {
+    color: var(--ml-ink-faint);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-product-card__price {
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-product-card__quick-add {
+    background: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-product-card__quick-add:active {
+    background: var(--ml-accent-dark);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-product-card__heart.is-fav {
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-search-results__heading,
+  body.dd-tpl-minimal-light .dd-mobile-search-results__empty {
+    color: var(--ml-ink-faint);
+    font-family: var(--ml-font-body);
+  }
+
+  /* ── Screen 3: single product ── */
+  body.dd-tpl-minimal-light .dd-mobile-single__content {
+    background: var(--ml-bg);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__name {
+    font-family: var(--ml-font-heading);
+    font-weight: 600;
+    color: var(--ml-ink);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__meta {
+    color: var(--ml-ink-faint);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__section-label {
+    font-family: var(--ml-font-body);
+    color: var(--ml-ink);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__price {
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__qty-btn {
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__qty-count {
+    color: var(--ml-ink);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__heart.is-fav {
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-attr-group__label {
+    color: var(--ml-ink-faint);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-attr-pill {
+    font-family: var(--ml-font-body);
+    border-color: var(--ml-line);
+    background: var(--ml-surface);
+    color: var(--ml-ink-soft);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-attr-pill.is-active {
+    background: var(--ml-accent);
+    border-color: var(--ml-accent);
+    color: var(--ml-on-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__description {
+    color: var(--ml-ink-soft);
+    font-family: var(--ml-font-body);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__read-more {
+    color: var(--ml-accent);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__add-to-cart {
+    background: var(--ml-accent);
+    font-family: var(--ml-font-body);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-single__add-to-cart:active {
+    background: var(--ml-accent-dark);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-related-card__name {
+    color: var(--ml-ink);
+    font-family: var(--ml-font-body);
+  }
+  body.dd-tpl-minimal-light .dd-mobile-related-card__price {
+    color: var(--ml-accent);
+  }
+}
+
 /* Centered container — root-level so it applies regardless of breakpoint */
 .dd-menu-container {
     max-width: 1200px;

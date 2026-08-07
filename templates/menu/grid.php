@@ -227,10 +227,37 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
     <!-- Category list -->
     <div class="dd-mobile-section-label">Food Category</div>
     <ul class="dd-mobile-category-list" id="dd-mobile-cat-list">
-      <?php foreach ( $categories as $cat ) :
+      <?php
+      // Minimal Light: circular 4-column icon grid, same thumbnail_id/
+      // initial-letter fallback mechanism as the desktop photo-grid work
+      // (v3.18.17, templates/layouts/minimal-light/page-home.php's
+      // .dd-ml-cat-tile). Khana Khazana's row markup below is byte-for-
+      // byte unchanged — this is a template-level branch, not a CSS-only
+      // restyle, since the row markup never had a fallback for missing
+      // thumbnails to restyle in the first place. Wrapper stays
+      // .dd-mobile-category-item with the same data-cat-id/-slug
+      // attributes, and .dd-mobile-category-item__name stays the name
+      // element — both are what DDMobileMenu's click delegate and
+      // filterCategories() (menu-page.js) already select on, so neither
+      // needs any JS change. See investigation-mobile-menu.md.
+      $dd_is_ml = DD_Template_Module::active_template() === 'minimal-light';
+      foreach ( $categories as $cat ) :
         $thumb_id  = get_term_meta( $cat->term_id, 'thumbnail_id', true );
         $thumb_url = $thumb_id ? wp_get_attachment_image_url( $thumb_id, 'medium' ) : '';
       ?>
+      <?php if ( $dd_is_ml ) : ?>
+      <li class="dd-mobile-category-item" data-cat-id="<?php echo $cat->term_id; ?>" data-cat-slug="<?php echo esc_attr( $cat->slug ); ?>">
+        <span class="dd-mobile-cat-tile__photo">
+          <?php if ( $thumb_url ) : ?>
+          <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy" />
+          <?php else : ?>
+          <span class="dd-mobile-cat-tile__initial"><?php echo esc_html( strtoupper( mb_substr( $cat->name, 0, 1 ) ) ); ?></span>
+          <?php endif; ?>
+        </span>
+        <span class="dd-mobile-category-item__name"><?php echo esc_html( $cat->name ); ?></span>
+        <span class="dd-mobile-cat-tile__count"><?php echo (int) $cat->count; ?></span>
+      </li>
+      <?php else : ?>
       <li class="dd-mobile-category-item" data-cat-id="<?php echo $cat->term_id; ?>" data-cat-slug="<?php echo $cat->slug; ?>">
         <div class="dd-mobile-category-item__image">
           <img src="<?php echo esc_url( $thumb_url ); ?>" alt="<?php echo esc_attr( $cat->name ); ?>" loading="lazy" />
@@ -241,6 +268,7 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
         </div>
         <span class="dd-mobile-category-item__arrow">›</span>
       </li>
+      <?php endif; ?>
       <?php endforeach; ?>
     </ul>
     <p class="dd-mobile-cats-empty" style="display:none;">No categories found</p>
@@ -249,6 +277,18 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
         <ul class="dd-mobile-product-list dd-mobile-search-results__list" id="dd-mobile-search-results-list"></ul>
         <p class="dd-mobile-search-results__empty" style="display:none;">No dishes found</p>
     </div>
+    <?php if ( $dd_is_ml ) : ?>
+    <!-- "All Dishes" grid — Minimal Light only, doesn't exist in Khana
+         Khazana's DOM at all. Populated client-side by
+         DDMobileMenu.renderAllDishesGrid() (menu-page.js), which reuses
+         the existing renderProductList()/showProductDetails()/
+         addToCartById() methods unmodified — same tap-to-Screen-3,
+         same quick-add, same dd_cart_add call as Screen 2's list. -->
+    <div class="dd-mobile-all-dishes" id="dd-mobile-all-dishes">
+        <div class="dd-mobile-section-label">All Dishes</div>
+        <ul class="dd-mobile-product-list dd-mobile-all-dishes__list" id="dd-mobile-all-dishes-list"></ul>
+    </div>
+    <?php endif; ?>
   </div><!-- /screen--categories -->
 
   <!-- SCREEN 2: Product List -->
@@ -267,6 +307,19 @@ $dd_mob_initials = strtoupper( substr( $dd_mob_name, 0, 2 ) );
       </div>
       <div style="width:44px"></div>
     </div>
+
+    <?php if ( $dd_is_ml ) : ?>
+    <!-- Category name + dish count — Minimal Light only, doesn't exist
+         in Khana Khazana's DOM. Populated by DDMobileMenu.
+         loadProductsForCategory() (menu-page.js), which already runs on
+         every category selection (list tap, pill tap, ?cat= deep-link) —
+         a guarded append to that one function, no new behavior, no-op
+         when these elements aren't present. -->
+    <div class="dd-mobile-cat-meta" id="dd-mobile-cat-meta">
+        <span class="dd-mobile-cat-meta__name" id="dd-mobile-cat-meta-name"></span>
+        <span class="dd-mobile-cat-meta__count" id="dd-mobile-cat-meta-count"></span>
+    </div>
+    <?php endif; ?>
 
     <!-- Category pill tabs (horizontal scroll, no arrows) -->
     <div class="dd-mobile-cat-pills-wrapper">
