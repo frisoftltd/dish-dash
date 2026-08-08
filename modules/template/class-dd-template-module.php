@@ -1232,10 +1232,18 @@ class DD_Template_Module extends DD_Module {
      * in) because menu-page.js reads it synchronously in three places to
      * disable Add to Cart while closed — switching that to this endpoint
      * too is a separate, larger change and out of scope here.
+     *
+     * No nonce check (removed here — was `dish_dash_frontend`): that nonce
+     * is itself baked into the same PHP-render-time HTML this endpoint
+     * exists to route around, so on a page cached longer than the nonce's
+     * ~24h lifetime the check would fail with a silent 403 and the banner
+     * would never render — the actual bug this endpoint was added to fix
+     * in the first place. Safe to drop: this handler takes no input
+     * parameters, is read-only, and returns only public information
+     * already visible on the storefront (open/closed state + timestamps) —
+     * no PII, no internal data, nothing it mutates.
      */
     public function ajax_get_hours_state(): void {
-        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_frontend' );
-
         $hours_state  = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
         $next_open_ts = 0;
         $close_ts     = 0;

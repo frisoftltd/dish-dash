@@ -486,13 +486,20 @@
         // for hours behind a page cache (LiteSpeed local cache / QUIC.cloud
         // CDN). admin-ajax.php requests are never page-cached, so this is
         // always current regardless of how old the cached HTML is.
+        //
+        // No nonce sent: the server-side handler (ajax_get_hours_state())
+        // no longer checks one. window.DD.nonce is baked into the same
+        // cached HTML this fetch exists to route around, so on a page
+        // cached past the nonce's ~24h lifetime it would have been stale
+        // too, causing a silent 403 here — the actual bug this whole
+        // endpoint exists to fix. Safe to drop: read-only, no params sent,
+        // public data only (open/closed state + timestamps).
         var ajaxUrl = DD.ajaxUrl || '/wp-admin/admin-ajax.php';
-        var nonce   = DD.nonce   || '';
 
         fetch(ajaxUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({ action: 'dd_get_hours_state', nonce: nonce })
+            body: new URLSearchParams({ action: 'dd_get_hours_state' })
         })
         .then(function(r) { return r.json(); })
         .then(function(res) {
