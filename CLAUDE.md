@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.26 (2026-08-09)
+> Last updated: v3.18.27 (2026-08-09)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.26 |
+| **Deployed version** | v3.18.27 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.26 — Fixed the order-tracking poll's silent failure on an expired nonce, the highest-priority sibling flagged in the nonce audit (`investigation-nonce-cache-audit.md`). Unlike the hours banner (v3.18.25), `dd_get_order` returns real per-order data, so the nonce couldn't just be dropped — instead added a generic, reusable `dd_get_fresh_nonce` endpoint (`DD_Ajax::ajax_get_fresh_nonce()`, `dishdash-core/class-dd-ajax.php` — intentionally unauthenticated, since a stale nonce can't authenticate a request for its own replacement) and taught `order-tracking.js`'s `poll()` to retry once per cycle with a freshly-fetched nonce on a `success:false` response, showing a visible error (`.dd-track__error`) only if the retry also fails — matches the existing `dd_place_order`/`dd_submit_reservation` error pattern instead of polling silently forever. Genuine network-level failures are untouched (still silent, next 30s tick retries, exactly as before). `ajax_get_order`'s own nonce check is completely untouched — still protected. The fresh-nonce endpoint is deliberately generic (not order-specific) so the audit's other flagged siblings (`dd_cart_get`, `dd_cart_add`) can reuse it in later releases. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.27 — Fixed `dd_cart_add`'s silent failure on an expired nonce, both desktop (`renderModal()`'s Add button, `frontend.js`) and mobile (`DDMobileMenu.addToCartById()`, `menu-page.js`) — the second-priority sibling from the nonce audit, reusing the `dd_get_fresh_nonce` endpoint added in v3.18.26 (no new server endpoint needed, per brief). Same shape as the order-tracking fix: on a `success:false` response, fetch a fresh nonce and retry exactly once; if the retry (or a genuine network error) also fails, show a real visible error instead of the previous behavior — desktop silently reset the button with no message, mobile only logged to the console. New shared `showErrorToast()` (`frontend.js`, exposed on `window` the same way `showToast` already is, which `menu-page.js` already relied on for its success toast) gives both a real user-facing error, distinctly styled from the brand-colored success toast so it reads as an error. `dd_cart_add`'s own server-side nonce check (`class-dd-cart.php`) is completely untouched — still protected, since this is a mutating action, unlike the read-only hours/fresh-nonce endpoints. `dd_cart_get`, `dd_track_event`, `dd_pesapal_check_status`, and `dd_get_order` were confirmed untouched (`git diff --stat`). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

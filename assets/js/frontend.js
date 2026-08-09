@@ -99,6 +99,45 @@
     }
     window.showToast = showToast;
 
+    // Separate element from showToast's (own id, own color) — a mutating-action
+    // failure needs to read as an error, not reuse the brand-colored success
+    // toast's styling. Exposed on window so menu-page.js's mobile Add to Cart
+    // can call it the same way it already calls window.showToast.
+    function showErrorToast(msg) {
+        var t = document.getElementById('ddErrorToast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'ddErrorToast';
+            t.style.cssText = 'position:fixed;bottom:90px;right:20px;background:#c0392b;color:#fff;' +
+                'padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;' +
+                'z-index:99999;opacity:0;transition:opacity .3s;pointer-events:none;' +
+                'box-shadow:0 4px 16px rgba(0,0,0,0.2);max-width:280px;';
+            document.body.appendChild(t);
+        }
+        t.textContent = msg;
+        t.style.opacity = '1';
+        clearTimeout(t._hide);
+        t._hide = setTimeout(function() { t.style.opacity = '0'; }, 4000);
+    }
+    window.showErrorToast = showErrorToast;
+
+    // Fetch a replacement dish_dash_frontend nonce (dd_get_fresh_nonce,
+    // added v3.18.26 — intentionally unauthenticated). Used to recover from
+    // a single expired-nonce failure on a mutating call (e.g. dd_cart_add)
+    // without forcing a full page reload — see investigation-nonce-cache-audit.md.
+    function fetchFreshNonce(ajaxUrl, onDone) {
+        fetch(ajaxUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action: 'dd_get_fresh_nonce' })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            onDone(res && res.success && res.data && res.data.nonce ? res.data.nonce : null);
+        })
+        .catch(function() { onDone(null); });
+    }
+
     /* ── Attribute pill + card hover CSS (injected once) ── */
     (function() {
         var style = document.createElement('style');
@@ -1119,60 +1158,91 @@
                 var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
                     ? window.ddCartData.ajax_url
                     : (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
-                var nonce = (window.ddCartData && window.ddCartData.nonce)
-                    ? window.ddCartData.nonce
-                    : (window.DD && window.DD.nonce) || '';
 
                 pmAdd.textContent = 'Adding…';
                 pmAdd.disabled = true;
 
                 var pmNotes = ($('ddPmNotes') || {}).value || '';
 
-                fetch(ajaxUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        action:     'dd_cart_add',
-                        nonce:      nonce,
-                        product_id:   productId,
-                        quantity:     qty,
-                        variation:    JSON.stringify(ddPmSelected),
-                        variation_id: ddPmVariationId,
-                        spice_level:  ddPmSpiceSlug,
-                        note:         pmNotes,
-                    }),
-                })
-                .then(function(r) { return r.json(); })
-                .then(function(res) {
-                    if (res.success) {
-                        var newCount = (res.data && res.data.count !== undefined)
-                            ? res.data.count : cartCount + qty;
-                        updateBadges(newCount);
-                        if (res.data && res.data.items) cartItems = res.data.items;
-                        renderSummary();
-                        if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
-                        pmAdd.textContent = '✓ Added!';
-                        showToast('✓ Added to cart!');
-
-                        var ddPrice = parseFloat(String(price).replace(/[^0-9.]/g, ''));
-                        ddTrack('add_to_cart', {
-                            currency: 'RWF',
-                            items: [{ item_name: name, quantity: qty }].map(function(it){
-                                if (!isNaN(ddPrice)) { it.price = ddPrice; }
-                                return it;
-                            })
-                        });
-
-                        setTimeout(function() { closeProductModal(); }, 900);
-                    } else {
-                        pmAdd.textContent = 'Add to Cart';
-                        pmAdd.disabled = false;
-                    }
-                })
-                .catch(function() {
+                function fail(message) {
                     pmAdd.textContent = 'Add to Cart';
                     pmAdd.disabled = false;
-                });
+                    showErrorToast(message);
+                }
+
+                // isRetry caps this at one retry per click — each button click
+                // starts its own fresh submitAdd() chain, so this can never
+                // compound into a retry storm.
+                function submitAdd(nonceToUse, isRetry) {
+                    fetch(ajaxUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            action:       'dd_cart_add',
+                            nonce:        nonceToUse,
+                            product_id:   productId,
+                            quantity:     qty,
+                            variation:    JSON.stringify(ddPmSelected),
+                            variation_id: ddPmVariationId,
+                            spice_level:  ddPmSpiceSlug,
+                            note:         pmNotes,
+                        }),
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(res) {
+                        if (res.success) {
+                            var newCount = (res.data && res.data.count !== undefined)
+                                ? res.data.count : cartCount + qty;
+                            updateBadges(newCount);
+                            if (res.data && res.data.items) cartItems = res.data.items;
+                            renderSummary();
+                            if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
+                            pmAdd.textContent = '✓ Added!';
+                            showToast('✓ Added to cart!');
+
+                            var ddPrice = parseFloat(String(price).replace(/[^0-9.]/g, ''));
+                            ddTrack('add_to_cart', {
+                                currency: 'RWF',
+                                items: [{ item_name: name, quantity: qty }].map(function(it){
+                                    if (!isNaN(ddPrice)) { it.price = ddPrice; }
+                                    return it;
+                                })
+                            });
+
+                            setTimeout(function() { closeProductModal(); }, 900);
+                            return;
+                        }
+
+                        if (isRetry) {
+                            fail((res.data && res.data.message) || "Couldn't add to cart. Please refresh the page and try again.");
+                            return;
+                        }
+
+                        // success:false — most commonly an expired nonce (see
+                        // investigation-nonce-cache-audit.md). Fetch a fresh one
+                        // and retry exactly once before giving up.
+                        fetchFreshNonce(ajaxUrl, function(freshNonce) {
+                            if (!freshNonce) {
+                                fail("Couldn't add to cart. Please refresh the page and try again.");
+                                return;
+                            }
+                            if (window.ddCartData) window.ddCartData.nonce = freshNonce;
+                            if (window.DD) window.DD.nonce = freshNonce;
+                            submitAdd(freshNonce, true);
+                        });
+                    })
+                    .catch(function() {
+                        // Network-level failure — a fresh-nonce retry wouldn't help
+                        // (that's also a network call), so surface it directly
+                        // rather than attempting one.
+                        fail("Couldn't add to cart. Please check your connection and try again.");
+                    });
+                }
+
+                var initialNonce = (window.ddCartData && window.ddCartData.nonce)
+                    ? window.ddCartData.nonce
+                    : (window.DD && window.DD.nonce) || '';
+                submitAdd(initialNonce, false);
             });
         }
 

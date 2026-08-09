@@ -177,6 +177,25 @@ function ddTrack(event, params) {
     if (window.gtag) { gtag('event', event, params || {}); }
 }
 
+/* ── Fetch a replacement dish_dash_frontend nonce (dd_get_fresh_nonce,
+   added v3.18.26 — intentionally unauthenticated). Used to recover from a
+   single expired-nonce failure on addToCartById() without a full page
+   reload — see investigation-nonce-cache-audit.md. Local copy — frontend.js
+   isn't guaranteed loaded before this file (separate enqueue chains, no
+   declared dependency between them), so this isn't shared cross-script. ── */
+function fetchFreshNonce(ajaxUrl, onDone) {
+    fetch(ajaxUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'dd_get_fresh_nonce' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+        onDone(res && res.success && res.data && res.data.nonce ? res.data.nonce : null);
+    })
+    .catch(function() { onDone(null); });
+}
+
 /**
  * DDMobileMenu - Handles the 3-screen mobile menu navigation
  * and product interactions for the mobile app interface.
@@ -866,56 +885,99 @@ class DDMobileMenu {
         // variation_id is authoritative server-side; a variable product must have a
         // matched variation here (the Add button stays disabled until it does).
         const variationId = this.currentProduct ? (this.currentProduct.selectedVariationId || 0) : 0;
-
-        const formData = new FormData();
-        formData.append('action', 'dd_cart_add');
-        formData.append('nonce', DD_MOBILE_DATA.cart_nonce);
-        formData.append('id', productId);
-        formData.append('name', product.name);
-        formData.append('price', product.price);
-        formData.append('qty', qty);
-        formData.append('image', product.image_thumbnail_url || product.image_url || '');
-        formData.append('variation', JSON.stringify(selectedAttributes));
-        formData.append('variation_id', variationId);
-        formData.append('spice_level', this.currentProduct ? (this.currentProduct.selectedSpiceSlug || '') : '');
-        formData.append('addons', JSON.stringify([]));
-        formData.append('note', '');
-
         const btn = this.elements.singleProduct.addToCart;
-        if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
 
-        fetch(DD_MOBILE_DATA.ajax_url, { method: 'POST', body: formData })
-            .then(r => r.json())
-            .then(data => {
-                console.log('[DD Cart] response:', JSON.stringify(data));
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = 'Add To Cart <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>';
-                }
-                if (data.success) {
-                    const newCount = data.data?.count ?? data.data?.cart_count ?? (this.cartCount + qty);
-                    this.updateCartCount(newCount);
-                    if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
-                    if (typeof window.showToast === 'function') window.showToast('✓ Added to cart!');
-                    // Track add to cart from mobile menu
-                    if (window.DDTrack) window.DDTrack.addToCart(productId, null);
-                    ddTrack('add_to_cart', {
-                        currency: 'RWF',
-                        value: Number(product.price) || 0,
-                        items: [{
-                            item_name: product.name,
-                            price: Number(product.price) || 0,
-                            quantity: qty
-                        }]
-                    });
-                } else {
+        const buildFormData = (nonce) => {
+            const formData = new FormData();
+            formData.append('action', 'dd_cart_add');
+            formData.append('nonce', nonce);
+            formData.append('id', productId);
+            formData.append('name', product.name);
+            formData.append('price', product.price);
+            formData.append('qty', qty);
+            formData.append('image', product.image_thumbnail_url || product.image_url || '');
+            formData.append('variation', JSON.stringify(selectedAttributes));
+            formData.append('variation_id', variationId);
+            formData.append('spice_level', this.currentProduct ? (this.currentProduct.selectedSpiceSlug || '') : '');
+            formData.append('addons', JSON.stringify([]));
+            formData.append('note', '');
+            return formData;
+        };
+
+        const resetBtn = () => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = 'Add To Cart <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>';
+            }
+        };
+
+        const fail = (message) => {
+            resetBtn();
+            if (typeof window.showErrorToast === 'function') {
+                window.showErrorToast(message);
+            } else {
+                console.error('[DD Cart] Add to cart failed:', message);
+            }
+        };
+
+        // isRetry caps this at one retry per tap — each addToCartById() call
+        // starts its own fresh submit() chain, so this can never compound
+        // into a retry storm.
+        const submit = (nonce, isRetry) => {
+            fetch(DD_MOBILE_DATA.ajax_url, { method: 'POST', body: buildFormData(nonce) })
+                .then(r => r.json())
+                .then(data => {
+                    console.log('[DD Cart] response:', JSON.stringify(data));
+
+                    if (data.success) {
+                        resetBtn();
+                        const newCount = data.data?.count ?? data.data?.cart_count ?? (this.cartCount + qty);
+                        this.updateCartCount(newCount);
+                        if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
+                        if (typeof window.showToast === 'function') window.showToast('✓ Added to cart!');
+                        // Track add to cart from mobile menu
+                        if (window.DDTrack) window.DDTrack.addToCart(productId, null);
+                        ddTrack('add_to_cart', {
+                            currency: 'RWF',
+                            value: Number(product.price) || 0,
+                            items: [{
+                                item_name: product.name,
+                                price: Number(product.price) || 0,
+                                quantity: qty
+                            }]
+                        });
+                        return;
+                    }
+
                     console.error('Add to cart failed', data);
-                }
-            })
-            .catch(err => {
-                console.error('[DD Cart] fetch error:', err);
-                if (btn) { btn.disabled = false; }
-            });
+
+                    if (isRetry) {
+                        fail((data.data && data.data.message) || "Couldn't add to cart. Please refresh the page and try again.");
+                        return;
+                    }
+
+                    // success:false — most commonly an expired nonce (see
+                    // investigation-nonce-cache-audit.md). Fetch a fresh one
+                    // and retry exactly once before giving up.
+                    fetchFreshNonce(DD_MOBILE_DATA.ajax_url, (freshNonce) => {
+                        if (!freshNonce) {
+                            fail("Couldn't add to cart. Please refresh the page and try again.");
+                            return;
+                        }
+                        DD_MOBILE_DATA.cart_nonce = freshNonce;
+                        submit(freshNonce, true);
+                    });
+                })
+                .catch(err => {
+                    console.error('[DD Cart] fetch error:', err);
+                    // Network-level failure — a fresh-nonce retry wouldn't help
+                    // (that's also a network call), so surface it directly.
+                    fail("Couldn't add to cart. Please check your connection and try again.");
+                });
+        };
+
+        if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
+        submit(DD_MOBILE_DATA.cart_nonce, false);
     }
 
     addToCart() {
