@@ -86,7 +86,18 @@
         if ( timer ) { clearInterval( timer ); timer = null; }
     }
 
-    function poll() {
+    function showTrackError( message ) {
+        if ( ! body ) return;
+        body.innerHTML = '<p class="dd-track__error">' + esc( message ) + '</p>';
+    }
+
+    // One dd_get_order request. onSuccess only fires for a real
+    // { success: true } response; onFailure fires for a resolved-but-
+    // success:false response (most commonly an expired nonce — see
+    // handlePollFailure() below). A genuine network-level failure (fetch
+    // itself rejects) is left exactly as before: silent, next 30s tick
+    // retries — neither callback fires for that case.
+    function requestOrder( onSuccess, onFailure ) {
         var fd = new FormData();
         fd.append( 'action', 'dd_get_order' );
         fd.append( 'order_id', orderId );
@@ -95,14 +106,56 @@
         fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
             .then( function ( r ) { return r.json(); } )
             .then( function ( res ) {
-                if ( ! res || ! res.success ) return;
-                var payload = res.data && res.data.data ? res.data.data : res.data;
-                var order   = payload && payload.order;
-                if ( ! order ) return;
-                render( order );
-                if ( isTerminal( String( order.status || '' ) ) ) stop();
+                if ( res && res.success ) { onSuccess( res ); }
+                else { onFailure(); }
             } )
             .catch( function () { /* transient network error — next tick retries */ } );
+    }
+
+    function onOrderReceived( res ) {
+        var payload = res.data && res.data.data ? res.data.data : res.data;
+        var order   = payload && payload.order;
+        if ( ! order ) return;
+        render( order );
+        if ( isTerminal( String( order.status || '' ) ) ) stop();
+    }
+
+    // A success:false dd_get_order response (most commonly an expired
+    // dish_dash_frontend nonce baked into a long-cached or long-idle
+    // /track-order/ page — investigation-nonce-cache-audit.md) gets exactly
+    // one retry per poll cycle, using a nonce fetched fresh from
+    // dd_get_fresh_nonce (unauthenticated by design — a stale nonce can't
+    // authenticate a request for its own replacement). If the retry also
+    // fails, show a visible error instead of continuing to poll silently —
+    // matches the existing dd_place_order/dd_submit_reservation pattern.
+    // isRetry caps this at one retry per cycle; each new poll() call starts
+    // its own fresh attempt, so this never compounds into a retry storm.
+    function handlePollFailure( isRetry ) {
+        if ( isRetry ) {
+            showTrackError( 'Unable to update order status. Please refresh the page.' );
+            return;
+        }
+
+        var fd = new FormData();
+        fd.append( 'action', 'dd_get_fresh_nonce' );
+
+        fetch( cfg.ajaxUrl, { method: 'POST', body: fd, credentials: 'same-origin' } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                if ( ! res || ! res.success || ! res.data || ! res.data.nonce ) {
+                    showTrackError( 'Unable to update order status. Please refresh the page.' );
+                    return;
+                }
+                cfg.nonce = res.data.nonce;
+                requestOrder( onOrderReceived, function () { handlePollFailure( true ); } );
+            } )
+            .catch( function () {
+                showTrackError( 'Unable to update order status. Please refresh the page.' );
+            } );
+    }
+
+    function poll() {
+        requestOrder( onOrderReceived, function () { handlePollFailure( false ); } );
     }
 
     // Fire the view-tracking event once (guarded — matches reservations.js convention).

@@ -146,6 +146,16 @@
     color: var(--dd-track-muted);
 }
 
+/* Shown when a poll fails twice in a row (fresh-nonce retry also failed) —
+   replaces silent polling with a visible, actionable message. See
+   order-tracking.js's handlePollFailure(). */
+.dd-track__error {
+    color: #e53935;
+    font-size: 0.9rem;
+    margin: 0;
+    padding: 8px 0;
+}
+
 /* ── Message states (guest / not found / empty) ───────── */
 .dd-track--message {
     text-align: center;

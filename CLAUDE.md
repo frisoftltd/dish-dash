@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.25 (2026-08-08)
+> Last updated: v3.18.26 (2026-08-09)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.25 |
+| **Deployed version** | v3.18.26 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.25 — Fixed the closed/closing-soon banner's silent 403. Investigation (`investigation-closed-banner-not-showing.md`) traced it to a nonce, not a caching gap: `setupHoursBanner()` (`frontend.js`) fetches `dd_get_hours_state` fresh via AJAX specifically because `window.DD.hours_state` is baked into cached page HTML and can go stale for hours — but the nonce it sent (`window.DD.nonce`) is baked into that same cached HTML, and WordPress nonces expire after ~24h. Once a page's cache entry outlived the nonce, the AJAX call 403'd; `fetch()` doesn't treat a 403 as an error, so it flowed through to a silent `if (!res.success) return;` with zero console output — banner just never appeared, no error anywhere, system-wide on any site whose cache outlived the nonce window. Fix: removed the nonce check from `ajax_get_hours_state()` (`class-dd-template-module.php`) and stopped sending one from `setupHoursBanner()` — this handler takes no input params, is read-only, and returns only what's already public in every page's own HTML (open/closed state + timestamps), so the nonce was never protecting anything. `DD_Ajax::verify_nonce()` itself and every other call site (cart, orders, reservations) are untouched. Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.26 — Fixed the order-tracking poll's silent failure on an expired nonce, the highest-priority sibling flagged in the nonce audit (`investigation-nonce-cache-audit.md`). Unlike the hours banner (v3.18.25), `dd_get_order` returns real per-order data, so the nonce couldn't just be dropped — instead added a generic, reusable `dd_get_fresh_nonce` endpoint (`DD_Ajax::ajax_get_fresh_nonce()`, `dishdash-core/class-dd-ajax.php` — intentionally unauthenticated, since a stale nonce can't authenticate a request for its own replacement) and taught `order-tracking.js`'s `poll()` to retry once per cycle with a freshly-fetched nonce on a `success:false` response, showing a visible error (`.dd-track__error`) only if the retry also fails — matches the existing `dd_place_order`/`dd_submit_reservation` error pattern instead of polling silently forever. Genuine network-level failures are untouched (still silent, next 30s tick retries, exactly as before). `ajax_get_order`'s own nonce check is completely untouched — still protected. The fresh-nonce endpoint is deliberately generic (not order-specific) so the audit's other flagged siblings (`dd_cart_get`, `dd_cart_add`) can reuse it in later releases. Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

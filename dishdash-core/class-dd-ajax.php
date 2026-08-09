@@ -115,7 +115,30 @@ class DD_Ajax {
             'spice_options'  => DD_API::product_has_spice( $product ) ? DD_API::spice_options() : [],
         ] );
     }
+
+    /**
+     * Return a freshly-generated dish_dash_frontend nonce — nothing else.
+     *
+     * Intentionally unauthenticated: this exists specifically to recover
+     * from an expired dish_dash_frontend nonce (baked into HTML that's
+     * either long page-cached or just been open in an idle tab past the
+     * nonce's ~24h lifetime — see investigation-nonce-cache-audit.md). A
+     * stale nonce can't be used to authenticate a request for its own
+     * replacement, so requiring one here would defeat the point — this
+     * mirrors the standard REST nonce-refresh pattern. Response contains
+     * only the nonce string, no user/order/site data.
+     *
+     * First consumer: order-tracking.js's poll(), which retries once with
+     * this on a failed dd_get_order response rather than failing silently.
+     */
+    public static function ajax_get_fresh_nonce(): void {
+        nocache_headers();
+        wp_send_json_success( [ 'nonce' => wp_create_nonce( 'dish_dash_frontend' ) ] );
+    }
 }
 
 // Register dd_get_product for both logged-in and guest users
 DD_Ajax::register( 'dd_get_product', [ 'DD_Ajax', 'ajax_get_product' ] );
+
+// Fresh-nonce endpoint — no nonce required to call it, by design (see docblock above).
+DD_Ajax::register( 'dd_get_fresh_nonce', [ 'DD_Ajax', 'ajax_get_fresh_nonce' ] );
