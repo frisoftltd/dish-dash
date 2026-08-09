@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.27 (2026-08-09)
+> Last updated: v3.18.28 (2026-08-09)
 
 ---
 
@@ -91,11 +91,11 @@ For drops/renames, use a manual migration step and document it in the release no
 
 | Field | Value |
 |---|---|
-| **Deployed version** | v3.18.27 |
+| **Deployed version** | v3.18.28 |
 | **Current phase** | Phase 7 — Role Cleanup & Access Control |
 | **Current sub-phase** | Analytics + SEO hardening (v3.13.0–v3.13.2): GA4 funnel tracking (add_to_cart, begin_checkout, add_payment_info, purchase) wired across cart.js/frontend.js/menu-page.js; broken WooCommerce product/shop/category/tag pages now 301-redirect to /restaurant-menu/. Docs cleanup in progress: release history split out of this file into RELEASE.md. |
 | **Next task** | Awaiting next brief. Last shipped: v3.13.5 (CSV menu import tool). No code work currently queued. |
-| **Last working state** | v3.18.27 — Fixed `dd_cart_add`'s silent failure on an expired nonce, both desktop (`renderModal()`'s Add button, `frontend.js`) and mobile (`DDMobileMenu.addToCartById()`, `menu-page.js`) — the second-priority sibling from the nonce audit, reusing the `dd_get_fresh_nonce` endpoint added in v3.18.26 (no new server endpoint needed, per brief). Same shape as the order-tracking fix: on a `success:false` response, fetch a fresh nonce and retry exactly once; if the retry (or a genuine network error) also fails, show a real visible error instead of the previous behavior — desktop silently reset the button with no message, mobile only logged to the console. New shared `showErrorToast()` (`frontend.js`, exposed on `window` the same way `showToast` already is, which `menu-page.js` already relied on for its success toast) gives both a real user-facing error, distinctly styled from the brand-colored success toast so it reads as an error. `dd_cart_add`'s own server-side nonce check (`class-dd-cart.php`) is completely untouched — still protected, since this is a mutating action, unlike the read-only hours/fresh-nonce endpoints. `dd_cart_get`, `dd_track_event`, `dd_pesapal_check_status`, and `dd_get_order` were confirmed untouched (`git diff --stat`). Full per-version history: see RELEASE.md. |
+| **Last working state** | v3.18.28 — Fixed `dd_pesapal_check_status`'s silent failure on an expired nonce (checkout PesaPal status polling, `assets/js/cart.js`) — the last item on the nonce-cache audit (`investigation-nonce-cache-audit.md`), closing that workstream out. Confirmed via grep the polling lives in `cart.js` only (not `dd_reservation_pesapal_check_status`, a separate handler in `reservations.js`, out of scope). Same shape as the previous two fixes: on `success:false`, fetch a fresh nonce via the v3.18.26 `dd_get_fresh_nonce` endpoint (extracted into a reusable `fetchFreshNonce()` in `cart.js`, alongside the existing shared `ajax()` helper, so the audit's other flagged cart.js siblings — `dd_cart_get`, `dd_cart_update`, `dd_cart_remove` — can reuse it later) and retry exactly once per 5s tick. Per the brief, matched `dd_momo_check_status`'s existing good pattern instead of inventing a new UI: on a double-failure or retry-time network error, updates the same `#ddPesaPalStatus` element already used for the FAILED/REVERSED terminal state (neutral color, not the alarming red reserved for an actual failed payment — a nonce hiccup isn't "your payment failed"), and self-heals back to "Waiting for approval…" once a poll succeeds again. A first-attempt network error stays silent exactly as before (next 5s tick retries) — unchanged from the pre-existing behavior, only the silent-on-nonce-failure gap was closed. `dd_pesapal_check_status`'s server-side nonce check, `dd_momo_check_status`, and every previously-fixed handler are untouched (confirmed via `git diff --stat`). Full per-version history: see RELEASE.md. |
 | **GitHub** | github.com/frisoftltd/dish-dash |
 | **Live site** | dishdash.khanakhazana.rw |
 | **Server** | cPanel at server372.web-hosting.com (user: imitjsiy) |

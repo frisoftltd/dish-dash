@@ -606,6 +606,23 @@
             } );
     }
 
+    /* ── FRESH NONCE ────────────────────────────────────────── */
+    // Fetch a replacement dish_dash_frontend nonce (dd_get_fresh_nonce,
+    // added v3.18.26 — intentionally unauthenticated). Used to recover from
+    // a single expired-nonce failure on a call that can't just fail
+    // silently (currently: PesaPal status polling) without a full page
+    // reload — see investigation-nonce-cache-audit.md.
+    function fetchFreshNonce( onDone ) {
+        var fd = new FormData();
+        fd.append( 'action', 'dd_get_fresh_nonce' );
+        fetch( AJAX_URL, { method: 'POST', body: fd } )
+            .then( function ( r ) { return r.json(); } )
+            .then( function ( res ) {
+                onDone( res && res.success && res.data && res.data.nonce ? res.data.nonce : null );
+            } )
+            .catch( function () { onDone( null ); } );
+    }
+
     /* ── FORMAT HELPERS ─────────────────────────────────────── */
     function formatPrice( value ) {
         return Math.round( value ).toLocaleString( 'en-US' ) + ' RWF';
@@ -1071,16 +1088,60 @@
                     var pesapalStatusEl  = document.getElementById( 'ddPesaPalStatus' );
                     var pesapalCancelBtn = document.getElementById( 'ddPesaPalCancel' );
 
-                    var pesapalPollingTimer = setInterval( function() {
-                        ajax( 'dd_pesapal_check_status', {
-                            order_tracking_id: data.order_tracking_id,
-                        }, function( res ) {
-                            // ajax() calls onSuccess( res.data ), so `res` IS the data
-                            // payload — read fields directly (res.order_number, res.status),
-                            // never res.data.*.
-                            if ( res.paid ) {
+                    // success:false (most commonly an expired nonce — see
+                    // investigation-nonce-cache-audit.md) fetches a replacement
+                    // via dd_get_fresh_nonce (added v3.18.26) and retries exactly
+                    // once per tick. Genuine network-level failures are left as
+                    // before: silent on the first attempt, next 5s tick retries.
+                    // Matches dd_momo_check_status's existing pattern for
+                    // surfacing trouble — same status element, same textContent/
+                    // color convention — rather than a new UI (toast etc).
+                    function checkPesapalStatus( nonceToUse, isRetry ) {
+                        fetch( AJAX_URL, {
+                            method:  'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body:    new URLSearchParams( {
+                                action:             'dd_pesapal_check_status',
+                                order_tracking_id:  data.order_tracking_id,
+                                nonce:              nonceToUse,
+                            } ).toString(),
+                        } )
+                        .then( function ( r ) { return r.json(); } )
+                        .then( function ( res ) {
+                            if ( ! res || ! res.success ) {
+                                if ( isRetry ) {
+                                    if ( pesapalStatusEl ) {
+                                        pesapalStatusEl.textContent = 'Having trouble checking your payment status. Retrying…';
+                                        pesapalStatusEl.style.color = '';
+                                    }
+                                    return;
+                                }
+                                fetchFreshNonce( function ( freshNonce ) {
+                                    if ( ! freshNonce ) {
+                                        if ( pesapalStatusEl ) {
+                                            pesapalStatusEl.textContent = 'Having trouble checking your payment status. Retrying…';
+                                            pesapalStatusEl.style.color = '';
+                                        }
+                                        return;
+                                    }
+                                    NONCE = freshNonce;
+                                    checkPesapalStatus( freshNonce, true );
+                                } );
+                                return;
+                            }
+
+                            // res.data is the payload — read fields directly
+                            // (res.data.order_number, res.data.status).
+                            var pd = res.data;
+
+                            if ( pesapalStatusEl && pesapalStatusEl.textContent.indexOf( 'trouble' ) !== -1 ) {
+                                pesapalStatusEl.textContent = 'Waiting for approval…';
+                                pesapalStatusEl.style.color = '';
+                            }
+
+                            if ( pd.paid ) {
                                 clearInterval( pesapalPollingTimer );
-                                currentOrderNumber = res.order_number;
+                                currentOrderNumber = pd.order_number;
                                 var numEl4 = document.getElementById( 'ddConfirmOrderNum' );
                                 var etaEl4 = document.getElementById( 'ddConfirmEta' );
                                 if ( numEl4 ) numEl4.textContent = 'Order #' + currentOrderNumber;
@@ -1090,9 +1151,9 @@
                                 // pre-encoded wa.me — assign AS-IS (never esc/encode it).
                                 var paidWaBtn = document.getElementById( 'ddConfirmPaidWhatsapp' );
                                 if ( paidWaBtn ) {
-                                    if ( res.whatsapp_paid_url ) {
-                                        paidWaBtn.setAttribute( 'href', res.whatsapp_paid_url );
-                                        paidWaBtn.textContent = 'I have paid with ' + ( res.payment_method || 'PesaPal' );
+                                    if ( pd.whatsapp_paid_url ) {
+                                        paidWaBtn.setAttribute( 'href', pd.whatsapp_paid_url );
+                                        paidWaBtn.textContent = 'I have paid with ' + ( pd.payment_method || 'PesaPal' );
                                         paidWaBtn.hidden = false;
                                     } else {
                                         paidWaBtn.setAttribute( 'href', '#' );
@@ -1103,7 +1164,7 @@
                                 window.ddCartSummary = null;
                                 showPanel( panelConfirmation );
                                 ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
-                            } else if ( res.status === 'FAILED' || res.status === 'REVERSED' ) {
+                            } else if ( pd.status === 'FAILED' || pd.status === 'REVERSED' ) {
                                 // Only these are terminal. INVALID / PENDING mean "not
                                 // finalized yet" — keep polling (do nothing here).
                                 clearInterval( pesapalPollingTimer );
@@ -1112,9 +1173,19 @@
                                     pesapalStatusEl.style.color = '#e53935';
                                 }
                             }
-                        }, function() {
-                            // network error — keep polling silently
+                        } )
+                        .catch( function () {
+                            if ( isRetry && pesapalStatusEl ) {
+                                pesapalStatusEl.textContent = 'Having trouble checking your payment status. Retrying…';
+                                pesapalStatusEl.style.color = '';
+                            }
+                            // First-attempt network error: stay silent, exactly as
+                            // before — next 5s tick retries naturally.
                         } );
+                    }
+
+                    var pesapalPollingTimer = setInterval( function() {
+                        checkPesapalStatus( NONCE, false );
                     }, 5000 );
 
                     if ( pesapalCancelBtn ) {
