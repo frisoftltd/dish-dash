@@ -50,6 +50,13 @@
         if ( window.gtag ) { gtag( 'event', event, params || {} ); }
     }
 
+    // Purchase-fired guard — belt-and-braces dedup across all four purchase
+    // call sites (irembopay callback, pesapal polling, sync order-placement
+    // confirmation, momo polling). Keyed by order number rather than a single
+    // boolean since a new order can be placed in the same page session
+    // without a reload.
+    var trackedPurchaseOrders = new Set();
+
     /* ── INIT ───────────────────────────────────────────────── */
     document.addEventListener( 'DOMContentLoaded', function () {
         // Inject MoMo waiting panel as 4th drawer panel
@@ -1065,7 +1072,10 @@
                                     updateBadges( 0 );
                                     window.ddCartSummary = null;
                                     showPanel( panelConfirmation );
-                                    ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
+                                    if ( ! trackedPurchaseOrders.has( currentOrderNumber ) ) {
+                                        trackedPurchaseOrders.add( currentOrderNumber );
+                                        ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
+                                    }
                                 } else {
                                     var iremboStatusEl2 = document.getElementById( 'ddIremboStatus' );
                                     if ( iremboStatusEl2 ) {
@@ -1088,6 +1098,11 @@
                     var pesapalStatusEl  = document.getElementById( 'ddPesaPalStatus' );
                     var pesapalCancelBtn = document.getElementById( 'ddPesaPalCancel' );
 
+                    // In-flight guard — prevents two overlapping polling ticks (a
+                    // fetch that outlives the 5s interval) from both resolving
+                    // paid:true and double-firing the purchase event below.
+                    var pesapalCheckInFlight = false;
+
                     // success:false (most commonly an expired nonce — see
                     // investigation-nonce-cache-audit.md) fetches a replacement
                     // via dd_get_fresh_nonce (added v3.18.26) and retries exactly
@@ -1097,6 +1112,8 @@
                     // surfacing trouble — same status element, same textContent/
                     // color convention — rather than a new UI (toast etc).
                     function checkPesapalStatus( nonceToUse, isRetry ) {
+                        if ( pesapalCheckInFlight ) return;
+                        pesapalCheckInFlight = true;
                         fetch( AJAX_URL, {
                             method:  'POST',
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1163,7 +1180,10 @@
                                 updateBadges( 0 );
                                 window.ddCartSummary = null;
                                 showPanel( panelConfirmation );
-                                ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
+                                if ( ! trackedPurchaseOrders.has( currentOrderNumber ) ) {
+                                    trackedPurchaseOrders.add( currentOrderNumber );
+                                    ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
+                                }
                             } else if ( pd.status === 'FAILED' || pd.status === 'REVERSED' ) {
                                 // Only these are terminal. INVALID / PENDING mean "not
                                 // finalized yet" — keep polling (do nothing here).
@@ -1181,6 +1201,9 @@
                             }
                             // First-attempt network error: stay silent, exactly as
                             // before — next 5s tick retries naturally.
+                        } )
+                        .finally( function () {
+                            pesapalCheckInFlight = false;
                         } );
                     }
 
@@ -1234,7 +1257,10 @@
                 }
 
                 showPanel( panelConfirmation );
-                ddTrack( 'purchase', { transaction_id: data.order_number, currency: 'RWF', value: data.total } );
+                if ( ! trackedPurchaseOrders.has( data.order_number ) ) {
+                    trackedPurchaseOrders.add( data.order_number );
+                    ddTrack( 'purchase', { transaction_id: data.order_number, currency: 'RWF', value: data.total } );
+                }
                 }
                 updateBadges( 0 );
 
@@ -1286,14 +1312,20 @@
     }
 
     /* ── MOMO POLLING ───────────────────────────────────────── */
-    var momoPollingTimer = null;
-    var momoAttempts     = 0;
-    var momoMaxAttempts  = 24; // 24 × 5s = 2 min timeout
+    var momoPollingTimer  = null;
+    var momoAttempts      = 0;
+    var momoMaxAttempts   = 24; // 24 × 5s = 2 min timeout
+    // In-flight guard — prevents two overlapping polling ticks (a fetch that
+    // outlives the 5s interval) from both resolving paid:true and double-firing
+    // the purchase event in showMomoConfirmation().
+    var momoCheckInFlight = false;
 
     function startMomoPolling( orderId, referenceId ) {
-        momoAttempts = 0;
+        momoAttempts      = 0;
+        momoCheckInFlight = false; // fresh guard state for a new order in the same session
         if ( momoPollingTimer ) clearInterval( momoPollingTimer );
         momoPollingTimer = setInterval( function () {
+            if ( momoCheckInFlight ) return;
             momoAttempts++;
             if ( momoAttempts > momoMaxAttempts ) {
                 clearInterval( momoPollingTimer );
@@ -1304,6 +1336,7 @@
                 }
                 return;
             }
+            momoCheckInFlight = true;
             fetch( AJAX_URL, {
                 method:  'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1329,7 +1362,10 @@
                     }
                 }
             } )
-            .catch( function () {} ); // silent retry on next interval
+            .catch( function () {} ) // silent retry on next interval
+            .finally( function () {
+                momoCheckInFlight = false;
+            } );
         }, 5000 );
     }
 
@@ -1342,7 +1378,10 @@
         updateBadges( 0 );
         window.ddCartSummary = null;
         showPanel( panelConfirmation );
-        ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF' } );
+        if ( ! trackedPurchaseOrders.has( currentOrderNumber ) ) {
+            trackedPurchaseOrders.add( currentOrderNumber );
+            ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF' } );
+        }
     }
 
     /* ── PUBLIC API ─────────────────────────────────────────── */
