@@ -1265,144 +1265,163 @@
         var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
             ? window.ddCartData.ajax_url
             : (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
-        var nonce = (window.ddCartData && window.ddCartData.nonce)
+
+        // isRetry caps this at one retry per modal open — mirrors submitAdd()'s
+        // dd_cart_add retry pattern (see investigation-nonce-cache-audit.md).
+        function requestEnrichment(nonceToUse, isRetry) {
+            fetch(ajaxUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action:     'dd_get_product',
+                    product_id: productId,
+                    nonce:      nonceToUse,
+                }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+                if (!res.success || !res.data) {
+                    if (isRetry) return;
+
+                    // success:false — most commonly an expired nonce (see
+                    // investigation-nonce-cache-audit.md). Fetch a fresh one
+                    // and retry exactly once before giving up silently.
+                    fetchFreshNonce(ajaxUrl, function(freshNonce) {
+                        if (!freshNonce) return;
+                        if (window.ddCartData) window.ddCartData.nonce = freshNonce;
+                        if (window.DD) window.DD.nonce = freshNonce;
+                        requestEnrichment(freshNonce, true);
+                    });
+                    return;
+                }
+                var p = res.data;
+
+                // Minimal Light palette (styling values only — same tokens as renderModal()).
+                var isML          = document.body.classList.contains('dd-tpl-minimal-light');
+                var pmMutedColor  = isML ? 'var(--ml-ink-faint)' : '#7A6558';
+                var pmAccentColor = isML ? 'var(--ml-accent)'    : '#E8832A';
+
+                // Variable products: keep variations for match-on-select and show the
+                // lowest variation price as the default (updated when a size is chosen).
+                ddPmVariations = Array.isArray(p.variations) ? p.variations : [];
+                if (ddPmVariations.length) {
+                    var _priceEl = document.getElementById('ddPmPrice');
+                    if (_priceEl) {
+                        var _lowest = Math.min.apply(null, ddPmVariations.map(function(v) { return Number(v.price); }));
+                        _priceEl.textContent = 'RWF ' + Number(_lowest).toLocaleString();
+                    }
+                }
+
+                // Ratings
+                if (p.rating_count && p.average_rating) {
+                    var ratingEl = $('ddPmRating');
+                    if (ratingEl) {
+                        var stars = Math.min(5, Math.max(0, Math.round(parseFloat(p.average_rating))));
+                        var starHtml = '★'.repeat(stars) + '☆'.repeat(5 - stars);
+                        ratingEl.innerHTML =
+                            '<span style="color:' + pmAccentColor + ';">' + starHtml + '</span>' +
+                            '<span style="margin-left:5px;color:' + pmMutedColor + ';">(' + escHtml(String(p.rating_count)) + ' reviews)</span>';
+                    }
+                }
+
+                // Attribute pills
+                var attrsEl = document.getElementById('ddPmAttrs');
+                var addBtn  = document.getElementById('ddPmAddBtn');
+
+                if (p.attributes && p.attributes.length > 0) {
+                    // Disable Add to Cart until all attributes selected
+                    if (addBtn) {
+                        addBtn.disabled = true;
+                        addBtn.style.opacity = '0.5';
+                        addBtn.style.cursor = 'not-allowed';
+                    }
+
+                    var html = '';
+                    p.attributes.forEach(function(attr) {
+                        html += '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">';
+                        html += '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + pmMutedColor + ';margin-bottom:0.35rem;">' + escHtml(attr.name) + '</div>';
+                        html += '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
+                        (attr.options || []).forEach(function(opt) {
+                            html += '<button type="button" class="dd-pm__attr-pill dd-chip" data-attr="' + escHtml(attr.name) + '" data-val="' + escHtml(opt) + '">' + escHtml(opt) + '</button>';
+                        });
+                        html += '</div></div>';
+                    });
+
+                    if (attrsEl) attrsEl.innerHTML = html;
+
+                    // Enable Add to Cart when all attribute groups have a selection.
+                    // Writes to the module-level ddPmSelected so renderModal's Add handler
+                    // can read it (reset to {} on each open in renderModal).
+                    var total = p.attributes.length;
+                    ddPmRequiredAttrs = total;
+
+                    if (attrsEl) {
+                        attrsEl.addEventListener('click', function(e) {
+                            var pill = e.target.closest('.dd-pm__attr-pill');
+                            if (!pill) return;
+                            var attrName = pill.dataset.attr;
+                            attrsEl.querySelectorAll('.dd-pm__attr-pill[data-attr="' + attrName + '"]')
+                                .forEach(function(p) { p.classList.remove('active'); });
+                            pill.classList.add('active');
+                            ddPmSelected[attrName] = pill.dataset.val;
+
+                            // Variable products: match selection → variation, show its
+                            // authoritative price, store variation_id for add-to-cart.
+                            if (ddPmVariations.length) {
+                                var match   = ddFindVariation(ddPmVariations, ddPmSelected);
+                                var priceEl = document.getElementById('ddPmPrice');
+                                if (match) {
+                                    ddPmVariationId = match.variation_id;
+                                    if (priceEl) priceEl.textContent = 'RWF ' + Number(match.price).toLocaleString();
+                                } else {
+                                    ddPmVariationId = 0;
+                                }
+                            }
+
+                            updatePmAddState();
+                        });
+                    }
+                } else {
+                    if (attrsEl) attrsEl.innerHTML = '';
+                }
+
+                // Spice selector (category rule) — separate group in its own container so
+                // it never participates in variation matching.
+                ddPmHasSpice = !!p.has_spice && Array.isArray(p.spice_options) && p.spice_options.length > 0;
+                var spiceEl = document.getElementById('ddPmSpice');
+                if (spiceEl) {
+                    if (ddPmHasSpice) {
+                        var sHtml = '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">' +
+                            '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + pmMutedColor + ';margin-bottom:0.35rem;">Spice Level</div>' +
+                            '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
+                        p.spice_options.forEach(function(o) {
+                            sHtml += '<button type="button" class="dd-pm__attr-pill dd-chip" data-spice-slug="' + escHtml(o.slug) + '">' + escHtml(o.name) + '</button>';
+                        });
+                        sHtml += '</div></div>';
+                        spiceEl.innerHTML = sHtml;
+                        spiceEl.addEventListener('click', function(e) {
+                            var pill = e.target.closest('.dd-pm__attr-pill');
+                            if (!pill) return;
+                            spiceEl.querySelectorAll('.dd-pm__attr-pill').forEach(function(x) { x.classList.remove('active'); });
+                            pill.classList.add('active');
+                            ddPmSpiceSlug = pill.dataset.spiceSlug || '';
+                            updatePmAddState();
+                        });
+                    } else {
+                        spiceEl.innerHTML = '';
+                    }
+                }
+
+                // Initial Add-button state — also blocks a spice-only product until chosen.
+                updatePmAddState();
+            })
+            .catch(function() { /* silently fail — basic info already shown */ });
+        }
+
+        var initialNonce = (window.ddCartData && window.ddCartData.nonce)
             ? window.ddCartData.nonce
             : (window.DD && window.DD.nonce) || '';
-
-        fetch(ajaxUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                action:     'dd_get_product',
-                product_id: productId,
-                nonce:      nonce,
-            }),
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(res) {
-            if (!res.success || !res.data) return;
-            var p = res.data;
-
-            // Minimal Light palette (styling values only — same tokens as renderModal()).
-            var isML          = document.body.classList.contains('dd-tpl-minimal-light');
-            var pmMutedColor  = isML ? 'var(--ml-ink-faint)' : '#7A6558';
-            var pmAccentColor = isML ? 'var(--ml-accent)'    : '#E8832A';
-
-            // Variable products: keep variations for match-on-select and show the
-            // lowest variation price as the default (updated when a size is chosen).
-            ddPmVariations = Array.isArray(p.variations) ? p.variations : [];
-            if (ddPmVariations.length) {
-                var _priceEl = document.getElementById('ddPmPrice');
-                if (_priceEl) {
-                    var _lowest = Math.min.apply(null, ddPmVariations.map(function(v) { return Number(v.price); }));
-                    _priceEl.textContent = 'RWF ' + Number(_lowest).toLocaleString();
-                }
-            }
-
-            // Ratings
-            if (p.rating_count && p.average_rating) {
-                var ratingEl = $('ddPmRating');
-                if (ratingEl) {
-                    var stars = Math.min(5, Math.max(0, Math.round(parseFloat(p.average_rating))));
-                    var starHtml = '★'.repeat(stars) + '☆'.repeat(5 - stars);
-                    ratingEl.innerHTML =
-                        '<span style="color:' + pmAccentColor + ';">' + starHtml + '</span>' +
-                        '<span style="margin-left:5px;color:' + pmMutedColor + ';">(' + escHtml(String(p.rating_count)) + ' reviews)</span>';
-                }
-            }
-
-            // Attribute pills
-            var attrsEl = document.getElementById('ddPmAttrs');
-            var addBtn  = document.getElementById('ddPmAddBtn');
-
-            if (p.attributes && p.attributes.length > 0) {
-                // Disable Add to Cart until all attributes selected
-                if (addBtn) {
-                    addBtn.disabled = true;
-                    addBtn.style.opacity = '0.5';
-                    addBtn.style.cursor = 'not-allowed';
-                }
-
-                var html = '';
-                p.attributes.forEach(function(attr) {
-                    html += '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">';
-                    html += '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + pmMutedColor + ';margin-bottom:0.35rem;">' + escHtml(attr.name) + '</div>';
-                    html += '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
-                    (attr.options || []).forEach(function(opt) {
-                        html += '<button type="button" class="dd-pm__attr-pill dd-chip" data-attr="' + escHtml(attr.name) + '" data-val="' + escHtml(opt) + '">' + escHtml(opt) + '</button>';
-                    });
-                    html += '</div></div>';
-                });
-
-                if (attrsEl) attrsEl.innerHTML = html;
-
-                // Enable Add to Cart when all attribute groups have a selection.
-                // Writes to the module-level ddPmSelected so renderModal's Add handler
-                // can read it (reset to {} on each open in renderModal).
-                var total = p.attributes.length;
-                ddPmRequiredAttrs = total;
-
-                if (attrsEl) {
-                    attrsEl.addEventListener('click', function(e) {
-                        var pill = e.target.closest('.dd-pm__attr-pill');
-                        if (!pill) return;
-                        var attrName = pill.dataset.attr;
-                        attrsEl.querySelectorAll('.dd-pm__attr-pill[data-attr="' + attrName + '"]')
-                            .forEach(function(p) { p.classList.remove('active'); });
-                        pill.classList.add('active');
-                        ddPmSelected[attrName] = pill.dataset.val;
-
-                        // Variable products: match selection → variation, show its
-                        // authoritative price, store variation_id for add-to-cart.
-                        if (ddPmVariations.length) {
-                            var match   = ddFindVariation(ddPmVariations, ddPmSelected);
-                            var priceEl = document.getElementById('ddPmPrice');
-                            if (match) {
-                                ddPmVariationId = match.variation_id;
-                                if (priceEl) priceEl.textContent = 'RWF ' + Number(match.price).toLocaleString();
-                            } else {
-                                ddPmVariationId = 0;
-                            }
-                        }
-
-                        updatePmAddState();
-                    });
-                }
-            } else {
-                if (attrsEl) attrsEl.innerHTML = '';
-            }
-
-            // Spice selector (category rule) — separate group in its own container so
-            // it never participates in variation matching.
-            ddPmHasSpice = !!p.has_spice && Array.isArray(p.spice_options) && p.spice_options.length > 0;
-            var spiceEl = document.getElementById('ddPmSpice');
-            if (spiceEl) {
-                if (ddPmHasSpice) {
-                    var sHtml = '<div class="dd-pm__attr-group" style="margin-bottom:0.6rem;">' +
-                        '<div class="dd-pm__attr-label" style="font-size:0.78rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:' + pmMutedColor + ';margin-bottom:0.35rem;">Spice Level</div>' +
-                        '<div class="dd-pm__attr-pills" style="display:flex;flex-wrap:wrap;gap:6px;">';
-                    p.spice_options.forEach(function(o) {
-                        sHtml += '<button type="button" class="dd-pm__attr-pill dd-chip" data-spice-slug="' + escHtml(o.slug) + '">' + escHtml(o.name) + '</button>';
-                    });
-                    sHtml += '</div></div>';
-                    spiceEl.innerHTML = sHtml;
-                    spiceEl.addEventListener('click', function(e) {
-                        var pill = e.target.closest('.dd-pm__attr-pill');
-                        if (!pill) return;
-                        spiceEl.querySelectorAll('.dd-pm__attr-pill').forEach(function(x) { x.classList.remove('active'); });
-                        pill.classList.add('active');
-                        ddPmSpiceSlug = pill.dataset.spiceSlug || '';
-                        updatePmAddState();
-                    });
-                } else {
-                    spiceEl.innerHTML = '';
-                }
-            }
-
-            // Initial Add-button state — also blocks a spice-only product until chosen.
-            updatePmAddState();
-        })
-        .catch(function() { /* silently fail — basic info already shown */ });
+        requestEnrichment(initialNonce, false);
     }
 
     function closeProductModal() {
