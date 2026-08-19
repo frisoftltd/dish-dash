@@ -39,6 +39,16 @@
  * NOT applied to dd_place_order/dd_momo_claim_paid, which still call
  * ajax() directly — see investigation-ajax-retry-coverage.md.
  *
+ * v3.18.33: dd_momo_claim_paid now also goes through ajaxWithRetry()
+ * (extended with an optional onError param so its existing visible-error
+ * status hint still fires on a final failure) — confirmed idempotent
+ * (claimed_pending → claimed only) and nonce-checked before any write.
+ * dd_place_order still deliberately excluded: place_order() has no
+ * idempotency key, and its $is_online branch can return success:false
+ * AFTER a real order row was already inserted (create_wc_order() failing
+ * post-insert) — a blind retry there risks a duplicate order. See
+ * investigation-ajax-retry-coverage.md / RELEASE.md v3.18.33.
+ *
  * Last modified: v3.2.13
  */
 (function () {
@@ -224,8 +234,10 @@
                     var claimData  = { order_id: momoManualOrderId };
                     if ( proofFile ) claimData.momo_proof = proofFile;
 
-                    // Claim (always) — flip claimed_pending → claimed. Server is idempotent.
-                    ajax( 'dd_momo_claim_paid', claimData, function () {
+                    // Claim (always) — flip claimed_pending → claimed. Server is idempotent,
+                    // and nonce-checked before any write, so one stale-nonce retry
+                    // (v3.18.33, see investigation-ajax-retry-coverage.md) is safe here.
+                    ajaxWithRetry( 'dd_momo_claim_paid', claimData, function () {
                         markMomoClaimed();
                     }, function ( message ) {
                         // Allow a retry (claim is idempotent; WhatsApp already opened).
@@ -622,21 +634,35 @@
     // isRetry caps this at one retry per call — each ajaxWithRetry() call
     // starts its own fresh chain, so this can never compound into a retry
     // storm. Deliberately a separate wrapper, not folded into ajax() above:
-    // ajax() is also used by dd_place_order and dd_momo_claim_paid, which
-    // are out of scope for this release (v3.18.32, see
-    // investigation-ajax-retry-coverage.md) — only the dd_cart_update/
-    // dd_cart_remove/dd_cart_get call sites below opt into this.
-    function ajaxWithRetry( action, data, onSuccess, isRetry ) {
-        ajax( action, data, onSuccess, function () {
-            if ( isRetry ) return; // second failure — stays silent, matches this call's pre-existing behavior
+    // ajax() is also used by dd_place_order, which is explicitly excluded
+    // (v3.18.33, see investigation-ajax-retry-coverage.md — place_order()
+    // has no idempotency key and one branch can return success:false AFTER
+    // a real order row was already inserted, so a blind retry risks a
+    // duplicate order) — only call sites confirmed safe opt into this.
+    //
+    // onError is optional and fires only on the FINAL failure (after the
+    // one retry attempt, or if fetching a fresh nonce itself fails) — it
+    // preserves whatever visible-error UX a call site already had (e.g.
+    // dd_momo_claim_paid's status hint) instead of going silent. Omitting
+    // it keeps the original dd_cart_update/remove/get behavior: totally
+    // silent on a final failure, unchanged from v3.18.32.
+    function ajaxWithRetry( action, data, onSuccess, onError, isRetry ) {
+        ajax( action, data, onSuccess, function ( message ) {
+            if ( isRetry ) {
+                if ( typeof onError === 'function' ) onError( message );
+                return;
+            }
 
             // success:false — most commonly an expired nonce (see
             // investigation-ajax-retry-coverage.md). Fetch a fresh one and
-            // retry exactly once before giving up silently.
+            // retry exactly once before giving up.
             fetchFreshNonce( function ( freshNonce ) {
-                if ( ! freshNonce ) return;
+                if ( ! freshNonce ) {
+                    if ( typeof onError === 'function' ) onError( message );
+                    return;
+                }
                 NONCE = freshNonce;
-                ajaxWithRetry( action, data, onSuccess, true );
+                ajaxWithRetry( action, data, onSuccess, onError, true );
             } );
         } );
     }

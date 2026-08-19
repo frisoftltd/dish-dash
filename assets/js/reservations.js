@@ -3,6 +3,13 @@
  * Dish Dash Plugin — Fri Soft Ltd
  * Screen 4 = deposit interstitial (skipped when deposit off)
  * Screen 5 = confirm/summary (free booking path)
+ *
+ * v3.18.33: submitReservation()/startPesapalDeposit()/claimDeposit() retry
+ * once on a stale dish_dash_frontend nonce via a new local fetchFreshNonce()
+ * (same dd_get_fresh_nonce endpoint frontend.js/cart.js/menu-page.js already
+ * use). dd_reservation_pesapal_check_status (polling) and the admin-only
+ * dd_reservation_pesapal_request are untouched — see
+ * investigation-ajax-retry-coverage.md.
  */
 
 (function () {
@@ -49,6 +56,31 @@
   // PesaPal panel exactly — same 5s interval, same never-trust-the-client
   // pattern (dd_reservation_pesapal_check_status re-verifies server-side).
   let pesapalPollingTimer = null;
+
+  // ── Fresh nonce (dd_get_fresh_nonce) — reads the same dish_dash_frontend
+  // `nonce` field ddRes.nonce is already seeded from (class-dd-template-
+  // module.php:388), same endpoint frontend.js/cart.js/menu-page.js already
+  // use. Local copy per this codebase's existing convention (each file
+  // keeps its own — see menu-page.js's identical comment). Used by
+  // submitReservation()/startPesapalDeposit()/claimDeposit() below to retry
+  // once on a stale-nonce failure — see investigation-ajax-retry-
+  // coverage.md. Confirmed safe to retry: DD_Ajax::verify_nonce() is the
+  // first statement in all three server handlers, and none of them return
+  // success:false after writing a row (submit_reservation: every success:false
+  // path precedes the insert; claim_deposit/pesapal_start: guarded idempotent
+  // by design) — see RELEASE.md v3.18.33 for the full trace.
+  function fetchFreshNonce( ajaxUrl, onDone ) {
+    fetch( ajaxUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams( { action: 'dd_get_fresh_nonce' } ),
+    } )
+      .then( function ( r ) { return r.json(); } )
+      .then( function ( res ) {
+        onDone( res && res.success && res.data && res.data.nonce ? res.data.nonce : null );
+      } )
+      .catch( function () { onDone( null ); } );
+  }
 
   // ── Init ──────────────────────────────────────────────────
   function init() {
@@ -471,81 +503,111 @@
       dateStr = state.date;
     }
 
-    const formData = new FormData();
-    formData.append( 'action',    'dd_submit_reservation' );
-    formData.append( 'nonce',     ddRes.nonce || '' );
-    formData.append( 'name',      state.name );
-    formData.append( 'whatsapp',  state.whatsapp );
-    formData.append( 'date',      dateStr );
-    formData.append( 'time',      state.time );
-    formData.append( 'session',   state.session );
-    formData.append( 'guests',    state.guests );
-    formData.append( 'table',     state.table || '' );
-    formData.append( 'requests',  state.requests || '' );
-    formData.append( 'source',    'homepage' );
-
     const ajaxUrl = ddRes.ajax_url || '/wp-admin/admin-ajax.php';
 
-    fetch( ajaxUrl, { method: 'POST', body: formData } )
-      .then( r => r.text().then( text => ({ status: r.status, text: text }) ) )
-      .then( resp => {
-        console.log( 'DD RESERVATION — HTTP', resp.status );
-        console.log( 'DD RESERVATION — RAW RESPONSE:', resp.text );
-        let res;
-        try {
-          res = JSON.parse( resp.text );
-        } catch ( e ) {
-          showSubmitError( btn, 'Server error: ' + resp.text.slice( 0, 200 ) );
-          return;
-        }
+    // isRetry caps this at one retry per submit — each submitReservation()
+    // call starts its own fresh submit() chain, so this can never compound
+    // into a retry storm. Mirrors submitAdd()/requestEnrichment() in
+    // frontend.js. Confirmed safe (see fetchFreshNonce() comment above):
+    // dd_submit_reservation checks the nonce first and never returns
+    // success:false after the reservation row is inserted, so a
+    // success:false response here always means nothing was created yet.
+    function submit( nonce, isRetry ) {
+      const formData = new FormData();
+      formData.append( 'action',    'dd_submit_reservation' );
+      formData.append( 'nonce',     nonce || '' );
+      formData.append( 'name',      state.name );
+      formData.append( 'whatsapp',  state.whatsapp );
+      formData.append( 'date',      dateStr );
+      formData.append( 'time',      state.time );
+      formData.append( 'session',   state.session );
+      formData.append( 'guests',    state.guests );
+      formData.append( 'table',     state.table || '' );
+      formData.append( 'requests',  state.requests || '' );
+      formData.append( 'source',    'homepage' );
 
-        if ( ! res.success ) {
-          showSubmitError( btn, res.data && res.data.message ? res.data.message : 'Something went wrong. Please try again.' );
-          return;
-        }
-
-        try {
-          const data = res.data;
-
-          // Free booking — show inline confirmation
-          const refEl = document.querySelector( '.dd-res-booking-ref' );
-          if ( refEl ) refEl.textContent = data.booking_ref;
-
+      fetch( ajaxUrl, { method: 'POST', body: formData } )
+        .then( r => r.text().then( text => ({ status: r.status, text: text }) ) )
+        .then( resp => {
+          console.log( 'DD RESERVATION — HTTP', resp.status );
+          console.log( 'DD RESERVATION — RAW RESPONSE:', resp.text );
+          let res;
           try {
-            if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {
-              window.DDTrack.event( 'reservation_made', null, null, {
-                date:    dateStr,
-                time:    state.time,
-                session: state.session,
-                guests:  state.guests,
-                source:  'homepage',
-              } );
-            }
-          } catch ( e ) { console.log( 'DD tracking skipped:', e ); }
-
-          if ( btn ) btn.style.display = 'none';
-          // Deposit booking → show the MoMo scan-&-pay QR panel (or, when PesaPal
-          // is configured, a payment-method choice first); otherwise the normal
-          // confirmation (with the opt-in WhatsApp handoff button).
-          if ( depositActive ) {
-            if ( ddRes.pesapalEnabled ) {
-              renderDepositChoice( data );
-            } else {
-              renderDepositPanel( data );
-            }
-          } else {
-            showWhatsAppButtons( data.admin_url, data.customer_url );
+            res = JSON.parse( resp.text );
+          } catch ( e ) {
+            showSubmitError( btn, 'Server error: ' + resp.text.slice( 0, 200 ) );
+            return;
           }
-        } catch ( e ) {
-          console.log( 'DD RESERVATION — success handler error:', e );
-          if ( btn ) btn.style.display = 'none';
-          showWhatsAppButtons();
+
+          if ( ! res.success ) {
+            if ( isRetry ) {
+              showSubmitError( btn, res.data && res.data.message ? res.data.message : 'Something went wrong. Please try again.' );
+              return;
+            }
+
+            // success:false — most commonly an expired nonce (see
+            // investigation-ajax-retry-coverage.md). Fetch a fresh one and
+            // retry exactly once before giving up.
+            fetchFreshNonce( ajaxUrl, function ( freshNonce ) {
+              if ( ! freshNonce ) {
+                showSubmitError( btn, res.data && res.data.message ? res.data.message : 'Something went wrong. Please try again.' );
+                return;
+              }
+              ddRes.nonce = freshNonce;
+              submit( freshNonce, true );
+            } );
+            return;
+          }
+
+          handleSubmitSuccess( res, dateStr, btn );
+        } )
+        .catch( err => {
+          console.log( 'DD RESERVATION — FETCH FAILED:', err );
+          showSubmitError( btn, 'Network error. Please try again.' );
+        } );
+    }
+
+    submit( ddRes.nonce, false );
+  }
+
+  function handleSubmitSuccess( res, dateStr, btn ) {
+    try {
+      const data = res.data;
+
+      // Free booking — show inline confirmation
+      const refEl = document.querySelector( '.dd-res-booking-ref' );
+      if ( refEl ) refEl.textContent = data.booking_ref;
+
+      try {
+        if ( window.DDTrack && typeof window.DDTrack.event === 'function' ) {
+          window.DDTrack.event( 'reservation_made', null, null, {
+            date:    dateStr,
+            time:    state.time,
+            session: state.session,
+            guests:  state.guests,
+            source:  'homepage',
+          } );
         }
-      } )
-      .catch( err => {
-        console.log( 'DD RESERVATION — FETCH FAILED:', err );
-        showSubmitError( btn, 'Network error. Please try again.' );
-      } );
+      } catch ( e ) { console.log( 'DD tracking skipped:', e ); }
+
+      if ( btn ) btn.style.display = 'none';
+      // Deposit booking → show the MoMo scan-&-pay QR panel (or, when PesaPal
+      // is configured, a payment-method choice first); otherwise the normal
+      // confirmation (with the opt-in WhatsApp handoff button).
+      if ( depositActive ) {
+        if ( ddRes.pesapalEnabled ) {
+          renderDepositChoice( data );
+        } else {
+          renderDepositPanel( data );
+        }
+      } else {
+        showWhatsAppButtons( data.admin_url, data.customer_url );
+      }
+    } catch ( e ) {
+      console.log( 'DD RESERVATION — success handler error:', e );
+      if ( btn ) btn.style.display = 'none';
+      showWhatsAppButtons();
+    }
   }
 
   function showSubmitError( btn, message ) {
@@ -679,23 +741,51 @@
 
     area.innerHTML = '<p style="text-align:center;color:#6b7280;font-size:14px;padding:24px 0;">Setting up PesaPal payment…</p>';
 
-    var fd = new FormData();
-    fd.append( 'action',      'dd_reservation_pesapal_start' );
-    fd.append( 'nonce',       ddRes.nonce || '' );
-    fd.append( 'booking_ref', data.booking_ref || '' );
+    var ajaxUrl = ddRes.ajax_url || '/wp-admin/admin-ajax.php';
 
-    fetch( ddRes.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: fd } )
-      .then( function ( r ) { return r.json(); } )
-      .then( function ( res ) {
-        if ( ! res || ! res.success ) {
-          renderPesapalError( data, res && res.data && res.data.message );
-          return;
-        }
-        renderPesapalWaitingPanel( data, res.data );
-      } )
-      .catch( function () {
-        renderPesapalError( data, 'Network error. Please try again.' );
-      } );
+    // isRetry caps this at one retry per call — each startPesapalDeposit()
+    // call starts its own fresh submit() chain. Confirmed safe: nonce is
+    // checked first in ajax_pesapal_start_customer(), and its delegate
+    // submit_reservation_deposit_to_pesapal() has its own idempotency guard
+    // (rejects a second PesaPal request once pesapal_tracking_id is set),
+    // so even a real re-run can't double-submit — see
+    // investigation-ajax-retry-coverage.md.
+    function submit( nonce, isRetry ) {
+      var fd = new FormData();
+      fd.append( 'action',      'dd_reservation_pesapal_start' );
+      fd.append( 'nonce',       nonce || '' );
+      fd.append( 'booking_ref', data.booking_ref || '' );
+
+      fetch( ajaxUrl, { method: 'POST', body: fd } )
+        .then( function ( r ) { return r.json(); } )
+        .then( function ( res ) {
+          if ( ! res || ! res.success ) {
+            if ( isRetry ) {
+              renderPesapalError( data, res && res.data && res.data.message );
+              return;
+            }
+
+            // success:false — most commonly an expired nonce (see
+            // investigation-ajax-retry-coverage.md). Fetch a fresh one and
+            // retry exactly once before giving up.
+            fetchFreshNonce( ajaxUrl, function ( freshNonce ) {
+              if ( ! freshNonce ) {
+                renderPesapalError( data, res && res.data && res.data.message );
+                return;
+              }
+              ddRes.nonce = freshNonce;
+              submit( freshNonce, true );
+            } );
+            return;
+          }
+          renderPesapalWaitingPanel( data, res.data );
+        } )
+        .catch( function () {
+          renderPesapalError( data, 'Network error. Please try again.' );
+        } );
+    }
+
+    submit( ddRes.nonce, false );
   }
 
   function renderPesapalError( data, message ) {
@@ -902,19 +992,46 @@
 
   function claimDeposit( bookingRef, file, onSuccess, onError ) {
     if ( ! bookingRef ) { if ( onError ) onError(); return; }
-    var fd = new FormData();
-    fd.append( 'action',      'dd_reservation_claim_deposit' );
-    fd.append( 'nonce',       ddRes.nonce || '' );
-    fd.append( 'booking_ref', bookingRef );
-    if ( file ) fd.append( 'deposit_proof', file, file.name );
+    var ajaxUrl = ddRes.ajax_url || '/wp-admin/admin-ajax.php';
 
-    fetch( ddRes.ajax_url || '/wp-admin/admin-ajax.php', { method: 'POST', body: fd } )
-      .then( function ( r ) { return r.json(); } )
-      .then( function ( res ) {
-        if ( res && res.success ) { if ( onSuccess ) onSuccess(); }
-        else { if ( onError ) onError( res && res.data && res.data.message ); }
-      } )
-      .catch( function () { if ( onError ) onError(); } );
+    // isRetry caps this at one retry per call — each claimDeposit() call
+    // starts its own fresh submit() chain. Confirmed safe: nonce is checked
+    // first in ajax_claim_deposit(), and the claim itself is idempotent by
+    // design (only advances deposit_status from 'pending' — a repeat is a
+    // no-op) — see investigation-ajax-retry-coverage.md.
+    function submit( nonce, isRetry ) {
+      var fd = new FormData();
+      fd.append( 'action',      'dd_reservation_claim_deposit' );
+      fd.append( 'nonce',       nonce || '' );
+      fd.append( 'booking_ref', bookingRef );
+      if ( file ) fd.append( 'deposit_proof', file, file.name );
+
+      fetch( ajaxUrl, { method: 'POST', body: fd } )
+        .then( function ( r ) { return r.json(); } )
+        .then( function ( res ) {
+          if ( res && res.success ) { if ( onSuccess ) onSuccess(); return; }
+
+          if ( isRetry ) {
+            if ( onError ) onError( res && res.data && res.data.message );
+            return;
+          }
+
+          // success:false — most commonly an expired nonce (see
+          // investigation-ajax-retry-coverage.md). Fetch a fresh one and
+          // retry exactly once before giving up.
+          fetchFreshNonce( ajaxUrl, function ( freshNonce ) {
+            if ( ! freshNonce ) {
+              if ( onError ) onError( res && res.data && res.data.message );
+              return;
+            }
+            ddRes.nonce = freshNonce;
+            submit( freshNonce, true );
+          } );
+        } )
+        .catch( function () { if ( onError ) onError(); } );
+    }
+
+    submit( ddRes.nonce, false );
   }
 
   // ── Run ───────────────────────────────────────────────────
