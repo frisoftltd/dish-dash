@@ -39,6 +39,9 @@
  *   {prefix}dishdash_orders, {prefix}dishdash_order_items
  *   (v3.18.35: dishdash_orders.idempotency_key, VARCHAR(36) NULL, UNIQUE —
  *   see install.php and place_order()'s dedupe check)
+ *   (v3.18.36: the dd_momo_pending_* transient (mtn_momo flow) also carries
+ *   an idempotency_key now — see ajax_place_order()'s mtn_momo branch and
+ *   ajax_momo_check_status())
  *
  * Depends on (modules): NONE — architecture rule
  *
@@ -336,8 +339,10 @@ class DD_Orders_Module extends DD_Module {
         // lets a retried/duplicated request (double-click, near-simultaneous duplicate
         // tap — a future release may also retry this endpoint on a stale nonce) return
         // the ALREADY-CREATED order instead of inserting a second one. Shared by every
-        // place_order() caller (IremboPay/PesaPal/generic-online/offline-COD) — mtn_momo
-        // never calls this method, so it's structurally unaffected either way. Column is
+        // place_order() caller — IremboPay/PesaPal/generic-online/offline-COD (all v3.18.35)
+        // and, since v3.18.36, mtn_momo's own caller too (ajax_momo_check_status(), which
+        // reads the key back out of the dd_momo_pending_* transient it was stored in at
+        // MoMo-initiation time — see investigation-momo-poll-duplicate-order.md). Column is
         // nullable+unique; has_idempotency_key_column() gates this cleanly during the
         // window between deploy and the auto-migration guard actually adding the column
         // on an upgraded (not fresh-install) site — see investigation-order-idempotency.md.
@@ -953,9 +958,12 @@ class DD_Orders_Module extends DD_Module {
         $delivery_address = sanitize_text_field( $_POST['delivery_address'] ?? '' );
         $payment_method   = sanitize_text_field( $_POST['payment_method']   ?? 'pay_on_delivery' );
         // v3.18.35 — client-generated (crypto.randomUUID(), cart.js's #ddCartCheckout
-        // handler) idempotency key, threaded into every place_order() call below except
-        // mtn_momo (which never calls place_order() — see investigation-order-idempotency.md).
-        // No whitelist to extend for this new field — every POST key here is read
+        // handler) idempotency key, threaded into every place_order() call below.
+        // mtn_momo doesn't call place_order() directly from here (see the mtn_momo
+        // branch below) — it stores this same key in the dd_momo_pending_* transient
+        // instead, for ajax_momo_check_status() to read back out and pass through
+        // once payment confirms (v3.18.36, see investigation-momo-poll-duplicate-order.md).
+        // No whitelist to extend for this field — every POST key here is read
         // individually, same as the four above.
         $idempotency_key  = sanitize_text_field( $_POST['idempotency_key']  ?? '' );
 
@@ -1022,7 +1030,19 @@ class DD_Orders_Module extends DD_Module {
                 return;
             }
 
-            // Store full order data in transient — order is NOT created in DB yet
+            // Store full order data in transient — order is NOT created in DB yet.
+            // idempotency_key (v3.18.36) is normally the same client-generated
+            // key already present in $idempotency_key above (cart.js's
+            // checkoutIdempotencyKey — sent unconditionally on every
+            // dd_place_order request since v3.18.35, mtn_momo included, even
+            // though this branch didn't use it until now). Falls back to a
+            // server-generated one only if the client didn't send one (old
+            // cached page, crypto.randomUUID() unavailable), so
+            // ajax_momo_check_status() below always has a real key to hand to
+            // place_order()'s existing dedupe mechanism (v3.18.35) — reused
+            // exactly as-is, no second mechanism. See
+            // investigation-momo-poll-duplicate-order.md.
+            $momo_idempotency_key = $idempotency_key ?: wp_generate_uuid4();
             set_transient( 'dd_momo_pending_' . $momo_result['reference_id'], [
                 'customer_name'    => $customer_name,
                 'customer_phone'   => $whatsapp,
@@ -1030,6 +1050,7 @@ class DD_Orders_Module extends DD_Module {
                 'items'            => $summary['items'],
                 'delivery_fee'     => $delivery_fee,
                 'total'            => $total,
+                'idempotency_key'  => $momo_idempotency_key,
             ], 30 * MINUTE_IN_SECONDS );
 
             wp_send_json_success( [
@@ -1475,7 +1496,25 @@ class DD_Orders_Module extends DD_Module {
                 return;
             }
 
-            // Now create the order in DB
+            // v3.18.36: delete BEFORE calling place_order(), not after — closes
+            // the duplicate-order race window at its source. A near-simultaneous
+            // second poll tick whose get_transient() above ran after this delete
+            // simply finds nothing and returns the "Order data expired" error a
+            // few lines up, instead of proceeding to create a second order.
+            // delete_transient() on an already-deleted/being-deleted option is a
+            // harmless no-op (no error), safe to call from a losing tick too.
+            // See investigation-momo-poll-duplicate-order.md.
+            delete_transient( 'dd_momo_pending_' . $reference_id );
+
+            // Now create the order in DB. idempotency_key (v3.18.36, stored in
+            // the transient at MoMo-initiation time above) is the real backstop
+            // for the narrower remaining race — two ticks whose get_transient()
+            // calls both ran before either reached the delete_transient() above.
+            // Both would then call place_order() with the SAME key;
+            // place_order()'s existing v3.18.35 dedupe mechanism (pre-insert
+            // lookup + DB-constraint-error race detection) handles that exactly
+            // as it already does for the other four branches — reused as-is,
+            // no second mechanism here.
             $result = $this->place_order( [
                 'customer_name'    => $pending['customer_name'],
                 'customer_phone'   => $pending['customer_phone'],
@@ -1485,6 +1524,7 @@ class DD_Orders_Module extends DD_Module {
                 'delivery_fee'     => $pending['delivery_fee'],
                 'payment_method'   => 'mtn_momo',
                 'delivery_address' => $pending['delivery_address'],
+                'idempotency_key'  => $pending['idempotency_key'] ?? '',
             ] );
 
             if ( is_wp_error( $result ) ) {
@@ -1504,7 +1544,6 @@ class DD_Orders_Module extends DD_Module {
                 [ '%d' ]
             );
 
-            delete_transient( 'dd_momo_pending_' . $reference_id );
             $customer_result = DD_Customer_Manager::upsert( $pending['customer_phone'], $pending['customer_name'], $pending['delivery_address'], (float) $pending['total'] );
             $this->set_order_dd_customer_id( (int) $order_id, $customer_result );
 
