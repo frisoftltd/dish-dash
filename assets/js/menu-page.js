@@ -20,6 +20,11 @@
  * AJAX endpoints called:
  *   - admin-ajax.php?action=dd_menu_load_products  (cat_slug, page, per_page)
  *   - admin-ajax.php?action=dd_cart_add            (id, name, price, qty, image, variation, addons, note)
+ *   - admin-ajax.php?action=dd_get_fresh_nonce     (v3.18.31 — dd_menu_load_products
+ *     retry-once-on-stale-nonce, via loadProducts()/requestProducts()/
+ *     fetchFreshMenuNonce(); reads the menu_nonce field of the response,
+ *     not the nonce field fetchFreshNonce()/addToCartById() use — see
+ *     class-dd-ajax.php::ajax_get_fresh_nonce())
  *
  * Custom events fired:   None
  * Custom events listened: None
@@ -35,7 +40,7 @@
  *   - modules/menu/class-dd-menu-module.php (enqueues this on menu page)
  *   - templates/menu/grid.php (DOM elements rendered here)
  *
- * Last modified: v3.1.18
+ * Last modified: v3.18.31
  */
 (function () {
     'use strict';
@@ -130,21 +135,48 @@
 
     function loadProducts(catSlug, page, replace) {
         loadMore.classList.add('is-loading');
+        requestProducts(DDMenu.nonce, catSlug, page, replace, false);
+    }
 
+    // isRetry caps this at one retry per call — each loadProducts() call
+    // (Load More click or category-pill click) starts its own fresh
+    // requestProducts() chain, so this can never compound into a retry
+    // storm. Mirrors the pattern already used for dd_get_product
+    // (frontend.js's requestEnrichment()) and dd_cart_add (submitAdd()).
+    function requestProducts(nonceToUse, catSlug, page, replace, isRetry) {
         var formData = new FormData();
         formData.append('action', 'dd_menu_load_products');
-        formData.append('nonce', DDMenu.nonce);
+        formData.append('nonce', nonceToUse);
         formData.append('cat_slug', catSlug);
         formData.append('page', String(page));
 
         fetch(DDMenu.ajaxUrl, { method: 'POST', body: formData, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                loadMore.classList.remove('is-loading');
                 if (!data || !data.success) {
-                    console.error('DD Menu load failed', data);
+                    if (isRetry) {
+                        loadMore.classList.remove('is-loading');
+                        console.error('DD Menu load failed', data);
+                        return;
+                    }
+
+                    // success:false — most commonly an expired dd_menu_nonce
+                    // (see investigation-ajax-retry-coverage.md). Fetch a
+                    // fresh one and retry exactly once before giving up.
+                    fetchFreshMenuNonce(function (freshNonce) {
+                        if (!freshNonce) {
+                            loadMore.classList.remove('is-loading');
+                            console.error('DD Menu load failed', data);
+                            return;
+                        }
+                        DDMenu.nonce = freshNonce;
+                        requestProducts(freshNonce, catSlug, page, replace, true);
+                    });
                     return;
                 }
+
+                loadMore.classList.remove('is-loading');
+
                 if (replace) {
                     grid.innerHTML = data.data.html;
                 } else {
@@ -166,8 +198,8 @@
                 }
             })
             .catch(function (err) {
-                console.error('DD Menu fetch error', err);
                 loadMore.classList.remove('is-loading');
+                console.error('DD Menu fetch error', err);
             });
     }
 })();
@@ -192,6 +224,27 @@ function fetchFreshNonce(ajaxUrl, onDone) {
     .then(function(r) { return r.json(); })
     .then(function(res) {
         onDone(res && res.success && res.data && res.data.nonce ? res.data.nonce : null);
+    })
+    .catch(function() { onDone(null); });
+}
+
+/* ── Fetch a replacement dd_menu_nonce (same dd_get_fresh_nonce endpoint
+   as fetchFreshNonce() above — added v3.18.31 to also return a
+   dd_menu_nonce alongside its original dish_dash_frontend nonce, see
+   class-dd-ajax.php). Kept as its own function rather than extended onto
+   fetchFreshNonce() above: dd_menu_load_products verifies against the
+   separate dd_menu_nonce action, not dish_dash_frontend, so the two
+   callers need different fields out of the same response and this keeps
+   addToCartById()'s existing fetchFreshNonce() call untouched. ── */
+function fetchFreshMenuNonce(onDone) {
+    fetch(DDMenu.ajaxUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'dd_get_fresh_nonce' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+        onDone(res && res.success && res.data && res.data.menu_nonce ? res.data.menu_nonce : null);
     })
     .catch(function() { onDone(null); });
 }

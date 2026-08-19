@@ -117,23 +117,32 @@ class DD_Ajax {
     }
 
     /**
-     * Return a freshly-generated dish_dash_frontend nonce — nothing else.
+     * Return freshly-generated replacement nonces — nothing else.
      *
      * Intentionally unauthenticated: this exists specifically to recover
-     * from an expired dish_dash_frontend nonce (baked into HTML that's
-     * either long page-cached or just been open in an idle tab past the
-     * nonce's ~24h lifetime — see investigation-nonce-cache-audit.md). A
-     * stale nonce can't be used to authenticate a request for its own
-     * replacement, so requiring one here would defeat the point — this
-     * mirrors the standard REST nonce-refresh pattern. Response contains
-     * only the nonce string, no user/order/site data.
+     * from an expired nonce (baked into HTML that's either long page-cached
+     * or just been open in an idle tab past the nonce's ~24h lifetime — see
+     * investigation-nonce-cache-audit.md). A stale nonce can't be used to
+     * authenticate a request for its own replacement, so requiring one here
+     * would defeat the point — this mirrors the standard REST nonce-refresh
+     * pattern. Response contains only nonce strings, no user/order/site data.
      *
      * First consumer: order-tracking.js's poll(), which retries once with
-     * this on a failed dd_get_order response rather than failing silently.
+     * `nonce` (dish_dash_frontend) on a failed dd_get_order response rather
+     * than failing silently.
+     *
+     * `menu_nonce` added for dd_menu_load_products (its own separate
+     * dd_menu_nonce action, verified in class-dd-menu-module.php — a
+     * dish_dash_frontend nonce does not validate against it) — see
+     * investigation-ajax-retry-coverage.md, consumed by menu-page.js's
+     * loadProducts() retry (Load More / category-pill clicks).
      */
     public static function ajax_get_fresh_nonce(): void {
         nocache_headers();
-        wp_send_json_success( [ 'nonce' => wp_create_nonce( 'dish_dash_frontend' ) ] );
+        wp_send_json_success( [
+            'nonce'      => wp_create_nonce( 'dish_dash_frontend' ),
+            'menu_nonce' => wp_create_nonce( 'dd_menu_nonce' ),
+        ] );
     }
 }
 
