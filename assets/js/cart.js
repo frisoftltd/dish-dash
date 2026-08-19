@@ -728,6 +728,17 @@
     var currentOrderId     = null;
     var currentOrderNumber = null;
     var currentReferenceId = null;
+    // v3.18.38 — captured alongside the three above at MoMo-initiation time
+    // (data.total, same source/value the other three purchase-tracking call
+    // sites already use), so showMomoConfirmation() has a real total to
+    // report — see the ddTrack('purchase', ...) call in showMomoConfirmation()
+    // below. startMomoPolling()/showMomoConfirmation() are top-level functions,
+    // not nested inside the dd_place_order success closure like the other
+    // payment branches' polling code, so they never had access to that
+    // closure's `data` — this is the one variable that closure had that
+    // wasn't already being threaded through (order id/number/reference id
+    // all already were).
+    var currentOrderTotal  = null;
 
     // Idempotency key for the in-progress checkout attempt (v3.18.35) — generated
     // once when the checkout panel opens (#ddCartCheckout click, below), sent on
@@ -1132,6 +1143,7 @@
                     currentOrderId     = data.order_id;
                     currentOrderNumber = data.order_number;
                     currentReferenceId = data.reference_id;
+                    currentOrderTotal  = data.total;
                     var momoNumEl = document.getElementById( 'ddMomoOrderNum' );
                     var momoTotEl = document.getElementById( 'ddMomoTotal' );
                     if ( momoNumEl ) momoNumEl.textContent = 'Order ' + data.order_number;
@@ -1477,7 +1489,11 @@
         showPanel( panelConfirmation );
         if ( ! trackedPurchaseOrders.has( currentOrderNumber ) ) {
             trackedPurchaseOrders.add( currentOrderNumber );
-            ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF' } );
+            // v3.18.38 — value was missing here (every MoMo order recorded
+            // zero revenue in GA4). currentOrderTotal is data.total captured
+            // at MoMo-initiation time (same source/value the other three
+            // purchase call sites already use) — see the var declaration above.
+            ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: currentOrderTotal } );
         }
     }
 
