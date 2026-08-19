@@ -33,6 +33,12 @@
  * Dependents:
  *   modules/template/class-dd-template-module.php (enqueues this)
  *
+ * v3.18.32: dd_cart_update/dd_cart_remove/dd_cart_get retry once on a
+ * stale-nonce failure via ajaxWithRetry() (wraps ajax(), fetches a fresh
+ * nonce through the existing dd_get_fresh_nonce endpoint). Deliberately
+ * NOT applied to dd_place_order/dd_momo_claim_paid, which still call
+ * ajax() directly — see investigation-ajax-retry-coverage.md.
+ *
  * Last modified: v3.2.13
  */
 (function () {
@@ -301,7 +307,7 @@
             var qtyEl = btn.closest( '.dd-cart-stepper' ).querySelector( '.dd-cart-stepper__qty' );
             var newQty = parseInt( qtyEl.textContent, 10 ) + 1;
             qtyEl.textContent = newQty;
-            ajax( 'dd_cart_update', { key: key, qty: newQty }, function ( data ) {
+            ajaxWithRetry( 'dd_cart_update', { key: key, qty: newQty }, function ( data ) {
                 updateBadges( data.count );
                 updateNudge( data.total );
                 updateFooter( data );
@@ -326,7 +332,7 @@
             var qtyEl = btn.closest( '.dd-cart-stepper' ).querySelector( '.dd-cart-stepper__qty' );
             var newQty = Math.max( 1, parseInt( qtyEl.textContent, 10 ) - 1 );
             qtyEl.textContent = newQty;
-            ajax( 'dd_cart_update', { key: key, qty: newQty }, function ( data ) {
+            ajaxWithRetry( 'dd_cart_update', { key: key, qty: newQty }, function ( data ) {
                 updateBadges( data.count );
                 updateNudge( data.total );
                 updateFooter( data );
@@ -350,7 +356,7 @@
             var key = btn.dataset.key;
             var item = btn.closest( '.dd-cart-drawer__item' );
             if ( item ) item.style.opacity = '0.4';
-            ajax( 'dd_cart_remove', { key: key }, function ( data ) {
+            ajaxWithRetry( 'dd_cart_remove', { key: key }, function ( data ) {
                 updateBadges( data.count );
                 updateNudge( data.total );
                 updateFooter( data );
@@ -442,7 +448,7 @@
 
     /* ── FETCH CART FROM SERVER ─────────────────────────────── */
     function fetchCart( renderPanel ) {
-        ajax( 'dd_cart_get', {}, function ( data ) {
+        ajaxWithRetry( 'dd_cart_get', {}, function ( data ) {
             updateBadges( data.count );
             // Store for checkout panel to read
             window.ddCartSummary = data;
@@ -611,6 +617,28 @@
                     onError( 'Network error. Please try again.' );
                 }
             } );
+    }
+
+    // isRetry caps this at one retry per call — each ajaxWithRetry() call
+    // starts its own fresh chain, so this can never compound into a retry
+    // storm. Deliberately a separate wrapper, not folded into ajax() above:
+    // ajax() is also used by dd_place_order and dd_momo_claim_paid, which
+    // are out of scope for this release (v3.18.32, see
+    // investigation-ajax-retry-coverage.md) — only the dd_cart_update/
+    // dd_cart_remove/dd_cart_get call sites below opt into this.
+    function ajaxWithRetry( action, data, onSuccess, isRetry ) {
+        ajax( action, data, onSuccess, function () {
+            if ( isRetry ) return; // second failure — stays silent, matches this call's pre-existing behavior
+
+            // success:false — most commonly an expired nonce (see
+            // investigation-ajax-retry-coverage.md). Fetch a fresh one and
+            // retry exactly once before giving up silently.
+            fetchFreshNonce( function ( freshNonce ) {
+                if ( ! freshNonce ) return;
+                NONCE = freshNonce;
+                ajaxWithRetry( action, data, onSuccess, true );
+            } );
+        } );
     }
 
     /* ── FRESH NONCE ────────────────────────────────────────── */

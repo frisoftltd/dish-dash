@@ -136,12 +136,18 @@ class DD_Ajax {
      * dish_dash_frontend nonce does not validate against it) — see
      * investigation-ajax-retry-coverage.md, consumed by menu-page.js's
      * loadProducts() retry (Load More / category-pill clicks).
+     *
+     * `mobile_nonce` added for dd_save_favorites (its own separate
+     * dd_mobile_nonce action, verified in class-dd-menu-module.php's
+     * ajax_save_favorites()) — consumed by menu-page.js's saveFavorites()
+     * retry.
      */
     public static function ajax_get_fresh_nonce(): void {
         nocache_headers();
         wp_send_json_success( [
-            'nonce'      => wp_create_nonce( 'dish_dash_frontend' ),
-            'menu_nonce' => wp_create_nonce( 'dd_menu_nonce' ),
+            'nonce'        => wp_create_nonce( 'dish_dash_frontend' ),
+            'menu_nonce'   => wp_create_nonce( 'dd_menu_nonce' ),
+            'mobile_nonce' => wp_create_nonce( 'dd_mobile_nonce' ),
         ] );
     }
 }

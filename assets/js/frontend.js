@@ -292,37 +292,59 @@
         var ajaxUrl = (window.ddCartData && window.ddCartData.ajax_url)
             ? window.ddCartData.ajax_url
             : (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+
+        // isRetry caps this at one retry per call — each removeFromCart()
+        // call starts its own fresh submitRemove() chain, so this can
+        // never compound into a retry storm. Mirrors requestEnrichment()'s
+        // dd_get_product retry pattern above.
+        function submitRemove(nonceToUse, isRetry) {
+            fetch(ajaxUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action:     'dd_cart_remove',
+                    product_id: productId,
+                    nonce:      nonceToUse,
+                }).toString(),
+            })
+            .then((r) => r.json())
+            .then((res) => {
+                if (res.success) {
+                    const newCount = res.data && res.data.count !== undefined
+                        ? res.data.count : Math.max(0, cartCount - 1);
+                    updateBadges(newCount);
+
+                    if (res.data && res.data.items) {
+                        cartItems = res.data.items;
+                    } else {
+                        cartItems = cartItems.filter((i) => i.id !== productId);
+                    }
+
+                    renderSummary();
+                    if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
+                    return;
+                }
+
+                if (isRetry) return;
+
+                // success:false — most commonly an expired nonce (see
+                // investigation-ajax-retry-coverage.md). Fetch a fresh one
+                // and retry exactly once before giving up silently.
+                fetchFreshNonce(ajaxUrl, function(freshNonce) {
+                    if (!freshNonce) return;
+                    if (window.ddCartData) window.ddCartData.nonce = freshNonce;
+                    if (window.DD) window.DD.nonce = freshNonce;
+                    submitRemove(freshNonce, true);
+                });
+            })
+            .catch((e) => console.warn('[DishDash] Remove failed', e));
+        }
+
         var nonce = (window.ddCartData && window.ddCartData.nonce)
             ? window.ddCartData.nonce
             : (window.DD && window.DD.nonce) || '';
 
-        fetch(ajaxUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                action:     'dd_cart_remove',
-                product_id: productId,
-                nonce:      nonce,
-            }).toString(),
-        })
-        .then((r) => r.json())
-        .then((res) => {
-            if (res.success) {
-                const newCount = res.data && res.data.count !== undefined
-                    ? res.data.count : Math.max(0, cartCount - 1);
-                updateBadges(newCount);
-
-                if (res.data && res.data.items) {
-                    cartItems = res.data.items;
-                } else {
-                    cartItems = cartItems.filter((i) => i.id !== productId);
-                }
-
-                renderSummary();
-                if (typeof window.DDCart !== 'undefined') window.DDCart.refresh();
-            }
-        })
-        .catch((e) => console.warn('[DishDash] Remove failed', e));
+        submitRemove(nonce, false);
     }
 
     /* ══════════════════════════════════════════════════════════

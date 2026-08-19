@@ -20,11 +20,13 @@
  * AJAX endpoints called:
  *   - admin-ajax.php?action=dd_menu_load_products  (cat_slug, page, per_page)
  *   - admin-ajax.php?action=dd_cart_add            (id, name, price, qty, image, variation, addons, note)
- *   - admin-ajax.php?action=dd_get_fresh_nonce     (v3.18.31 — dd_menu_load_products
- *     retry-once-on-stale-nonce, via loadProducts()/requestProducts()/
- *     fetchFreshMenuNonce(); reads the menu_nonce field of the response,
- *     not the nonce field fetchFreshNonce()/addToCartById() use — see
- *     class-dd-ajax.php::ajax_get_fresh_nonce())
+ *   - admin-ajax.php?action=dd_save_favorites      (favorites JSON — DD_MOBILE_DATA.nonce, dd_mobile_nonce action)
+ *   - admin-ajax.php?action=dd_get_fresh_nonce     (retry-once-on-stale-nonce for the three
+ *     endpoints above, each reading a different field of the same response —
+ *     see class-dd-ajax.php::ajax_get_fresh_nonce():
+ *       nonce        (dish_dash_frontend) → addToCartById()'s dd_cart_add, via fetchFreshNonce() (v3.18.26)
+ *       menu_nonce   (dd_menu_nonce)      → loadProducts()'s dd_menu_load_products, via fetchFreshMenuNonce() (v3.18.31)
+ *       mobile_nonce (dd_mobile_nonce)    → saveFavorites()'s dd_save_favorites, via fetchFreshMobileNonce() (v3.18.32)
  *
  * Custom events fired:   None
  * Custom events listened: None
@@ -40,7 +42,7 @@
  *   - modules/menu/class-dd-menu-module.php (enqueues this on menu page)
  *   - templates/menu/grid.php (DOM elements rendered here)
  *
- * Last modified: v3.18.31
+ * Last modified: v3.18.32
  */
 (function () {
     'use strict';
@@ -245,6 +247,28 @@ function fetchFreshMenuNonce(onDone) {
     .then(function(r) { return r.json(); })
     .then(function(res) {
         onDone(res && res.success && res.data && res.data.menu_nonce ? res.data.menu_nonce : null);
+    })
+    .catch(function() { onDone(null); });
+}
+
+/* ── Fetch a replacement dd_mobile_nonce (same dd_get_fresh_nonce endpoint
+   as the two helpers above — extended v3.18.32 to also return a
+   dd_mobile_nonce alongside dish_dash_frontend/dd_menu_nonce, see
+   class-dd-ajax.php). Used by DDMobileMenu.saveFavorites()'s
+   dd_save_favorites retry — that endpoint verifies its own dd_mobile_nonce
+   action (grid.php's DD_MOBILE_DATA.nonce), not dish_dash_frontend or
+   dd_menu_nonce, so it needs a third field from the same response. Takes
+   ajaxUrl as a param (DD_MOBILE_DATA.ajax_url) rather than assuming DDMenu
+   is defined — DDMobileMenu doesn't otherwise depend on it. ── */
+function fetchFreshMobileNonce(ajaxUrl, onDone) {
+    fetch(ajaxUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ action: 'dd_get_fresh_nonce' })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+        onDone(res && res.success && res.data && res.data.mobile_nonce ? res.data.mobile_nonce : null);
     })
     .catch(function() { onDone(null); });
 }
@@ -1151,17 +1175,49 @@ class DDMobileMenu {
     saveFavorites() {
         if (!window.DD_MOBILE_DATA || !DD_MOBILE_DATA.ajax_url) return;
 
-        const formData = new FormData();
-        formData.append('action', 'dd_save_favorites');
-        formData.append('nonce', DD_MOBILE_DATA.nonce);
-        formData.append('favorites', JSON.stringify(Array.from(this.favorites)));
+        const favoritesJson = JSON.stringify(Array.from(this.favorites));
 
-        fetch(DD_MOBILE_DATA.ajax_url, {
-            method: 'POST',
-            body: formData
-        }).catch(err => {
-            console.error('Failed to save favorites', err);
-        });
+        // isRetry caps this at one retry per call — each saveFavorites()
+        // call starts its own fresh submit() chain, so this can never
+        // compound into a retry storm. Mirrors addToCartById()'s
+        // dd_cart_add retry pattern above.
+        const submit = (nonce, isRetry) => {
+            const formData = new FormData();
+            formData.append('action', 'dd_save_favorites');
+            formData.append('nonce', nonce);
+            formData.append('favorites', favoritesJson);
+
+            fetch(DD_MOBILE_DATA.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) return;
+
+                if (isRetry) {
+                    console.error('Failed to save favorites', data);
+                    return;
+                }
+
+                // success:false — most commonly an expired dd_mobile_nonce
+                // (see investigation-ajax-retry-coverage.md). Fetch a fresh
+                // one and retry exactly once before giving up.
+                fetchFreshMobileNonce(DD_MOBILE_DATA.ajax_url, (freshNonce) => {
+                    if (!freshNonce) {
+                        console.error('Failed to save favorites', data);
+                        return;
+                    }
+                    DD_MOBILE_DATA.nonce = freshNonce;
+                    submit(freshNonce, true);
+                });
+            })
+            .catch(err => {
+                console.error('Failed to save favorites', err);
+            });
+        };
+
+        submit(DD_MOBILE_DATA.nonce, false);
     }
 
     getHeartSVG() {
