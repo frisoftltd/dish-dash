@@ -114,10 +114,15 @@ class DD_Tracking_Module extends DD_Module {
     //  AJAX — TRACK EVENT
     // ─────────────────────────────────────────
     public function ajax_track_event(): void {
-        if ( ! check_ajax_referer( 'dd_track', 'nonce', false ) ) {
-            wp_send_json_success();
-            return;
-        }
+        // v3.18.34: was `if ( ! check_ajax_referer(...) ) { wp_send_json_success(); }`
+        // — a failed nonce check silently reported success, so a stale-nonce
+        // failure was invisible to the client and no retry was ever possible.
+        // DD_Ajax::verify_nonce() matches the pattern every other frontend
+        // endpoint in this codebase uses: wp_send_json_error() (403,
+        // {"success":false,"data":{"message":...}}) and halts execution here
+        // on failure — nothing below this line runs. No client-side retry
+        // added yet — see investigation-ajax-retry-coverage.md.
+        DD_Ajax::verify_nonce( 'nonce', 'dd_track' );
 
         $event_type  = sanitize_text_field( $_POST['event_type']  ?? '' );
         $product_id  = absint( $_POST['product_id']  ?? 0 ) ?: null;
