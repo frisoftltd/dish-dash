@@ -162,10 +162,15 @@ class DD_Menu_Module extends DD_Module {
             DD_VERSION
         );
 
+        // 'dd-tracking' dependency (v3.18.39): menu-page.js calls window.ddTrack(),
+        // defined in tracking.js — WP's enqueue system doesn't guarantee load order
+        // between scripts with no declared dependency relationship, even when both
+        // are enqueued on the same page (tracking.js is enqueued unconditionally by
+        // DD_Tracking_Module::enqueue_assets(), a completely separate hook callback).
         wp_enqueue_script(
             'dd-menu-page',
             DD_ASSETS_URL . 'js/menu-page.js',
-            [],
+            [ 'dd-tracking' ],
             DD_VERSION,
             true
         );

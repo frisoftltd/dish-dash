@@ -23,7 +23,8 @@
  * Tracking events fired:
  *   cart_open — on every panel open
  *   GA4 (window.gtag, v3.13.0): begin_checkout, add_payment_info, purchase —
- *   guarded by ddTrack(), no-ops when gtag isn't loaded (dd_ga4_measurement_id empty)
+ *   guarded by window.ddTrack() (tracking.js, v3.18.39), no-ops when gtag isn't
+ *   loaded (dd_ga4_measurement_id empty)
  *
  * Public API:
  *   window.DDCart.open()    — open the drawer
@@ -71,10 +72,11 @@
     var NONCE       = cfg.nonce       || '';
     var CURRENCY    = cfg.currency    || 'RWF';
 
-    /* ── GA4 FUNNEL TRACKING ────────────────────────────────── */
-    function ddTrack( event, params ) {
-        if ( window.gtag ) { gtag( 'event', event, params || {} ); }
-    }
+    // GA4 funnel tracking — window.ddTrack() lives in tracking.js (v3.18.39,
+    // consolidated from three byte-identical local copies of this file). This
+    // file declares 'dd-tracking' as a wp_enqueue_script dependency
+    // (class-dd-template-module.php) so tracking.js is guaranteed to load
+    // first.
 
     // Purchase-fired guard — belt-and-braces dedup across all four purchase
     // call sites (irembopay callback, pesapal polling, sync order-placement
@@ -1038,7 +1040,7 @@
             if ( etaEl ) etaEl.textContent = '\uD83D\uDEF5 Estimated delivery: ' + eta;
 
             showPanel( panelCheckout );
-            ddTrack( 'begin_checkout', { currency: 'RWF', value: grandTotal } );
+            window.ddTrack( 'begin_checkout', { currency: 'RWF', value: grandTotal } );
 
             // Attach the country-code picker now that the field is visible.
             initPhonePicker();
@@ -1151,7 +1153,7 @@
                     placeOrderBtn.disabled    = false;
                     placeOrderBtn.textContent = 'Place Order →';
                     showPanel( panelMomo );
-                    ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'mtn_momo' } );
+                    window.ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'mtn_momo' } );
                     startMomoPolling( data.order_id, data.reference_id );
                     return;
                 }
@@ -1166,7 +1168,7 @@
                     placeOrderBtn.disabled    = false;
                     placeOrderBtn.textContent = 'Place Order →';
                     showPanel( panelIremboPay );
-                    ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'irembopay' } );
+                    window.ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'irembopay' } );
                     if ( window.IremboPay && data.invoice_number && data.public_key ) {
                         window.IremboPay.initiate( {
                             paymentAccountPublicKey: data.public_key,
@@ -1183,7 +1185,7 @@
                                     showPanel( panelConfirmation );
                                     if ( ! trackedPurchaseOrders.has( currentOrderNumber ) ) {
                                         trackedPurchaseOrders.add( currentOrderNumber );
-                                        ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
+                                        window.ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
                                     }
                                 } else {
                                     var iremboStatusEl2 = document.getElementById( 'ddIremboStatus' );
@@ -1200,7 +1202,7 @@
 
                 if ( data.pesapal ) {
                     showPanel( panelPesaPal );
-                    ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'pesapal' } );
+                    window.ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'pesapal' } );
                     var pesapalIframe = document.getElementById( 'ddPesaPalIframe' );
                     if ( pesapalIframe ) pesapalIframe.src = data.redirect_url;
 
@@ -1291,7 +1293,7 @@
                                 showPanel( panelConfirmation );
                                 if ( ! trackedPurchaseOrders.has( currentOrderNumber ) ) {
                                     trackedPurchaseOrders.add( currentOrderNumber );
-                                    ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
+                                    window.ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
                                 }
                             } else if ( pd.status === 'FAILED' || pd.status === 'REVERSED' ) {
                                 // Only these are terminal. INVALID / PENDING mean "not
@@ -1341,7 +1343,7 @@
                     // generic confirmation. Order is already placed (claimed_pending, R4).
                     renderMomoManualPanel( data );
                     showPanel( panelMomoManual );
-                    ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'momo_manual' } );
+                    window.ddTrack( 'add_payment_info', { currency: 'RWF', value: data.total, payment_type: 'momo_manual' } );
                 } else {
                 // Populate confirmation panel
                 var numEl2 = document.getElementById( 'ddConfirmOrderNum' );
@@ -1368,7 +1370,7 @@
                 showPanel( panelConfirmation );
                 if ( ! trackedPurchaseOrders.has( data.order_number ) ) {
                     trackedPurchaseOrders.add( data.order_number );
-                    ddTrack( 'purchase', { transaction_id: data.order_number, currency: 'RWF', value: data.total } );
+                    window.ddTrack( 'purchase', { transaction_id: data.order_number, currency: 'RWF', value: data.total } );
                 }
                 }
                 updateBadges( 0 );
@@ -1493,7 +1495,7 @@
             // zero revenue in GA4). currentOrderTotal is data.total captured
             // at MoMo-initiation time (same source/value the other three
             // purchase call sites already use) — see the var declaration above.
-            ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: currentOrderTotal } );
+            window.ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: currentOrderTotal } );
         }
     }
 

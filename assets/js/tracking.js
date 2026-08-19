@@ -22,15 +22,36 @@
  * Public API (window.DDTrack):
  *   DDTrack.event(type, productId, categoryId, meta)
  *
+ * Public API (window.ddTrack) — v3.18.39, unrelated to window.DDTrack above
+ * (separate mechanism, similar name — do not confuse the two):
+ *   ddTrack(event, params) — GA4 gtag() wrapper, no-ops when gtag isn't
+ *   loaded. Consolidated here from three byte-identical local copies
+ *   (cart.js/frontend.js/menu-page.js) — see
+ *   investigation-ajax-retry-coverage.md's Release B–F notes. Defined before
+ *   the DDTrackConfig guard below (not inside window.DDTrack's own IIFE
+ *   logic) so it's always available even in the hypothetical case that
+ *   guard trips — the three original local copies had no such dependency
+ *   either, and callers in the other files need this unconditionally.
+ *
  * Dependents:
  *   - modules/tracking/class-dd-tracking-module.php (enqueues this)
- *   - assets/js/menu-page.js (reads window.DDTrackConfig for category events)
- *   - assets/js/frontend.js  (calls DDTrack.event for homepage interactions)
+ *   - assets/js/menu-page.js (reads window.DDTrackConfig for category events;
+ *     also calls window.ddTrack())
+ *   - assets/js/frontend.js  (calls DDTrack.event for homepage interactions;
+ *     also calls window.ddTrack())
+ *   - assets/js/cart.js (calls window.ddTrack() — declares 'dd-tracking' as
+ *     a wp_enqueue_script dependency so this file is guaranteed loaded first)
  *
- * Last modified: v3.1.16
+ * Last modified: v3.18.39
  */
 (function () {
     'use strict';
+
+    // GA4 gtag() wrapper — see docblock above. Placed first, before the
+    // DDTrackConfig guard below, so it's defined unconditionally.
+    window.ddTrack = function ( event, params ) {
+        if ( window.gtag ) { gtag( 'event', event, params || {} ); }
+    };
 
     var cfg = window.DDTrackConfig || {};
     if ( ! cfg.ajaxUrl ) return; // safety guard

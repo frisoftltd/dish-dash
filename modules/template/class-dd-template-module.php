@@ -320,9 +320,14 @@ class DD_Template_Module extends DD_Module {
         );
 
         wp_enqueue_script( 'dish-dash-menu',     $this->asset_url( 'js', 'menu.js' ),     [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [ 'dd-intl-tel-input', 'dd-qrcode' ], DD_VERSION, true );
+        // 'dd-tracking' dependency (v3.18.39): cart.js/frontend.js call window.ddTrack(),
+        // defined in tracking.js — WP's enqueue system doesn't guarantee load order
+        // between scripts with no declared dependency relationship, even when both are
+        // enqueued on the same page (tracking.js is enqueued unconditionally by
+        // DD_Tracking_Module::enqueue_assets(), a completely separate hook callback).
+        wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [ 'dd-intl-tel-input', 'dd-qrcode', 'dd-tracking' ], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-search',   $this->asset_url( 'js', 'search.js' ),   [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search' ], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search', 'dd-tracking' ], DD_VERSION, true );
         wp_enqueue_script(
             'dish-dash-reservations',
             $this->asset_url( 'js', 'reservations.js' ),

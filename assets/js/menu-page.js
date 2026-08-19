@@ -33,7 +33,8 @@
  *
  * Tracking events fired:
  *   GA4 (window.gtag, v3.13.1): add_to_cart on a successful mobile add —
- *   guarded by a local ddTrack(), no-ops when gtag isn't loaded
+ *   guarded by window.ddTrack() (tracking.js, v3.18.39), no-ops when gtag
+ *   isn't loaded
  *
  * Dependencies:
  *   - window.DDTrackConfig (optional — from tracking.js, used for category view events)
@@ -206,10 +207,10 @@
     }
 })();
 
-/* ── GA4 funnel tracking (local copy — ddTrack in cart.js is not global) ── */
-function ddTrack(event, params) {
-    if (window.gtag) { gtag('event', event, params || {}); }
-}
+// GA4 funnel tracking — window.ddTrack() lives in tracking.js (v3.18.39,
+// consolidated from three byte-identical local copies of this file). This
+// file declares 'dd-tracking' as a wp_enqueue_script dependency
+// (class-dd-menu-module.php) so tracking.js is guaranteed to load first.
 
 /* ── Fetch a replacement dish_dash_frontend nonce (dd_get_fresh_nonce,
    added v3.18.26 — intentionally unauthenticated). Used to recover from a
@@ -1014,7 +1015,7 @@ class DDMobileMenu {
                         if (typeof window.showToast === 'function') window.showToast('✓ Added to cart!');
                         // Track add to cart from mobile menu
                         if (window.DDTrack) window.DDTrack.addToCart(productId, null);
-                        ddTrack('add_to_cart', {
+                        window.ddTrack('add_to_cart', {
                             currency: 'RWF',
                             value: Number(product.price) || 0,
                             items: [{

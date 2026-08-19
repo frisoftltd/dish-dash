@@ -26,7 +26,8 @@
  *
  * Tracking events fired:
  *   GA4 (window.gtag, v3.13.1): add_to_cart on a successful modal Add —
- *   guarded by a local ddTrack(), no-ops when gtag isn't loaded
+ *   guarded by window.ddTrack() (tracking.js, v3.18.39), no-ops when gtag
+ *   isn't loaded
  *
  * Custom events listened to:
  *   - dd:open-modal    (detail: { productId }) — fired by search.js
@@ -62,10 +63,11 @@
     const $q = (sel, scope = document) => scope.querySelector(sel);
     const $all = (sel, scope = document) => [...scope.querySelectorAll(sel)];
 
-    /* ── GA4 funnel tracking (local copy — ddTrack in cart.js is not global) ── */
-    function ddTrack(event, params) {
-        if (window.gtag) { gtag('event', event, params || {}); }
-    }
+    // GA4 funnel tracking — window.ddTrack() lives in tracking.js (v3.18.39,
+    // consolidated from three byte-identical local copies of this file). This
+    // file declares 'dd-tracking' as a wp_enqueue_script dependency
+    // (class-dd-template-module.php) so tracking.js is guaranteed to load
+    // first.
 
     const fmt = (n) => 'RWF ' + Number(n).toLocaleString('en-US', { maximumFractionDigits: 0 });
 
@@ -1223,7 +1225,7 @@
                             showToast('✓ Added to cart!');
 
                             var ddPrice = parseFloat(String(price).replace(/[^0-9.]/g, ''));
-                            ddTrack('add_to_cart', {
+                            window.ddTrack('add_to_cart', {
                                 currency: 'RWF',
                                 items: [{ item_name: name, quantity: qty }].map(function(it){
                                     if (!isNaN(ddPrice)) { it.price = ddPrice; }
