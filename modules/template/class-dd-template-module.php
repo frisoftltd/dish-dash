@@ -39,6 +39,10 @@
  * Global header injected on pages:
  *   /reserve-table/, /cart-dd/, /checkout-dd/, /restaurant-menu/,
  *   /my-account/, /my-restaurant-account/, /track-order/
+ *   (v3.18.37: is_dishdash_page() — which gates frontend CSS/JS/GA4, not just
+ *   the header — now also checks this exact slug list via
+ *   get_global_header_slugs(), additive to its pre-existing 'cart'/'checkout'/
+ *   'my-account' checks. See investigation-is-dishdash-page-reverify.md.)
  *
  * Localized JS data (window.dishDash):
  *   ajaxUrl, nonce, cartUrl, checkoutUrl, trackUrl, currency settings,
@@ -209,6 +213,16 @@ class DD_Template_Module extends DD_Module {
         if ( is_page( 'birthday' ) )              return true;
         if ( is_page( 'my-account' ) )            return true;
         if ( is_page( 'track-order' ) )           return true;
+        // v3.18.37 — additive. The checks above use 'cart'/'checkout'/'my-account',
+        // which match nothing on this install (confirmed live —
+        // investigation-is-dishdash-page-reverify.md — the actual pages are
+        // cart-dd/checkout-dd/my-restaurant-account); reserve-table was missing
+        // entirely. Kept the checks above AS-IS rather than fixing them in place —
+        // a different white-label install may genuinely use those slugs. Reuses
+        // get_global_header_slugs() below (already correct, just unused until now)
+        // instead of hand-writing a second list — is_page() accepts an array and
+        // matches on any element.
+        if ( is_page( $this->get_global_header_slugs() ) ) return true;
         if ( is_page() ) {
             $meta = get_post_meta( get_the_ID(), '_wp_page_template', true );
             if ( 'page-dishdash.php' === $meta ) return true;
