@@ -37,6 +37,8 @@
  *
  * DB tables owned:
  *   {prefix}dishdash_orders, {prefix}dishdash_order_items
+ *   (v3.18.35: dishdash_orders.idempotency_key, VARCHAR(36) NULL, UNIQUE —
+ *   see install.php and place_order()'s dedupe check)
  *
  * Depends on (modules): NONE — architecture rule
  *
@@ -329,6 +331,24 @@ class DD_Orders_Module extends DD_Module {
     public function place_order( array $data ): array|WP_Error {
         global $wpdb;
 
+        // Idempotency check (v3.18.35) — a client-generated key (crypto.randomUUID(),
+        // sent once per checkout attempt from cart.js's #ddCartCheckout handler) that
+        // lets a retried/duplicated request (double-click, near-simultaneous duplicate
+        // tap — a future release may also retry this endpoint on a stale nonce) return
+        // the ALREADY-CREATED order instead of inserting a second one. Shared by every
+        // place_order() caller (IremboPay/PesaPal/generic-online/offline-COD) — mtn_momo
+        // never calls this method, so it's structurally unaffected either way. Column is
+        // nullable+unique; has_idempotency_key_column() gates this cleanly during the
+        // window between deploy and the auto-migration guard actually adding the column
+        // on an upgraded (not fresh-install) site — see investigation-order-idempotency.md.
+        $idempotency_key = isset( $data['idempotency_key'] ) ? substr( sanitize_text_field( $data['idempotency_key'] ), 0, 36 ) : '';
+        if ( $idempotency_key && $this->has_idempotency_key_column() ) {
+            $existing = $this->find_order_by_idempotency_key( $idempotency_key );
+            if ( $existing ) {
+                return $existing;
+            }
+        }
+
         // Validate required fields
         $required = [ 'customer_name', 'customer_phone', 'order_type', 'items' ];
         foreach ( $required as $field ) {
@@ -384,6 +404,10 @@ class DD_Orders_Module extends DD_Module {
             'platform_fee'        => $dd_platform_fee,
         ];
 
+        if ( $idempotency_key && $this->has_idempotency_key_column() ) {
+            $order_data['idempotency_key'] = $idempotency_key;
+        }
+
         // Insert order
         $inserted = $wpdb->insert(
             $wpdb->prefix . 'dishdash_orders',
@@ -392,6 +416,26 @@ class DD_Orders_Module extends DD_Module {
         );
 
         if ( ! $inserted ) {
+            // Race: a near-simultaneous duplicate request carrying the same
+            // idempotency key won the insert between our lookup above and this
+            // insert — the UNIQUE KEY on idempotency_key rejects ours. $wpdb
+            // doesn't throw here (WordPress reports insert failures via a false
+            // return + $wpdb->last_error, not an exception); detect this SPECIFIC
+            // failure (both "Duplicate entry" and our column name, so an
+            // unrelated insert failure — e.g. a truncation/other constraint
+            // error — still falls through to the generic error below unchanged)
+            // and treat it exactly like the dedupe hit above: look up and return
+            // the winning request's row instead of surfacing a raw DB error.
+            if (
+                $idempotency_key && $this->has_idempotency_key_column() &&
+                false !== stripos( (string) $wpdb->last_error, 'Duplicate entry' ) &&
+                false !== stripos( (string) $wpdb->last_error, 'idempotency_key' )
+            ) {
+                $existing = $this->find_order_by_idempotency_key( $idempotency_key );
+                if ( $existing ) {
+                    return $existing;
+                }
+            }
             return new WP_Error( 'db_error', __( 'Failed to place order. Please try again.', 'dish-dash' ) );
         }
 
@@ -426,6 +470,54 @@ class DD_Orders_Module extends DD_Module {
             'total'        => $totals['total'],
             'track_url'    => dd_track_url( $order_number ),
         ];
+    }
+
+    /**
+     * Look up an existing order by idempotency key, in the EXACT same shape
+     * place_order() returns for a fresh insert (order_id/order_number/total/
+     * track_url) — so every calling branch's existing response-building code
+     * in ajax_place_order() (IremboPay/PesaPal/generic-online/offline-COD)
+     * works completely unmodified on a dedupe hit, first-success or otherwise.
+     * Returns null if no row matches (a genuinely new key).
+     */
+    private function find_order_by_idempotency_key( string $idempotency_key ): ?array {
+        global $wpdb;
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, order_number, total FROM {$wpdb->prefix}dishdash_orders WHERE idempotency_key = %s LIMIT 1",
+            $idempotency_key
+        ) );
+
+        if ( ! $row ) {
+            return null;
+        }
+
+        return [
+            'order_id'     => (int) $row->id,
+            'order_number' => $row->order_number,
+            'total'        => (float) $row->total,
+            'track_url'    => dd_track_url( $row->order_number ),
+        ];
+    }
+
+    /**
+     * Whether idempotency_key exists on wp_dishdash_orders yet. Mirrors
+     * has_pesapal_tracking_column() exactly (same static-memoized SHOW COLUMNS
+     * check) — gates place_order()'s idempotency check/insert during the
+     * window between a deploy and the auto-migration guard (dish-dash.php)
+     * actually running dbDelta() on an upgraded (not fresh-install) site.
+     */
+    private function has_idempotency_key_column(): bool {
+        static $exists = null;
+        if ( null !== $exists ) {
+            return $exists;
+        }
+        global $wpdb;
+        $col    = $wpdb->get_var( $wpdb->prepare(
+            "SHOW COLUMNS FROM {$wpdb->prefix}dishdash_orders LIKE %s",
+            'idempotency_key'
+        ) );
+        $exists = ! empty( $col );
+        return $exists;
     }
 
     /**
@@ -860,6 +952,12 @@ class DD_Orders_Module extends DD_Module {
         $whatsapp         = sanitize_text_field( $_POST['whatsapp']         ?? '' );
         $delivery_address = sanitize_text_field( $_POST['delivery_address'] ?? '' );
         $payment_method   = sanitize_text_field( $_POST['payment_method']   ?? 'pay_on_delivery' );
+        // v3.18.35 — client-generated (crypto.randomUUID(), cart.js's #ddCartCheckout
+        // handler) idempotency key, threaded into every place_order() call below except
+        // mtn_momo (which never calls place_order() — see investigation-order-idempotency.md).
+        // No whitelist to extend for this new field — every POST key here is read
+        // individually, same as the four above.
+        $idempotency_key  = sanitize_text_field( $_POST['idempotency_key']  ?? '' );
 
         if ( ! $customer_name ) {
             wp_send_json_error( [ 'message' => __( 'Please enter your full name.', 'dish-dash' ) ] );
@@ -973,6 +1071,7 @@ class DD_Orders_Module extends DD_Module {
                 'delivery_fee'     => $delivery_fee,
                 'payment_method'   => 'irembopay',
                 'delivery_address' => $delivery_address,
+                'idempotency_key'  => $idempotency_key,
             ] );
 
             if ( is_wp_error( $result ) ) {
@@ -1100,6 +1199,7 @@ class DD_Orders_Module extends DD_Module {
                     'delivery_fee'     => $delivery_fee,
                     'payment_method'   => 'pesapal',
                     'delivery_address' => $delivery_address,
+                    'idempotency_key'  => $idempotency_key,
                 ] );
 
                 if ( is_wp_error( $order ) ) {
@@ -1154,6 +1254,7 @@ class DD_Orders_Module extends DD_Module {
                 'payment_method'   => $payment_method,
                 'delivery_fee'     => $delivery_fee,
                 'items'            => $summary['items'],
+                'idempotency_key'  => $idempotency_key,
             ] );
 
             if ( is_wp_error( $result ) ) {
@@ -1215,6 +1316,7 @@ class DD_Orders_Module extends DD_Module {
             'delivery_fee'     => $delivery_fee,
             'payment_method'   => $payment_method,
             'delivery_address' => $delivery_address,
+            'idempotency_key'  => $idempotency_key,
         ] );
 
         if ( is_wp_error( $result ) ) {

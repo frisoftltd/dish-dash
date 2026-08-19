@@ -49,6 +49,16 @@
  * post-insert) — a blind retry there risks a duplicate order. See
  * investigation-ajax-retry-coverage.md / RELEASE.md v3.18.33.
  *
+ * v3.18.35: dd_place_order now sends a client-generated idempotency_key
+ * (crypto.randomUUID(), var checkoutIdempotencyKey) — one per checkout
+ * attempt, minted on #ddCartCheckout click, cleared in closeCart() and on
+ * a successful dd_place_order response, NOT cleared on cart qty/remove
+ * changes. Lets place_order() (server-side) return the already-created
+ * order on a duplicate/retried request instead of inserting a second one.
+ * Still no client-side retry on dd_place_order itself — this only removes
+ * the blocker noted in v3.18.33 for a future release. See
+ * investigation-order-idempotency.md.
+ *
  * Last modified: v3.2.13
  */
 (function () {
@@ -456,6 +466,9 @@
         document.body.classList.remove( 'dd-cart-open' );
         // Always reset to cart panel — next open starts fresh
         showPanel( panelCart );
+        // A closed-and-reopened drawer is a new checkout attempt — next checkout
+        // click mints a fresh idempotency key (v3.18.35).
+        checkoutIdempotencyKey = null;
     }
 
     /* ── FETCH CART FROM SERVER ─────────────────────────────── */
@@ -716,6 +729,16 @@
     var currentOrderNumber = null;
     var currentReferenceId = null;
 
+    // Idempotency key for the in-progress checkout attempt (v3.18.35) — generated
+    // once when the checkout panel opens (#ddCartCheckout click, below), sent on
+    // every dd_place_order request for this attempt so a duplicate/retried request
+    // (double-click, near-simultaneous duplicate tap, or a future nonce-retry)
+    // can't create a second order server-side. Deliberately NOT reset on cart
+    // qty/remove changes — a key from a modified-but-unsubmitted cart is still
+    // safe to reuse, since the dedupe check only matters once an insert has
+    // actually happened with it. See investigation-order-idempotency.md.
+    var checkoutIdempotencyKey = null;
+
     // Scan-&-pay (momo_manual) panel state.
     var momoManualOrderId     = 0;
     var momoManualWhatsappUrl = '';
@@ -913,6 +936,16 @@
     var checkoutBtn = document.getElementById( 'ddCartCheckout' );
     if ( checkoutBtn ) {
         checkoutBtn.addEventListener( 'click', function () {
+            // Generate the idempotency key for this checkout attempt, once — only
+            // if one isn't already held from an in-progress attempt (e.g. Back to
+            // the cart panel and forward into checkout again, without closing the
+            // drawer or changing the cart, must reuse the same key, not mint a
+            // new one). Cleared in closeCart() and on a successful dd_place_order
+            // response below.
+            if ( ! checkoutIdempotencyKey && window.crypto && typeof window.crypto.randomUUID === 'function' ) {
+                checkoutIdempotencyKey = window.crypto.randomUUID();
+            }
+
             var summary   = window.ddCartSummary || {};
             var count     = summary.count    || 0;
             var sub       = summary.subtotal || 0;
@@ -1082,7 +1115,17 @@
                 delivery_address: addr,
                 payment_method:   payment,
                 momo_phone:       momoPhone,
+                idempotency_key:  checkoutIdempotencyKey || '',
             }, function ( data ) {
+                // Cleared here, not per-branch below — ANY successful dd_place_order
+                // response (regardless of which payment branch's shape it takes)
+                // means this checkout attempt is done being submitted. A payment
+                // that later fails inside the MoMo/IremboPay/PesaPal panel doesn't
+                // call dd_place_order again — it polls/confirms against the order
+                // already created, so a fresh key for a genuinely NEW order is
+                // correct here, not a reuse.
+                checkoutIdempotencyKey = null;
+
                 // Online gateway — redirect to payment page
                 // MoMo — show waiting panel, begin polling
                 if ( data.momo ) {
