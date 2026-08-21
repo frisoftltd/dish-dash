@@ -33,6 +33,10 @@
  *   - body_class (filter) → maybe_add_minimal_light_body_class() — pairs with the
  *     branch above, v3.18.19
  *   - init → remove_theme_header_hooks()
+ *   - wp_head (priority 1) → inject_gtm_head_script() — GTM container script,
+ *     sitewide (NOT gated by is_dishdash_page()), v3.18.40
+ *   - wp_body_open (priority 1) → inject_gtm_noscript() — GTM noscript iframe,
+ *     sitewide, v3.18.40
  *
  * Nav menu locations: dd-primary (main nav), dd-footer (footer nav)
  *
@@ -110,6 +114,14 @@ class DD_Template_Module extends DD_Module {
         add_action( 'wp_footer',       [ $this, 'inject_birthday_whatsapp' ] );
         add_filter( 'template_include', [ $this, 'maybe_load_birthday_template' ] );
         add_action( 'wp_enqueue_scripts', [ $this, 'maybe_enqueue_birthday_css' ] );
+
+        // ── Google Tag Manager (v3.18.40) — sitewide, independent of GA4 and
+        //    NOT gated by is_dishdash_page(). Priority 1 on both hooks so the
+        //    snippet/iframe land as early as possible in <head>/<body>, per
+        //    GTM's own recommended placement. See method docblocks below for
+        //    the documented Minimal Light wp_body_open gap. ──
+        add_action( 'wp_head',      [ $this, 'inject_gtm_head_script' ], 1 );
+        add_action( 'wp_body_open', [ $this, 'inject_gtm_noscript' ],    1 );
     }
 
     // ─────────────────────────────────────────
@@ -442,6 +454,52 @@ class DD_Template_Module extends DD_Module {
             .dd-footer__social-link { color: rgba(241,231,219,0.7) !important; }
             .dd-footer__social-link:hover { color: #F1E7DB !important; }
         ' );
+    }
+
+    // ─────────────────────────────────────────
+    //  GOOGLE TAG MANAGER (v3.18.40)
+    //  Independent, parallel channel to GA4/gtag above — NOT gated by
+    //  is_dishdash_page(), deliberately sitewide. GTM is meant to hold future
+    //  tags (Meta Pixel, Google Ads conversion, per-client tags) whose page
+    //  scope isn't known at deploy time, unlike GA4 which stays scoped to the
+    //  ordering funnel. Both methods below no-op when dd_gtm_container_id is
+    //  blank, same convention as the GA4 setting.
+    // ─────────────────────────────────────────
+    public function inject_gtm_head_script(): void {
+        if ( is_admin() ) return;
+        $gtm_id = get_option( 'dd_gtm_container_id', '' );
+        if ( ! $gtm_id ) return;
+        ?>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','<?php echo esc_js( $gtm_id ); ?>');</script>
+<!-- End Google Tag Manager -->
+        <?php
+    }
+
+    // KNOWN GAP (documented, not fixed here): Minimal Light's homepage
+    // (templates/layouts/minimal-light/page-home.php) deliberately never calls
+    // wp_body_open() — the same reason the shared global-header injection
+    // (inject_global_header(), also hooked on wp_body_open) already doesn't
+    // fire there either, see that file's own docblock. This noscript iframe
+    // will not render on that template's homepage as a result. Matches an
+    // already-accepted, pre-existing gap in this codebase — not addressed in
+    // this release. The <script> snippet above still fires there (wp_head()
+    // IS called on that template), so GTM/dataLayer still loads; only this
+    // no-JS fallback iframe is affected.
+    public function inject_gtm_noscript(): void {
+        if ( is_admin() ) return;
+        $gtm_id = get_option( 'dd_gtm_container_id', '' );
+        if ( ! $gtm_id ) return;
+        ?>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<?php echo esc_attr( $gtm_id ); ?>"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+        <?php
     }
 
     // ─────────────────────────────────────────

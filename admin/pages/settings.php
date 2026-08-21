@@ -21,7 +21,7 @@
  *   dish_dash_enable_reservations, dish_dash_enable_pos,
  *   dd_per_order_fee, dd_minimum_order_amount,
  *   dd_payment_card_enabled, dd_payment_momo_enabled, dd_payment_cod_enabled,
- *   dd_ga4_measurement_id
+ *   dd_ga4_measurement_id, dd_gtm_container_id
  *
  * Nonce action: dd_settings_save
  *
@@ -116,6 +116,10 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
 
     // Analytics — GA4 Measurement ID (per-site; blank disables gtag entirely)
     update_option( 'dd_ga4_measurement_id', sanitize_text_field( $_POST['dd_ga4_measurement_id'] ?? '' ) );
+
+    // Analytics — GTM Container ID (per-site; blank disables GTM entirely).
+    // Independent of GA4 above — see class-dd-template-module.php injection.
+    update_option( 'dd_gtm_container_id', sanitize_text_field( $_POST['dd_gtm_container_id'] ?? '' ) );
 
     // Spice selector — product-category slugs where the spice level is SHOWN.
     // Comma-separated slugs; normalized to an array of sanitized slugs.
@@ -391,6 +395,18 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
                     <input type="text" name="dd_ga4_measurement_id"
                            value="<?php echo esc_attr( get_option( 'dd_ga4_measurement_id', '' ) ); ?>"
                            placeholder="G-XXXXXXXXXX"
+                           class="dd-input dd-input--medium" />
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">Google Tag Manager ID
+                    <span class="dd-label-hint">Leave blank to disable</span>
+                </div>
+                <div class="dd-field-control">
+                    <input type="text" name="dd_gtm_container_id"
+                           value="<?php echo esc_attr( get_option( 'dd_gtm_container_id', '' ) ); ?>"
+                           placeholder="GTM-XXXXXXX"
                            class="dd-input dd-input--medium" />
                 </div>
             </div>
