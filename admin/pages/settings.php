@@ -93,6 +93,7 @@ if ( isset( $_POST['dd_save_settings'] ) && check_admin_referer( 'dd_settings_sa
     update_option( 'dd_timezone', sanitize_text_field( wp_unslash( $_POST['dd_timezone'] ?? 'Africa/Kigali' ) ) );
 
     // Reservation Settings
+    update_option( 'dd_reservation_require_confirmation', isset( $_POST['dd_reservation_require_confirmation'] ) ? 1 : 0 );
     update_option( 'dd_reservation_deposit_enabled',    isset( $_POST['dd_reservation_deposit_enabled'] ) ? 1 : 0 );
     $dd_deposit_type_posted = sanitize_text_field( $_POST['dd_reservation_deposit_type'] ?? 'fixed' );
     update_option( 'dd_reservation_deposit_type',       in_array( $dd_deposit_type_posted, [ 'fixed', 'per_person' ], true ) ? $dd_deposit_type_posted : 'fixed' );
@@ -649,6 +650,18 @@ $default_sessions = [ 'sessions' => [ [ '11:00', '22:00' ] ] ];
         <!-- 📅 Reservations -->
         <div class="dd-settings-card">
             <h2 class="dd-section-heading">📅 Reservations</h2>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label">Confirmation</div>
+                <div class="dd-field-control">
+                    <label class="dd-check-label">
+                        <input type="checkbox" name="dd_reservation_require_confirmation" value="1"
+                               <?php checked( get_option( 'dd_reservation_require_confirmation', 1 ), 1 ); ?>>
+                        Require manual confirmation
+                    </label>
+                    <p class="description">New reservations arrive as Pending and must be confirmed in the admin. Turn off to confirm bookings automatically on submission.</p>
+                </div>
+            </div>
 
             <div class="dd-field-grid">
                 <div class="dd-field-label">Require Deposit</div>

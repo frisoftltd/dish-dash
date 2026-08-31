@@ -129,7 +129,15 @@ class DD_Reservations_Module extends DD_Module {
         $deposit_enabled = get_option( 'dd_reservation_deposit_enabled', 0 ) ? 1 : 0;
         $deposit_amount  = $deposit_enabled ? $this->calculate_deposit_amount( $guests ) : 0;
         $deposit_status  = $deposit_enabled ? 'pending' : 'none';
-        $status          = 'pending';
+
+        // Auto-confirm (v3.18.42) — free/no-deposit bookings only. A deposit-required
+        // booking always starts 'pending' regardless of this setting: it still needs
+        // its own confirmation gate (staff "Mark deposit paid" or the PesaPal
+        // IPN/poll promote path), which reads deposit_status, never this option —
+        // status and deposit_status are confirmed independently, unaffected here.
+        $require_confirmation = get_option( 'dd_reservation_require_confirmation', 1 ) ? 1 : 0;
+        $auto_confirmed       = ( ! $deposit_enabled && ! $require_confirmation );
+        $status               = $auto_confirmed ? 'confirmed' : 'pending';
 
         // Snapshot platform fee at booking time (v3.14.8) — mirrors
         // class-dd-orders-module.php's place_order() exactly: the full rate is
@@ -173,6 +181,16 @@ class DD_Reservations_Module extends DD_Module {
 
         $reservation_id = (int) $wpdb->insert_id;
 
+        // Auto-confirm status-changed hook — same signature/shape as every other
+        // status-transition call site in this file (id, old_status, new_status).
+        // old_status is 'pending' since that's what a manual confirm would have
+        // transitioned from; matches recalculate_fee_for_reservation_status_change()'s
+        // "confirming a zero-fee no-deposit row" branch (a no-op here since
+        // platform_fee is already non-zero from the snapshot two lines above).
+        if ( $auto_confirmed ) {
+            do_action( 'dish_dash_reservation_status_changed', $reservation_id, 'pending', 'confirmed' );
+        }
+
         // 7B. Schedule auto-cancel for unpaid deposit bookings. Per-booking single
         // event, matching the run_autocancel( int $reservation_id ) hook signature: it
         // fires after the Auto-Cancel window (dd_reservation_autocancel_hours, default 2),
@@ -212,6 +230,7 @@ class DD_Reservations_Module extends DD_Module {
             'name'             => $name,
             'whatsapp'         => $whatsapp,
             'special_requests' => $requests,
+            'status'           => $status,
         ] );
 
         // 9. Return success
@@ -255,6 +274,50 @@ class DD_Reservations_Module extends DD_Module {
             ],
             admin_url( 'admin.php' )
         );
+
+        $is_confirmed = ( 'confirmed' === ( $res['status'] ?? 'pending' ) );
+
+        $status_pill_html = $is_confirmed
+            ? '<span style="display:inline-block;background:#DCFCE7;color:#15803d;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;">CONFIRMED</span>'
+            : '<span style="display:inline-block;background:#FBE8C8;color:#b45309;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;">PENDING — NEEDS REVIEW</span>';
+
+        // WhatsApp click-to-chat button (v3.18.42) — fail safe: only render for a
+        // verifiably real number (leading '+' and 8-15 digits, E.164-shaped). Live
+        // data spans 8 countries with no common prefix, so this never assumes a
+        // default country code. esc_attr(), never esc_url() — esc_url() strips the
+        // %0A in a wa.me ?text= payload (see CLAUDE.md).
+        $whatsapp_url = '';
+        $wa_raw       = (string) ( $res['whatsapp'] ?? '' );
+        $wa_digits    = preg_replace( '/\D/', '', $wa_raw );
+        if ( '+' === substr( $wa_raw, 0, 1 ) && strlen( $wa_digits ) >= 8 && strlen( $wa_digits ) <= 15 ) {
+            $wa_msg       = sprintf(
+                'Hello %s, this is %s about your reservation %s on %s at %s.',
+                $res['name'],
+                $restaurant,
+                $res['booking_ref'],
+                $date_fmt,
+                $res['time']
+            );
+            $whatsapp_url = 'https://wa.me/' . $wa_digits . '?text=' . rawurlencode( $wa_msg );
+        }
+
+        $button_blocks = [];
+        if ( ! $is_confirmed ) {
+            $button_blocks[] = '<a href="' . esc_url( $admin_link ) . '"'
+                . ' style="display:inline-block;background:' . $primary . ';color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;">'
+                . 'Review &amp; Confirm Reservation →</a>';
+        }
+        if ( $whatsapp_url ) {
+            $button_blocks[] = '<a href="' . esc_attr( $whatsapp_url ) . '"'
+                . ' style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;">'
+                . '💬 Chat with ' . esc_html( $res['name'] ) . ' on WhatsApp</a>';
+        }
+        $buttons_row = '';
+        if ( $button_blocks ) {
+            $buttons_row = '<tr><td style="padding:20px 28px 28px;" align="center">'
+                . implode( '<div style="height:12px;line-height:12px;">&nbsp;</div>', $button_blocks )
+                . '</td></tr>';
+        }
 
         $table_row = '';
         if ( ! empty( $res['table_pref'] ) ) {
@@ -313,16 +376,11 @@ class DD_Reservations_Module extends DD_Module {
 
         <!-- Status pill -->
         <tr><td style="padding:8px 28px 4px;">
-          <span style="display:inline-block;background:#FBE8C8;color:#b45309;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;">PENDING — NEEDS REVIEW</span>
+          ' . $status_pill_html . '
         </td></tr>
 
-        <!-- CTA button -->
-        <tr><td style="padding:20px 28px 28px;" align="center">
-          <a href="' . esc_url( $admin_link ) . '"
-             style="display:inline-block;background:' . $primary . ';color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;">
-             Review &amp; Confirm Reservation →
-          </a>
-        </td></tr>
+        <!-- Buttons -->
+        ' . $buttons_row . '
 
         <!-- Footer -->
         <tr><td style="background:#F0E7D8;padding:14px 28px;text-align:center;">
