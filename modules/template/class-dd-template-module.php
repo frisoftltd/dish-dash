@@ -332,6 +332,10 @@ class DD_Template_Module extends DD_Module {
         );
 
         wp_enqueue_script( 'dish-dash-menu',     $this->asset_url( 'js', 'menu.js' ),     [], DD_VERSION, true );
+        // 'dd-hours' (v3.18.41): computes window.DD.hours_state/next_open_ts/close_ts
+        // client-side from window.DD.hours_schedule — must load, and run, before any
+        // script that reads those three keys (see dd-hours dependency below).
+        wp_enqueue_script( 'dd-hours',           $this->asset_url( 'js', 'hours.js' ),    [], DD_VERSION, true );
         // 'dd-tracking' dependency (v3.18.39): cart.js/frontend.js call window.ddTrack(),
         // defined in tracking.js — WP's enqueue system doesn't guarantee load order
         // between scripts with no declared dependency relationship, even when both are
@@ -339,7 +343,7 @@ class DD_Template_Module extends DD_Module {
         // DD_Tracking_Module::enqueue_assets(), a completely separate hook callback).
         wp_enqueue_script( 'dish-dash-cart',     $this->asset_url( 'js', 'cart.js' ),     [ 'dd-intl-tel-input', 'dd-qrcode', 'dd-tracking' ], DD_VERSION, true );
         wp_enqueue_script( 'dish-dash-search',   $this->asset_url( 'js', 'search.js' ),   [], DD_VERSION, true );
-        wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search', 'dd-tracking' ], DD_VERSION, true );
+        wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search', 'dd-tracking', 'dd-hours' ], DD_VERSION, true );
         wp_enqueue_script(
             'dish-dash-reservations',
             $this->asset_url( 'js', 'reservations.js' ),
@@ -1143,17 +1147,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
         <!-- JS bridge for global header pages -->
         <?php
-        $dd_hours_state  = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
-        $dd_next_open_ts = 0;
-        $dd_close_ts     = 0;
-        if ( class_exists( 'DD_Hours' ) ) {
-            if ( $dd_hours_state !== 'open' ) {
-                $dd_next_open_ts = DD_Hours::get_next_open_info_ts();
-            }
-            if ( in_array( $dd_hours_state, [ 'open', 'closing_soon' ], true ) ) {
-                $dd_close_ts = DD_Hours::get_current_close_ts();
-            }
-        }
+        $dd_schedule_raw = get_option( 'dd_opening_hours', '' );
+        $dd_schedule     = $dd_schedule_raw ? json_decode( $dd_schedule_raw, true ) : [];
+        if ( ! is_array( $dd_schedule ) ) { $dd_schedule = []; }
+        $dd_hours_tz     = get_option( 'dd_timezone', 'Africa/Kigali' );
+        $dd_closing_soon = (int) get_option( 'dd_closing_soon_minutes', 30 );
         ?>
         <script>
         window.DD = window.DD || {
@@ -1162,9 +1160,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             checkoutUrl:  '<?php echo esc_url( function_exists("wc_get_checkout_url") ? wc_get_checkout_url() : home_url("/checkout/") ); ?>',
             deliveryFee:  <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
             cartCount:    <?php echo (int) $dd_cart_count; ?>,
-            hours_state:  '<?php echo esc_js( $dd_hours_state ); ?>',
-            next_open_ts: <?php echo (int) $dd_next_open_ts; ?>,
-            close_ts:     <?php echo (int) $dd_close_ts; ?>,
+            hours_tz:         '<?php echo esc_js( $dd_hours_tz ); ?>',
+            hours_schedule:   <?php echo wp_json_encode( $dd_schedule ); ?>,
+            closing_soon_min: <?php echo $dd_closing_soon; ?>,
             whatsapp_admin: '<?php echo esc_js( get_option( 'dd_whatsapp_admin', '' ) ); ?>',
             menu_url:     '/restaurant-menu/',
         };
@@ -1264,17 +1262,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </aside>
 
         <?php
-        $dd_hours_state  = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
-        $dd_next_open_ts = 0;
-        $dd_close_ts     = 0;
-        if ( class_exists( 'DD_Hours' ) ) {
-            if ( $dd_hours_state !== 'open' ) {
-                $dd_next_open_ts = DD_Hours::get_next_open_info_ts();
-            }
-            if ( in_array( $dd_hours_state, [ 'open', 'closing_soon' ], true ) ) {
-                $dd_close_ts = DD_Hours::get_current_close_ts();
-            }
-        }
+        $dd_schedule_raw = get_option( 'dd_opening_hours', '' );
+        $dd_schedule     = $dd_schedule_raw ? json_decode( $dd_schedule_raw, true ) : [];
+        if ( ! is_array( $dd_schedule ) ) { $dd_schedule = []; }
+        $dd_hours_tz     = get_option( 'dd_timezone', 'Africa/Kigali' );
+        $dd_closing_soon = (int) get_option( 'dd_closing_soon_minutes', 30 );
         ?>
         <script>
         window.DD = window.DD || {
@@ -1283,9 +1275,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             checkoutUrl:  '<?php echo esc_url( function_exists("wc_get_checkout_url") ? wc_get_checkout_url() : home_url("/checkout/") ); ?>',
             deliveryFee:  <?php echo (int) get_option( 'dish_dash_delivery_fee', 2000 ); ?>,
             cartCount:    <?php echo (int) $dd_cart_count; ?>,
-            hours_state:  '<?php echo esc_js( $dd_hours_state ); ?>',
-            next_open_ts: <?php echo (int) $dd_next_open_ts; ?>,
-            close_ts:     <?php echo (int) $dd_close_ts; ?>,
+            hours_tz:         '<?php echo esc_js( $dd_hours_tz ); ?>',
+            hours_schedule:   <?php echo wp_json_encode( $dd_schedule ); ?>,
+            closing_soon_min: <?php echo $dd_closing_soon; ?>,
             whatsapp_admin: '<?php echo esc_js( get_option( 'dd_whatsapp_admin', '' ) ); ?>',
             menu_url:     '/restaurant-menu/',
         };

@@ -1,283 +1,213 @@
-# Investigation — add_to_cart call sites (Phase 1, read-only)
+# Investigation: Test Customer Flag
 
-Scope: locate every place `dd_cart_add` is actually fired from `assets/js/frontend.js`
-and `assets/js/menu-page.js`, what product data is in scope at each site, whether
-`ddTrack`/`window.gtag` are reachable there, and whether both files are genuinely
-enqueued on the frontend. No files changed.
+**Type:** Read-only investigation. No files edited, no DB writes, no commits.
+**Date:** 2026-08-05
 
 ---
 
-## 1. Files exist
+## 0. CLAUDE.md state check
 
-```
-assets/js/frontend.js
-assets/js/menu-page.js
-```
-
-Confirmed both present under `assets/`.
+- `DD_VERSION` / "Deployed version" / "Last updated": **v3.15.3** — accurate, correctly maintained every release.
+- **Stale fields found:** "Current phase" (Phase 7), "Current sub-phase," "Next task," and "Last working state" are all frozen at the **v3.13.5 era** — text still describes CSV import as the "last shipped" work and says "no code work currently queued," despite v3.14.0–v3.15.3 (paid reservations, billing page, rider notification, etc.) having shipped since. Only the version-number fields have been kept current; the narrative prose fields have not. Not fixing — noted per instructions, and flagged again in Observations.
+- Phase 8 backlog explicitly lists "test customer flag" as a queued, not-yet-built item — confirms this investigation matches current project state.
 
 ---
 
-## 2. `dd_cart_add` / add-to-cart hits
+## 1. Customer storage
 
+### Schema — `wp_dishdash_customers` (`install.php`, table 11)
+
+```sql
+CREATE TABLE wp_dishdash_customers (
+    id                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id           BIGINT(20) UNSIGNED NULL DEFAULT NULL,
+    whatsapp          VARCHAR(20)     NOT NULL DEFAULT '',
+    name              VARCHAR(255)    NOT NULL DEFAULT '',
+    delivery_address  TEXT                     DEFAULT NULL,
+    birthday          DATE                     DEFAULT NULL,
+    dd_birthday_asked TINYINT(1)      NOT NULL DEFAULT 0,
+    total_orders      INT UNSIGNED    NOT NULL DEFAULT 0,
+    total_spent       DECIMAL(10,2)   NOT NULL DEFAULT '0.00',
+    first_order_at    DATETIME                 DEFAULT NULL,
+    last_order_at     DATETIME                 DEFAULT NULL,
+    created_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY  (id),
+    UNIQUE KEY   whatsapp (whatsapp),
+    UNIQUE KEY   uniq_user_id (user_id)
+)
 ```
-assets/js/frontend.js:24:    - admin-ajax.php?action=dd_cart_add
-assets/js/frontend.js:191:  function addToCart(productId, quantity, btn) {
-assets/js/frontend.js:208:      action:     'dd_cart_add',
-assets/js/frontend.js:1069:    action:     'dd_cart_add',
-assets/js/frontend.js:1318:  if (window.wc_add_to_cart_params && window.wc_add_to_cart_params.cart_url) {
 
-assets/js/menu-page.js:22:   - admin-ajax.php?action=dd_cart_add (id, name, price, qty, image, variation, addons, note)
-assets/js/menu-page.js:230:  addToCart: document.getElementById('dd-mobile-add-to-cart')
-assets/js/menu-page.js:370-373:  addToCart button click -> this.addToCart()
-assets/js/menu-page.js:789:  addToCartById(productId, qty, selectedAttributes = {}) {
-assets/js/menu-page.js:798:    formData.append('action', 'dd_cart_add');
-assets/js/menu-page.js:811:  const btn = this.elements.singleProduct.addToCart;
-assets/js/menu-page.js:828:  if (window.DDTrack) window.DDTrack.addToCart(productId, null);
-assets/js/menu-page.js:839:  addToCart() {
-assets/js/menu-page.js:848:  this.addToCartById(
-```
+**No `is_test` column exists on this table today.**
 
-### Key finding — `frontend.js:191` `addToCart(productId, quantity, btn)` is dead code
+### Identity anchor confirmation
 
-Grepped the whole repo (JS + PHP templates) for callers: **zero**. Nothing calls
-`addToCart(` in `frontend.js` — no click handler wires it, no inline `onclick` in
-any template. The homepage card's `.dd-add-btn` (`templates/partials/product-card.php:79`)
-has no handler of its own; its click bubbles to the delegated listener at
-`frontend.js:1276` (`document.addEventListener('click', ...)` -> `closest('.dd-dish-card')`
--> `openProductModal()`), because the button lives inside the card. So clicking
-"Add" on a homepage/menu card **opens the modal**, it does not add anything.
-This matches the existing CLAUDE.md note from v3.11.6 ("no quick-add bypass exists
-... cards open the modal").
+`whatsapp VARCHAR(20) NOT NULL DEFAULT ''` with `UNIQUE KEY whatsapp (whatsapp)` — **confirmed NOT NULL + UNIQUE**, matching the brief's premise. One nuance: the default is an empty string, not a true `NULL` — MySQL's `UNIQUE` constraint does enforce uniqueness on empty strings (unlike `NULL`, which is exempt), so this can't silently create duplicate blank-identity rows, but there's also no `CHECK` preventing a row from ever being inserted with `whatsapp=''` in the first place. `DD_Customer_Manager::upsert()` (see below) does guard against this — it returns early with `customer_id => 0` if `normalize_phone()` produces an empty string — so in practice this path is closed off by application logic, not the schema itself.
 
-**The one real add-to-cart call site in `frontend.js`** is the product modal's Add
-button, inside `renderModal()` -> `pmAdd.addEventListener('click', ...)` at
-**line 1052-1100** (the `dd_cart_add` fetch is at line 1069).
+### Creation function
 
-### `menu-page.js` — mobile
+`modules/orders/class-dd-customer-manager.php` — `DD_Customer_Manager::upsert(string $whatsapp, string $name, string $delivery_address, float $order_total): array`
 
-`quick-add` on the product list (`.dd-mobile-product-card__quick-add`, wired at
-lines 306-315 and 336-344) does **not** add to cart either — it calls
-`showProductDetails(card.dataset.id)`, i.e. opens the single-product screen. Same
-non-bypass pattern as desktop.
-
-**The one real add-to-cart call site in `menu-page.js`** is `addToCartById()`
-(line 789-837), reached only via the class method `addToCart()` (839-853), which
-is reached only via the single-product screen's Add button click handler
-(370-373: `this.elements.singleProduct.addToCart.addEventListener('click', () =>
-this.addToCart())`).
-
-**So, codebase-wide, there are exactly two places an item is actually added to
-the cart:** the desktop product modal (`frontend.js`) and the mobile single-product
-screen (`menu-page.js`). Everything else (homepage card, mobile card quick-add) is
-a router into one of these two, not a third add path.
+- Normalizes phone via `self::normalize_phone()`, looks up by `whatsapp`, `UPDATE`s stats (`total_orders++`, `total_spent += $order_total`, `last_order_at`) if found, else `INSERT`s a new row with `total_orders=1`.
+- **Called from 5 places, all in `modules/orders/class-dd-orders-module.php`, all at order-creation/payment-confirmation time**: IremboPay confirm (`:992`), MoMo poll success (`:1348`), main `place_order()` flow (`:1221`), PesaPal poll promote (`:1708`), PesaPal IPN fallback create (`:1887`).
+- **None of these 5 call sites check `is_test` before calling `upsert()`.** This is a real, pre-existing gap — see Observations.
+- Reservations do **not** call `upsert()` directly — they resolve/create a customer via the `dd_resolve_customer_id` filter instead (see §3).
 
 ---
 
-## 3. Data in scope at each real call site
+## 2. Order ↔ customer link
 
-### A. `frontend.js` — modal Add button (`pmAdd` click, ~line 1052)
+**Not a real foreign key, and not WooCommerce order meta.** The actual mechanism is a mix of two things, and they're inconsistent with each other:
 
-This handler is nested inside `renderModal(productId, name, price, desc, imgSrc)`
-(line 978), so all of its parameters are closure-captured and available at the
-`fetch` call:
+1. **`wp_dishdash_orders.customer_id`** (`BIGINT UNSIGNED DEFAULT NULL`) is populated at insert time (`class-dd-orders-module.php:366`) as:
+   ```php
+   'customer_id' => get_current_user_id() ?: null,
+   ```
+   **This stores the WordPress user ID, not `wp_dishdash_customers.id`.** It's `NULL` for every guest checkout (the majority case in this market, per the product's own WhatsApp-first design).
 
-- `productId` — yes, string/number id.
-- `name` — yes, but it's whatever text was scraped from the DOM card
-  (`.dd-dish-card__title`) or the `dd_get_product` fallback response — plain string,
-  ready to use as `item_name`.
-- `price` — yes, but it's a **display string** (e.g. `"RWF 5,000"`, or
-  `escHtml(price)` of that), not a bare number. Getting a clean numeric `value` for
-  GA4 needs either parsing this string (fragile — locale/format-dependent) or
-  reading `ddPmVariations`' matched price / the enrichment response's raw price
-  (`p.price`, fetched separately in `fetchProductEnrichment`, async, may not have
-  landed by the time Add is clicked for a no-variation product — needs checking if
-  it's stored anywhere numeric). Simplest reliable path: skip `value`/`price` in
-  the `items[]` payload unless a numeric price is confirmed available, exactly as
-  the `purchase`/`add_payment_info` events already do (`data.total` from the
-  server response, not scraped text).
-- `qty` — yes, local `var qty` in the same closure, current stepper value.
+2. **The real link to `wp_dishdash_customers`** is a denormalized string match: `orders.customer_phone` against `customers.whatsapp`, resolved fresh on each request via `DD_Customer_Manager::upsert()` — there is no column on `wp_dishdash_orders` that stores `wp_dishdash_customers.id`.
 
-Net: `item_name` and `quantity` are solid; a numeric `price`/`value` is not
-guaranteed without extra work. Simplest correct v1: fire `add_to_cart` with
-`{ currency: 'RWF', items: [{ item_id: productId, item_name: name, quantity: qty }] }`
-and add `value`/`price` only if a follow-up decides to thread the numeric price
-through (e.g. from the `dd_cart_add` AJAX response, if it echoes back a price —
-not confirmed in this read-only pass, would need a quick read of the PHP handler).
+This means `orders.customer_id` is a misleadingly-named column — it looks like a customer-table FK but isn't one. See Observations for a concrete bug this causes in `analytics.php`.
 
-### B. `menu-page.js` — `addToCartById(productId, qty, selectedAttributes)`
+### Order status
 
-- `product` — full object, looked up via `this.products.find(p => p.id ===
-  parseInt(productId))` (line 790). `product.name` and `product.price` (line
-  801-802) are sent straight to the server as form fields, so they're already
-  known to be the right shape/type for that product (numeric price, presumably —
-  matches what `DD_API::get_products()` returns, localized wholesale into
-  `DD_MOBILE_DATA.products` in `grid.php:338`).
-- `qty` — yes, parameter.
-- `productId` — yes, parameter.
+Column: `status VARCHAR(50) NOT NULL DEFAULT 'pending'` on `wp_dishdash_orders`. Free text, not an ENUM. Values actually used in code: `'pending'`, `'confirmed'`, `'ready'`, `'delivered'`, `'cancelled'`, `'pending_payment'` (PesaPal-pending, a real distinct value — see the reservations-fee investigation from earlier this session for why that distinction matters).
 
-Net: this site has everything GA4 wants — `item_name`, numeric `price`, `qty` —
-with no scraping/parsing needed. This is the stronger of the two sites for a full
-`items[]` payload.
+**Confirmed exact string: `'delivered'` — all lowercase**, e.g. `class-dd-orders-module.php:594,617,674,676` and every billing/analytics/dashboard query that gates on delivered orders. Not `"Delivered"` capitalized as written in the brief — worth being precise about since this is a free-text column, not an enum, so exact casing matters for every query.
 
 ---
 
-## 4. `ddTrack` / `window.gtag` reachability
+## 3. Reservation ↔ customer link
 
+**Different, and — unlike orders — actually correct.** Reservations resolve a customer via:
+```php
+$customer_id = (int) apply_filters( 'dd_resolve_customer_id', 0, $whatsapp, $name );
 ```
-frontend.js:  no "ddTrack", no "gtag" (bare), no "window.gtag", no "ga4Id".
-              Only "window.ddCartData" appears (10 sites, all reading
-              ajax_url/nonce) — confirming frontend.js DOES receive the
-              same localized ddCartData object cart.js uses (wp_localize_script
-              binds it to the 'dish-dash-cart' handle; ddCartData is a bare
-              `var` on `window`, so any script that loads after it on the same
-              page can read it). ga4Id is on that object as of v3.13.0
-              (`ddCartData.ga4Id`) but nothing in frontend.js reads it today.
+(`class-dd-reservations-module.php`, in `ajax_submit_reservation()`), which is answered by `DD_Customer_Manager::on_resolve_customer_id()` (`class-dd-customer-manager.php:181-219`) — looks up/creates by `whatsapp`, and **returns the real `wp_dishdash_customers.id`**. That value is then stored directly into `wp_dishdash_reservations.customer_id` at insert.
 
-menu-page.js: zero matches for all five patterns (ddTrack, window.gtag, gtag,
-              ddCartData, ga4Id). It doesn't read ddCartData at all — it has its
-              own localized object, DD_MOBILE_DATA (bound to the 'dd-menu-page'
-              handle in templates/menu/grid.php:336), which does NOT currently
-              carry ga4Id.
+So `reservations.customer_id` **does** correctly FK to `wp_dishdash_customers.id` — while `orders.customer_id` (same column name) does not. Two tables, identically-named column, two different meanings. Flagged in Observations.
+
+### Schema — `wp_dishdash_reservations` (`install.php`, table 6, current after this session's work)
+
+```sql
+CREATE TABLE wp_dishdash_reservations (
+    id                BIGINT UNSIGNED     NOT NULL AUTO_INCREMENT,
+    table_id          INT UNSIGNED                 DEFAULT NULL,
+    branch_id         BIGINT UNSIGNED     NOT NULL,
+    customer_name     VARCHAR(255)        NOT NULL DEFAULT '',
+    customer_phone    VARCHAR(50)         NOT NULL DEFAULT '',
+    customer_email    VARCHAR(255)        NOT NULL DEFAULT '',
+    party_size        INT UNSIGNED        NOT NULL DEFAULT 2,
+    reservation_date  DATE                NOT NULL,
+    reservation_time  TIME                NOT NULL,
+    status            VARCHAR(20)         NOT NULL DEFAULT 'pending',
+    notes             TEXT                         DEFAULT NULL,
+    created_at        DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    duration_minutes  INT UNSIGNED        NOT NULL DEFAULT 90,
+    booking_ref       VARCHAR(20)         NOT NULL DEFAULT '',
+    customer_id       BIGINT UNSIGNED              DEFAULT NULL,   -- correctly FKs to dishdash_customers.id
+    date              DATE                NOT NULL,
+    time              VARCHAR(5)          NOT NULL DEFAULT '',
+    session           VARCHAR(10)         NOT NULL DEFAULT '',
+    guests            TINYINT(3) UNSIGNED NOT NULL DEFAULT 1,
+    name              VARCHAR(100)        NOT NULL DEFAULT '',
+    whatsapp          VARCHAR(30)         NOT NULL DEFAULT '',
+    special_requests  TEXT                         DEFAULT NULL,
+    source            VARCHAR(30)         NOT NULL DEFAULT '',
+    updated_at        DATETIME            NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deposit_required  TINYINT(1)          NOT NULL DEFAULT 0,
+    deposit_amount    INT UNSIGNED        NOT NULL DEFAULT 0,
+    deposit_status    VARCHAR(20)         NOT NULL DEFAULT 'none',
+    deposit_paid_at   DATETIME                     DEFAULT NULL,
+    payment_ref       VARCHAR(100)                 DEFAULT NULL,   -- unused, dead column
+    pesapal_tracking_id VARCHAR(64)                DEFAULT NULL,
+    deposit_proof_attachment_id BIGINT UNSIGNED     DEFAULT NULL,
+    platform_fee      INT UNSIGNED        NOT NULL DEFAULT 0,
+    is_test           TINYINT(1)          NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    UNIQUE KEY  booking_ref (booking_ref),
+    UNIQUE KEY  pesapal_tracking_id (pesapal_tracking_id),
+    KEY table_id, branch_id, reservation_date, status, customer_id, date, is_test
+)
 ```
 
-**`ddTrack()` itself is a local (non-exported) function defined inside `cart.js`'s
-IIFE** (`assets/js/cart.js`, added in v3.13.0, right after the CONFIG block). It
-is not attached to `window`, so neither `frontend.js` nor `menu-page.js` can call
-it — confirmed, this needs a small redefinition (or a single shared global) in
-whichever file(s) fire `add_to_cart`.
+### Reservation status values — corrected against the brief's assumed values
 
-Both files **do** see `window.gtag` at runtime once GA4 is loaded, because
-`gtag.js`'s inline bootstrap script (`class-dd-template-module.php`,
-`enqueue_frontend_assets()`) defines `window.gtag` globally, and it's enqueued on
-every page `is_dishdash_page()` returns true for — independent of which module
-enqueues which of `frontend.js`/`menu-page.js`/`cart.js`. So a tiny local
-`ddTrack` guarded by `if (window.gtag)` in each file will work exactly like
-cart.js's, with no import/dependency wiring needed — just duplicate the 3-line
-guard function (or promote it to a genuinely shared global — see §6).
+The brief asks to confirm "Paid, Confirmed, No-show, deposit-required flag" as reservation statuses. **These aren't all the same kind of field** — reservations actually split billability across two independent columns:
+
+- **`status`** (booking lifecycle): `'pending'`, `'confirmed'`, `'cancelled'`, `'no_show'` (lowercase+underscore, not "No-show"), `'auto_cancelled'`.
+- **`deposit_status`** (payment lifecycle, separate column): `'none'`, `'pending'`, `'claimed'`, `'paid'`, `'failed'`, `'refunded'`. **"Paid" is a `deposit_status` value, not a `status` value** — a reservation is never `status='paid'`.
+- **`deposit_required`** — real column, `TINYINT(1) NOT NULL DEFAULT 0`. Confirmed exists exactly as described.
+
+A reservation only counts as "billable" when `deposit_required=1 AND deposit_status='paid'`, OR `deposit_required=0 AND status='confirmed'` — this exact combined condition is already implemented in `admin/pages/billing.php` (shipped this session, v3.15.0) and is the closest existing precedent for "is this real revenue" logic that a test-flag feature would need to sit alongside.
 
 ---
 
-## 5. Enqueue confirmation — and a wrinkle the brief's grep would have missed
+## 4. Everywhere a test flag must be respected
 
-```
-modules/template/class-dd-template-module.php:293:
-  wp_enqueue_script( 'dish-dash-frontend', $this->asset_url( 'js', 'frontend.js' ), [ 'dish-dash-search' ], DD_VERSION, true );
-```
+`is_test` already exists on `wp_dishdash_orders` and `wp_dishdash_reservations` (not on `wp_dishdash_customers`) and is already consistently checked in most — but not all — of these:
 
-`frontend.js` **is** enqueued in the template module, gated by
-`enqueue_frontend_assets()` -> `is_dishdash_page()` (true on the homepage, cart,
-checkout, birthday, my-account, track-order, and any page using the
-`page-dishdash.php`/`page-simple.php` templates).
-
-`menu-page.js` is **not** in `class-dd-template-module.php` at all — the brief's
-grep (`modules/template/class-dd-template-module.php frontend/`) would have
-returned nothing for it and looked like a gap. It's actually enqueued from a
-**different module**:
-
-```
-modules/menu/class-dd-menu-module.php:153-177:
-  public function enqueue_menu_assets(): void {
-      if ( ! $this->is_menu_page() ) return;
-      ...
-      wp_enqueue_script( 'dd-menu-page', DD_ASSETS_URL . 'js/menu-page.js', [], DD_VERSION, true );
-      wp_localize_script( 'dd-menu-page', 'DDMenu', [ 'ajaxUrl' => ..., 'nonce' => ... ] );
-  }
-```
-
-gated by its own `is_menu_page()` (checks the stored `dish_dash_menu_page_id`
-option, falling back to slug matching).
-
-**Both are confirmed enqueued on the pages where their add-to-cart flow lives.**
-GA4's `gtag.js` bootstrap, however, is gated by `is_dishdash_page()` in the
-*template* module, which checks the **literal slug** `is_page('restaurant-menu')`
-— not the stored `dish_dash_menu_page_id` option that `is_menu_page()` in the menu
-module uses. On the default install these agree (both resolve to the same page),
-but if a restaurant renames/relocates their menu page, `is_menu_page()` would
-still enqueue `menu-page.js` there (option-based) while `is_dishdash_page()` could
-miss it (slug-based) — meaning `add_to_cart` fires (once wired) but `window.gtag`
-might not exist on that page, and `ddTrack`'s guard silently no-ops. Pre-existing
-gap, unrelated to this task, flagging since it directly affects whether the new
-event reaches GA4 in a non-default setup.
+| Surface | File | `is_test` respected today? |
+|---|---|---|
+| Owner/manager Dashboard KPIs + Chart.js revenue data | `admin/pages/dashboard.php` | ✅ Yes — every order/reservation query filters `is_test = 0` |
+| Analytics (funnel, revenue trends, customer tier counts, order-type/payment-method breakdowns, reservation stats) | `admin/pages/analytics.php` | ✅ Yes — every query checks `is_test=0` on both `dishdash_orders` and `dishdash_reservations` |
+| Orders admin list | `admin/pages/orders.php` | ✅ Yes (own `is_test` toggle UI, `dd_toggle_test` AJAX action) |
+| Reservations admin list | `modules/reservations/class-dd-reservations-admin.php` | ✅ Yes (own "Test" tab, `mark_test`/`unmark_test` bulk actions, and the "Awaiting Payment" exclusion logic from this session both respect it) |
+| Billing page (orders + reservations sections, both KPI rows, both Monthly History tables, both Status Breakdowns) | `admin/pages/billing.php` | ✅ Yes — every query in both sections filters `is_test = 0` |
+| **Customers admin page (list, stats, tier filter)** | `modules/customers/class-dd-customers-module.php` | ❌ **No `is_test` reference anywhere in this file.** Customers list/stats are computed straight from `wp_dishdash_customers` with no test-exclusion at all — confirms the gap the brief is asking about. |
+| Future billing ledger (`wp_dd_billing_payments`, `dd_mark_month_paid`/`ajax_mark_month_paid`) | `modules/orders/class-dd-orders-module.php` (handler), `modules/reservations/class-dd-reservations-module.php` (`filter_billing_fees_for_month`, answers a filter so the orders module never queries the reservations table directly) | ✅ Indirectly — both fee-sum queries this hooks into already filter `is_test=0`. **This is the natural hook point for any future flag** — if a test-customer flag changes what counts as billable, it only has to change the two underlying billable-fee queries (`billing.php`'s and `filter_billing_fees_for_month()`'s), and the ledger inherits the fix automatically since it re-sums from source on every "Mark Paid" click rather than storing a stale total. |
 
 ---
 
-## 6. Answering the four questions from the brief
+## 5. Design question — flag placement
 
-**Where does add-to-cart actually fire?**
-Exactly two places, both identified above: `frontend.js` modal Add button
-(desktop, plus the >=1025px-width branch of mobile since menu-page.js dispatches
-`dd:open-modal` to reuse this same modal above that breakpoint), and
-`menu-page.js` `addToCartById()` (mobile single-product screen, <1025px). No
-third path — the two "quick add" buttons (homepage card, mobile card list) both
-just open one of these two flows rather than adding directly.
+### Option A: flag on the customer (`is_test` on `wp_dishdash_customers`)
+### Option B: flag on each order/reservation individually (mirrors the existing `is_test` columns)
 
-**What product data is in scope?**
-`menu-page.js`'s site has full clean data (`name`, numeric `price`, `qty`) with no
-extra work. `frontend.js`'s site has `name` and `qty` cleanly, but `price` is a
-formatted display string, not a number — getting a numeric `value` there needs
-either string-parsing (fragile) or sourcing the number from somewhere else (the
-`dd_cart_add` AJAX response, if it echoes back a price — not confirmed here,
-would need a quick read of the PHP handler in a Phase 2 pass if the brief wants
-`value` included). Firing a `value`-less `add_to_cart` (`items[]` with just
-`item_name`/`quantity`) is the safe v1 shape for the `frontend.js` site; the
-`menu-page.js` site can carry the full shape from day one.
+**Recommendation: Option A, as the primary/authoritative flag — but it doesn't remove the need to also fix `DD_Customer_Manager::upsert()`, and it's a larger migration than Option B.**
 
-**Does `ddTrack` need to be redefined?**
-Yes. It's a private function inside `cart.js`'s IIFE, not on `window`. Two options
-for the implementation brief to choose between: (a) copy the same 3-line
-`function ddTrack(event, params){ if (window.gtag) gtag('event', event, params ||
-{}); }` into each of `frontend.js` and `menu-page.js` (consistent with how each
-file already duplicates its own `ajaxUrl`/`nonce` resolution rather than sharing
-a module), or (b) hoist one copy onto `window.ddTrack` from wherever loads first
-and have all three files call `window.ddTrack(...)`. Cart.js currently loads
-before frontend.js on pages where both are enqueued (`dish-dash-frontend`
-depends on `dish-dash-search`, not on `dish-dash-cart` — so load order isn't
-guaranteed by WP's dependency graph even though both are typically enqueued
-together), and menu-page.js is enqueued by an entirely different module with no
-dependency edge to cart.js at all — so hoisting onto `window` would need an
-explicit dependency edge added to be safe, whereas copying the tiny guard has no
-ordering requirement. Given the project's existing style (each cart-ish file
-re-resolves its own `ajaxUrl`/`nonce` rather than importing a shared helper),
-duplicating the guard is the lower-risk, more consistent-with-precedent choice —
-noting it here for the brief to make the actual call.
+Reasoning:
 
-**Overlap / double-count risk?**
-None found. The two real add sites are in different files, wired to different
-buttons, and the desktop-modal-via-mobile-dispatch path (`dd:open-modal`) routes
-through `frontend.js`'s single Add button — it does not also go through
-`menu-page.js`'s `addToCartById()`. Each user action that results in a cart line
-touches exactly one `dd_cart_add` call site. No dedup logic needed beyond "put the
-`ddTrack('add_to_cart', ...)` call next to the existing `res.success` branch" at
-each of the two sites (mirroring where `menu-page.js` already fires its own
-internal `DDTrack.addToCart(productId, null)` at line 828, and where `frontend.js`
-shows the "Added!" state).
+- **Fits the whatsapp identity model better.** The whole point of this codebase's identity system is "one whatsapp number = one customer, everywhere." A test customer (e.g., Fri Soft's own number used to test the live site) is a property of *that identity*, not of any single transaction. Option A lets staff flag it once and have it stick — Option B requires staff to remember to tick "test" on every single order and every single reservation that number ever generates, forever. Given this feature is being requested at all, the per-transaction manual discipline (Option B's existing pattern, already live on orders/reservations today) has apparently proven insufficient or error-prone enough to need a better answer.
+
+- **Less error-prone for billing accuracy, for the same reason** — one flag, set once, can't be forgotten on the 15th test order the way a per-transaction checkbox can.
+
+- **Real cost, found during this investigation:** none of `wp_dishdash_orders`/`wp_dishdash_reservations` have a working FK to `wp_dishdash_customers.id` (orders' `customer_id` is actually the WP user ID — see §2). Making Option A actually exclude "this customer's orders" from Dashboard/Analytics/Billing/Customers list requires a **whatsapp string join** (`orders.customer_phone = customers.whatsapp`) added to every query in §4's table — a materially bigger set of changes than Option B, which needs zero new joins (every one of those queries already has its own `is_test` column to check).
+
+- **Neither option is complete on its own for billing accuracy** without also touching `DD_Customer_Manager::upsert()` — it increments `total_orders`/`total_spent` on `wp_dishdash_customers` unconditionally, with no test-awareness at all today (§1). Under Option A this is actually easier to close: `upsert()` could check the *existing* customer row's own `is_test` flag before incrementing (one extra `SELECT`, no new parameters needed at any of the 5 call sites). Under Option B, `upsert()` would need an `is_test` parameter threaded through all 5 call sites individually, since it currently has no visibility into the order's test status at all.
+
+**Secondary note, not a third option:** the two aren't necessarily exclusive. The existing per-order/per-reservation `is_test` toggle already works and is already respected almost everywhere (§4) — nothing about adding a customer-level flag requires removing it. A customer-level flag could be the primary "set once" mechanism, with the per-transaction toggle remaining available for the genuinely one-off case (a real customer's one order gets marked test for some reason, without flagging their whole identity). Not recommending this hybrid as the deliverable — just noting it's compatible, since the brief asked for one recommendation, not an either/or lock-in.
 
 ---
 
-## Summary for the implementation brief
+## 6. Migration note
 
-- Two files, two call sites: `frontend.js` line ~1081 (`res.success` branch inside
-  the `pmAdd` click handler, alongside the existing `showToast('Added to cart!')`),
-  and `menu-page.js` line ~822-828 (`data.success` branch inside
-  `addToCartById()`, alongside the existing `if (window.DDTrack)
-  window.DDTrack.addToCart(...)` call).
-- `menu-page.js` can carry a full `items[]` payload (`item_name`, numeric
-  `price`, `quantity`) immediately. `frontend.js` should ship a simpler
-  event (no numeric `value`) unless the brief wants to also solve the
-  price-is-a-string problem.
-- Both files need their own tiny `ddTrack` guard (dead-simple copy from
-  cart.js) — no shared/global helper exists yet, and none is required to make
-  this work.
-- `frontend.js`'s dead `addToCart(productId, quantity, btn)` function (line 191)
-  is unrelated to this work — flagging only so a future release doesn't
-  mistakenly wire tracking into it thinking it's live.
-- No double-counting risk between the two files.
-- Pre-existing, unrelated gap: `is_dishdash_page()`'s slug-based menu-page
-  detection could, in a non-default setup, disagree with `is_menu_page()`'s
-  option-based detection — meaning `gtag.js` might not load on a renamed menu
-  page even though `menu-page.js` (and the new tracking call) does. Not blocking,
-  just noting it since it affects whether this specific event reaches GA4 in that
-  edge case.
+Confirmed: **a new `is_test` column on `wp_dishdash_customers` would need the standard `install.php` + version bump path** — but the brief's premise that "dbDelta doesn't add columns" is **incorrect for this codebase**. `CLAUDE.md` (§"What auto-migration can and can't do") explicitly documents dbDelta **can** add new columns to existing tables via the auto-migration guard in `dish-dash.php` (runs on the next admin page load after a `DD_VERSION` mismatch, updates `dd_db_version` automatically) — no manual `ALTER TABLE`/WP-CLI step needed for a straightforward new nullable/defaulted column addition like this one.
 
-**STOP — read-only. Awaiting the implementation brief (v3.13.1).**
+The manual-`ALTER TABLE` requirement in this codebase is reserved for **drops and renames** only (dbDelta never drops, and can't rename — those need a real migration script, same pattern as `scripts/dd-r3-migrate.php`/`scripts/dd-r15-reservation-fee-backfill.php` from this session). Adding `is_test TINYINT(1) NOT NULL DEFAULT 0` to `wp_dishdash_customers` is a pure addition, so it follows the normal path:
+
+1. Add the column to `install.php`'s `CREATE TABLE dishdash_customers` block.
+2. Bump `DD_VERSION` (both locations in `dish-dash.php`).
+3. Auto-migration guard picks it up on next admin page load — no WP-CLI step.
+
+No backfill script would be needed either, since a brand-new `is_test` column defaults to `0` for all existing rows, which is the correct value for every real customer already in the table.
+
+---
+
+## Observations (unrelated to the task — not fixed)
+
+1. **`orders.customer_id` vs `reservations.customer_id` store different things.** Orders: WordPress user ID (`class-dd-orders-module.php:366`, `NULL` for every guest checkout). Reservations: `wp_dishdash_customers.id` (correct FK, via `on_resolve_customer_id()`). Same column name, two unrelated ID spaces, on sibling tables in the same product.
+
+2. **Likely-broken metric found as a direct consequence of #1**: `admin/pages/analytics.php:109-113`, the "Returning Customers" / return-rate KPI:
+   ```sql
+   SELECT COUNT(DISTINCT o.customer_id) FROM dishdash_orders o
+   JOIN dishdash_customers c ON c.id = o.customer_id
+   WHERE o.is_test=0 AND o.created_at>=%s AND c.total_orders>1
+   ```
+   This joins WP user IDs against `dishdash_customers.id` — an incidental numeric coincidence at best, and `o.customer_id IS NULL` for every guest order (the majority in this market per the product's own WhatsApp-first design), so this JOIN silently drops most rows. The return-rate percentage this feeds is very likely wrong. Same root cause affects `analytics.php:106-108`'s "Total Customers" KPI (`COUNT(DISTINCT customer_id) ... customer_id IS NOT NULL`), which under-counts real unique customers by excluding every guest order instead of counting distinct `whatsapp` values.
+
+3. **`payment_ref VARCHAR(100)` on `wp_dishdash_reservations`** — confirmed still completely unused (zero reads/writes anywhere in the codebase), flagged once already earlier this session during the MoMo proof-upload work.
+
+4. **`wp_dishdash_orders.pesapal_tracking_id` missing from `install.php`** — already a documented Known Issue in CLAUDE.md itself (live-DB-only manual `ALTER TABLE`), re-confirmed still true, not re-investigated further here.
+
+5. **CLAUDE.md's narrative "Current state" fields are ~10 releases stale** (see §0) — worth a housekeeping pass independent of this feature.

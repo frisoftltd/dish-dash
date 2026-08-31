@@ -170,7 +170,7 @@ class DD_Menu_Module extends DD_Module {
         wp_enqueue_script(
             'dd-menu-page',
             DD_ASSETS_URL . 'js/menu-page.js',
-            [ 'dd-tracking' ],
+            [ 'dd-tracking', 'dd-hours' ],
             DD_VERSION,
             true
         );
