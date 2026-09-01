@@ -290,14 +290,26 @@ class DD_Reservations_Module extends DD_Module {
         $wa_raw       = (string) ( $res['whatsapp'] ?? '' );
         $wa_digits    = preg_replace( '/\D/', '', $wa_raw );
         if ( '+' === substr( $wa_raw, 0, 1 ) && strlen( $wa_digits ) >= 8 && strlen( $wa_digits ) <= 15 ) {
-            $wa_msg       = sprintf(
-                'Hello %s, this is %s about your reservation %s on %s at %s.',
-                $res['name'],
-                $restaurant,
-                $res['booking_ref'],
-                $date_fmt,
-                $res['time']
-            );
+            // Status-driven (v3.18.43) — reuses $is_confirmed (already governs the
+            // pill/CTA above) rather than a second condition, so message, pill and
+            // CTA can never disagree.
+            $wa_msg = $is_confirmed
+                ? sprintf(
+                    'Hello %s, this is %s. Your reservation %s on %s at %s has been confirmed. We look forward to seeing you.',
+                    $res['name'],
+                    $restaurant,
+                    $res['booking_ref'],
+                    $date_fmt,
+                    $res['time']
+                )
+                : sprintf(
+                    'Hello %s, this is %s about your reservation %s on %s at %s.',
+                    $res['name'],
+                    $restaurant,
+                    $res['booking_ref'],
+                    $date_fmt,
+                    $res['time']
+                );
             $whatsapp_url = 'https://wa.me/' . $wa_digits . '?text=' . rawurlencode( $wa_msg );
         }
 
