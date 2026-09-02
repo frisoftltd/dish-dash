@@ -1174,14 +1174,19 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
      * Minimal Light's header on the Menu page — same markup/IDs as
      * templates/layouts/minimal-light/page-home.php's own header
      * (#ddMenuToggle, #ddNavDrawer, #ddDrawerOverlay, #ddCartTopBtn,
-     * #ddCartCount), duplicated here rather than shared via an include
-     * since page-home.php is itself a page-template file and out of scope
-     * to modify for this change. Also emits the same window.DD JS bridge
-     * render_global_header() provides (ajaxUrl/nonce/hours_state/etc.) —
-     * the homepage doesn't need this (its own JS reads the closed-hours
-     * state a different way), but the Menu page's menu-page.js reads
-     * window.DD.hours_state directly to disable Add to Cart while closed,
-     * so it's included here to keep that behavior working.
+     * #ddCartCount, and since v3.18.44: the Home/Menu/Reservation nav,
+     * #ddMobileSearchTrigger/#ddMobileSearchPanel search icon, and
+     * #ddOpenLogin/My Profile header button), duplicated here rather than
+     * shared via an include since page-home.php is itself a page-template
+     * file and out of scope to modify for this change — see
+     * investigation-ml-header-hero-redesign.md and the v3.18.44 release
+     * report for the consolidation feasibility assessment. Also emits the
+     * same window.DD JS bridge render_global_header() provides (ajaxUrl/
+     * nonce/hours_state/etc.) — the homepage doesn't need this (its own JS
+     * reads the closed-hours state a different way), but the Menu page's
+     * menu-page.js reads window.DD.hours_state directly to disable Add to
+     * Cart while closed, so it's included here to keep that behavior
+     * working.
      */
     private function render_minimal_light_header(): void {
         $dd_name       = get_option( 'dish_dash_restaurant_name', 'Restaurant' );
@@ -1215,11 +1220,34 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                     <span class="dd-ml-header__logo-name"><?php echo esc_html( $dd_name ); ?></span>
                     <?php endif; ?>
                 </a>
+
+                <!-- v3.18.44: Home / Menu / Reservation — desktop-only,
+                     identical to page-home.php's own copy (see that file
+                     for the full rationale comment). -->
+                <nav class="dd-ml-nav dd-desktop-only" aria-label="Primary">
+                    <a href="<?php echo esc_url( $home_url ); ?>" class="dd-ml-nav__link">Home</a>
+                    <a href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>" class="dd-ml-nav__link">Menu</a>
+                    <a href="#reserve" class="dd-ml-nav__link js-open-reservation">Reservation</a>
+                </nav>
+
                 <div class="dd-ml-header__actions">
                     <?php if ( $dd_maps_url ) : ?>
                     <a href="<?php echo esc_url( $dd_maps_url ); ?>" target="_blank" rel="noopener" class="dd-ml-icon-btn" aria-label="Find us">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                     </a>
+                    <?php endif; ?>
+                    <!-- v3.18.44: search icon — id-only (no .dd-mobile-search-trigger
+                         class, see minimal-light.css), wired to search.js's
+                         existing initMobile() via #ddMobileSearchTrigger. -->
+                    <button type="button" class="dd-ml-icon-btn" id="ddMobileSearchTrigger" aria-label="Search dishes">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                    <?php if ( is_user_logged_in() ) :
+                        $dd_ml_account_url = function_exists( 'wc_get_account_endpoint_url' ) ? wc_get_account_endpoint_url( 'my-profile' ) : home_url( '/my-account/my-profile/' );
+                    ?>
+                    <a href="<?php echo esc_url( $dd_ml_account_url ); ?>" class="dd-ml-btn dd-ml-btn--outline dd-desktop-only">My Profile</a>
+                    <?php else : ?>
+                    <button type="button" id="ddOpenLogin" class="dd-ml-btn dd-ml-btn--outline dd-desktop-only">Log in</button>
                     <?php endif; ?>
                     <button type="button" class="dd-ml-icon-btn dd-ml-header__cart" id="ddCartTopBtn" aria-label="Open cart">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
@@ -1230,6 +1258,28 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                         <span class="dd-menu-toggle__bar"></span>
                         <span class="dd-menu-toggle__bar"></span>
                     </button>
+                </div>
+            </div>
+
+            <!-- v3.18.44: search expand panel — same markup/ids as
+                 page-home.php's copy, see that file for the full rationale. -->
+            <div class="dd-mobile-search-panel" id="ddMobileSearchPanel" aria-hidden="true">
+                <div class="dd-mobile-search-panel__inner">
+                    <div class="dd-ss__bar dd-ss__bar--mobile-expand">
+                        <span class="dd-ss__icon">&#128269;</span>
+                        <input type="search"
+                               id="ddMobileSearch"
+                               name="dd_search_mobile"
+                               class="dd-ss__input"
+                               placeholder="Search dishes&hellip;"
+                               autocomplete="off"
+                               autocorrect="off"
+                               autocapitalize="off"
+                               spellcheck="false"
+                               aria-label="Search dishes">
+                        <button class="dd-mobile-search-close" id="ddMobileSearchClose" aria-label="Close search">Cancel</button>
+                    </div>
+                    <div class="dd-ss__dropdown dd-ss__dropdown--mobile" id="ddMobileSearchDropdown" role="listbox"></div>
                 </div>
             </div>
         </header>

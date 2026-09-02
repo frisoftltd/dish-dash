@@ -31,7 +31,18 @@
  *
  * No build step — plain CSS only, per architecture constraints.
  *
- * Last modified: v3.18.12
+ * v3.18.44 — Header/hero redesign. --ml-accent now aliases the existing
+ * `dish_dash_accent_color` option (--accent, already admin-editable on the
+ * Brand Identity page, already injected on every page via
+ * build_root_tokens(), default #e8832a — a warm orange) instead of --brand
+ * (the site's primary color, shared with Khana Khazana + admin). This keeps
+ * Minimal Light's accent fully independent of Khana Khazana's brand color —
+ * see investigation-ml-header-hero-redesign.md §6 for the full ripple
+ * analysis. --ml-accent-dark is derived via color-mix() (same technique
+ * already used in frontend.js's closed-banner inline styles) since there's
+ * no separate "accent dark" option to alias.
+ *
+ * Last modified: v3.18.44
  */
 
 /* ── TOKENS ─────────────────────────────────────────────────────────────── */
@@ -43,8 +54,8 @@
     --ml-ink-soft:      #6b6459;
     --ml-ink-faint:     #a39c8f;
     --ml-line:          #e5e1d8;
-    --ml-accent:        var(--brand, #6B1D1D);
-    --ml-accent-dark:   var(--brand-dark, #160F0D);
+    --ml-accent:        var(--accent, #e8832a);
+    --ml-accent-dark:   color-mix(in srgb, var(--accent, #e8832a), black 15%);
     --ml-on-accent:     #ffffff;
 
     --ml-sp-1:  4px;
@@ -170,6 +181,70 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     text-align: center;
 }
 
+/* ── HORIZONTAL NAV (v3.18.44) — Home / Menu / Reservation. Desktop-only
+   (same breakpoint/utility class Khana Khazana's shared header already uses
+   for its own nav-adjacent actions, theme.css:2922-2929) — the hamburger +
+   drawer stay the nav's mobile fallback at every width, unchanged. */
+.dd-ml-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--ml-sp-6);
+}
+.dd-ml-nav__link {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ml-ink-soft);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: color .15s;
+}
+.dd-ml-nav__link:hover { color: var(--ml-accent); }
+
+/* ── BUTTONS (v3.18.44) — shared solid/outline pair, used by the header's
+   Log in/My Profile entry point and the hero's dual CTAs below, so both
+   surfaces stay visually consistent from one ruleset. */
+.dd-ml-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 9px 20px;
+    border-radius: var(--ml-radius-full);
+    font-family: var(--ml-font-body);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.dd-ml-btn--solid {
+    background: var(--ml-accent);
+    color: var(--ml-on-accent);
+    border: 1.5px solid var(--ml-accent);
+}
+.dd-ml-btn--solid:hover { background: var(--ml-accent-dark); border-color: var(--ml-accent-dark); }
+.dd-ml-btn--outline {
+    background: transparent;
+    color: var(--ml-ink);
+    border: 1.5px solid var(--ml-line);
+}
+.dd-ml-btn--outline:hover { border-color: var(--ml-ink); }
+
+/* ── HEADER SEARCH ICON (v3.18.44) — reuses theme.css's mobile expandable
+   search panel (.dd-mobile-search-trigger/#ddMobileSearchTrigger IDs/JS,
+   search.js's initMobile()) at EVERY breakpoint, not just mobile — matching
+   this template's icon-driven identity (see file docblock) rather than
+   adding a persistent desktop search bar. The trigger button itself is
+   styled via .dd-ml-icon-btn only (deliberately NOT given the
+   .dd-mobile-search-trigger CLASS, only its #ddMobileSearchTrigger ID for
+   JS) so theme.css's own desktop-hide rule for that class
+   (theme.css:2917-2920) never applies to it. The panel DOES need its class
+   (for the open/close slide animation), so it IS subject to that same
+   desktop-hide rule — overridden here, Minimal Light only. */
+@media (min-width: 1025px) {
+    body.dd-tpl-minimal-light .dd-mobile-search-panel { display: block !important; }
+}
+
 /* ── SECTION SHELL ──────────────────────────────────────────────────────── */
 .dd-ml-section { padding: var(--ml-sp-8) 0; }
 .dd-ml-section--surface { background: var(--ml-surface); }
@@ -267,13 +342,6 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     margin: 0 0 var(--ml-sp-5);
     max-width: 44ch;
 }
-.dd-ml-hero__links {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--ml-sp-3);
-    margin-bottom: var(--ml-sp-6);
-}
 .dd-ml-text-link {
     font-size: 14px;
     font-weight: 600;
@@ -284,7 +352,40 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     transition: color .15s, border-color .15s;
 }
 .dd-ml-text-link:hover { color: var(--ml-accent); border-color: var(--ml-accent); }
-.dd-ml-hero__links-sep { color: var(--ml-ink-faint); font-size: 14px; }
+
+/* Open-hours line (v3.18.44) — text set by an inline script that calls the
+   existing dd_get_hours_state AJAX endpoint (same cache-safe pattern
+   frontend.js's setupHoursBanner() already uses, see v3.18.43's notes on
+   why window.DD.hours_state can't be trusted on a cached page); PHP only
+   renders a same-wording placeholder for first paint. */
+.dd-ml-hours-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ml-ink-soft);
+    margin-bottom: var(--ml-sp-4);
+}
+.dd-ml-hours-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ml-ink-faint); flex-shrink: 0; }
+.dd-ml-hours-line.is-open   .dd-ml-hours-dot { background: #2fa84f; }
+.dd-ml-hours-line.is-soon   .dd-ml-hours-dot { background: #e0a527; }
+.dd-ml-hours-line.is-closed .dd-ml-hours-dot { background: #c0392b; }
+
+/* Dual CTA buttons (v3.18.44) — replaces the previous text-link treatment.
+   Still the same 3 configured Homepage Settings fields (dd_hero_btn1/2/3) —
+   first configured CTA renders solid/primary, every subsequent one renders
+   outlined/secondary, so the "one solid + outlined" pattern falls out of
+   configured order rather than hardcoding which field is which (labels are
+   fully admin-editable — reorder in Settings to change which one is solid). */
+.dd-ml-hero__ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--ml-sp-3);
+    margin-bottom: var(--ml-sp-6);
+}
+.dd-ml-hero__ctas .dd-ml-btn { padding: 13px 26px; font-size: 14px; }
+
 .dd-ml-hero__chips {
     display: flex;
     flex-wrap: wrap;
@@ -304,14 +405,74 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     background: var(--ml-ink-faint);
     flex-shrink: 0;
 }
+
+/* Photo media — dashed-circle frame + floating spotlight card (v3.18.44).
+   Replaces the previous plain rounded-rectangle <img>. */
+.dd-ml-hero__media {
+    position: relative;
+    max-width: 420px;
+    margin: 0 auto;
+}
+.dd-ml-hero__frame {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    padding: var(--ml-sp-5);
+}
+.dd-ml-hero__frame::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px dashed var(--ml-accent);
+    pointer-events: none;
+}
 .dd-ml-hero__photo {
     width: 100%;
-    aspect-ratio: 4 / 5;
+    height: 100%;
     object-fit: cover;
-    border-radius: var(--ml-radius-lg);
+    border-radius: 50%;
     display: block;
     box-shadow: var(--ml-shadow-lift);
 }
+.dd-ml-hero__card {
+    position: absolute;
+    left: -8px;
+    bottom: 12%;
+    display: flex;
+    align-items: center;
+    gap: var(--ml-sp-3);
+    max-width: 220px;
+    background: var(--ml-bg);
+    border-radius: var(--ml-radius);
+    box-shadow: var(--ml-shadow-lift);
+    padding: var(--ml-sp-3) var(--ml-sp-4);
+}
+.dd-ml-hero__card-img {
+    width: 48px; height: 48px;
+    border-radius: var(--ml-radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+    background: var(--ml-surface-2);
+}
+.dd-ml-hero__card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.dd-ml-hero__card-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dd-ml-hero__card-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ml-accent);
+}
+.dd-ml-hero__card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ml-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.dd-ml-hero__card-price { font-size: 12.5px; font-weight: 700; color: var(--ml-ink-soft); }
 
 /* ── FOOD CATEGORY LIST (mobile only) — circular 4-column grid (v3.18.24)
    Replaces the v3.18.5 chevron-row list with the same circular category
@@ -674,13 +835,18 @@ body.dd-tpl-minimal-light .dd-mobile-cats-empty {
 /* ── RESPONSIVE ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
     .dd-ml-hero__grid { grid-template-columns: 1fr; }
-    .dd-ml-hero__photo { order: -1; aspect-ratio: 4/3; }
+    .dd-ml-hero__media { order: -1; max-width: 320px; }
     .dd-ml-cat-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 600px) {
     .dd-ml-section { padding: var(--ml-sp-7) 0; }
     .dd-ml-strip .dd-dish-card { flex: 0 0 200px; }
     .dd-ml-review { flex: 0 0 84%; }
+}
+@media (max-width: 480px) {
+    /* Floating spotlight card gets cramped against the frame at very small
+       widths — dropped rather than shrunk to illegibility. */
+    .dd-ml-hero__card { display: none; }
 }
 
 /* ── MOBILE BOTTOM NAV — unchanged, shared component (Home/Menu/Reserve/Cart).

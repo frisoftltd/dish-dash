@@ -42,7 +42,23 @@
  * (dual sort-order fetch, pooled/deduped, 24h refresh, debug diagnostics),
  * replacing the previous simpler single-sort/12h-cache call.
  *
- * Last modified: v3.18.16
+ * v3.18.44: Header/hero redesign. Header gained a desktop-only Home/Menu/
+ * Reservation nav (.dd-ml-nav, still hamburger+drawer at every breakpoint
+ * underneath), a search icon wired to the existing site-wide AJAX search
+ * (search.js's initMobile(), reusing its exact #ddMobileSearchTrigger/
+ * #ddMobileSearchPanel markup), and a desktop-only Log in/My Profile button
+ * (#ddOpenLogin, mirrors Khana Khazana's own shared-header pattern — see
+ * render_global_header()). Hero rebuilt: dashed-circle photo frame +
+ * floating "Best Seller" spotlight card (sourced from $dd_best, the same
+ * popularity-ranked list "From the Kitchen" already uses — no new field),
+ * an open-hours line (dd_get_hours_state AJAX, same cache-safe pattern as
+ * frontend.js's setupHoursBanner()), and the 3 configured CTA fields now
+ * render as solid/outline buttons instead of text-links (first = solid,
+ * rest = outline). --ml-accent now sources dish_dash_accent_color instead
+ * of the shared --brand — see minimal-light.css and
+ * investigation-ml-header-hero-redesign.md §6.
+ *
+ * Last modified: v3.18.44
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -254,6 +270,33 @@ switch ( $dd_feat_orderby ) {
 $dd_cart_count  = ( function_exists( 'WC' ) && WC()->cart ) ? WC()->cart->get_cart_contents_count() : 0;
 $dd_hours_state = class_exists( 'DD_Hours' ) ? DD_Hours::get_state() : 'open';
 
+// v3.18.44: hero floating spotlight card — reuses $dd_best (already fetched
+// above for "From the Kitchen", same popularity ranking Analytics' own "Top
+// Menu Items" card uses), computed unconditionally so it's available for the
+// card regardless of whether a hero image is configured (previously this
+// same first-best-seller lookup only ran as an image FALLBACK, inside the
+// hero-image-resolution block below — now factored out so both uses share
+// one source instead of two separate reads of $dd_best[0]).
+$dd_hero_spotlight = ! empty( $dd_best ) ? $dd_best[0] : null;
+
+// v3.18.44: hero open-hours line — PHP only renders a same-wording
+// placeholder for first paint; an inline script below re-fetches
+// dd_get_hours_state (same cache-safe AJAX pattern frontend.js's
+// setupHoursBanner() already uses, see v3.18.41/43 notes) and fills in the
+// exact close/next-open time client-side, since window.DD.hours_schedule
+// isn't populated on this page (only render_global_header()/
+// render_minimal_light_header() emit that bridge, and neither fires here).
+$dd_hours_labels = [
+    'open'         => 'Open now',
+    'closing_soon' => 'Closing soon',
+    'break'        => 'On a break',
+    'closed'       => 'Closed now',
+];
+$dd_hours_initial_text  = $dd_hours_labels[ $dd_hours_state ] ?? 'Open now';
+$dd_hours_initial_class = $dd_hours_state === 'open'
+    ? 'is-open'
+    : ( in_array( $dd_hours_state, [ 'closing_soon', 'break' ], true ) ? 'is-soon' : 'is-closed' );
+
 // Shared Google Reviews pipeline (dual sort-order fetch, pooled/deduped,
 // 24h refresh, debug diagnostics) — extracted from Khana Khazana's
 // page-dishdash.php in v3.18.16, where it was originally built and
@@ -306,11 +349,36 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
             <span class="dd-ml-header__logo-name"><?php echo esc_html( $dd_name ); ?></span>
             <?php endif; ?>
         </a>
+
+        <!-- v3.18.44: Home / Menu / Reservation — desktop-only, hamburger+
+             drawer stays the nav's mobile fallback (see .dd-desktop-only,
+             theme.css:2922-2929, same utility class the shared Khana
+             Khazana header already uses for this exact purpose). -->
+        <nav class="dd-ml-nav dd-desktop-only" aria-label="Primary">
+            <a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dd-ml-nav__link">Home</a>
+            <a href="<?php echo esc_url( home_url( '/restaurant-menu/' ) ); ?>" class="dd-ml-nav__link">Menu</a>
+            <a href="#reserve" class="dd-ml-nav__link js-open-reservation">Reservation</a>
+        </nav>
+
         <div class="dd-ml-header__actions">
             <?php if ( $dd_maps_url ) : ?>
             <a href="<?php echo esc_url( $dd_maps_url ); ?>" target="_blank" rel="noopener" class="dd-ml-icon-btn" aria-label="Find us">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
             </a>
+            <?php endif; ?>
+            <!-- v3.18.44: search icon — id-only (no .dd-mobile-search-trigger
+                 class, see minimal-light.css) so it's styled purely as a
+                 .dd-ml-icon-btn, wired to search.js's existing initMobile()
+                 via the #ddMobileSearchTrigger id, zero JS changes. -->
+            <button type="button" class="dd-ml-icon-btn" id="ddMobileSearchTrigger" aria-label="Search dishes">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+            <?php if ( is_user_logged_in() ) :
+                $dd_account_url = function_exists( 'wc_get_account_endpoint_url' ) ? wc_get_account_endpoint_url( 'my-profile' ) : home_url( '/my-account/my-profile/' );
+            ?>
+            <a href="<?php echo esc_url( $dd_account_url ); ?>" class="dd-ml-btn dd-ml-btn--outline dd-desktop-only">My Profile</a>
+            <?php else : ?>
+            <button type="button" id="ddOpenLogin" class="dd-ml-btn dd-ml-btn--outline dd-desktop-only">Log in</button>
             <?php endif; ?>
             <button type="button" class="dd-ml-icon-btn dd-ml-header__cart" id="ddCartTopBtn" aria-label="Open cart">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
@@ -321,6 +389,34 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
                 <span class="dd-menu-toggle__bar"></span>
                 <span class="dd-menu-toggle__bar"></span>
             </button>
+        </div>
+    </div>
+
+    <!-- v3.18.44: search expand panel — exact markup/IDs search.js's
+         initMobile() already expects (#ddMobileSearchPanel/#ddMobileSearch/
+         #ddMobileSearchDropdown/#ddMobileSearchClose), reused verbatim from
+         the shared Khana Khazana header (class-dd-template-module.php's
+         render_global_header()) so the AJAX-backed search (dd_get_search_products)
+         works with zero JS changes. minimal-light.css overrides theme.css's
+         desktop-hide for this panel specifically (icon-driven at every
+         breakpoint, not just mobile). -->
+    <div class="dd-mobile-search-panel" id="ddMobileSearchPanel" aria-hidden="true">
+        <div class="dd-mobile-search-panel__inner">
+            <div class="dd-ss__bar dd-ss__bar--mobile-expand">
+                <span class="dd-ss__icon">&#128269;</span>
+                <input type="search"
+                       id="ddMobileSearch"
+                       name="dd_search_mobile"
+                       class="dd-ss__input"
+                       placeholder="Search dishes&hellip;"
+                       autocomplete="off"
+                       autocorrect="off"
+                       autocapitalize="off"
+                       spellcheck="false"
+                       aria-label="Search dishes">
+                <button class="dd-mobile-search-close" id="ddMobileSearchClose" aria-label="Close search">Cancel</button>
+            </div>
+            <div class="dd-ss__dropdown dd-ss__dropdown--mobile" id="ddMobileSearchDropdown" role="listbox"></div>
         </div>
     </div>
 </header>
@@ -356,6 +452,16 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
         }
         ?>
     </nav>
+    <!-- v3.18.44: unchanged — the header's new Log in/My Profile button
+         (#ddOpenLogin / My Profile link) is desktop-only (.dd-desktop-only,
+         matching Khana Khazana's shared-header precedent exactly, see
+         render_global_header()), so the drawer stays the mobile fallback
+         for account access at every breakpoint, same as before. Duplicate
+         #ddOpenLogin/#ddOpenRegister ids across header+drawer at desktop
+         width are safe — the auth module binds both via event delegation
+         (e.target.closest('#id')), not getElementById, and Khana Khazana's
+         own shared header already ships this exact duplicate-id pattern
+         today. -->
     <div class="dd-nav-drawer__footer">
         <?php if ( is_user_logged_in() ) :
             $account_url = function_exists( 'wc_get_account_endpoint_url' ) ? wc_get_account_endpoint_url( 'my-profile' ) : home_url( '/my-account/my-profile/' );
@@ -381,12 +487,17 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
             <p class="dd-ml-copy"><?php echo esc_html( $dd_h_sub ); ?></p>
             <?php endif; ?>
 
+            <div class="dd-ml-hours-line <?php echo esc_attr( $dd_hours_initial_class ); ?>" id="ddMlHoursLine">
+                <span class="dd-ml-hours-dot"></span>
+                <span class="dd-ml-hours-text"><?php echo esc_html( $dd_hours_initial_text ); ?></span>
+            </div>
+
             <?php
-            // All 3 configured CTAs render as understated text-links, in
-            // configured order, separated by " · " — confirmed with the
-            // developer (2026-08-07): keep every Settings field visible
-            // rather than silently dropping btn3 to match a literal 2-link
-            // mockup count.
+            // v3.18.44: same 3 configured CTA fields as before (dd_hero_btn1/2/3)
+            // — only the visual treatment changed, from text-links to buttons.
+            // First configured CTA renders solid/primary, every CTA after it
+            // renders outlined/secondary — "which one is solid" follows
+            // Settings order (fully admin-editable), not a hardcoded field.
             $dd_hero_links = [
                 [ $dd_btn1_label, $dd_btn1_link, false ],
                 [ $dd_btn2_label, $dd_btn2_link, true ],  // js-open-reservation, matches existing "#reserve" default convention
@@ -395,10 +506,11 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
             $dd_hero_links = array_values( array_filter( $dd_hero_links, fn( $l ) => trim( (string) $l[0] ) !== '' ) );
             ?>
             <?php if ( $dd_hero_links ) : ?>
-            <div class="dd-ml-hero__links">
-                <?php foreach ( $dd_hero_links as $i => $link ) : ?>
-                <?php if ( $i > 0 ) : ?><span class="dd-ml-hero__links-sep">&middot;</span><?php endif; ?>
-                <a href="<?php echo esc_url( $link[1] ); ?>" class="dd-ml-text-link<?php echo $link[2] ? ' js-open-reservation' : ''; ?>"><?php echo esc_html( $link[0] ); ?></a>
+            <div class="dd-ml-hero__ctas">
+                <?php foreach ( $dd_hero_links as $i => $link ) :
+                    $dd_cta_style = $i === 0 ? 'dd-ml-btn--solid' : 'dd-ml-btn--outline';
+                ?>
+                <a href="<?php echo esc_url( $link[1] ); ?>" class="dd-ml-btn <?php echo esc_attr( $dd_cta_style ); ?><?php echo $link[2] ? ' js-open-reservation' : ''; ?>"><?php echo esc_html( $link[0] ); ?></a>
                 <?php endforeach; ?>
             </div>
             <?php endif; ?>
@@ -415,16 +527,35 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
         <?php
         $hero_img     = $dd_h_img ?: $dd_hero_bg;
         $hero_product = null;
-        if ( ! $hero_img && ! empty( $dd_best ) ) {
-            $hero_product = $dd_best[0];
+        if ( ! $hero_img && $dd_hero_spotlight ) {
+            $hero_product = $dd_hero_spotlight;
             $img_id       = $hero_product->get_image_id();
             $hero_img     = $img_id ? wp_get_attachment_image_url( $img_id, 'large' ) : dd_placeholder_img( 'large' );
         }
         ?>
         <?php if ( $hero_img ) : ?>
-        <img src="<?php echo esc_url( $hero_img ); ?>"
-             alt="<?php echo $hero_product ? esc_attr( $hero_product->get_name() ) : esc_attr( $dd_name ); ?>"
-             class="dd-ml-hero__photo">
+        <div class="dd-ml-hero__media">
+            <div class="dd-ml-hero__frame">
+                <img src="<?php echo esc_url( $hero_img ); ?>"
+                     alt="<?php echo $hero_product ? esc_attr( $hero_product->get_name() ) : esc_attr( $dd_name ); ?>"
+                     class="dd-ml-hero__photo">
+            </div>
+            <?php if ( $dd_hero_spotlight ) :
+                $dd_spot_img_id = $dd_hero_spotlight->get_image_id();
+                $dd_spot_img    = $dd_spot_img_id ? wp_get_attachment_image_url( $dd_spot_img_id, 'thumbnail' ) : dd_placeholder_img( 'thumbnail' );
+                $dd_spot_price  = (float) $dd_hero_spotlight->get_price();
+                $dd_spot_price  = $dd_spot_price ? 'RWF ' . number_format( $dd_spot_price, 0, '.', ',' ) : '';
+            ?>
+            <div class="dd-ml-hero__card">
+                <span class="dd-ml-hero__card-img"><img src="<?php echo esc_url( $dd_spot_img ); ?>" alt="" loading="lazy"></span>
+                <span class="dd-ml-hero__card-body">
+                    <span class="dd-ml-hero__card-tag">Best Seller</span>
+                    <span class="dd-ml-hero__card-name"><?php echo esc_html( $dd_hero_spotlight->get_name() ); ?></span>
+                    <?php if ( $dd_spot_price ) : ?><span class="dd-ml-hero__card-price"><?php echo esc_html( $dd_spot_price ); ?></span><?php endif; ?>
+                </span>
+            </div>
+            <?php endif; ?>
+        </div>
         <?php endif; ?>
     </div>
 </section>
@@ -817,6 +948,63 @@ if ( $food_cat_mob_on ) :
         txt.setAttribute('data-collapsed', collapsed ? '0' : '1');
         btn.textContent = collapsed ? 'Show less' : 'Read more';
     });
+
+    // Hero open-hours line (v3.18.44) — re-fetches dd_get_hours_state (same
+    // cache-safe AJAX endpoint frontend.js's setupHoursBanner() already
+    // uses) rather than trusting window.DD.hours_state, since window.DD
+    // isn't populated on this page at all (only render_global_header()/
+    // render_minimal_light_header() emit that bridge — neither fires here).
+    // PHP already rendered a same-wording placeholder for first paint; this
+    // just fills in the exact close/next-open time once it loads.
+    (function setupMlHoursLine() {
+        var el = document.getElementById('ddMlHoursLine');
+        if (!el) return;
+        var textEl = el.querySelector('.dd-ml-hours-text');
+        var ajaxUrl = (window.DD && window.DD.ajaxUrl) || '/wp-admin/admin-ajax.php';
+
+        function fmtTime(ts) {
+            if (!ts) return '';
+            try {
+                return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(ts * 1000));
+            } catch (e) { return ''; }
+        }
+
+        function render(state, nextOpenTs, closeTs) {
+            var text, cls;
+            if (state === 'open') {
+                var t1 = fmtTime(closeTs);
+                text = t1 ? ('Open now · Closes ' + t1) : 'Open now';
+                cls = 'is-open';
+            } else if (state === 'closing_soon') {
+                var t2 = fmtTime(closeTs);
+                text = t2 ? ('Closing soon · ' + t2) : 'Closing soon';
+                cls = 'is-soon';
+            } else if (state === 'break') {
+                var t3 = fmtTime(nextOpenTs);
+                text = t3 ? ('On a break · Back ' + t3) : 'On a break';
+                cls = 'is-soon';
+            } else {
+                var t4 = fmtTime(nextOpenTs);
+                text = t4 ? ('Closed now · Opens ' + t4) : 'Closed now';
+                cls = 'is-closed';
+            }
+            if (textEl) textEl.textContent = text;
+            el.classList.remove('is-open', 'is-soon', 'is-closed');
+            el.classList.add(cls);
+        }
+
+        fetch(ajaxUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action: 'dd_get_hours_state' })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (!res.success || !res.data) return;
+            render(res.data.hours_state || 'open', parseInt(res.data.next_open_ts || 0, 10), parseInt(res.data.close_ts || 0, 10));
+        })
+        .catch(function () {});
+    })();
 })();
 </script>
 
