@@ -42,7 +42,24 @@
  * already used in frontend.js's closed-banner inline styles) since there's
  * no separate "accent dark" option to alias.
  *
- * Last modified: v3.18.44
+ * v3.18.45 — Nav hover investigated live (demo.dishdash.rw): confirmed
+ * .dd-ml-nav__link:hover's --ml-accent chain is correct code; the tenant's
+ * dish_dash_accent_color option is itself stored as #ffffff (a live data
+ * misconfiguration, not a CSS/caching bug) — no CSS change made here, see
+ * the release report. Hero background image + overlay wired for real
+ * (dd_hero_bg_image/dd_hero_overlay_color/_opacity, previously
+ * unused/misapplied — see investigation-ml-nav-hover-bg.md §2): a real
+ * full-section background-image on .dd-hero, with a soft light left-to-
+ * right wash (not Khana Khazana's dark diagonal scrim) that keeps the text
+ * column on solid --ml-bg while letting the photo read through behind the
+ * media column. .dd-ml-hero__frame given its own solid backing so the
+ * circular foreground photo stays visually distinct from the new
+ * background. H1 typography pass: larger scale, heavier weight, tighter
+ * line-height, slight negative letter-spacing, and an italic treatment for
+ * the accent span (color-independent legibility now that it can sit
+ * against a photo).
+ *
+ * Last modified: v3.18.45
  */
 
 /* ── TOKENS ─────────────────────────────────────────────────────────────── */
@@ -307,8 +324,40 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
 .dd-ml-arrow-btn:disabled { opacity: .35; cursor: not-allowed; }
 
 /* ── HERO (split-screen) ───────────────────────────────────────────────── */
-.dd-ml-hero { padding: var(--ml-sp-7) 0 var(--ml-sp-8); }
+/* v3.18.45: real section background image + soft light wash. --ml-hero-bg-image/
+   --ml-hero-bg-tint are set inline per-page from dd_hero_bg_image/
+   dd_hero_overlay_color/_opacity (page-home.php) — only present when an
+   admin has actually configured a background image, so an unconfigured
+   hero stays exactly as before (plain --ml-bg). The tint is a left-to-right
+   gradient from solid --ml-bg (fully hides the photo behind the text
+   column) to the low-alpha configured tint color (lets the photo read
+   through behind the media column) — the photo never sits directly behind
+   body copy. .dd-ml-hero__grid is lifted into its own stacking context
+   (position:relative + z-index:1) so it always paints above the ::before
+   background/tint layer regardless of default paint-order for
+   position:auto vs. in-flow content. */
+.dd-ml-hero {
+    position: relative;
+    padding: var(--ml-sp-7) 0 var(--ml-sp-8);
+    background-image: var(--ml-hero-bg-image, none);
+    background-size: cover;
+    background-position: center;
+}
+.dd-ml-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to right,
+        var(--ml-bg) 0%,
+        var(--ml-bg) 32%,
+        var(--ml-hero-bg-tint, var(--ml-bg)) 100%
+    );
+    pointer-events: none;
+}
 .dd-ml-hero__grid {
+    position: relative;
+    z-index: 1;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--ml-sp-7);
@@ -327,14 +376,34 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     color: var(--ml-accent);
     margin-bottom: var(--ml-sp-4);
 }
+/* v3.18.45 typography pass — bumped scale (36-56 → 38-60) and weight
+   (600 → 700) for more presence now the title can sit against a photo-
+   backed hero, not just a flat background; tightened line-height
+   (1.08 → 1.05) and added slight negative letter-spacing (-0.01em), both
+   standard corrections for large display serif type where default optical
+   spacing/leading reads as loose. */
 .dd-ml-hero__title {
     font-family: var(--ml-font-heading);
-    font-weight: 600;
-    font-size: clamp(36px, 5vw, 56px);
-    line-height: 1.08;
+    font-weight: 700;
+    font-size: clamp(38px, 4.8vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
     margin: 0 0 var(--ml-sp-3);
 }
-.dd-ml-hero__title .dd-gold { color: var(--ml-accent); }
+/* Accent span: color alone (the pre-v3.18.45 treatment) risked getting lost
+   against a photo-backed hero if the configured accent color happened to be
+   close in tone to the background image. Italic adds a second, color-
+   independent distinguishing cue — a common technique for a single
+   emphasized word in an editorial display headline. font-weight explicitly
+   pinned to 600 (not inherited 700) because that's the only italic weight
+   this font family actually loads (font_registry(): 'Cormorant+Garamond:
+   ital,wght@...1,600') — avoids the browser synthesizing a fake italic
+   against a 700 the font doesn't have in that style. */
+.dd-ml-hero__title .dd-gold {
+    color: var(--ml-accent);
+    font-style: italic;
+    font-weight: 600;
+}
 .dd-ml-copy {
     font-size: 16px;
     line-height: 1.65;
@@ -418,6 +487,12 @@ body.dd-tpl-minimal-light.dd-hide-cart-btn #ddBottomCartBtn {
     aspect-ratio: 1 / 1;
     border-radius: 50%;
     padding: var(--ml-sp-5);
+    /* v3.18.45: solid backing disc, independent of the new hero section
+       background image behind it — keeps the padded ring between the
+       dashed border and the photo edge crisp white regardless of what's
+       painted behind the section, so the foreground photo and the new
+       background photo never visually blend into each other. */
+    background: var(--ml-bg);
 }
 .dd-ml-hero__frame::before {
     content: '';

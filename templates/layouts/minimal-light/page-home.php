@@ -58,7 +58,15 @@
  * of the shared --brand — see minimal-light.css and
  * investigation-ml-header-hero-redesign.md §6.
  *
- * Last modified: v3.18.44
+ * v3.18.45: Nav hover investigated live — confirmed correct code, tenant
+ * data issue (dish_dash_accent_color stored as white on the demo site), no
+ * code change here — see investigation-ml-nav-hover-bg.md §1 and the
+ * release report. dd_hero_bg_image now wired as a real full-section hero
+ * background (previously only a foreground-image fallback — kept, unchanged,
+ * for that job too) with a soft light wash from dd_hero_overlay_color/
+ * _opacity (previously unused). H1 typography pass — see minimal-light.css.
+ *
+ * Last modified: v3.18.45
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -297,6 +305,29 @@ $dd_hours_initial_class = $dd_hours_state === 'open'
     ? 'is-open'
     : ( in_array( $dd_hours_state, [ 'closing_soon', 'break' ], true ) ? 'is-soon' : 'is-closed' );
 
+// v3.18.45: hero SECTION background — $dd_hero_bg (dd_hero_bg_image) was
+// previously only read as a fallback source for the circular foreground
+// photo (see below); it's now ALSO applied as the actual full-section
+// background image, same option, two different jobs — the circular photo
+// (dish_dash_hero_image, or this same field as ITS fallback) stays a
+// distinct, separately-sourced element on top. dd_hero_overlay_color/
+// _opacity are the same fields Khana Khazana's dark full-bleed hero uses
+// (templates/page-dishdash.php) — reused here (no new fields), but
+// reinterpreted for a soft light wash instead of a dark scrim: the stored
+// opacity (0-100, meant as "how strong/opaque" for KK's near-opaque dark
+// treatment) is scaled down to a 0-25% range here, so even the admin's
+// maximum setting stays subtle enough to let the photo show through behind
+// the white text column rather than obscuring it.
+$dd_hero_overlay_color   = get_option( 'dd_hero_overlay_color', '#6B1D1D' ) ?: '#6B1D1D';
+$dd_hero_overlay_opacity = (int) get_option( 'dd_hero_overlay_opacity', 85 );
+$dd_hero_tint_alpha      = round( ( $dd_hero_overlay_opacity / 100 ) * 0.25, 3 );
+$dd_hero_tint_rgb        = implode( ',', array_map( 'hexdec', str_split( ltrim( $dd_hero_overlay_color, '#' ), 2 ) ) );
+$dd_hero_section_style   = '';
+if ( $dd_hero_bg ) {
+    $dd_hero_section_style .= '--ml-hero-bg-image: url(' . esc_url( $dd_hero_bg ) . ');';
+    $dd_hero_section_style .= '--ml-hero-bg-tint: rgba(' . esc_attr( $dd_hero_tint_rgb ) . ',' . esc_attr( $dd_hero_tint_alpha ) . ');';
+}
+
 // Shared Google Reviews pipeline (dual sort-order fetch, pooled/deduped,
 // 24h refresh, debug diagnostics) — extracted from Khana Khazana's
 // page-dishdash.php in v3.18.16, where it was originally built and
@@ -476,7 +507,7 @@ if ( ! $dd_show_cart ) $dd_body_classes[] = 'dd-hide-cart-btn';
 </aside>
 
 <!-- ══ HERO (split-screen) ═════════════════════════════════════════════════ -->
-<section class="dd-ml-hero" id="top">
+<section class="dd-ml-hero" id="top" style="<?php echo esc_attr( $dd_hero_section_style ); ?>">
     <div class="dd-container dd-ml-hero__grid">
         <div class="dd-ml-hero__content">
             <?php if ( $dd_pill_show && '' !== trim( (string) $dd_pill_text ) ) : ?>
