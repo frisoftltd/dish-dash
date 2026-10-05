@@ -23,9 +23,11 @@
  *   - rest_api_init, admin_menu, admin_enqueue_scripts
  *   - woocommerce_order_status_completed → wc_payment_completed()
  *   - woocommerce_order_status_cancelled → wc_payment_cancelled()
- *   - cron_schedules → register_pesapal_cron_interval() (adds 'dd_five_minutes')
- *   - dd_pesapal_reconcile_sweep → run_pesapal_reconcile_sweep() (5-min WP-Cron,
- *     v3.18.46 — unpaid-PesaPal-order reconciliation safety net)
+ *   - cron_schedules → register_pesapal_cron_interval() (adds 'dd_one_minute')
+ *   - dd_pesapal_reconcile_sweep → run_pesapal_reconcile_sweep() (1-min WP-Cron,
+ *     v3.18.46 — unpaid-PesaPal-order reconciliation safety net; sped up to
+ *     60s + overlap lock in v3.18.47, meant to be driven by a real server
+ *     cron hitting wp-cron.php every minute rather than site traffic)
  *
  * AJAX actions registered:
  *   dd_place_order (public), dd_get_order (public),
@@ -117,13 +119,19 @@ class DD_Orders_Module extends DD_Module {
         // reaches /wc-api/wc_pesapal_gateway/ but the order never gets promoted
         // (confirmed live on nyarutarama: DD-00231/00232 paid at PesaPal, IPN hit
         // 200 four times, order stayed unpaid — transient failure mid-request,
-        // no retry existed until now). Every 5 minutes, re-checks unpaid PesaPal
-        // orders against PesaPal's own API and promotes/fails them accordingly —
-        // same idempotent paths the IPN and client poll already use.
+        // no retry existed until now). Re-checks unpaid PesaPal orders against
+        // PesaPal's own API and promotes/fails them accordingly — same
+        // idempotent paths the IPN and client poll already use.
+        // v3.18.47: sped up from 5 minutes to 1 minute (driven by a real server
+        // cron hitting wp-cron.php every minute, not site traffic). Existing
+        // installs are migrated off the old 'dd_five_minutes' schedule below so
+        // they don't need reactivation to pick up the faster interval.
         add_filter( 'cron_schedules', [ $this, 'register_pesapal_cron_interval' ] );
         add_action( 'dd_pesapal_reconcile_sweep', [ $this, 'run_pesapal_reconcile_sweep' ] );
-        if ( ! wp_next_scheduled( 'dd_pesapal_reconcile_sweep' ) ) {
-            wp_schedule_event( time(), 'dd_five_minutes', 'dd_pesapal_reconcile_sweep' );
+        $scheduled = wp_get_scheduled_event( 'dd_pesapal_reconcile_sweep' );
+        if ( ! $scheduled || 'dd_one_minute' !== $scheduled->schedule ) {
+            wp_clear_scheduled_hook( 'dd_pesapal_reconcile_sweep' );
+            wp_schedule_event( time(), 'dd_one_minute', 'dd_pesapal_reconcile_sweep' );
         }
 
         // Branded thank-you page for online gateway orders
@@ -2166,25 +2174,28 @@ class DD_Orders_Module extends DD_Module {
     }
 
     /**
-     * Registers a 5-minute WP-Cron interval for the PesaPal reconciliation sweep.
-     * WordPress ships no built-in schedule shorter than 'hourly'.
+     * Registers a 1-minute WP-Cron interval for the PesaPal reconciliation sweep.
+     * WordPress ships no built-in schedule shorter than 'hourly'. Requires a
+     * real server cron hitting wp-cron.php every minute — WP-Cron's default
+     * pseudo-cron only fires on site traffic, which can't be relied on to
+     * actually hit a 60s cadence.
      */
     public function register_pesapal_cron_interval( array $schedules ): array {
-        if ( ! isset( $schedules['dd_five_minutes'] ) ) {
-            $schedules['dd_five_minutes'] = [
-                'interval' => 300,
-                'display'  => __( 'Every 5 Minutes (Dish Dash)', 'dish-dash' ),
+        if ( ! isset( $schedules['dd_one_minute'] ) ) {
+            $schedules['dd_one_minute'] = [
+                'interval' => 60,
+                'display'  => __( 'Every Minute (Dish Dash)', 'dish-dash' ),
             ];
         }
         return $schedules;
     }
 
     /**
-     * WP-Cron callback (every 5 min) — reconciliation safety net for unpaid
-     * PesaPal orders. The IPN is supposed to promote an order from
-     * unpaid → paid the moment PesaPal confirms payment, but a transient
-     * failure (timeout, PesaPal auth hiccup, etc.) at that moment leaves the
-     * order stuck unpaid with no further retry — confirmed live on
+     * WP-Cron callback (every 1 min, v3.18.47 — was 5 min) — reconciliation
+     * safety net for unpaid PesaPal orders. The IPN is supposed to promote an
+     * order from unpaid → paid the moment PesaPal confirms payment, but a
+     * transient failure (timeout, PesaPal auth hiccup, etc.) at that moment
+     * leaves the order stuck unpaid with no further retry — confirmed live on
      * nyarutarama (DD-00231/00232: paid at PesaPal, IPN hit 200 four times,
      * order never promoted). This re-checks each candidate against PesaPal's
      * own API and routes it through the exact same idempotent paths the IPN
@@ -2196,6 +2207,11 @@ class DD_Orders_Module extends DD_Module {
      * Scope: payment_method='pesapal', payment_status='unpaid', has a
      * tracking id, created within the last 48h (older stuck orders need
      * manual review, not an endless sweep). Capped at 20 per run.
+     *
+     * Overlap lock: a real server cron fires this every 60s regardless of
+     * how long the previous run took (PesaPal API latency, server hiccups),
+     * so a ~55s transient lock guards against two runs checking the same
+     * orders concurrently and double-promoting.
      */
     public function run_pesapal_reconcile_sweep(): void {
         if ( ! $this->has_pesapal_tracking_column() ) {
@@ -2203,47 +2219,58 @@ class DD_Orders_Module extends DD_Module {
             return;
         }
 
-        global $wpdb;
-        $table = $wpdb->prefix . 'dishdash_orders';
-
-        $rows = $wpdb->get_results(
-            "SELECT id, order_number, pesapal_tracking_id
-             FROM {$table}
-             WHERE payment_method = 'pesapal'
-               AND payment_status = 'unpaid'
-               AND pesapal_tracking_id IS NOT NULL
-               AND pesapal_tracking_id != ''
-               AND created_at >= DATE_SUB( NOW(), INTERVAL 48 HOUR )
-             ORDER BY created_at ASC
-             LIMIT 20"
-        );
-
-        if ( ! $rows ) {
-            error_log( 'DD_DIAG: RECONCILE sweep found 0 unpaid pesapal orders' );
+        $lock_key = 'dd_pesapal_reconcile_lock';
+        if ( false !== get_transient( $lock_key ) ) {
+            error_log( 'DD_DIAG: RECONCILE skipped — previous sweep still running' );
             return;
         }
+        set_transient( $lock_key, time(), 55 );
 
-        error_log( 'DD_DIAG: RECONCILE sweep checking ' . count( $rows ) . ' unpaid pesapal order(s)' );
+        try {
+            global $wpdb;
+            $table = $wpdb->prefix . 'dishdash_orders';
 
-        $pesapal = new DD_PesaPal();
+            $rows = $wpdb->get_results(
+                "SELECT id, order_number, pesapal_tracking_id
+                 FROM {$table}
+                 WHERE payment_method = 'pesapal'
+                   AND payment_status = 'unpaid'
+                   AND pesapal_tracking_id IS NOT NULL
+                   AND pesapal_tracking_id != ''
+                   AND created_at >= DATE_SUB( NOW(), INTERVAL 48 HOUR )
+                 ORDER BY created_at ASC
+                 LIMIT 20"
+            );
 
-        foreach ( $rows as $row ) {
-            $status = $pesapal->get_transaction_status( $row->pesapal_tracking_id );
-            error_log( 'DD_DIAG: RECONCILE order_id=' . $row->id . ' tracking=' . $row->pesapal_tracking_id . ' status=' . $status );
-
-            if ( 'COMPLETED' === $status ) {
-                $this->promote_pesapal_order( $row, $row->pesapal_tracking_id );
-            } elseif ( in_array( $status, [ 'FAILED', 'REVERSED' ], true ) ) {
-                $wpdb->update(
-                    $table,
-                    [ 'payment_status' => 'failed' ],
-                    [ 'id' => (int) $row->id, 'payment_status' => 'unpaid' ],
-                    [ '%s' ],
-                    [ '%d', '%s' ]
-                );
-                error_log( 'DD_DIAG: RECONCILE order_id=' . $row->id . ' marked failed (' . $status . ')' );
+            if ( ! $rows ) {
+                error_log( 'DD_DIAG: RECONCILE sweep found 0 unpaid pesapal orders' );
+                return;
             }
-            // PENDING / INVALID / UNKNOWN → leave as unpaid; next sweep re-checks.
+
+            error_log( 'DD_DIAG: RECONCILE sweep checking ' . count( $rows ) . ' unpaid pesapal order(s)' );
+
+            $pesapal = new DD_PesaPal();
+
+            foreach ( $rows as $row ) {
+                $status = $pesapal->get_transaction_status( $row->pesapal_tracking_id );
+                error_log( 'DD_DIAG: RECONCILE order_id=' . $row->id . ' tracking=' . $row->pesapal_tracking_id . ' status=' . $status );
+
+                if ( 'COMPLETED' === $status ) {
+                    $this->promote_pesapal_order( $row, $row->pesapal_tracking_id );
+                } elseif ( in_array( $status, [ 'FAILED', 'REVERSED' ], true ) ) {
+                    $wpdb->update(
+                        $table,
+                        [ 'payment_status' => 'failed' ],
+                        [ 'id' => (int) $row->id, 'payment_status' => 'unpaid' ],
+                        [ '%s' ],
+                        [ '%d', '%s' ]
+                    );
+                    error_log( 'DD_DIAG: RECONCILE order_id=' . $row->id . ' marked failed (' . $status . ')' );
+                }
+                // PENDING / INVALID / UNKNOWN → leave as unpaid; next sweep re-checks.
+            }
+        } finally {
+            delete_transient( $lock_key );
         }
     }
 
