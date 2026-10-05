@@ -23,6 +23,9 @@
  *   - rest_api_init, admin_menu, admin_enqueue_scripts
  *   - woocommerce_order_status_completed → wc_payment_completed()
  *   - woocommerce_order_status_cancelled → wc_payment_cancelled()
+ *   - cron_schedules → register_pesapal_cron_interval() (adds 'dd_five_minutes')
+ *   - dd_pesapal_reconcile_sweep → run_pesapal_reconcile_sweep() (5-min WP-Cron,
+ *     v3.18.46 — unpaid-PesaPal-order reconciliation safety net)
  *
  * AJAX actions registered:
  *   dd_place_order (public), dd_get_order (public),
@@ -109,6 +112,19 @@ class DD_Orders_Module extends DD_Module {
         // (dd_pesapal_check_status) remains as a fast-path but is no longer
         // load-bearing; both share one idempotent creation routine.
         add_action( 'woocommerce_api_wc_pesapal_gateway', [ $this, 'handle_pesapal_ipn' ] );
+
+        // PesaPal reconciliation sweep (v3.18.46) — safety net for when the IPN
+        // reaches /wc-api/wc_pesapal_gateway/ but the order never gets promoted
+        // (confirmed live on nyarutarama: DD-00231/00232 paid at PesaPal, IPN hit
+        // 200 four times, order stayed unpaid — transient failure mid-request,
+        // no retry existed until now). Every 5 minutes, re-checks unpaid PesaPal
+        // orders against PesaPal's own API and promotes/fails them accordingly —
+        // same idempotent paths the IPN and client poll already use.
+        add_filter( 'cron_schedules', [ $this, 'register_pesapal_cron_interval' ] );
+        add_action( 'dd_pesapal_reconcile_sweep', [ $this, 'run_pesapal_reconcile_sweep' ] );
+        if ( ! wp_next_scheduled( 'dd_pesapal_reconcile_sweep' ) ) {
+            wp_schedule_event( time(), 'dd_five_minutes', 'dd_pesapal_reconcile_sweep' );
+        }
 
         // Branded thank-you page for online gateway orders
         add_action( 'woocommerce_thankyou', [ $this, 'on_order_received_page' ] );
@@ -1838,6 +1854,13 @@ class DD_Orders_Module extends DD_Module {
             $_REQUEST['OrderMerchantReference'] ?? ( $_REQUEST['orderMerchantReference'] ?? '' )
         );
 
+        // Diagnostic only (v3.18.46) — logs the User-Agent so a real test
+        // payment can confirm whether is_browser_pesapal_request()'s heuristic
+        // actually tells the customer's browser apart from PesaPal's
+        // server-to-server IPN caller at this URL (both hit the identical
+        // callback_url — see is_browser_pesapal_request() docblock).
+        error_log( 'DD_DIAG: IPN request UA=' . ( $_SERVER['HTTP_USER_AGENT'] ?? '(none)' ) );
+
         // Reservation deposit IPNs share this callback URL (DD_PesaPal::submit_order()
         // hardcodes one callback_url for every caller) but are fully owned by the
         // reservations module's own handler, also registered on this action — this
@@ -1933,10 +1956,40 @@ class DD_Orders_Module extends DD_Module {
     }
 
     /**
-     * Emit the PesaPal IPN acknowledgement JSON with the given HTTP status.
-     * PesaPal treats any 200 as "received"; the JSON body echoes the ids back.
+     * Emit the PesaPal IPN acknowledgement with the given HTTP status.
+     *
+     * DD_PesaPal::submit_order() hardcodes callback_url to the exact same URL
+     * registered as the IPN's notification URL (get_or_register_ipn()), so
+     * this one action fires for TWO different callers that are otherwise
+     * indistinguishable by their request params: PesaPal's own
+     * server-to-server IPN (which needs the JSON acknowledgement below — it
+     * only reads the HTTP status, but the body shape is the documented
+     * convention) and the customer's own browser, which PesaPal redirects
+     * here inside the in-drawer payment iframe (assets/js/cart.js,
+     * #ddPesaPalIframe) right after they finish paying. Before v3.18.46 every
+     * browser landing here showed raw IPN JSON inside that iframe — confirmed
+     * live on nyarutarama. For a 200 (every "handled" outcome), a detected
+     * browser now gets a small HTML thank-you message instead of JSON; a
+     * detected non-browser (the real IPN caller) is unaffected. A 400/500 is
+     * reserved for PesaPal's own retry logic and is never the browser's
+     * landing outcome, so it always stays JSON.
      */
     private function pesapal_ipn_respond( int $http_status, string $tracking_id, string $merchant_ref ): void {
+        if ( 200 === $http_status && $this->is_browser_pesapal_request() ) {
+            status_header( 200 );
+            nocache_headers();
+            header( 'Content-Type: text/html; charset=utf-8' );
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Payment received</title>'
+               . '<style>body{font-family:-apple-system,"Segoe UI",Arial,sans-serif;display:flex;'
+               . 'align-items:center;justify-content:center;height:100vh;margin:0;background:#fafafa;color:#111}'
+               . '.dd-pp-ty{text-align:center;padding:24px}'
+               . '.dd-pp-ty h1{font-size:18px;margin:0 0 8px}'
+               . '.dd-pp-ty p{font-size:14px;color:#666;margin:0}</style></head>'
+               . '<body><div class="dd-pp-ty"><h1>Payment received</h1>'
+               . '<p>You can close this window — your order is confirming now.</p></div></body></html>';
+            exit;
+        }
+
         status_header( $http_status );
         nocache_headers();
         header( 'Content-Type: application/json; charset=utf-8' );
@@ -1947,6 +2000,22 @@ class DD_Orders_Module extends DD_Module {
             'status'                 => $http_status,
         ] );
         exit;
+    }
+
+    /**
+     * Heuristic: is this GET to the shared PesaPal callback/IPN URL coming
+     * from the customer's own browser (the in-drawer iframe redirect after
+     * paying) rather than PesaPal's server-to-server IPN caller? Both hit the
+     * identical URL with identical query params (see pesapal_ipn_respond()
+     * docblock), so there is no reliable application-level signal — this
+     * falls back to checking for a real-browser User-Agent string, which a
+     * server-to-server HTTP client would not normally send. Logged via the
+     * 'DD_DIAG: IPN request UA=' line in handle_pesapal_ipn() so a real test
+     * payment can confirm this holds for PesaPal's actual IPN caller.
+     */
+    private function is_browser_pesapal_request(): bool {
+        $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        return (bool) preg_match( '/Mozilla|Chrome|Safari|Firefox|Edg\//i', $ua );
     }
 
     /**
@@ -2094,6 +2163,88 @@ class DD_Orders_Module extends DD_Module {
         ) );
         $exists = ! empty( $col );
         return $exists;
+    }
+
+    /**
+     * Registers a 5-minute WP-Cron interval for the PesaPal reconciliation sweep.
+     * WordPress ships no built-in schedule shorter than 'hourly'.
+     */
+    public function register_pesapal_cron_interval( array $schedules ): array {
+        if ( ! isset( $schedules['dd_five_minutes'] ) ) {
+            $schedules['dd_five_minutes'] = [
+                'interval' => 300,
+                'display'  => __( 'Every 5 Minutes (Dish Dash)', 'dish-dash' ),
+            ];
+        }
+        return $schedules;
+    }
+
+    /**
+     * WP-Cron callback (every 5 min) — reconciliation safety net for unpaid
+     * PesaPal orders. The IPN is supposed to promote an order from
+     * unpaid → paid the moment PesaPal confirms payment, but a transient
+     * failure (timeout, PesaPal auth hiccup, etc.) at that moment leaves the
+     * order stuck unpaid with no further retry — confirmed live on
+     * nyarutarama (DD-00231/00232: paid at PesaPal, IPN hit 200 four times,
+     * order never promoted). This re-checks each candidate against PesaPal's
+     * own API and routes it through the exact same idempotent paths the IPN
+     * and client poll use (promote_pesapal_order() for COMPLETED, a
+     * conditional UPDATE for FAILED/REVERSED), so this can never double-fire
+     * notifications even if it races the IPN or the admin "Recheck Payment"
+     * button.
+     *
+     * Scope: payment_method='pesapal', payment_status='unpaid', has a
+     * tracking id, created within the last 48h (older stuck orders need
+     * manual review, not an endless sweep). Capped at 20 per run.
+     */
+    public function run_pesapal_reconcile_sweep(): void {
+        if ( ! $this->has_pesapal_tracking_column() ) {
+            error_log( 'DD_DIAG: RECONCILE skipped — no pesapal_tracking_id column' );
+            return;
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_orders';
+
+        $rows = $wpdb->get_results(
+            "SELECT id, order_number, pesapal_tracking_id
+             FROM {$table}
+             WHERE payment_method = 'pesapal'
+               AND payment_status = 'unpaid'
+               AND pesapal_tracking_id IS NOT NULL
+               AND pesapal_tracking_id != ''
+               AND created_at >= DATE_SUB( NOW(), INTERVAL 48 HOUR )
+             ORDER BY created_at ASC
+             LIMIT 20"
+        );
+
+        if ( ! $rows ) {
+            error_log( 'DD_DIAG: RECONCILE sweep found 0 unpaid pesapal orders' );
+            return;
+        }
+
+        error_log( 'DD_DIAG: RECONCILE sweep checking ' . count( $rows ) . ' unpaid pesapal order(s)' );
+
+        $pesapal = new DD_PesaPal();
+
+        foreach ( $rows as $row ) {
+            $status = $pesapal->get_transaction_status( $row->pesapal_tracking_id );
+            error_log( 'DD_DIAG: RECONCILE order_id=' . $row->id . ' tracking=' . $row->pesapal_tracking_id . ' status=' . $status );
+
+            if ( 'COMPLETED' === $status ) {
+                $this->promote_pesapal_order( $row, $row->pesapal_tracking_id );
+            } elseif ( in_array( $status, [ 'FAILED', 'REVERSED' ], true ) ) {
+                $wpdb->update(
+                    $table,
+                    [ 'payment_status' => 'failed' ],
+                    [ 'id' => (int) $row->id, 'payment_status' => 'unpaid' ],
+                    [ '%s' ],
+                    [ '%d', '%s' ]
+                );
+                error_log( 'DD_DIAG: RECONCILE order_id=' . $row->id . ' marked failed (' . $status . ')' );
+            }
+            // PENDING / INVALID / UNKNOWN → leave as unpaid; next sweep re-checks.
+        }
     }
 
     /**

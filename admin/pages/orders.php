@@ -256,15 +256,22 @@ function dd_orders_format_rwf( $n ) {
 // (see investigation-momo-proof-orders.md §2). Same inline-style badge
 // convention as dd_orders_status_badge() above, not the --dd-brand CSS
 // variable — matches this specific component's existing pattern.
+// v3.18.46 — extended to 'pesapal': paid-PesaPal orders now show the same
+// green "Paid" badge MoMo gets. PesaPal's own unpaid/failed states don't map
+// to momo's claimed_pending/claimed concepts, so only 'paid' renders anything
+// for pesapal; everything else stays blank, same as every other method.
 function dd_orders_payment_claim_badge( $payment_method, $payment_status ) {
-    if ( 'momo_manual' !== $payment_method ) {
+    if ( 'momo_manual' === $payment_method ) {
+        $map = [
+            'claimed_pending' => [ 'Unclaimed', '#fee2e2', '#991b1b' ],
+            'claimed'         => [ 'Claimed',   '#fef9c3', '#854d0e' ],
+            'paid'            => [ 'Paid',      '#dcfce7', '#166534' ],
+        ];
+    } elseif ( 'pesapal' === $payment_method && 'paid' === $payment_status ) {
+        $map = [ 'paid' => [ 'Paid', '#dcfce7', '#166534' ] ];
+    } else {
         return '';
     }
-    $map = [
-        'claimed_pending' => [ 'Unclaimed', '#fee2e2', '#991b1b' ],
-        'claimed'         => [ 'Claimed',   '#fef9c3', '#854d0e' ],
-        'paid'            => [ 'Paid',      '#dcfce7', '#166534' ],
-    ];
     $s = $map[ $payment_status ] ?? [ ucfirst( $payment_status ), '#f3f4f6', '#374151' ];
     return sprintf(
         '<span class="dd-payment-claim-badge" style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:500;background:%s;color:%s">%s</span>',
