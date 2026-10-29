@@ -2,33 +2,38 @@
 /**
  * File:    modules/whatsapp/class-dd-whatsapp-module.php
  * Module:  DD_WhatsApp_Module (extends DD_Module)
- * Purpose: WhatsApp Cloud API foundation, Phase 9A Step 1 only — a
- *          per-restaurant credentials settings screen and a test-send
- *          action. No webhook, no message-log tables, and no outbound hook
- *          into orders/reservations yet (those are later Phase 9A steps).
+ * Purpose: WhatsApp Cloud API foundation — Phase 9A Step 1 (credentials
+ *          settings screen + test-send) and Step 2 (the two message-log
+ *          tables, created in install.php) are done. Step 3 (this release)
+ *          wires up the public webhook endpoint. No outbound-message hook
+ *          into orders/reservations yet (Step 4).
  *
  * Dependencies (this file needs):
  *   - DD_Module base class
  *   - DD_Ajax (dishdash-core/class-dd-ajax.php)
  *   - modules/whatsapp/class-dd-whatsapp-client.php (DD_WhatsApp_Client)
+ *   - modules/whatsapp/class-dd-whatsapp-webhook.php (DD_WhatsApp_Webhook)
  *
  * Dependents (files that need this):
  *   - dishdash-core/class-dd-loader.php (instantiates DD_WhatsApp_Module)
  *
  * Zero cross-module dependencies — per the Phase 9A brief's architecture
  * rule, this module does not call into any other module's class, and no
- * other module calls into this one yet. Later Phase 9A steps will fire
- * do_action('dd_whatsapp_message_received', ...) from the webhook handler
- * (not yet built) so Phase 9E's inbox module can listen without either
- * module depending on the other.
+ * other module calls into this one yet. DD_WhatsApp_Webhook (Step 3) fires
+ * do_action('dd_whatsapp_message_received', $conversation_id, $log_id) on
+ * every stored inbound message, so Phase 9E's inbox module (not built yet)
+ * can listen without either module depending on the other.
  *
  * Admin page owned: dish-dash-whatsapp (admin/pages/whatsapp-settings.php)
+ * REST route owned: dish-dash/v1/whatsapp-webhook (GET verify, POST events —
+ *   public, permission_callback => '__return_true'; see
+ *   class-dd-whatsapp-webhook.php for the signature/idempotency handling)
  * WP options written: dd_whatsapp_phone_number_id, dd_whatsapp_waba_id,
  *   dd_whatsapp_token, dd_whatsapp_verify_token, dd_whatsapp_app_secret
  * Nonce actions: dd_whatsapp_settings_save (page save),
  *   dd_whatsapp_test_send (AJAX)
  *
- * Last modified: v3.18.48
+ * Last modified: v3.18.50
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -40,6 +45,10 @@ class DD_WhatsApp_Module extends DD_Module {
     public function init(): void {
         add_action( 'admin_menu', [ $this, 'register_menu' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+
+        require_once DD_PLUGIN_DIR . 'modules/whatsapp/class-dd-whatsapp-webhook.php';
+        $webhook = new DD_WhatsApp_Webhook();
+        add_action( 'rest_api_init', [ $webhook, 'register_routes' ] );
 
         // Admin-only — no customer-facing path exists yet, so no nopriv handler.
         DD_Ajax::register( 'dd_whatsapp_test_send', [ $this, 'ajax_test_send' ], false );
