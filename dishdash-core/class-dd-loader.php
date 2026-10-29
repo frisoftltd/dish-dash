@@ -90,6 +90,10 @@ class DD_Loader {
             'DD_Audit_Module'     => 'modules/audit/class-dd-audit-module.php',
             // Billing Ledger module — append-only per-branch billable event log
             'DD_Billing_Ledger_Module' => 'modules/billing-ledger/class-dd-billing-ledger-module.php',
+            // WhatsApp module — Cloud API credentials, client, and (later steps)
+            // webhook + outbound message sends. Phase 9A Step 1: credentials +
+            // test-send only.
+            'DD_WhatsApp_Module'  => 'modules/whatsapp/class-dd-whatsapp-module.php',
             // Coming soon:
             // 'DD_Delivery_Module'     => 'modules/delivery/class-dd-delivery-module.php',
             'DD_Reservations_Module' => 'modules/reservations/class-dd-reservations-module.php',
