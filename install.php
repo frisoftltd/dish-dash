@@ -2,9 +2,12 @@
 /**
  * File:    install.php
  * Purpose: Canonical installer — the single source of truth for all custom DB
- *          tables. Creates/upgrades all 14 tables via dbDelta(), writes default
- *          wp_options, creates WP user roles, and auto-creates the six required
- *          WordPress pages (menu, cart, checkout, track, account, reserve).
+ *          tables. Creates/upgrades all 18 tables via dbDelta() (one of
+ *          them, dishdash_tracking_events, also has its own legacy
+ *          version-gated raw-SQL migration for installs upgrading from
+ *          before v3.10.13), writes default wp_options, creates WP user
+ *          roles, and auto-creates the six required WordPress pages (menu,
+ *          cart, checkout, track, account, reserve).
  *
  * This is the ONLY file that defines DB table schemas. Do not add CREATE TABLE
  * statements anywhere else. See CLAUDE.md "Schema Changes" for how to add a
@@ -18,18 +21,20 @@
  * Dependents (files that need this):
  *   - dish-dash.php (register_activation_hook + auto-migration guard)
  *
- * DB tables created/upgraded (14 total):
+ * DB tables created/upgraded (18 total):
  *   dishdash_branches, dishdash_orders, dishdash_order_items,
  *   dishdash_delivery_zones, dishdash_tables, dishdash_reservations,
  *   dishdash_pos_sessions, dishdash_analytics, dishdash_user_events,
  *   dishdash_user_profiles, dishdash_customers, dishdash_birthday_tokens,
- *   dishdash_reservation_refunds, dd_billing_payments
+ *   dishdash_reservation_refunds, dd_billing_payments,
+ *   dishdash_tracking_events, dishdash_billing_ledger,
+ *   dishdash_wa_conversations, dishdash_message_log
  *
  * WP options written (defaults only, add_option — never overwrites):
  *   dish_dash_currency, dish_dash_currency_symbol, dish_dash_tax_rate,
  *   dish_dash_order_prefix, dish_dash_enable_*, dish_dash_email_from
  *
- * Last modified: v3.4.92
+ * Last modified: v3.18.49
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -62,7 +67,7 @@ class DD_Install {
     // ─────────────────────────────────────────
 
     /**
-     * Create or upgrade all 13 Dish Dash custom DB tables.
+     * Create or upgrade all 18 Dish Dash custom DB tables.
      * Uses dbDelta() — safe to call multiple times (only adds, never drops).
      * Called on activation and by the auto-migration guard in dish-dash.php.
      */
@@ -501,6 +506,71 @@ class DD_Install {
                 KEY          branch_month (branch_id, billable_month),
                 KEY          billable_month (billable_month),
                 KEY          is_test (is_test)
+            ) $charset_collate;
+        " );
+
+        // ── 17. dishdash_wa_conversations ───────────────────────────────────
+        // Phase 9A/9E — WhatsApp Cloud API foundation. One row per customer
+        // WhatsApp number; this is the inbox list's source table, not the
+        // message log itself (that's #18, dishdash_message_log). wa_number
+        // is digits-only, one canonical format everywhere, matched against
+        // dishdash_customers.whatsapp to resolve customer_id — null when no
+        // match exists (unknown number). last_inbound_at drives the 24-hour
+        // free-form-reply window; auto_reply_sent_at gates the out-of-hours
+        // auto-reply to once per closed period. unread_count must be updated
+        // atomically in SQL (UPDATE ... SET unread_count = unread_count + 1),
+        // never read-then-written from PHP.
+        dbDelta( "
+            CREATE TABLE {$wpdb->prefix}dishdash_wa_conversations (
+                id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                wa_number             VARCHAR(20)     NOT NULL DEFAULT '',
+                customer_id           BIGINT UNSIGNED          DEFAULT NULL,
+                customer_name         VARCHAR(255)    NOT NULL DEFAULT '',
+                last_message_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_message_preview  VARCHAR(255)    NOT NULL DEFAULT '',
+                last_inbound_at       DATETIME                 DEFAULT NULL,
+                unread_count          INT UNSIGNED    NOT NULL DEFAULT 0,
+                auto_reply_sent_at    DATETIME                 DEFAULT NULL,
+                created_at            DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY  (id),
+                UNIQUE KEY   wa_number (wa_number),
+                KEY          customer_id (customer_id),
+                KEY          last_message_at (last_message_at)
+            ) $charset_collate;
+        " );
+
+        // ── 18. dishdash_message_log ────────────────────────────────────────
+        // Phase 9A/9E — append-only, one row per inbound/outbound WhatsApp
+        // message, modeled on the dishdash_billing_ledger idempotency
+        // pattern. wa_message_id (Meta's id) is the UNIQUE KEY that makes a
+        // redelivered webhook a silent no-op instead of a duplicate row, and
+        // is also how a later status webhook (sent/delivered/read/failed)
+        // finds the row it updates — nullable because an inbound message's
+        // own insert and an outbound send's own insert both know their
+        // wa_message_id immediately, but a status update for a send whose
+        // HTTP response hasn't come back yet must not be dropped, so writes
+        // against an not-yet-present id are handled in application code, not
+        // by a NOT NULL constraint here. status must only move forward
+        // (sent → delivered → read, or → failed) — enforced in application
+        // code, not by this schema.
+        dbDelta( "
+            CREATE TABLE {$wpdb->prefix}dishdash_message_log (
+                id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                conversation_id  BIGINT UNSIGNED NOT NULL,
+                direction        ENUM('inbound','outbound') NOT NULL,
+                wa_message_id    VARCHAR(100)             DEFAULT NULL,
+                message_type     VARCHAR(20)     NOT NULL DEFAULT 'text',
+                body             TEXT                     DEFAULT NULL,
+                template_name    VARCHAR(100)             DEFAULT NULL,
+                template_params  TEXT                     DEFAULT NULL,
+                status           VARCHAR(20)     NOT NULL DEFAULT 'sent',
+                error_detail     TEXT                     DEFAULT NULL,
+                created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                status_at        DATETIME                 DEFAULT NULL,
+                PRIMARY KEY  (id),
+                UNIQUE KEY   wa_message_id (wa_message_id),
+                KEY          conversation_id (conversation_id),
+                KEY          created_at (created_at)
             ) $charset_collate;
         " );
 
