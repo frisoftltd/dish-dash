@@ -801,7 +801,6 @@ window.ddOrdersData = {
     var currentOrderId = null;
     var currentOrder   = null;
     var currentItems   = [];
-    var LS_KITCHEN   = 'dd_kitchen_notified_';
     var LS_RIDER     = 'dd_rider_notified_';
 
     // Open modal on row click
@@ -966,7 +965,13 @@ window.ddOrdersData = {
         }
 
         if ( status === 'confirmed' ) {
-            var kitchenNotified = localStorage.getItem( LS_KITCHEN + String( id ) ) === '1';
+            // v3.18.54 — reads the server-side kitchen_notified_at column
+            // (set by the kitchen screen the first time it displays this
+            // order, or by the Notify Kitchen click below) instead of the
+            // old LS_KITCHEN localStorage flag, so Mark Ready unlocks
+            // correctly on a different device/browser than the one that
+            // notified the kitchen.
+            var kitchenNotified = !! order.kitchen_notified_at;
             if ( waUrls.kitchen ) {
                 actionsHtml += '<a href="' + esc( waUrls.kitchen ) + '" target="_blank" class="dd-btn dd-btn-whatsapp dd-modal-notify-kitchen" data-order-id="' + id + '">📲 Notify Kitchen</a>';
             }
@@ -1071,14 +1076,32 @@ window.ddOrdersData = {
             } );
         } );
 
-        // Kitchen notified → unlock Mark Ready
+        // Kitchen notified → unlock Mark Ready. v3.18.54: sets
+        // kitchen_notified_at server-side via AJAX (dd_mark_kitchen_notified)
+        // instead of localStorage, so the unlock is visible from any device —
+        // the same column the kitchen screen itself sets when it first
+        // displays the order.
         modalActions.querySelectorAll( '.dd-modal-notify-kitchen' ).forEach( function ( a ) {
             a.addEventListener( 'click', function () {
                 var oid = this.dataset.orderId;
-                localStorage.setItem( LS_KITCHEN + String( oid ), '1' );
-                modalActions.querySelectorAll( '.dd-requires-kitchen' ).forEach( function ( b ) {
-                    b.disabled = false;
-                } );
+                var data = new FormData();
+                data.append( 'action',   'dd_mark_kitchen_notified' );
+                data.append( 'order_id', oid );
+                data.append( 'nonce',    window.ddOrdersData.adminNonce );
+
+                fetch( window.ddOrdersData.ajaxUrl, { method: 'POST', body: data } )
+                    .then( function ( r ) { return r.json(); } )
+                    .then( function ( res ) {
+                        if ( res.success ) {
+                            var kn = res.data && res.data.data ? res.data.data.kitchen_notified_at : null;
+                            if ( currentOrder && String( currentOrder.id ) === String( oid ) ) {
+                                currentOrder.kitchen_notified_at = kn;
+                            }
+                            modalActions.querySelectorAll( '.dd-requires-kitchen' ).forEach( function ( b ) {
+                                b.disabled = false;
+                            } );
+                        }
+                    } );
             } );
         } );
 
@@ -1253,7 +1276,8 @@ window.ddOrdersData = {
                         }
                     }
                     if ( newStatus === 'delivered' || newStatus === 'cancelled' ) {
-                        localStorage.removeItem( LS_KITCHEN + orderId );
+                        // kitchen_notified_at is server-side now (v3.18.54) — nothing to
+                        // clear locally for it; LS_RIDER is unrelated and still cleared.
                         localStorage.removeItem( LS_RIDER + orderId );
                         currentOrder.status = newStatus;
                         renderModal( currentOrder, currentItems );

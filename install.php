@@ -152,6 +152,7 @@ class DD_Install {
                 dd_customer_id       BIGINT UNSIGNED          DEFAULT NULL,
                 momo_proof_attachment_id BIGINT UNSIGNED      DEFAULT NULL,
                 idempotency_key      VARCHAR(36)              DEFAULT NULL,
+                kitchen_notified_at  DATETIME                 DEFAULT NULL,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   order_number (order_number),
                 UNIQUE KEY   idempotency_key (idempotency_key),
@@ -159,6 +160,7 @@ class DD_Install {
                 KEY          customer_id (customer_id),
                 KEY          status (status),
                 KEY          created_at (created_at),
+                KEY          updated_at (updated_at),
                 KEY          is_test (is_test),
                 KEY          branch_status (branch_id, status),
                 KEY          dd_customer_id (dd_customer_id)

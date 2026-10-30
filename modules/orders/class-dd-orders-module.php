@@ -5,7 +5,9 @@
  * Purpose: Full order lifecycle management — placing orders, status
  *          transitions, email notifications, REST API routes, WooCommerce
  *          payment bridge (links WC order IDs to Dish Dash orders),
- *          and the Orders admin page.
+ *          and the Orders admin page. Also owns the Kitchen screen
+ *          (v3.18.54) — a separate, standalone chrome-free admin page for
+ *          tablets, see admin/pages/kitchen.php.
  *
  * Dependencies (this file needs):
  *   - DD_Module base class
@@ -28,11 +30,16 @@
  *     v3.18.46 — unpaid-PesaPal-order reconciliation safety net; sped up to
  *     60s + overlap lock in v3.18.47, meant to be driven by a real server
  *     cron hitting wp-cron.php every minute rather than site traffic)
+ *   - admin_init → maybe_render_kitchen_screen() (v3.18.54 — intercepts
+ *     ?page=dish-dash-kitchen before wp-admin chrome prints, same escape
+ *     hatch pattern DD_Admin::maybe_serve_invoice() uses for the invoice page)
  *
  * AJAX actions registered:
  *   dd_place_order (public), dd_get_order (public),
  *   dd_update_status (admin only)
  *   (dd_cancel_order removed in v3.10.29 — write-path IDOR, zero callers)
+ *   dd_kitchen_feed, dd_mark_kitchen_notified (admin only, v3.18.54 —
+ *     kitchen screen poll feed + manual Notify Kitchen button)
  *
  * REST routes: GET/PUT /dish-dash/v1/orders[/{id}[/status]] (admin only)
  *
@@ -97,6 +104,23 @@ class DD_Orders_Module extends DD_Module {
         DD_Ajax::register( 'dd_pesapal_check_status', [ $this, 'ajax_pesapal_check_status' ], true );
         DD_Ajax::register( 'dd_toggle_test',         [ $this, 'ajax_toggle_test' ],         false );
         DD_Ajax::register( 'dd_poll_notifications', [ $this, 'ajax_poll_notifications' ], false );
+
+        // Kitchen screen (v3.18.54) — admin-only, same dd_manage_orders +
+        // dish_dash_admin nonce gate as dd_update_status. dd_kitchen_feed is
+        // the full-list/delta poll; dd_mark_kitchen_notified is the manual
+        // "Notify Kitchen" button's AJAX call (replaces the old LS_KITCHEN
+        // localStorage write — see admin/pages/orders.php).
+        DD_Ajax::register( 'dd_kitchen_feed',           [ $this, 'ajax_kitchen_feed' ],           false );
+        DD_Ajax::register( 'dd_mark_kitchen_notified',  [ $this, 'ajax_mark_kitchen_notified' ],  false );
+
+        // Kitchen screen admin submenu — registered by this module directly
+        // (not DD_Admin), per the architecture rule that each module owns its
+        // own submenu. render_kitchen() is a stub: the real page is served
+        // earlier, on admin_init, as a standalone chrome-free document (see
+        // maybe_render_kitchen_screen() below) — this callback only runs if
+        // that early intercept didn't fire for some reason.
+        add_action( 'admin_menu', [ $this, 'register_kitchen_menu' ] );
+        add_action( 'admin_init', [ $this, 'maybe_render_kitchen_screen' ] );
         add_action( 'wp_ajax_dd_mark_notifications_read', [ $this, 'ajax_mark_notifications_read' ] );
         add_action( 'wp_ajax_dd_kitchen_queue',           [ $this, 'ajax_kitchen_queue' ] );
         add_action( 'wp_ajax_dd_mark_month_paid',         [ $this, 'ajax_mark_month_paid' ] );
@@ -2730,6 +2754,243 @@ class DD_Orders_Module extends DD_Module {
             'paid_at' => $paid_at,
             'amount'  => $amount,
         ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  KITCHEN SCREEN (v3.18.54)
+    // ─────────────────────────────────────────
+
+    /**
+     * AJAX: full list (no `since`) or delta (`since` set) feed for the
+     * kitchen screen. The returned `cursor` is always the highest
+     * updated_at actually read from a row in this response (or `since`
+     * unchanged if nothing qualified) — never derived from
+     * current_time()/time()/a browser clock. updated_at is stamped by the
+     * DB server's own clock (ON UPDATE CURRENT_TIMESTAMP), which can
+     * differ from the WordPress clock on this host, so the client must
+     * only ever echo back a cursor this endpoint gave it, never compute
+     * its own.
+     *
+     * Only 'confirmed' rows carry full card data (items/variation/addons/
+     * notes) — 'ready'/'cancelled' rows are removal signals only, kept
+     * cheap on purpose. A client must de-duplicate by order id: the
+     * boundary row at exactly `since` is re-sent every tick by design
+     * (the query is >=, not >), so a repeat of the same id is expected
+     * and must be an idempotent upsert, not a duplicate card.
+     */
+    public function ajax_kitchen_feed(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_orders' ) ) {
+            $this->json_error( 'Permission denied.', 403 );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_orders';
+
+        $since = sanitize_text_field( wp_unslash( $_POST['since'] ?? '' ) );
+        if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $since ) ) {
+            // Fixed sentinel, not a clock reading — means "everything so far".
+            $since = '1970-01-01 00:00:00';
+        }
+
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT id, order_number, order_type, customer_name,
+                    special_instructions, status, updated_at,
+                    COALESCE(confirmed_at, created_at) AS confirmed_at
+             FROM {$table}
+             WHERE updated_at >= %s
+               AND status IN ('confirmed','ready','cancelled')
+               AND is_test = 0
+             ORDER BY confirmed_at ASC",
+            $since
+        ) );
+
+        // Cursor never regresses and is only ever a value actually read
+        // above — the boundary row (updated_at == since) keeps it stable
+        // when nothing new happened; a genuinely new row advances it.
+        $cursor = $since;
+        foreach ( $rows as $row ) {
+            if ( $row->updated_at > $cursor ) {
+                $cursor = $row->updated_at;
+            }
+        }
+
+        $confirmed_ids = [];
+        foreach ( $rows as $row ) {
+            if ( 'confirmed' === $row->status ) {
+                $confirmed_ids[] = (int) $row->id;
+            }
+        }
+
+        // Set kitchen_notified_at the first time any screen displays this
+        // order — idempotent (only still-NULL rows are touched), so two
+        // tablets racing each other never overwrite an earlier timestamp.
+        if ( $confirmed_ids ) {
+            $wpdb->query( $wpdb->prepare(
+                "UPDATE {$table} SET kitchen_notified_at = %s
+                 WHERE id IN (" . implode( ',', array_fill( 0, count( $confirmed_ids ), '%d' ) ) . ")
+                   AND kitchen_notified_at IS NULL",
+                array_merge( [ current_time( 'mysql' ) ], $confirmed_ids )
+            ) );
+        }
+
+        $items_by_order = $confirmed_ids ? $this->get_kitchen_items_for_orders( $confirmed_ids ) : [];
+        $prep_time      = (int) get_option( 'dd_kitchen_prep_time', 30 );
+
+        $orders = [];
+        foreach ( $rows as $row ) {
+            $entry = [
+                'id'     => (int) $row->id,
+                'status' => $row->status,
+            ];
+            if ( 'confirmed' === $row->status ) {
+                $entry['order_number']        = $row->order_number ?: ( 'DD-' . str_pad( $row->id, 5, '0', STR_PAD_LEFT ) );
+                $entry['order_type']           = $row->order_type;
+                $entry['customer_name']        = $row->customer_name;
+                $entry['special_instructions'] = $row->special_instructions;
+                $entry['confirmed_at']         = $row->confirmed_at;
+                $entry['items']                = $items_by_order[ $row->id ] ?? [];
+            }
+            $orders[] = $entry;
+        }
+
+        $this->json_success( [
+            'cursor'    => $cursor,
+            'orders'    => $orders,
+            'prep_time' => $prep_time,
+        ] );
+    }
+
+    /**
+     * Batched item fetch for the kitchen feed — one query for every order
+     * id in the current response, not N+1. Variation decoding reuses the
+     * existing shared helper (DD_Notifications::variation_lines()); addon
+     * decoding has no shared helper in this codebase (it's inlined twice
+     * already in class-dd-notifications.php), so the same small decode is
+     * duplicated here rather than editing a file outside this release's
+     * scope.
+     */
+    private function get_kitchen_items_for_orders( array $order_ids ): array {
+        global $wpdb;
+        $placeholders = implode( ',', array_fill( 0, count( $order_ids ), '%d' ) );
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT order_id, item_name, quantity, variation, addons, special_note
+             FROM {$wpdb->prefix}dishdash_order_items
+             WHERE order_id IN ({$placeholders})
+             ORDER BY id ASC",
+            $order_ids
+        ) );
+
+        $by_order = [];
+        foreach ( $rows as $row ) {
+            $addon_lines = [];
+            if ( ! empty( $row->addons ) && '{}' !== $row->addons && '[]' !== $row->addons ) {
+                $decoded = json_decode( $row->addons, true );
+                if ( is_array( $decoded ) ) {
+                    foreach ( $decoded as $name => $value ) {
+                        $addon_lines[] = $name . ': ' . $value;
+                    }
+                }
+            }
+
+            $by_order[ (int) $row->order_id ][] = [
+                'item_name'       => $row->item_name,
+                'quantity'        => (int) $row->quantity,
+                'variation_lines' => DD_Notifications::variation_lines( $row->variation ?? '' ),
+                'addon_lines'     => $addon_lines,
+                'special_note'    => esc_html( DD_Notifications::clean_note( $row->special_note ?? '' ) ),
+            ];
+        }
+        return $by_order;
+    }
+
+    /**
+     * AJAX: the manual "Notify Kitchen" button (admin/pages/orders.php)
+     * now sets kitchen_notified_at server-side instead of localStorage.
+     * Idempotent — a second click, or a race with the kitchen screen
+     * itself displaying the order first, is a no-op, not an overwrite.
+     */
+    public function ajax_mark_kitchen_notified(): void {
+        DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
+
+        if ( ! current_user_can( 'dd_manage_orders' ) ) {
+            $this->json_error( 'Permission denied.', 403 );
+        }
+
+        $order_id = absint( $_POST['order_id'] ?? 0 );
+        if ( ! $order_id ) {
+            $this->json_error( 'Invalid order.' );
+        }
+
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_orders';
+
+        $wpdb->query( $wpdb->prepare(
+            "UPDATE {$table} SET kitchen_notified_at = %s WHERE id = %d AND kitchen_notified_at IS NULL",
+            current_time( 'mysql' ), $order_id
+        ) );
+
+        $kitchen_notified_at = $wpdb->get_var( $wpdb->prepare(
+            "SELECT kitchen_notified_at FROM {$table} WHERE id = %d", $order_id
+        ) );
+
+        $this->json_success( [ 'kitchen_notified_at' => $kitchen_notified_at ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  KITCHEN SCREEN — admin page (full-screen, chrome-free)
+    // ─────────────────────────────────────────
+
+    public function register_kitchen_menu(): void {
+        add_submenu_page(
+            'dish-dash',
+            __( 'Kitchen', 'dish-dash' ),
+            __( '🍳 Kitchen', 'dish-dash' ),
+            'dd_manage_orders',
+            'dish-dash-kitchen',
+            [ $this, 'render_kitchen' ]
+        );
+    }
+
+    public function render_kitchen(): void {
+        // Unreachable in normal operation — maybe_render_kitchen_screen()
+        // (admin_init) always intercepts this exact page slug and exits
+        // first. Kept only as a safe fallback so a missed intercept
+        // reloads the request instead of rendering a second <html>
+        // document nested inside wp-admin's own chrome.
+        wp_safe_redirect( admin_url( 'admin.php?page=dish-dash-kitchen' ) );
+        exit;
+    }
+
+    /**
+     * Renders the kitchen screen as a standalone document, before
+     * WordPress prints any wp-admin chrome — same escape-hatch pattern
+     * DD_Admin::maybe_serve_invoice()/dd_invoice_render_page() already use
+     * for the standalone invoice page. Own capability check here, since
+     * WordPress's own per-page capability gate hasn't run yet at this
+     * point in the request. is_user_logged_in()+auth_redirect() is
+     * explicit here (rather than relying only on the auth_redirect() that
+     * already ran earlier in wp-admin/admin.php for every admin request)
+     * so a logged-out tablet is deliberately redirected to login and back
+     * to this exact page, not just by accident of load order.
+     */
+    public function maybe_render_kitchen_screen(): void {
+        if ( ( $_GET['page'] ?? '' ) !== 'dish-dash-kitchen' ) {
+            return;
+        }
+
+        if ( ! is_user_logged_in() ) {
+            auth_redirect();
+            return;
+        }
+
+        if ( ! current_user_can( 'dd_manage_orders' ) ) {
+            wp_die( esc_html__( 'You do not have permission to view the kitchen screen.', 'dish-dash' ), '', [ 'response' => 403 ] );
+        }
+
+        require DD_PLUGIN_DIR . 'admin/pages/kitchen.php';
+        exit;
     }
 
     // ─────────────────────────────────────────

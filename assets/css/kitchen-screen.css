@@ -1,0 +1,300 @@
+/*
+ * File:    assets/css/kitchen-screen.css
+ * Purpose: Kitchen screen (v3.18.54) — full-screen, chrome-free, tablet-first
+ *          display for confirmed orders. Isolated class prefix (.dd-ks-)
+ *          so nothing collides with the dashboard's existing Kitchen Queue
+ *          card (.dd-kitchen-*), which this release does not touch.
+ *
+ * Last modified: v3.18.54
+ */
+
+* { box-sizing: border-box; }
+
+html, body.dd-ks-body {
+    margin: 0;
+    padding: 0;
+    background: #121212;
+    color: #f5f5f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+.dd-ks-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 20px;
+    background: #1a1a1a;
+    border-bottom: 1px solid #2a2a2a;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.dd-ks-topbar__title {
+    font-size: 20px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.dd-ks-topbar__right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.dd-ks-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+}
+
+.dd-ks-status__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #2ecc71;
+    flex-shrink: 0;
+}
+
+.dd-ks-status--offline .dd-ks-status__dot {
+    background: #e74c3c;
+    animation: dd-ks-pulse 1s infinite;
+}
+
+@keyframes dd-ks-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.dd-ks-back {
+    color: #bbb;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #333;
+}
+.dd-ks-back:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+.dd-ks-sound-btn {
+    font-size: 15px;
+    font-weight: 700;
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    background: var(--dd-ks-brand, #e8832a);
+    color: #fff;
+    cursor: pointer;
+}
+
+.dd-ks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    padding: 20px;
+}
+
+.dd-ks-empty {
+    padding: 80px 20px;
+    text-align: center;
+    font-size: 22px;
+    color: #777;
+}
+
+.dd-ks-card {
+    background: #1e1e1e;
+    border: 2px solid #2a2a2a;
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.dd-ks-card--new {
+    border-color: var(--dd-ks-brand, #e8832a);
+    background: #2a1f14;
+    animation: dd-ks-flash 1s infinite;
+}
+
+@keyframes dd-ks-flash {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(232,131,42,0.5); }
+    50% { box-shadow: 0 0 0 10px rgba(232,131,42,0); }
+}
+
+.dd-ks-card--late {
+    border-color: #e74c3c;
+}
+
+.dd-ks-card__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.dd-ks-card__number {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+}
+
+.dd-ks-card__type {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #aaa;
+    background: rgba(255,255,255,0.08);
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.dd-ks-card__customer {
+    font-size: 17px;
+    font-weight: 600;
+    color: #ddd;
+}
+
+.dd-ks-card__timer {
+    font-size: 15px;
+    font-weight: 700;
+    color: #9ad67d;
+}
+
+.dd-ks-card--late .dd-ks-card__timer {
+    color: #ff6b5e;
+}
+
+.dd-ks-card__items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-top: 1px solid #2a2a2a;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 10px 0;
+}
+
+.dd-ks-item__line {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.dd-ks-item__sub {
+    font-size: 13px;
+    color: #aaa;
+    padding-left: 14px;
+}
+
+.dd-ks-item__note {
+    font-size: 13px;
+    color: #f0c419;
+    padding-left: 14px;
+    font-weight: 600;
+}
+
+.dd-ks-card__instructions {
+    font-size: 14px;
+    color: #f0c419;
+    font-weight: 600;
+    background: rgba(240,196,25,0.08);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.dd-ks-card__ready {
+    margin-top: auto;
+    font-size: 18px;
+    font-weight: 800;
+    padding: 16px;
+    border-radius: 10px;
+    border: none;
+    background: #2ecc71;
+    color: #0a0a0a;
+    cursor: pointer;
+    min-height: 56px;
+}
+.dd-ks-card__ready:active { background: #27ae60; }
+.dd-ks-card__ready:disabled { opacity: 0.6; cursor: wait; }
+
+.dd-ks-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #e74c3c;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 12px 24px;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.dd-ks-toast--visible { opacity: 1; }
+
+.dd-ks-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    text-align: center;
+    padding: 24px;
+}
+
+.dd-ks-overlay__box {
+    max-width: 420px;
+}
+
+.dd-ks-overlay__box h2 {
+    font-size: 22px;
+    margin: 0 0 12px;
+}
+
+.dd-ks-overlay__box p {
+    font-size: 15px;
+    color: #bbb;
+    margin: 0 0 24px;
+}
+
+.dd-ks-overlay__btn {
+    font-size: 18px;
+    font-weight: 700;
+    padding: 16px 32px;
+    border-radius: 12px;
+    border: none;
+    background: var(--dd-ks-brand, #e8832a);
+    color: #fff;
+    cursor: pointer;
+    min-height: 56px;
+}
+
+/* Landscape tablet — favor more columns over taller cards */
+@media (min-width: 900px) and (orientation: landscape) {
+    .dd-ks-grid {
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    }
+}
+
+/* Small phones — single column, extra-large touch targets stay as-is */
+@media (max-width: 480px) {
+    .dd-ks-grid { grid-template-columns: 1fr; padding: 12px; }
+    .dd-ks-topbar { flex-wrap: wrap; }
+}
