@@ -25,7 +25,7 @@
  * Instantiated by DD_WhatsApp_Module::init() — not a DD_Module itself, since
  * it owns no admin page or settings of its own.
  *
- * Last modified: v3.18.50
+ * Last modified: v3.18.51
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -53,19 +53,39 @@ class DD_WhatsApp_Webhook {
         // arrive as hub_mode/hub_verify_token/hub_challenge — standard PHP
         // behavior, not specific to this code.
         $mode         = (string) $request->get_param( 'hub_mode' );
-        $verify_token = (string) $request->get_param( 'hub_verify_token' );
+        $verify_token = trim( (string) $request->get_param( 'hub_verify_token' ) );
         $challenge    = (string) $request->get_param( 'hub_challenge' );
 
-        $stored_token = get_option( 'dd_whatsapp_verify_token', '' );
+        // Trim the stored side too — sanitize_text_field() on the settings
+        // save already trims, but trimming again here keeps both sides of
+        // the comparison symmetric regardless of how the option got set.
+        $stored_token = trim( (string) get_option( 'dd_whatsapp_verify_token', '' ) );
 
-        if ( '' !== $stored_token && 'subscribe' === $mode && hash_equals( $stored_token, $verify_token ) ) {
-            // Meta expects the raw challenge value as the body. Returning an
-            // int here JSON-encodes unquoted (wp_json_encode(12345) ===
-            // "12345"), byte-identical to the raw text Meta compares against.
-            return new WP_REST_Response( (int) $challenge, 200 );
+        if ( '' === $stored_token ) {
+            error_log( 'DD_DIAG: WhatsApp webhook verify failed — reason=no_stored_token' );
+            return new WP_REST_Response( [ 'error' => 'Verification failed.' ], 403 );
         }
 
-        return new WP_REST_Response( [ 'error' => 'Verification failed.' ], 403 );
+        if ( 'subscribe' !== $mode ) {
+            error_log( 'DD_DIAG: WhatsApp webhook verify failed — reason=bad_mode' );
+            return new WP_REST_Response( [ 'error' => 'Verification failed.' ], 403 );
+        }
+
+        if ( ! hash_equals( $stored_token, $verify_token ) ) {
+            // Never log the token values — only their lengths, which is
+            // enough to spot a whitespace or truncation mismatch.
+            error_log( sprintf(
+                'DD_DIAG: WhatsApp webhook verify failed — reason=token_mismatch stored_len=%d received_len=%d',
+                strlen( $stored_token ),
+                strlen( $verify_token )
+            ) );
+            return new WP_REST_Response( [ 'error' => 'Verification failed.' ], 403 );
+        }
+
+        // Meta expects the raw challenge value as the body. Returning an
+        // int here JSON-encodes unquoted (wp_json_encode(12345) ===
+        // "12345"), byte-identical to the raw text Meta compares against.
+        return new WP_REST_Response( (int) $challenge, 200 );
     }
 
     // ── POST: inbound messages + status updates ─────────────────────────────
