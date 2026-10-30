@@ -25,7 +25,7 @@
  * Instantiated by DD_WhatsApp_Module::init() — not a DD_Module itself, since
  * it owns no admin page or settings of its own.
  *
- * Last modified: v3.18.51
+ * Last modified: v3.18.52
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -124,6 +124,20 @@ class DD_WhatsApp_Webhook {
     private function process_payload( array $payload ): void {
         foreach ( (array) ( $payload['entry'] ?? [] ) as $entry ) {
             foreach ( (array) ( $entry['changes'] ?? [] ) as $change ) {
+                $field = (string) ( $change['field'] ?? '' );
+
+                // 'messages' is the only field this install acts on today
+                // (it carries both inbound messages and status updates).
+                // 'message_template_status_update' is a field Meta can
+                // legitimately send (template approval/rejection) that this
+                // install doesn't manage yet — a deliberate no-op, not an
+                // oversight. Any other/unknown field is ignored the same
+                // way. handle_event() always answers Meta with 200 either
+                // way, so an unhandled field is never retried as a failure.
+                if ( 'messages' !== $field ) {
+                    continue;
+                }
+
                 $value    = (array) ( $change['value'] ?? [] );
                 $contacts = (array) ( $value['contacts'] ?? [] );
 
@@ -219,13 +233,21 @@ class DD_WhatsApp_Webhook {
         }
 
         $customer_id = $this->resolve_customer_id( $wa_number );
+        // Set explicitly rather than relying on the column's own
+        // DEFAULT CURRENT_TIMESTAMP — that default uses the DB server's
+        // clock/timezone, while dishdash_message_log.created_at is set via
+        // current_time('mysql') (WordPress's configured timezone). Two
+        // different time sources for the same inbound event was producing
+        // a several-hour drift between the two tables' created_at values.
+        $now = current_time( 'mysql' );
 
         $inserted = $wpdb->insert( $table, [
             'wa_number'       => $wa_number,
             'customer_id'     => $customer_id ?: null,
             'customer_name'   => $profile_name,
-            'last_message_at' => current_time( 'mysql' ),
-        ], [ '%s', '%d', '%s', '%s' ] );
+            'last_message_at' => $now,
+            'created_at'      => $now,
+        ], [ '%s', '%d', '%s', '%s', '%s' ] );
 
         if ( false === $inserted ) {
             // Lost a race against a concurrent webhook delivery for the same
