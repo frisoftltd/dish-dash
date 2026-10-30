@@ -5,7 +5,11 @@
  *          (Phase 9A Step 1) — Phone Number ID, WhatsApp Business Account
  *          ID, permanent token, webhook verify token, app secret — plus a
  *          test-send panel that sends one approved template to a number
- *          entered on this page.
+ *          entered on this page, and (v3.18.53) a webhook-test panel that
+ *          exercises the real receiving webhook end to end and a button to
+ *          delete the rows that test creates — see
+ *          class-dd-whatsapp-module.php's ajax_test_webhook() /
+ *          ajax_delete_test_messages() for the logic.
  *
  * Dependencies (this file needs):
  *   - ABSPATH (WordPress core guard)
@@ -27,7 +31,7 @@
  * precedent: this token/app-secret pair can send messages and validate the
  * webhook, a higher blast radius than the Claude key.
  *
- * Last modified: v3.18.48
+ * Last modified: v3.18.53
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -270,6 +274,27 @@ $has_app_secret   = '' !== get_option( 'dd_whatsapp_app_secret', '' );
                 </button>
                 <span id="dd-wa-test-spinner" style="display:none;margin-left:8px;">⏳</span>
                 <p id="dd-wa-test-result" style="margin-top:12px;"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="dd-settings-card" style="margin-top:24px;">
+        <h2 class="dd-section-heading">🔌 <?php esc_html_e( 'Webhook Test', 'dish-dash' ); ?></h2>
+        <p class="description">
+            <?php esc_html_e( 'Sends a sample inbound message to this site\'s own webhook URL, signed with the App Secret above, exactly as Meta would. Confirms the receiving side works without needing Meta\'s dashboard.', 'dish-dash' ); ?>
+        </p>
+
+        <div class="dd-field-grid">
+            <div class="dd-field-label"></div>
+            <div class="dd-field-control">
+                <button type="button" id="dd-wa-webhook-test-send" class="button button-secondary">
+                    <?php esc_html_e( 'Send Test Webhook', 'dish-dash' ); ?>
+                </button>
+                <button type="button" id="dd-wa-webhook-test-delete" class="button" style="margin-left:8px;">
+                    <?php esc_html_e( 'Delete Test Messages', 'dish-dash' ); ?>
+                </button>
+                <span id="dd-wa-webhook-test-spinner" style="display:none;margin-left:8px;">⏳</span>
+                <p id="dd-wa-webhook-test-result" style="margin-top:12px;"></p>
             </div>
         </div>
     </div>
