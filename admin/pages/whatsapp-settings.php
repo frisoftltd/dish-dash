@@ -20,7 +20,11 @@
  *
  * WP options written:
  *   dd_whatsapp_phone_number_id, dd_whatsapp_waba_id, dd_whatsapp_token,
- *   dd_whatsapp_verify_token, dd_whatsapp_app_secret
+ *   dd_whatsapp_verify_token, dd_whatsapp_app_secret,
+ *   dd_whatsapp_default_country_code, dd_whatsapp_order_confirmed_enabled,
+ *   dd_whatsapp_order_confirmed_template, dd_whatsapp_order_confirmed_lang
+ *   (last four added v3.18.58 — see class-dd-whatsapp-module.php's
+ *   order-confirmed send logic)
  *
  * Nonce action: dd_whatsapp_settings_save
  *
@@ -31,7 +35,7 @@
  * precedent: this token/app-secret pair can send messages and validate the
  * webhook, a higher blast radius than the Claude key.
  *
- * Last modified: v3.18.53
+ * Last modified: v3.18.58
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -51,13 +55,25 @@ if ( isset( $_POST['dd_save_whatsapp_settings'] ) && check_admin_referer( 'dd_wh
         }
     }
 
+    // Order-confirmed message (v3.18.58) — unchecked checkboxes don't submit,
+    // so isset() is the "off" case, matching the project's own established
+    // checkbox-save convention (see admin/pages/settings.php).
+    update_option( 'dd_whatsapp_order_confirmed_enabled', isset( $_POST['dd_whatsapp_order_confirmed_enabled'] ) ? '1' : '0' );
+    update_option( 'dd_whatsapp_order_confirmed_template', sanitize_text_field( wp_unslash( $_POST['dd_whatsapp_order_confirmed_template'] ?? '' ) ) ?: 'dd_order_confirmed_v1' );
+    update_option( 'dd_whatsapp_order_confirmed_lang', sanitize_text_field( wp_unslash( $_POST['dd_whatsapp_order_confirmed_lang'] ?? '' ) ) ?: 'en' );
+    update_option( 'dd_whatsapp_default_country_code', preg_replace( '/\D/', '', (string) ( $_POST['dd_whatsapp_default_country_code'] ?? '' ) ) ?: '250' );
+
     echo '<div class="notice notice-success is-dismissible"><p>'
         . esc_html__( 'WhatsApp settings saved!', 'dish-dash' )
         . '</p></div>';
 }
 
-$phone_number_id  = get_option( 'dd_whatsapp_phone_number_id', '' );
-$waba_id          = get_option( 'dd_whatsapp_waba_id', '' );
+$phone_number_id     = get_option( 'dd_whatsapp_phone_number_id', '' );
+$waba_id             = get_option( 'dd_whatsapp_waba_id', '' );
+$oc_enabled          = get_option( 'dd_whatsapp_order_confirmed_enabled', '0' ) === '1';
+$oc_template         = get_option( 'dd_whatsapp_order_confirmed_template', 'dd_order_confirmed_v1' );
+$oc_lang             = get_option( 'dd_whatsapp_order_confirmed_lang', 'en' );
+$default_country_cc  = get_option( 'dd_whatsapp_default_country_code', '250' );
 $has_token        = '' !== get_option( 'dd_whatsapp_token', '' );
 $has_verify_token = '' !== get_option( 'dd_whatsapp_verify_token', '' );
 $has_app_secret   = '' !== get_option( 'dd_whatsapp_app_secret', '' );
@@ -125,6 +141,19 @@ $has_app_secret   = '' !== get_option( 'dd_whatsapp_app_secret', '' );
 }
 .dd-settings-page .dd-input--medium {
     max-width: 220px;
+}
+.dd-settings-page .dd-check-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 13px;
+    color: #333;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+.dd-settings-page .dd-check-label input[type="checkbox"] {
+    margin-top: 2px;
+    flex-shrink: 0;
 }
 .dd-settings-footer {
     position: sticky;
@@ -225,6 +254,52 @@ $has_app_secret   = '' !== get_option( 'dd_whatsapp_app_secret', '' );
                     <input type="password" name="dd_whatsapp_app_secret"
                            value="" placeholder="<?php echo $has_app_secret ? esc_attr( '••••••••••••' ) : ''; ?>"
                            class="dd-input" autocomplete="new-password" />
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label"><?php esc_html_e( 'Default Country Code', 'dish-dash' ); ?>
+                    <span class="dd-label-hint"><?php esc_html_e( 'Used when a customer types a number with no country code (e.g. 0788123456).', 'dish-dash' ); ?></span>
+                </div>
+                <div class="dd-field-control">
+                    <input type="text" name="dd_whatsapp_default_country_code"
+                           value="<?php echo esc_attr( $default_country_cc ); ?>"
+                           class="dd-input dd-input--short" autocomplete="off" />
+                </div>
+            </div>
+        </div>
+
+        <div class="dd-settings-card" style="margin-top:24px;">
+            <h2 class="dd-section-heading">📨 <?php esc_html_e( 'Order Confirmed Message', 'dish-dash' ); ?></h2>
+            <p class="description">
+                <?php esc_html_e( 'When reception confirms an order, automatically send the customer a WhatsApp message using this approved template — nothing sent by hand. Off by default; the template must already be approved by Meta before turning this on.', 'dish-dash' ); ?>
+            </p>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label"><?php esc_html_e( 'Send order confirmations via WhatsApp', 'dish-dash' ); ?></div>
+                <div class="dd-field-control">
+                    <label class="dd-check-label">
+                        <input type="checkbox" name="dd_whatsapp_order_confirmed_enabled" value="1" <?php checked( $oc_enabled ); ?> />
+                        <?php esc_html_e( 'Enabled', 'dish-dash' ); ?>
+                    </label>
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label"><?php esc_html_e( 'Template Name', 'dish-dash' ); ?></div>
+                <div class="dd-field-control">
+                    <input type="text" name="dd_whatsapp_order_confirmed_template"
+                           value="<?php echo esc_attr( $oc_template ); ?>"
+                           class="dd-input dd-input--medium" autocomplete="off" />
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label"><?php esc_html_e( 'Language', 'dish-dash' ); ?></div>
+                <div class="dd-field-control">
+                    <input type="text" name="dd_whatsapp_order_confirmed_lang"
+                           value="<?php echo esc_attr( $oc_lang ); ?>"
+                           class="dd-input dd-input--short" autocomplete="off" />
                 </div>
             </div>
         </div>

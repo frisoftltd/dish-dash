@@ -221,7 +221,10 @@ class DD_WhatsApp_Webhook {
     }
 
     // ── Conversation lookup / create ─────────────────────────────────────────
-    private function get_or_create_conversation( string $wa_number, string $profile_name ): int {
+    // v3.18.58 — bumped private → public (no logic touched) so the
+    // order-confirmed sender (class-dd-whatsapp-module.php) can reuse this
+    // exact idempotent lookup/insert instead of duplicating it.
+    public function get_or_create_conversation( string $wa_number, string $profile_name ): int {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_wa_conversations';
 
@@ -285,8 +288,11 @@ class DD_WhatsApp_Webhook {
     // which columns a given caller includes (this class only inserts the
     // inbound shape today; Step 4's outbound sends will reuse this with a
     // different column subset).
-    private const MESSAGE_LOG_FORMATS = [
+    // v3.18.58 — bumped private → public (no logic touched), same reason
+    // as get_or_create_conversation() above.
+    public const MESSAGE_LOG_FORMATS = [
         'conversation_id' => '%d',
+        'order_id'        => '%d',
         'direction'       => '%s',
         'wa_message_id'   => '%s',
         'message_type'    => '%s',
@@ -295,11 +301,14 @@ class DD_WhatsApp_Webhook {
         'template_params' => '%s',
         'status'          => '%s',
         'error_detail'    => '%s',
+        'retry_count'     => '%d',
         'created_at'      => '%s',
         'status_at'       => '%s',
     ];
 
-    private function insert_message_log( array $data ): int {
+    // v3.18.58 — bumped private → public (no logic touched), same reason
+    // as get_or_create_conversation() above.
+    public function insert_message_log( array $data ): int {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_message_log';
 
@@ -328,7 +337,14 @@ class DD_WhatsApp_Webhook {
     }
 
     // ── Status updates (sent/delivered/read/failed) ──────────────────────────
-    private function apply_status_update( array $status ): void {
+    // v3.18.58 — bumped private → public (no logic touched): the
+    // order-confirmed sender calls this directly right after inserting a
+    // new outbound row, to apply any status update Meta's webhook already
+    // parked in a dd_wa_orphan_status_{id} transient while our own send
+    // call's HTTP response hadn't come back yet (this method's own
+    // existing rank-gated logic, unchanged, decides whether it actually
+    // moves the row forward).
+    public function apply_status_update( array $status ): void {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_message_log';
 

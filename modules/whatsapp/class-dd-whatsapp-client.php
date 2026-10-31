@@ -34,7 +34,15 @@ class DD_WhatsApp_Client {
      * @param  string $template_name Exact Meta-approved template name.
      * @param  string $language_code Template's approved language code, e.g. 'en_US'.
      * @param  array  $components    Optional Graph API "components" array for template parameters.
-     * @return array  { success: bool, message_id?: string, error?: string }
+     * @return array  { success: bool, message_id?: string, error?: string,
+     *                  http_status?: int, error_code?: int }
+     *                v3.18.58 — http_status/error_code added (additive, the
+     *                one existing caller only ever read success/message_id/
+     *                error) so a caller can classify a failure as transient
+     *                vs permanent without re-parsing the error message text.
+     *                http_status is 0 for a network-level failure (no HTTP
+     *                response at all); error_code is Meta's own numeric
+     *                error.code, absent when Meta didn't return one.
      */
     public function send_template(
         string $to,
@@ -43,7 +51,7 @@ class DD_WhatsApp_Client {
         array  $components = []
     ): array {
         if ( ! $this->is_configured() ) {
-            return [ 'success' => false, 'error' => 'WhatsApp is not configured.' ];
+            return [ 'success' => false, 'error' => 'WhatsApp is not configured.', 'http_status' => 0 ];
         }
 
         $template = [
@@ -72,21 +80,29 @@ class DD_WhatsApp_Client {
         );
 
         if ( is_wp_error( $response ) ) {
-            return [ 'success' => false, 'error' => $response->get_error_message() ];
+            // No HTTP response at all (DNS/timeout/connection failure) —
+            // http_status 0 signals "network-level", never a real status code.
+            return [ 'success' => false, 'error' => $response->get_error_message(), 'http_status' => 0 ];
         }
 
-        $body = json_decode( wp_remote_retrieve_body( $response ) );
+        $http_status = (int) wp_remote_retrieve_response_code( $response );
+        $body        = json_decode( wp_remote_retrieve_body( $response ) );
 
         if ( ! empty( $body->error ) ) {
-            return [
-                'success' => false,
-                'error'   => $body->error->message ?? 'WhatsApp API error.',
+            $result = [
+                'success'     => false,
+                'error'       => $body->error->message ?? 'WhatsApp API error.',
+                'http_status' => $http_status,
             ];
+            if ( isset( $body->error->code ) ) {
+                $result['error_code'] = (int) $body->error->code;
+            }
+            return $result;
         }
 
         $message_id = $body->messages[0]->id ?? '';
         if ( ! $message_id ) {
-            return [ 'success' => false, 'error' => 'WhatsApp API returned no message id.' ];
+            return [ 'success' => false, 'error' => 'WhatsApp API returned no message id.', 'http_status' => $http_status ];
         }
 
         return [ 'success' => true, 'message_id' => $message_id ];

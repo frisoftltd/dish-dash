@@ -556,10 +556,20 @@ class DD_Install {
         // by a NOT NULL constraint here. status must only move forward
         // (sent → delivered → read, or → failed) — enforced in application
         // code, not by this schema.
+        // v3.18.58: order_id (nullable, indexed) — id reference only, no FK
+        // (none used anywhere else in this schema either) — lets the order-
+        // confirmed sender find "is there already an outbound row for this
+        // order+template" without matching on wa_message_id (unknown before
+        // the first send attempt). retry_count backs the capped-retry sweep;
+        // see class-dd-whatsapp-module.php for how a row's error_detail
+        // prefix ('transient: '/'permanent: ') gates which failed rows that
+        // sweep is allowed to touch — a second column for this was
+        // considered and deliberately not added.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_message_log (
                 id               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
                 conversation_id  BIGINT UNSIGNED NOT NULL,
+                order_id         BIGINT UNSIGNED          DEFAULT NULL,
                 direction        ENUM('inbound','outbound') NOT NULL,
                 wa_message_id    VARCHAR(100)             DEFAULT NULL,
                 message_type     VARCHAR(20)     NOT NULL DEFAULT 'text',
@@ -568,12 +578,14 @@ class DD_Install {
                 template_params  TEXT                     DEFAULT NULL,
                 status           VARCHAR(20)     NOT NULL DEFAULT 'sent',
                 error_detail     TEXT                     DEFAULT NULL,
+                retry_count      TINYINT UNSIGNED NOT NULL DEFAULT 0,
                 created_at       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 status_at        DATETIME                 DEFAULT NULL,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   wa_message_id (wa_message_id),
                 KEY          conversation_id (conversation_id),
-                KEY          created_at (created_at)
+                KEY          created_at (created_at),
+                KEY          order_id (order_id)
             ) $charset_collate;
         " );
 
