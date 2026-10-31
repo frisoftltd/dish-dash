@@ -94,7 +94,12 @@ if (
             $pre_rows = $wpdb->get_results(
                 "SELECT id, status FROM `{$wpdb->prefix}dishdash_orders` WHERE id IN ({$ids_in})"
             );
-            $allowed = [ 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
+            // v3.18.57 — 'confirmed' removed: restaurants must open and
+            // confirm each order individually, never in bulk. Removed from
+            // this server-side whitelist too, not just the dropdown above,
+            // so a hand-built request can't bulk-confirm by bypassing the
+            // missing option.
+            $allowed = [ 'pending', 'ready', 'delivered', 'cancelled' ];
 
             if ( in_array( $action, $allowed, true ) && class_exists( 'DD_Orders_Module' ) ) {
                 // v3.18.56 — routed through update_status() per row instead of
@@ -498,7 +503,6 @@ foreach ( $orders as $o ) {
         <span class="dd-bulk-count" id="dd-bulk-count">0 selected</span>
         <select class="dd-bulk-select" id="dd-bulk-select">
             <option value="">Change status to...</option>
-            <option value="confirmed">Confirmed</option>
             <option value="ready">Ready</option>
             <option value="delivered">Delivered</option>
             <option value="cancelled">Cancelled</option>
