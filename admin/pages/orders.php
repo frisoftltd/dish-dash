@@ -95,27 +95,58 @@ if (
                 "SELECT id, status FROM `{$wpdb->prefix}dishdash_orders` WHERE id IN ({$ids_in})"
             );
             $allowed = [ 'pending', 'confirmed', 'ready', 'delivered', 'cancelled' ];
-            if ( in_array( $action, $allowed, true ) ) {
-                $wpdb->query( $wpdb->prepare(
-                    "UPDATE `{$wpdb->prefix}dishdash_orders` SET status = %s, updated_at = NOW() WHERE id IN ({$placeholders})",
-                    $action, ...$order_ids
-                ) );
-                if ( class_exists( 'DD_Orders_Module' ) ) {
-                    foreach ( $pre_rows as $row ) {
-                        DD_Orders_Module::recalculate_fee_for_status_change( (int) $row->id, $row->status, $action );
+
+            if ( in_array( $action, $allowed, true ) && class_exists( 'DD_Orders_Module' ) ) {
+                // v3.18.56 — routed through update_status() per row instead of
+                // one raw multi-row UPDATE, so every status change fires
+                // dish_dash_order_status_changed, sets the matching *_at
+                // timestamp, and is validated against
+                // dd_order_status_transitions() exactly like a single-order
+                // change via the modal already is — a row whose current
+                // status doesn't allow this target (e.g. bulk "Ready" on a
+                // still-pending order) is now skipped instead of forced.
+                // Customer emails are suppressed ($send_email = false): one
+                // click changing many orders at once should not silently
+                // email every affected customer in a single request.
+                // Fee recalculation now happens inside update_status()
+                // itself, so the old separate per-row loop is removed rather
+                // than left to fire a second time.
+                $orders_module = new DD_Orders_Module();
+                $bulk_updated  = 0;
+                $bulk_skipped  = 0;
+
+                foreach ( $pre_rows as $row ) {
+                    if ( $orders_module->update_status( (int) $row->id, $action, false ) ) {
+                        $bulk_updated++;
+                    } else {
+                        $bulk_skipped++;
                     }
                 }
             }
         }
     }
 
-    $redirect = add_query_arg(
-        'status',
-        sanitize_key( $_POST['current_status_filter'] ?? 'all' ),
-        admin_url( 'admin.php?page=dish-dash-orders' )
-    );
+    $redirect_args = [ 'status' => sanitize_key( $_POST['current_status_filter'] ?? 'all' ) ];
+    if ( isset( $bulk_updated ) ) {
+        $redirect_args['dd_bulk_updated'] = $bulk_updated;
+        $redirect_args['dd_bulk_skipped'] = $bulk_skipped;
+    }
+    $redirect = add_query_arg( $redirect_args, admin_url( 'admin.php?page=dish-dash-orders' ) );
     wp_safe_redirect( $redirect );
     exit;
+}
+
+// ── Bulk-action result notice (v3.18.56) ────────────────────────────────────────
+if ( isset( $_GET['dd_bulk_updated'] ) ) {
+    $bulk_notice_updated = (int) $_GET['dd_bulk_updated'];
+    $bulk_notice_skipped = (int) ( $_GET['dd_bulk_skipped'] ?? 0 );
+    $bulk_notice_text    = $bulk_notice_updated . ' updated';
+    if ( $bulk_notice_skipped > 0 ) {
+        $bulk_notice_text .= ', ' . $bulk_notice_skipped . ' skipped (invalid for current status)';
+    }
+    add_action( 'admin_notices', function () use ( $bulk_notice_text ) {
+        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( $bulk_notice_text ) . '</p></div>';
+    } );
 }
 
 // ── Status filter ─────────────────────────────────────────────────────────────

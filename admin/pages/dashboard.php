@@ -36,16 +36,34 @@ if (
          AND ( payment_method = 'cod' OR payment_status = 'paid' )
          AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
     );
+    // v3.18.56 — stays a direct write (deliberately, not routed through
+    // update_status()): this sweep's entire purpose is to force ANY stuck
+    // order to 'delivered' regardless of which stage it's stuck at, and
+    // dd_order_status_transitions() only allows 'delivered' as a target
+    // from 'ready' — routing this through the validated path would reject
+    // most of the orders it exists to recover. Instead it now completes
+    // the same things update_status() would have added — delivered_at and
+    // both hooks it fires on reaching 'delivered' — manually, per row,
+    // using each row's real prior status already captured in $stale_rows
+    // above. dish_dash_order_delivered currently has zero add_action()
+    // listeners anywhere in this codebase (confirmed by a full-repo search
+    // before adding this) — firing it here is a no-op today and only
+    // matters if something starts listening later, matching this
+    // release's own goal that status-driven automation never miss an
+    // order just because it arrived through this sweep instead of the
+    // normal single-order path.
     $wpdb->query(
         "UPDATE `{$wpdb->prefix}dishdash_orders`
-         SET status = 'delivered', updated_at = NOW()
+         SET status = 'delivered', updated_at = NOW(), delivered_at = NOW()
          WHERE status NOT IN ('delivered','cancelled')
          AND is_test = 0
          AND ( payment_method = 'cod' OR payment_status = 'paid' )
          AND updated_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)"
     );
-    if ( class_exists( 'DD_Orders_Module' ) ) {
-        foreach ( $stale_rows as $row ) {
+    foreach ( $stale_rows as $row ) {
+        do_action( 'dish_dash_order_status_changed', (int) $row->id, $row->status, 'delivered' );
+        do_action( 'dish_dash_order_delivered', (int) $row->id );
+        if ( class_exists( 'DD_Orders_Module' ) ) {
             DD_Orders_Module::recalculate_fee_for_status_change( (int) $row->id, $row->status, 'delivered' );
         }
     }

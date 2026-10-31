@@ -740,7 +740,7 @@ class DD_Orders_Module extends DD_Module {
     // ─────────────────────────────────────────
     //  UPDATE ORDER STATUS
     // ─────────────────────────────────────────
-    public function update_status( int $order_id, string $new_status ): bool {
+    public function update_status( int $order_id, string $new_status, bool $send_email = true ): bool {
         global $wpdb;
 
         $order = $this->get_order( $order_id );
@@ -788,8 +788,13 @@ class DD_Orders_Module extends DD_Module {
                 do_action( 'dish_dash_order_delivered', $order_id );
             }
 
-            // Notify customer of status change
-            $this->send_status_update( $order_id, $new_status );
+            // Notify customer of status change — skippable (v3.18.56) for
+            // callers that change many orders in one request (bulk actions),
+            // where one email per row firing automatically would surprise
+            // staff who only meant to tidy up records, not notify customers.
+            if ( $send_email ) {
+                $this->send_status_update( $order_id, $new_status );
+            }
 
             self::recalculate_fee_for_status_change( $order_id, $old_status, $new_status );
         }
