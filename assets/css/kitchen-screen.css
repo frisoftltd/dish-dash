@@ -1,11 +1,15 @@
 /*
  * File:    assets/css/kitchen-screen.css
- * Purpose: Kitchen screen (v3.18.54) — full-screen, chrome-free, tablet-first
- *          display for confirmed orders. Isolated class prefix (.dd-ks-)
+ * Purpose: Kitchen screen — full-screen, chrome-free, tablet-first display
+ *          for confirmed/preparing orders. Isolated class prefix (.dd-ks-)
  *          so nothing collides with the dashboard's existing Kitchen Queue
  *          card (.dd-kitchen-*), which this release does not touch.
  *
- * Last modified: v3.18.54
+ * v3.18.55 — Mute button styles, the two-stage card action button
+ * (.dd-ks-card__action base + .dd-ks-card__start/__ready color variants),
+ * the stage pill (New/Preparing), and the small secondary timer line.
+ *
+ * Last modified: v3.18.55
  */
 
 * { box-sizing: border-box; }
@@ -87,6 +91,23 @@ html, body.dd-ks-body {
 }
 .dd-ks-back:hover { background: rgba(255,255,255,0.08); color: #fff; }
 
+.dd-ks-mute-btn {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #333;
+    background: transparent;
+    color: #ddd;
+    cursor: pointer;
+}
+.dd-ks-mute-btn:hover { background: rgba(255,255,255,0.08); }
+.dd-ks-mute-btn--active {
+    border-color: #e74c3c;
+    color: #ff6b5e;
+    background: rgba(231,76,60,0.1);
+}
+
 .dd-ks-sound-btn {
     font-size: 15px;
     font-weight: 700;
@@ -162,6 +183,24 @@ html, body.dd-ks-body {
     white-space: nowrap;
 }
 
+.dd-ks-card__stage {
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 9px;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+.dd-ks-card__stage--new {
+    background: rgba(232,131,42,0.18);
+    color: var(--dd-ks-brand, #e8832a);
+}
+.dd-ks-card__stage--preparing {
+    background: rgba(147,51,234,0.18);
+    color: #c084fc;
+}
+
 .dd-ks-card__customer {
     font-size: 17px;
     font-weight: 600;
@@ -172,6 +211,15 @@ html, body.dd-ks-body {
     font-size: 15px;
     font-weight: 700;
     color: #9ad67d;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.dd-ks-card__timer-sub {
+    font-size: 12px;
+    font-weight: 600;
+    color: #999;
 }
 
 .dd-ks-card--late .dd-ks-card__timer {
@@ -214,20 +262,29 @@ html, body.dd-ks-body {
     padding: 8px 10px;
 }
 
-.dd-ks-card__ready {
+.dd-ks-card__action {
     margin-top: auto;
     font-size: 18px;
     font-weight: 800;
     padding: 16px;
     border-radius: 10px;
     border: none;
-    background: #2ecc71;
-    color: #0a0a0a;
     cursor: pointer;
     min-height: 56px;
 }
+.dd-ks-card__action:disabled { opacity: 0.6; cursor: wait; }
+
+.dd-ks-card__ready {
+    background: #2ecc71;
+    color: #0a0a0a;
+}
 .dd-ks-card__ready:active { background: #27ae60; }
-.dd-ks-card__ready:disabled { opacity: 0.6; cursor: wait; }
+
+.dd-ks-card__start {
+    background: var(--dd-ks-brand, #e8832a);
+    color: #fff;
+}
+.dd-ks-card__start:active { filter: brightness(0.9); }
 
 .dd-ks-toast {
     position: fixed;

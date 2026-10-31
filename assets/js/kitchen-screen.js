@@ -1,20 +1,36 @@
 /*
  * File:    assets/js/kitchen-screen.js
- * Purpose: Kitchen screen (v3.18.54) — polls dd_kitchen_feed every 5s,
- *          renders confirmed-order cards, plays an alert sound on new
- *          orders until tapped, Mark Ready calls the existing
- *          dd_update_status action directly (no duplicated status logic),
- *          requests Screen Wake Lock where supported.
+ * Purpose: Kitchen screen — polls dd_kitchen_feed every 5s, renders
+ *          confirmed/preparing-order cards, requests Screen Wake Lock
+ *          where supported. Start Preparing / Mark Ready both call the
+ *          existing dd_update_status action directly (no duplicated
+ *          status logic).
+ *
+ *          v3.18.55 — sound model rewritten: ONE shared repeating alert
+ *          (never per-card overlapping instances) that fires while any
+ *          visible card is unacknowledged. Tapping a card acknowledges it
+ *          — stored in localStorage per order id, per device, so other
+ *          devices keep alerting. A header Mute button silences the
+ *          alert for 5 minutes with a countdown; tapping it again ends
+ *          the mute early; a new card during a mute still highlights,
+ *          just stays silent. Also adds the 'preparing' stage: a New
+ *          (confirmed) card shows Start Preparing; a Preparing card shows
+ *          Mark Ready plus a "time since preparing" counter. The late
+ *          flag is still computed from confirmed_at + prep time at every
+ *          stage, unchanged.
  *
  * Expects window.ddKitchenData = { ajaxUrl, nonce, soundUrl }.
  *
- * Last modified: v3.18.54
+ * Last modified: v3.18.55
  */
 (function () {
     'use strict';
 
-    var POLL_INTERVAL_MS   = 5000;
-    var SOUND_SESSION_KEY  = 'dd_ks_sound_enabled';
+    var POLL_INTERVAL_MS  = 5000;
+    var ALERT_INTERVAL_MS = 2500;
+    var MUTE_DURATION_MS  = 5 * 60 * 1000;
+    var SOUND_SESSION_KEY = 'dd_ks_sound_enabled';
+    var ACK_PREFIX         = 'dd_ks_ack_';
 
     var grid        = document.getElementById( 'dd-ks-grid' );
     var emptyState  = document.getElementById( 'dd-ks-empty' );
@@ -23,13 +39,18 @@
     var overlay     = document.getElementById( 'dd-ks-overlay' );
     var enableBtn   = document.getElementById( 'dd-ks-enable-sound' );
     var toastEl     = document.getElementById( 'dd-ks-toast' );
+    var muteBtn     = document.getElementById( 'dd-ks-mute-btn' );
 
     var since           = '';
     var needsFullResync = false;
-    var cardsById        = {};   // id -> { data, el, timerEl, soundStop }
-    var soundEnabled      = false;
-    var audioEl          = null;
-    var wakeLock          = null;
+    var cardsById       = {};   // id -> { data, el }
+    var soundEnabled    = false;
+    var audioEl         = null;
+    var wakeLock        = null;
+    var lastPrepTime    = 30;  // minutes, updated from each poll response
+
+    var mutedUntil         = null; // ms epoch, client-side UI timer only
+    var muteCountdownTimer = null;
 
     init();
 
@@ -54,6 +75,11 @@
             requestWakeLock();
         } );
 
+        if ( muteBtn ) {
+            muteBtn.addEventListener( 'click', toggleMute );
+            updateMuteButton();
+        }
+
         // Wake Lock doesn't require a user gesture by spec — try immediately
         // too, failing quietly if unsupported (brief requirement).
         requestWakeLock();
@@ -64,6 +90,7 @@
         } );
 
         setInterval( tickTimers, 1000 );
+        setInterval( alertTick, ALERT_INTERVAL_MS );
 
         poll();
     }
@@ -73,6 +100,80 @@
         navigator.wakeLock.request( 'screen' )
             .then( function ( lock ) { wakeLock = lock; } )
             .catch( function () { /* fail quietly — not supported/allowed here */ } );
+    }
+
+    // ── Acknowledgment (per device, survives reloads) ───────────────────────
+    function isAcked( id ) {
+        return localStorage.getItem( ACK_PREFIX + id ) === '1';
+    }
+    function setAcked( id ) {
+        localStorage.setItem( ACK_PREFIX + id, '1' );
+    }
+    function clearAcked( id ) {
+        localStorage.removeItem( ACK_PREFIX + id );
+    }
+
+    // ── Shared alert loop — one Audio element, one timer, never overlapping ──
+    function alertTick() {
+        if ( ! soundEnabled || isMuted() ) return;
+
+        var hasUnacked = Object.keys( cardsById ).some( function ( id ) {
+            return ! isAcked( id );
+        } );
+        if ( ! hasUnacked ) return;
+
+        try { audioEl.currentTime = 0; } catch ( e ) {}
+        audioEl.play().catch( function () {} );
+    }
+
+    // ── Mute ─────────────────────────────────────────────────────────────────
+    function isMuted() {
+        return mutedUntil !== null && Date.now() < mutedUntil;
+    }
+
+    function toggleMute() {
+        if ( isMuted() ) {
+            endMute();
+        } else {
+            startMute();
+        }
+    }
+
+    function startMute() {
+        mutedUntil = Date.now() + MUTE_DURATION_MS;
+        updateMuteButton();
+        if ( muteCountdownTimer ) clearInterval( muteCountdownTimer );
+        muteCountdownTimer = setInterval( function () {
+            if ( ! isMuted() ) {
+                endMute();
+            } else {
+                updateMuteButton();
+            }
+        }, 1000 );
+    }
+
+    function endMute() {
+        mutedUntil = null;
+        if ( muteCountdownTimer ) {
+            clearInterval( muteCountdownTimer );
+            muteCountdownTimer = null;
+        }
+        updateMuteButton();
+        // "when mute ends, unacknowledged cards alert again" — the next
+        // alertTick() tick resumes on its own since isMuted() now reads
+        // false; nothing else to trigger here.
+    }
+
+    function updateMuteButton() {
+        if ( ! muteBtn ) return;
+        if ( isMuted() ) {
+            var remaining = Math.max( 0, Math.ceil( ( mutedUntil - Date.now() ) / 1000 ) );
+            muteBtn.textContent = '🔇 Muted (' + fmtMinSec( remaining ) + ')';
+            muteBtn.classList.add( 'dd-ks-mute-btn--active' );
+        } else {
+            muteBtn.textContent = '🔔 Mute';
+            muteBtn.classList.remove( 'dd-ks-mute-btn--active' );
+        }
     }
 
     // ── Polling ──────────────────────────────────────────────────────────────
@@ -88,15 +189,7 @@
             .then( function ( r ) { return r.json(); } )
             .then( function ( res ) {
                 if ( ! res.success ) throw new Error( 'bad response' );
-                var wasOffline = ( statusPill.dataset.offline === '1' );
                 setOnline();
-                if ( wasOffline ) {
-                    // "On reconnect, refresh the full list" — the cursor we
-                    // were holding may be stale after an outage, so the next
-                    // call (not this one — this one already used since='')
-                    // doesn't need special handling; needsFullResync covers
-                    // the case where THIS call itself was the first retry.
-                }
                 var payload = res.data && res.data.data ? res.data.data : res.data;
                 since           = payload.cursor;
                 needsFullResync = false;
@@ -125,10 +218,10 @@
 
     // ── Apply feed results ───────────────────────────────────────────────────
     function applyOrders( orders, prepTime ) {
+        lastPrepTime = prepTime;
         orders.forEach( function ( order ) {
-            if ( 'confirmed' === order.status ) {
-                var isNew = ! cardsById[ order.id ];
-                upsertCard( order, prepTime, isNew );
+            if ( 'confirmed' === order.status || 'preparing' === order.status ) {
+                upsertCard( order, prepTime );
             } else if ( cardsById[ order.id ] ) {
                 var removedData = cardsById[ order.id ].data;
                 removeCard( order.id );
@@ -140,42 +233,41 @@
         emptyState.style.display = Object.keys( cardsById ).length ? 'none' : 'block';
     }
 
-    function upsertCard( order, prepTime, isNew ) {
+    function upsertCard( order, prepTime ) {
         var existing = cardsById[ order.id ];
+        var acked    = isAcked( order.id );
 
         if ( existing ) {
             existing.data = order;
             renderCardBody( existing.el, order, prepTime );
+            existing.el.classList.toggle( 'dd-ks-card--new', ! acked );
             return;
         }
 
         var el = document.createElement( 'div' );
-        el.className = 'dd-ks-card' + ( isNew ? ' dd-ks-card--new' : '' );
+        el.className = 'dd-ks-card' + ( acked ? '' : ' dd-ks-card--new' );
         el.dataset.orderId = order.id;
         renderCardBody( el, order, prepTime );
         grid.appendChild( el );
 
         cardsById[ order.id ] = { data: order, el: el };
 
-        if ( isNew ) {
-            if ( soundEnabled ) {
-                playAlertLoop( order.id );
-            }
-            var dismiss = function () {
-                el.classList.remove( 'dd-ks-card--new' );
-                stopAlertLoop( order.id );
-                el.removeEventListener( 'click', dismiss );
-            };
-            el.addEventListener( 'click', dismiss );
-        }
+        // Tapping anywhere on the card acknowledges it — stored per device,
+        // so a device that never taps keeps alerting even if the order
+        // moves to Preparing via another device's tap.
+        el.addEventListener( 'click', function () {
+            if ( isAcked( order.id ) ) return;
+            setAcked( order.id );
+            el.classList.remove( 'dd-ks-card--new' );
+        } );
     }
 
     function removeCard( id ) {
         var entry = cardsById[ id ];
         if ( ! entry ) return;
-        stopAlertLoop( id );
         if ( entry.el.parentNode ) entry.el.parentNode.removeChild( entry.el );
         delete cardsById[ id ];
+        clearAcked( id );
     }
 
     function renderCardBody( el, order, prepTime ) {
@@ -198,92 +290,138 @@
             ? '<div class="dd-ks-card__instructions">' + esc( order.special_instructions ) + '</div>'
             : '';
 
+        var isPreparing = 'preparing' === order.status;
+
+        var stageHtml = isPreparing
+            ? '<span class="dd-ks-card__stage dd-ks-card__stage--preparing">Preparing</span>'
+            : '<span class="dd-ks-card__stage dd-ks-card__stage--new">New</span>';
+
+        var actionHtml = isPreparing
+            ? '<button type="button" class="dd-ks-card__action dd-ks-card__ready" data-order-id="' + order.id + '" data-next-status="ready">✓ Mark Ready</button>'
+            : '<button type="button" class="dd-ks-card__action dd-ks-card__start" data-order-id="' + order.id + '" data-next-status="preparing">▶ Start Preparing</button>';
+
         el.innerHTML =
             '<div class="dd-ks-card__header">' +
                 '<span class="dd-ks-card__number">' + esc( order.order_number ) + '</span>' +
+                stageHtml +
                 '<span class="dd-ks-card__type">' + esc( ucfirst( order.order_type || 'delivery' ) ) + '</span>' +
             '</div>' +
             '<div class="dd-ks-card__customer">' + esc( order.customer_name || '' ) + '</div>' +
             '<div class="dd-ks-card__items">' + itemsHtml + '</div>' +
             instructionsHtml +
-            '<div class="dd-ks-card__timer" data-confirmed="' + esc( order.confirmed_at ) + '" data-prep="' + ( prepTime * 60 ) + '">--:--</div>' +
-            '<button type="button" class="dd-ks-card__ready" data-order-id="' + order.id + '">✓ Mark Ready</button>';
+            '<div class="dd-ks-card__timer"' +
+                ' data-confirmed="' + esc( order.confirmed_at || '' ) + '"' +
+                ' data-preparing="' + esc( order.preparing_at || '' ) + '"' +
+                ' data-prep="' + ( prepTime * 60 ) + '"' +
+                ' data-stage="' + ( isPreparing ? 'preparing' : 'confirmed' ) + '">--:--</div>' +
+            actionHtml;
 
-        el.querySelector( '.dd-ks-card__ready' ).addEventListener( 'click', function () {
-            markReady( order.id, this );
+        el.querySelector( '.dd-ks-card__action' ).addEventListener( 'click', function ( e ) {
+            e.stopPropagation(); // don't double-fire the card's own tap-to-acknowledge click
+            changeStatus( order.id, this.dataset.nextStatus, this );
         } );
 
         tickTimerFor( el );
     }
 
     // ── Elapsed-time / late state ────────────────────────────────────────────
+    // Late is always computed from confirmed_at + prep time, regardless of
+    // stage — a Preparing card can still be "late" if it took too long to
+    // even start, per the brief. The visible counter text is stage-specific.
     function tickTimers() {
         grid.querySelectorAll( '.dd-ks-card' ).forEach( tickTimerFor );
     }
 
     function tickTimerFor( cardEl ) {
         var timerEl = cardEl.querySelector( '.dd-ks-card__timer' );
-        if ( ! timerEl || ! timerEl.dataset.confirmed ) return;
+        if ( ! timerEl ) return;
 
-        var confirmedAt = new Date( timerEl.dataset.confirmed.replace( ' ', 'T' ) ).getTime();
-        if ( isNaN( confirmedAt ) ) return;
-
-        var elapsedSec = Math.max( 0, Math.floor( ( Date.now() - confirmedAt ) / 1000 ) );
+        var confirmedAt = parseServerTime( timerEl.dataset.confirmed );
         var prepSec     = parseInt( timerEl.dataset.prep, 10 ) || 1800;
-        var mins = Math.floor( elapsedSec / 60 );
-        var secs = elapsedSec % 60;
 
-        timerEl.textContent = mins + ':' + ( secs < 10 ? '0' : '' ) + secs + ' since confirmed';
-
-        var isLate = elapsedSec > prepSec;
+        var isLate = false;
+        var sinceConfirmedSec = null;
+        if ( confirmedAt !== null ) {
+            sinceConfirmedSec = Math.max( 0, Math.floor( ( Date.now() - confirmedAt ) / 1000 ) );
+            isLate = sinceConfirmedSec > prepSec;
+        }
         cardEl.classList.toggle( 'dd-ks-card--late', isLate );
+
+        if ( 'preparing' === timerEl.dataset.stage ) {
+            var preparingAt = parseServerTime( timerEl.dataset.preparing );
+            if ( preparingAt === null ) {
+                // Optimistic local transition — the real preparing_at arrives
+                // on the next poll (within 5s), nothing fabricated here.
+                timerEl.textContent = 'Just started preparing…';
+                return;
+            }
+            var sincePrep = Math.max( 0, Math.floor( ( Date.now() - preparingAt ) / 1000 ) );
+            timerEl.innerHTML = fmtMinSec( sincePrep ) + ' preparing' +
+                ( sinceConfirmedSec !== null
+                    ? '<span class="dd-ks-card__timer-sub">' + fmtMinSec( sinceConfirmedSec ) + ' total since confirmed</span>'
+                    : '' );
+        } else {
+            timerEl.textContent = sinceConfirmedSec !== null
+                ? fmtMinSec( sinceConfirmedSec ) + ' since confirmed'
+                : '--:--';
+        }
     }
 
-    // ── Mark Ready ───────────────────────────────────────────────────────────
-    function markReady( orderId, btnEl ) {
+    function parseServerTime( s ) {
+        if ( ! s ) return null;
+        var t = new Date( s.replace( ' ', 'T' ) ).getTime();
+        return isNaN( t ) ? null : t;
+    }
+
+    function fmtMinSec( totalSec ) {
+        var m = Math.floor( totalSec / 60 );
+        var s = totalSec % 60;
+        return m + ':' + ( s < 10 ? '0' : '' ) + s;
+    }
+
+    // ── Start Preparing / Mark Ready — both call dd_update_status directly ──
+    function changeStatus( orderId, nextStatus, btnEl ) {
         btnEl.disabled = true;
-        btnEl.textContent = 'Marking ready…';
+        var originalText  = btnEl.textContent;
+        btnEl.textContent = 'ready' === nextStatus ? 'Marking ready…' : 'Starting…';
 
         var data = new FormData();
         data.append( 'action', 'dd_update_status' );
         data.append( 'order_id', orderId );
-        data.append( 'status', 'ready' );
+        data.append( 'status', nextStatus );
         data.append( 'nonce', window.ddKitchenData.nonce );
 
         fetch( window.ddKitchenData.ajaxUrl, { method: 'POST', body: data } )
             .then( function ( r ) { return r.json(); } )
             .then( function ( res ) {
-                if ( res.success ) {
+                if ( ! res.success ) {
+                    btnEl.disabled = false;
+                    btnEl.textContent = originalText;
+                    showToast( 'Could not update — try again' );
+                    return;
+                }
+
+                if ( 'ready' === nextStatus ) {
                     removeCard( orderId );
                     emptyState.style.display = Object.keys( cardsById ).length ? 'none' : 'block';
-                } else {
-                    btnEl.disabled = false;
-                    btnEl.textContent = '✓ Mark Ready';
-                    showToast( 'Could not mark ready — try again' );
+                    return;
+                }
+
+                // 'preparing' — optimistic re-render now; the authoritative
+                // preparing_at lands on the next poll (≤5s), same pattern the
+                // Orders page modal already uses for its own status changes.
+                var entry = cardsById[ orderId ];
+                if ( entry ) {
+                    entry.data.status       = 'preparing';
+                    entry.data.preparing_at = entry.data.preparing_at || null;
+                    renderCardBody( entry.el, entry.data, lastPrepTime );
                 }
             } )
             .catch( function () {
                 btnEl.disabled = false;
-                btnEl.textContent = '✓ Mark Ready';
-                showToast( 'Could not mark ready — try again' );
+                btnEl.textContent = originalText;
+                showToast( 'Could not update — try again' );
             } );
-    }
-
-    // ── Sound loop (plays until the card is tapped) ──────────────────────────
-    var soundTimers = {};
-    function playAlertLoop( id ) {
-        var play = function () {
-            var a = new Audio( window.ddKitchenData.soundUrl );
-            a.play().catch( function () {} );
-        };
-        play();
-        soundTimers[ id ] = setInterval( play, 2500 );
-    }
-    function stopAlertLoop( id ) {
-        if ( soundTimers[ id ] ) {
-            clearInterval( soundTimers[ id ] );
-            delete soundTimers[ id ];
-        }
     }
 
     // ── Toast ────────────────────────────────────────────────────────────────

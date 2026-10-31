@@ -759,6 +759,7 @@ class DD_Orders_Module extends DD_Module {
         $timestamp_col = null;
         switch ( $new_status ) {
             case 'confirmed': $timestamp_col = 'confirmed_at'; break;
+            case 'preparing': $timestamp_col = 'preparing_at'; break;
             case 'ready':     $timestamp_col = 'ready_at';     break;
             case 'delivered': $timestamp_col = 'delivered_at'; break;
             case 'cancelled': $timestamp_col = 'cancelled_at'; break;
@@ -2632,11 +2633,15 @@ class DD_Orders_Module extends DD_Module {
 
         global $wpdb;
 
+        // v3.18.55 — widened to include 'preparing' so the dashboard's
+        // Kitchen Queue card keeps showing an order once it moves past
+        // 'confirmed'; this card doesn't distinguish the two stages visually,
+        // it just needs to keep the order in view until it's ready.
         $orders = $wpdb->get_results(
             "SELECT id, order_number, customer_name, total, payment_method,
                     order_type, confirmed_at
              FROM {$wpdb->prefix}dishdash_orders
-             WHERE status = 'confirmed'
+             WHERE status IN ('confirmed','preparing')
              AND is_test = 0
              ORDER BY confirmed_at ASC",
             ARRAY_A
@@ -2771,12 +2776,15 @@ class DD_Orders_Module extends DD_Module {
      * only ever echo back a cursor this endpoint gave it, never compute
      * its own.
      *
-     * Only 'confirmed' rows carry full card data (items/variation/addons/
-     * notes) — 'ready'/'cancelled' rows are removal signals only, kept
-     * cheap on purpose. A client must de-duplicate by order id: the
-     * boundary row at exactly `since` is re-sent every tick by design
-     * (the query is >=, not >), so a repeat of the same id is expected
-     * and must be an idempotent upsert, not a duplicate card.
+     * Both 'confirmed' and 'preparing' rows carry full card data (items/
+     * variation/addons/notes) — v3.18.55 widened this from 'confirmed'
+     * only, since a preparing card must keep showing on every kitchen
+     * device, not just disappear once someone taps Start Preparing.
+     * 'ready'/'cancelled' rows are removal signals only, kept cheap on
+     * purpose. A client must de-duplicate by order id: the boundary row
+     * at exactly `since` is re-sent every tick by design (the query is
+     * >=, not >), so a repeat of the same id is expected and must be an
+     * idempotent upsert, not a duplicate card.
      */
     public function ajax_kitchen_feed(): void {
         DD_Ajax::verify_nonce( 'nonce', 'dish_dash_admin' );
@@ -2796,11 +2804,11 @@ class DD_Orders_Module extends DD_Module {
 
         $rows = $wpdb->get_results( $wpdb->prepare(
             "SELECT id, order_number, order_type, customer_name,
-                    special_instructions, status, updated_at,
+                    special_instructions, status, updated_at, preparing_at,
                     COALESCE(confirmed_at, created_at) AS confirmed_at
              FROM {$table}
              WHERE updated_at >= %s
-               AND status IN ('confirmed','ready','cancelled')
+               AND status IN ('confirmed','preparing','ready','cancelled')
                AND is_test = 0
              ORDER BY confirmed_at ASC",
             $since
@@ -2816,26 +2824,29 @@ class DD_Orders_Module extends DD_Module {
             }
         }
 
-        $confirmed_ids = [];
+        $visible_ids = [];
         foreach ( $rows as $row ) {
-            if ( 'confirmed' === $row->status ) {
-                $confirmed_ids[] = (int) $row->id;
+            if ( in_array( $row->status, [ 'confirmed', 'preparing' ], true ) ) {
+                $visible_ids[] = (int) $row->id;
             }
         }
 
         // Set kitchen_notified_at the first time any screen displays this
         // order — idempotent (only still-NULL rows are touched), so two
         // tablets racing each other never overwrite an earlier timestamp.
-        if ( $confirmed_ids ) {
+        // A 'preparing' row reaching here is always already non-NULL (it
+        // can't skip 'confirmed'), so this is a no-op for those — no
+        // special-casing needed.
+        if ( $visible_ids ) {
             $wpdb->query( $wpdb->prepare(
                 "UPDATE {$table} SET kitchen_notified_at = %s
-                 WHERE id IN (" . implode( ',', array_fill( 0, count( $confirmed_ids ), '%d' ) ) . ")
+                 WHERE id IN (" . implode( ',', array_fill( 0, count( $visible_ids ), '%d' ) ) . ")
                    AND kitchen_notified_at IS NULL",
-                array_merge( [ current_time( 'mysql' ) ], $confirmed_ids )
+                array_merge( [ current_time( 'mysql' ) ], $visible_ids )
             ) );
         }
 
-        $items_by_order = $confirmed_ids ? $this->get_kitchen_items_for_orders( $confirmed_ids ) : [];
+        $items_by_order = $visible_ids ? $this->get_kitchen_items_for_orders( $visible_ids ) : [];
         $prep_time      = (int) get_option( 'dd_kitchen_prep_time', 30 );
 
         $orders = [];
@@ -2844,12 +2855,16 @@ class DD_Orders_Module extends DD_Module {
                 'id'     => (int) $row->id,
                 'status' => $row->status,
             ];
-            if ( 'confirmed' === $row->status ) {
+            if ( in_array( $row->status, [ 'confirmed', 'preparing' ], true ) ) {
                 $entry['order_number']        = $row->order_number ?: ( 'DD-' . str_pad( $row->id, 5, '0', STR_PAD_LEFT ) );
                 $entry['order_type']           = $row->order_type;
                 $entry['customer_name']        = $row->customer_name;
                 $entry['special_instructions'] = $row->special_instructions;
+                // confirmed_at drives the late-state flag at every stage
+                // (kept unchanged, per the brief); preparing_at is the
+                // Preparing card's own "time since preparing" counter.
                 $entry['confirmed_at']         = $row->confirmed_at;
+                $entry['preparing_at']         = $row->preparing_at;
                 $entry['items']                = $items_by_order[ $row->id ] ?? [];
             }
             $orders[] = $entry;
@@ -3100,7 +3115,7 @@ class DD_Orders_Module extends DD_Module {
              FROM {$wpdb->prefix}dishdash_orders
              WHERE {$where}
                AND is_test = 0
-               AND status IN ('pending','confirmed','ready')
+               AND status IN ('pending','confirmed','preparing','ready')
              ORDER BY id DESC",
             $args
         ) );

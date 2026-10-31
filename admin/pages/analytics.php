@@ -242,6 +242,7 @@ if ( $active_tab === 'orders' ) {
     $order_status_labels = [
         'pending'         => 'Pending',
         'confirmed'       => 'Confirmed',
+        'preparing'       => 'Preparing',
         'ready'           => 'Ready',
         'delivered'       => 'Delivered',
         'cancelled'       => 'Cancelled',

@@ -144,6 +144,7 @@ class DD_Install {
                 created_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 confirmed_at         DATETIME                 NULL,
+                preparing_at         DATETIME                 NULL,
                 ready_at             DATETIME                 NULL,
                 delivered_at         DATETIME                 NULL,
                 cancelled_at         DATETIME                 NULL,

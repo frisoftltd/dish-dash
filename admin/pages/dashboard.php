@@ -117,7 +117,7 @@ if ( $wpdb->get_var( "SHOW TABLES LIKE '{$bp_table}'" ) === $bp_table ) {
 }
 
 $kpi_pending  = (int)   $wpdb->get_var(
-    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status IN ('pending','confirmed','ready') AND {$o_test_where}"
+    "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status IN ('pending','confirmed','preparing','ready') AND {$o_test_where}"
 );
 $kpi_delivered = (int) $wpdb->get_var( $wpdb->prepare(
     "SELECT COUNT(*) FROM `{$ot}` o {$o_test_join} WHERE o.status = 'delivered' AND o.created_at >= %s AND {$o_test_where}", $since
@@ -378,11 +378,14 @@ $current_url = admin_url( 'admin.php?page=dish-dash' );
 
   <!-- ── Kitchen Queue ───────────────────────────────────────────────────── -->
   <?php
+  // v3.18.55 — widened to include 'preparing' so this card keeps showing an
+  // order once it moves past 'confirmed'; this card doesn't distinguish the
+  // two stages visually, it just needs to keep the order in view until ready.
   $kitchen_orders = $wpdb->get_results(
       "SELECT o.id, o.order_number, o.customer_name, o.total, o.order_type, o.confirmed_at
        FROM {$wpdb->prefix}dishdash_orders o
        {$o_test_join}
-       WHERE o.status = 'confirmed'
+       WHERE o.status IN ('confirmed','preparing')
        AND {$o_test_where}
        ORDER BY o.confirmed_at ASC",
       ARRAY_A

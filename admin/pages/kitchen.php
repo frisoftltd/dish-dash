@@ -14,7 +14,13 @@
  * Does not touch: the WhatsApp module, the rider flow, the dashboard's own
  * Kitchen Queue card, or any customer-facing message.
  *
- * Last modified: v3.18.54
+ * v3.18.55 — adds the Mute control to the topbar (silences the shared
+ * alert for 5 minutes, countdown shown on the button itself; logic lives
+ * in kitchen-screen.js) and shows both 'confirmed' and 'preparing' orders
+ * now that the kitchen screen has a two-stage flow (Start Preparing /
+ * Mark Ready).
+ *
+ * Last modified: v3.18.55
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -45,12 +51,13 @@ $js_url      = DD_ASSETS_URL . 'js/kitchen-screen.js';
             <span class="dd-ks-status__dot"></span>
             <span id="dd-ks-status-text"><?php esc_html_e( 'Live', 'dish-dash' ); ?></span>
         </span>
+        <button type="button" class="dd-ks-mute-btn" id="dd-ks-mute-btn">🔔 <?php esc_html_e( 'Mute', 'dish-dash' ); ?></button>
         <a class="dd-ks-back" href="<?php echo esc_url( $admin_url ); ?>">&larr; <?php esc_html_e( 'Back to admin', 'dish-dash' ); ?></a>
     </div>
 </div>
 
 <div class="dd-ks-grid" id="dd-ks-grid"></div>
-<div class="dd-ks-empty" id="dd-ks-empty" style="display:none;"><?php esc_html_e( 'No confirmed orders right now.', 'dish-dash' ); ?></div>
+<div class="dd-ks-empty" id="dd-ks-empty" style="display:none;"><?php esc_html_e( 'No orders in the kitchen right now.', 'dish-dash' ); ?></div>
 
 <div class="dd-ks-toast" id="dd-ks-toast"></div>
 

@@ -402,7 +402,11 @@ function dd_valid_order_type( string $type ): string {
 function dd_order_status_transitions(): array {
     return [
         'pending'         => [ 'confirmed', 'cancelled' ],
-        'confirmed'       => [ 'ready', 'cancelled' ],
+        // v3.18.55 — 'preparing' added between confirmed and ready (kitchen
+        // screen's staged flow); the direct confirmed → ready path is kept
+        // so the Orders page modal can still skip straight to Mark Ready.
+        'confirmed'       => [ 'preparing', 'ready', 'cancelled' ],
+        'preparing'       => [ 'ready', 'cancelled' ],
         'ready'           => [ 'delivered', 'cancelled' ],
         'delivered'       => [ 'ready' ],
         'cancelled'       => [ 'pending' ],
@@ -423,6 +427,7 @@ function dd_order_status_label( string $status ): string {
     $labels = [
         'pending'   => __( 'Pending',   'dish-dash' ),
         'confirmed' => __( 'Confirmed', 'dish-dash' ),
+        'preparing' => __( 'Preparing', 'dish-dash' ),
         'ready'     => __( 'Ready',     'dish-dash' ),
         'delivered' => __( 'Delivered', 'dish-dash' ),
         'cancelled' => __( 'Cancelled', 'dish-dash' ),

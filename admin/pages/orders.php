@@ -120,7 +120,7 @@ if (
 
 // ── Status filter ─────────────────────────────────────────────────────────────
 $status_filter = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : 'all';
-$allowed = [ 'all', 'pending', 'confirmed', 'ready', 'delivered', 'cancelled', 'test' ];
+$allowed = [ 'all', 'pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled', 'test' ];
 if ( ! in_array( $status_filter, $allowed, true ) ) $status_filter = 'all';
 
 // ── Pagination params ─────────────────────────────────────────────────────────
@@ -234,6 +234,7 @@ function dd_orders_status_badge( $status ) {
     $map = [
         'pending'   => [ 'Pending',   '#fef9c3', '#854d0e' ],
         'confirmed' => [ 'Confirmed', '#dbeafe', '#1e40af' ],
+        'preparing' => [ 'Preparing', '#e9d5ff', '#6b21a8' ],
         'ready'     => [ 'Ready',     '#dcfce7', '#166534' ],
         'delivered' => [ 'Delivered', '#dcfce7', '#166534' ],
         'cancelled' => [ 'Cancelled', '#fee2e2', '#991b1b' ],
@@ -285,6 +286,7 @@ $filter_tabs = [
     'all'       => 'All',
     'pending'   => 'Pending',
     'confirmed' => 'Confirmed',
+    'preparing' => 'Preparing',
     'ready'     => 'Ready',
     'delivered' => 'Delivered',
     'cancelled' => 'Cancelled',
@@ -660,6 +662,7 @@ window.ddOrdersData = {
     statusLabels: <?php echo wp_json_encode( [
         'pending'   => 'Pending',
         'confirmed' => 'Confirmed',
+        'preparing' => 'Preparing',
         'ready'     => 'Ready',
         'delivered' => 'Delivered',
         'cancelled' => 'Cancelled',
@@ -977,6 +980,17 @@ window.ddOrdersData = {
             }
             var readyDisabled = ( kitchenNotified || ! waUrls.kitchen ) ? '' : ' disabled';
             actionsHtml += '<button class="dd-btn dd-btn-primary dd-modal-status-btn dd-requires-kitchen" data-status="ready" data-order-id="' + id + '"' + readyDisabled + '>✓ Mark Ready</button>';
+            actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
+        }
+
+        // v3.18.55 — 'preparing' sits between confirmed and ready (kitchen
+        // screen's Start Preparing button moves an order here). By the time
+        // an order reaches this status, kitchen_notified_at is already set
+        // (it can only get here by first being confirmed), so Mark Ready is
+        // unconditional — no kitchen-notified gate needed, unlike 'confirmed'
+        // above. The direct confirmed → ready path above is unchanged.
+        if ( status === 'preparing' ) {
+            actionsHtml += btn( 'ready', '✓ Mark Ready', 'dd-btn-primary', id );
             actionsHtml += btn( 'cancelled', '✗ Cancel', 'dd-btn-cancel', id );
         }
 
@@ -1321,6 +1335,7 @@ window.ddOrdersData = {
         var map = {
             pending:   ['Pending',   '#fef9c3','#854d0e'],
             confirmed: ['Confirmed', '#dbeafe','#1e40af'],
+            preparing: ['Preparing', '#e9d5ff','#6b21a8'],
             ready:     ['Ready',     '#dcfce7','#166534'],
             delivered: ['Delivered', '#dcfce7','#166534'],
             cancelled: ['Cancelled', '#fee2e2','#991b1b'],

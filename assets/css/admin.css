@@ -795,6 +795,7 @@
 .dd-modal-status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500; }
 .dd-status-pending   { background: #fef9c3; color: #854d0e; }
 .dd-status-confirmed { background: #dbeafe; color: #1e40af; }
+.dd-status-preparing { background: #e9d5ff; color: #6b21a8; }
 .dd-status-ready     { background: #dcfce7; color: #166534; }
 .dd-status-delivered { background: #dcfce7; color: #166534; }
 .dd-status-cancelled { background: #fee2e2; color: #991b1b; }
