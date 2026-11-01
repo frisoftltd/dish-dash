@@ -629,6 +629,9 @@ class DD_API {
             if ( ! $attr->get_visible() ) {
                 continue;
             }
+            // Spice is handled by the dedicated category-rule selector, never as a
+            // matchable variation attribute — mirrors the skip in normalize_product().
+            if ( $attr->get_name() === self::spice_taxonomy() ) continue;
             $name        = $attr->get_name();
             $attr_meta[] = [
                 'name'        => $name,

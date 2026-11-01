@@ -207,6 +207,13 @@ class DD_Cart {
             if ( '' === $value ) {
                 continue; // "any" — not part of this variation's identity
             }
+            // Spice is a category rule, not a matchable variation attribute — the
+            // customer's real choice arrives separately via merge_spice_into_variation()
+            // as "Spice Level". Skip it here so a stray "Spiciness Level" (from
+            // whichever spice sub-variation happened to be matched) never leaks in.
+            if ( class_exists( 'DD_API' ) && $attr_key === DD_API::spice_taxonomy() ) {
+                continue;
+            }
             if ( taxonomy_exists( $attr_key ) ) {
                 $term  = get_term_by( 'slug', $value, $attr_key );
                 $label = wc_attribute_label( $attr_key, $parent ?: $variation );

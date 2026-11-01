@@ -9,7 +9,7 @@
 > is incomplete. No exceptions. Version-specific changelog entries go in
 > `RELEASE.md`, not here — see RELEASE.md for the full per-version history.
 >
-> Last updated: v3.18.58 (2026-10-31)
+> Last updated: v3.18.59 (2026-11-01)
 
 ---
 
