@@ -24,7 +24,11 @@
  *   dd_whatsapp_default_country_code, dd_whatsapp_order_confirmed_enabled,
  *   dd_whatsapp_order_confirmed_template, dd_whatsapp_order_confirmed_lang
  *   (last four added v3.18.58 — see class-dd-whatsapp-module.php's
- *   order-confirmed send logic)
+ *   order-confirmed send logic), dd_whatsapp_kitchen_alert_enabled,
+ *   dd_whatsapp_kitchen_alert_template, dd_whatsapp_kitchen_alert_lang
+ *   (v3.18.60 — kitchen new-order alert; recipient is the existing
+ *   dd_whatsapp_kitchen option, saved on admin/pages/settings.php, not
+ *   this page — no new phone-format field needed here)
  *
  * Nonce action: dd_whatsapp_settings_save
  *
@@ -35,7 +39,7 @@
  * precedent: this token/app-secret pair can send messages and validate the
  * webhook, a higher blast radius than the Claude key.
  *
- * Last modified: v3.18.58
+ * Last modified: v3.18.60
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -63,6 +67,13 @@ if ( isset( $_POST['dd_save_whatsapp_settings'] ) && check_admin_referer( 'dd_wh
     update_option( 'dd_whatsapp_order_confirmed_lang', sanitize_text_field( wp_unslash( $_POST['dd_whatsapp_order_confirmed_lang'] ?? '' ) ) ?: 'en' );
     update_option( 'dd_whatsapp_default_country_code', preg_replace( '/\D/', '', (string) ( $_POST['dd_whatsapp_default_country_code'] ?? '' ) ) ?: '250' );
 
+    // Kitchen alert message (v3.18.60) — same unchecked-checkbox convention
+    // as the card above. Recipient number is the existing dd_whatsapp_kitchen
+    // option (settings.php) — not saved from this form.
+    update_option( 'dd_whatsapp_kitchen_alert_enabled', isset( $_POST['dd_whatsapp_kitchen_alert_enabled'] ) ? '1' : '0' );
+    update_option( 'dd_whatsapp_kitchen_alert_template', sanitize_text_field( wp_unslash( $_POST['dd_whatsapp_kitchen_alert_template'] ?? '' ) ) ?: 'dd_kitchen_new_order_v1' );
+    update_option( 'dd_whatsapp_kitchen_alert_lang', sanitize_text_field( wp_unslash( $_POST['dd_whatsapp_kitchen_alert_lang'] ?? '' ) ) ?: 'en' );
+
     echo '<div class="notice notice-success is-dismissible"><p>'
         . esc_html__( 'WhatsApp settings saved!', 'dish-dash' )
         . '</p></div>';
@@ -74,6 +85,10 @@ $oc_enabled          = get_option( 'dd_whatsapp_order_confirmed_enabled', '0' ) 
 $oc_template         = get_option( 'dd_whatsapp_order_confirmed_template', 'dd_order_confirmed_v1' );
 $oc_lang             = get_option( 'dd_whatsapp_order_confirmed_lang', 'en' );
 $default_country_cc  = get_option( 'dd_whatsapp_default_country_code', '250' );
+$ka_enabled          = get_option( 'dd_whatsapp_kitchen_alert_enabled', '0' ) === '1';
+$ka_template         = get_option( 'dd_whatsapp_kitchen_alert_template', 'dd_kitchen_new_order_v1' );
+$ka_lang             = get_option( 'dd_whatsapp_kitchen_alert_lang', 'en' );
+$kitchen_number      = get_option( 'dd_whatsapp_kitchen', '' );
 $has_token        = '' !== get_option( 'dd_whatsapp_token', '' );
 $has_verify_token = '' !== get_option( 'dd_whatsapp_verify_token', '' );
 $has_app_secret   = '' !== get_option( 'dd_whatsapp_app_secret', '' );
@@ -299,6 +314,52 @@ $has_app_secret   = '' !== get_option( 'dd_whatsapp_app_secret', '' );
                 <div class="dd-field-control">
                     <input type="text" name="dd_whatsapp_order_confirmed_lang"
                            value="<?php echo esc_attr( $oc_lang ); ?>"
+                           class="dd-input dd-input--short" autocomplete="off" />
+                </div>
+            </div>
+        </div>
+
+        <div class="dd-settings-card" style="margin-top:24px;">
+            <h2 class="dd-section-heading">🍳 <?php esc_html_e( 'Kitchen Alert Message', 'dish-dash' ); ?></h2>
+            <p class="description">
+                <?php esc_html_e( 'When an order is confirmed, automatically send the kitchen a WhatsApp message with the order number, order type and items — nothing sent by hand. Off by default; the template must already be approved by Meta before turning this on.', 'dish-dash' ); ?>
+                <?php if ( '' === $kitchen_number ) : ?>
+                    <strong><?php esc_html_e( 'No Kitchen WhatsApp Number is set yet — add one on the Settings page before enabling this.', 'dish-dash' ); ?></strong>
+                <?php else : ?>
+                    <?php
+                    printf(
+                        /* translators: %s: the configured kitchen WhatsApp number */
+                        esc_html__( 'Sends to the Kitchen WhatsApp Number configured on the Settings page (currently %s).', 'dish-dash' ),
+                        '<code>' . esc_html( $kitchen_number ) . '</code>'
+                    );
+                    ?>
+                <?php endif; ?>
+            </p>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label"><?php esc_html_e( 'Send kitchen alerts via WhatsApp', 'dish-dash' ); ?></div>
+                <div class="dd-field-control">
+                    <label class="dd-check-label">
+                        <input type="checkbox" name="dd_whatsapp_kitchen_alert_enabled" value="1" <?php checked( $ka_enabled ); ?> />
+                        <?php esc_html_e( 'Enabled', 'dish-dash' ); ?>
+                    </label>
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label"><?php esc_html_e( 'Template Name', 'dish-dash' ); ?></div>
+                <div class="dd-field-control">
+                    <input type="text" name="dd_whatsapp_kitchen_alert_template"
+                           value="<?php echo esc_attr( $ka_template ); ?>"
+                           class="dd-input dd-input--medium" autocomplete="off" />
+                </div>
+            </div>
+
+            <div class="dd-field-grid">
+                <div class="dd-field-label"><?php esc_html_e( 'Language', 'dish-dash' ); ?></div>
+                <div class="dd-field-control">
+                    <input type="text" name="dd_whatsapp_kitchen_alert_lang"
+                           value="<?php echo esc_attr( $ka_lang ); ?>"
                            class="dd-input dd-input--short" autocomplete="off" />
                 </div>
             </div>

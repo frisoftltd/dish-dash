@@ -25,7 +25,10 @@
  * Instantiated by DD_WhatsApp_Module::init() — not a DD_Module itself, since
  * it owns no admin page or settings of its own.
  *
- * Last modified: v3.18.52
+ * Last modified: v3.18.60 — get_or_create_conversation() gained an optional
+ * $role param (backward compatible) so class-dd-whatsapp-module.php's
+ * kitchen-alert sender can mark its one conversation 'staff' and backfill
+ * an existing NULL-role row; no inbound-message logic touched.
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -224,7 +227,15 @@ class DD_WhatsApp_Webhook {
     // v3.18.58 — bumped private → public (no logic touched) so the
     // order-confirmed sender (class-dd-whatsapp-module.php) can reuse this
     // exact idempotent lookup/insert instead of duplicating it.
-    public function get_or_create_conversation( string $wa_number, string $profile_name ): int {
+    // v3.18.60 — optional $role param (default '', backward compatible: every
+    // existing call site omits it and gets the prior behavior unchanged).
+    // '' means "don't assign/backfill a role" (the inbound-message path
+    // above never passes one, so real customer conversations stay NULL —
+    // unaffected). The kitchen-alert sender passes 'staff'. On an existing
+    // row whose role is still NULL, a non-empty $role backfills it via a
+    // conditional UPDATE guarded by "WHERE role IS NULL" so a second caller
+    // can never downgrade an already-set role.
+    public function get_or_create_conversation( string $wa_number, string $profile_name, string $role = '' ): int {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_wa_conversations';
 
@@ -232,6 +243,12 @@ class DD_WhatsApp_Webhook {
             "SELECT id FROM {$table} WHERE wa_number = %s", $wa_number
         ) );
         if ( $id ) {
+            if ( '' !== $role ) {
+                $wpdb->query( $wpdb->prepare(
+                    "UPDATE {$table} SET role = %s WHERE id = %d AND role IS NULL",
+                    $role, $id
+                ) );
+            }
             return $id;
         }
 
@@ -249,17 +266,25 @@ class DD_WhatsApp_Webhook {
             'customer_id'     => $customer_id ?: null,
             'customer_name'   => $profile_name,
             'last_message_at' => $now,
+            'role'            => '' !== $role ? $role : null,
             'created_at'      => $now,
-        ], [ '%s', '%d', '%s', '%s', '%s' ] );
+        ], [ '%s', '%d', '%s', '%s', '%s', '%s' ] );
 
         if ( false === $inserted ) {
             // Lost a race against a concurrent webhook delivery for the same
             // number (e.g. a near-simultaneous redelivery) — the UNIQUE KEY
             // on wa_number means another call already created the row.
             if ( strpos( (string) $wpdb->last_error, 'Duplicate entry' ) !== false ) {
-                return (int) $wpdb->get_var( $wpdb->prepare(
+                $existing_id = (int) $wpdb->get_var( $wpdb->prepare(
                     "SELECT id FROM {$table} WHERE wa_number = %s", $wa_number
                 ) );
+                if ( $existing_id && '' !== $role ) {
+                    $wpdb->query( $wpdb->prepare(
+                        "UPDATE {$table} SET role = %s WHERE id = %d AND role IS NULL",
+                        $role, $existing_id
+                    ) );
+                }
+                return $existing_id;
             }
             return 0;
         }

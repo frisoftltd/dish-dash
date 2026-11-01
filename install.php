@@ -34,7 +34,7 @@
  *   dish_dash_currency, dish_dash_currency_symbol, dish_dash_tax_rate,
  *   dish_dash_order_prefix, dish_dash_enable_*, dish_dash_email_from
  *
- * Last modified: v3.18.49
+ * Last modified: v3.18.60
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -523,6 +523,12 @@ class DD_Install {
         // auto-reply to once per closed period. unread_count must be updated
         // atomically in SQL (UPDATE ... SET unread_count = unread_count + 1),
         // never read-then-written from PHP.
+        // v3.18.60: role (nullable) — NULL means "customer" (every existing
+        // row is unaffected), 'staff' marks the kitchen-alert conversation
+        // created by class-dd-whatsapp-module.php. No inbox UI reads this
+        // yet (Phase 9E) — added now purely so the kitchen alert's
+        // conversation row is distinguishable from a real customer later,
+        // without a second migration.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_wa_conversations (
                 id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -534,11 +540,13 @@ class DD_Install {
                 last_inbound_at       DATETIME                 DEFAULT NULL,
                 unread_count          INT UNSIGNED    NOT NULL DEFAULT 0,
                 auto_reply_sent_at    DATETIME                 DEFAULT NULL,
+                role                  VARCHAR(20)              DEFAULT NULL,
                 created_at            DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   wa_number (wa_number),
                 KEY          customer_id (customer_id),
-                KEY          last_message_at (last_message_at)
+                KEY          last_message_at (last_message_at),
+                KEY          role (role)
             ) $charset_collate;
         " );
 

@@ -4,8 +4,13 @@
  * Module:  DD_WhatsApp_Module (extends DD_Module)
  * Purpose: WhatsApp Cloud API foundation — credentials settings screen +
  *          test-send (Step 1), the two message-log tables (Step 2), the
- *          public webhook endpoint (Step 3), and now (v3.18.58, Step 4) the
- *          first real outbound send: the customer order-confirmed message.
+ *          public webhook endpoint (Step 3), the customer order-confirmed
+ *          message (v3.18.58, Step 4), and now (v3.18.60) a second,
+ *          independent outbound message: the kitchen new-order alert. Both
+ *          messages share one generic send/retry/alert pipeline
+ *          (attempt_whatsapp_send()/finish_whatsapp_attempt()) — see that
+ *          pipeline's own docblocks for the shared mechanics, and
+ *          "v3.18.60" comments below for what's kitchen-specific.
  *
  * Dependencies (this file needs):
  *   - DD_Module base class
@@ -33,7 +38,9 @@
  *   dd_whatsapp_token, dd_whatsapp_verify_token, dd_whatsapp_app_secret,
  *   dd_whatsapp_order_confirmed_enabled, dd_whatsapp_order_confirmed_template,
  *   dd_whatsapp_order_confirmed_lang, dd_whatsapp_default_country_code,
- *   dd_whatsapp_last_alert_at (v3.18.58)
+ *   dd_whatsapp_last_alert_at (v3.18.58), dd_whatsapp_kitchen_alert_enabled,
+ *   dd_whatsapp_kitchen_alert_template, dd_whatsapp_kitchen_alert_lang,
+ *   dd_whatsapp_kitchen_last_alert_at (v3.18.60)
  * Nonce actions: dd_whatsapp_settings_save (page save),
  *   dd_whatsapp_test_send (template test-send AJAX),
  *   dd_whatsapp_test_webhook (webhook test AJAX, v3.18.53),
@@ -64,7 +71,42 @@
  * lists every failed send since the previous alert — order number,
  * customer phone, reason, time — never a token or secret.
  *
- * Last modified: v3.18.58
+ * v3.18.60 — Phase 9A Step 5a: kitchen new-order WhatsApp alert, a second
+ * and fully independent automatic send triggered by the same
+ * dish_dash_order_status_changed('confirmed') event, added via its own
+ * add_action() call — the v3.18.58 listener's registration and body are
+ * untouched. The send/retry/alert mechanics (attempt_whatsapp_send(),
+ * finish_whatsapp_attempt(), is_transient_failure(), the retry sweep) are
+ * now shared with the customer message via a small refactor:
+ * attempt_order_confirmed_send() is a thin wrapper (reads customer_phone,
+ * builds the same 4 params as before, in the same order) that now calls
+ * the shared attempt_whatsapp_send(); the old finish_order_confirmed_
+ * attempt() is that same shared finish_whatsapp_attempt(), now carrying an
+ * $is_staff flag (controls the conversation's display name + role) and a
+ * $message_kind string ('customer'|'kitchen', only used to keep the two
+ * alert emails' wording and throttle windows independent). Recipient is
+ * the existing dd_whatsapp_kitchen option (already used by the pre-existing
+ * manual wa.me kitchen link — read-only reuse of that option, nothing about
+ * the wa.me link itself is touched), through the same normalize_phone(). An
+ * empty or unnormalizable kitchen number is a silent skip — one DD_DIAG log
+ * line, no message_log row, no alert, since there's nothing actionable to
+ * alert about until a number is configured. The conversation this creates
+ * is marked role='staff' (new nullable column, v3.18.60) so Phase 9E's
+ * future inbox can eventually tell it apart from a real customer; every
+ * existing conversation's role stays NULL (unaffected). The items-line
+ * parameter is built from a local, independent decode of
+ * dishdash_order_items.variation/addons JSON (no call into the orders
+ * module's own class — a direct SELECT, same cross-module-read pattern
+ * already used for dishdash_orders/dishdash_customers elsewhere in this
+ * file) — see build_kitchen_items_line(). Kitchen alerts carry one
+ * additional retry cutoff beyond the shared 3-attempt cap: a failed row
+ * older than 10 minutes (DB server clock, via a SQL NOW() comparison —
+ * never PHP's time()/current_time(), which run several hours apart from
+ * the DB clock on this host) is force-exhausted and alerted on rather than
+ * retried further; customer confirmations keep their original
+ * count-only cap, unchanged.
+ *
+ * Last modified: v3.18.60
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -103,6 +145,13 @@ class DD_WhatsApp_Module extends DD_Module {
         // preventing duplicate scheduling — a second schedule_single_event()
         // for the same already-sent order is a harmless no-op once it fires).
         add_action( 'dd_whatsapp_send_order_confirmed', [ $this, 'send_order_confirmed' ], 10, 1 );
+
+        // v3.18.60 — Phase 9A Step 5a: kitchen new-order alert. A second,
+        // independent listener on the same hook — this add_action() call is
+        // new; the one directly above it is untouched, still its own
+        // separate registration.
+        add_action( 'dish_dash_order_status_changed', [ $this, 'maybe_schedule_kitchen_alert' ], 10, 3 );
+        add_action( 'dd_whatsapp_send_kitchen_alert', [ $this, 'send_kitchen_alert' ], 10, 1 );
 
         // Capped retry sweep, shaped after dd_pesapal_reconcile_sweep — a
         // recurring interval, a transient overlap lock, a bounded batch.
@@ -344,7 +393,8 @@ class DD_WhatsApp_Module extends DD_Module {
     }
 
     // ─────────────────────────────────────────
-    //  ORDER-CONFIRMED MESSAGE (v3.18.58, Phase 9A Step 4)
+    //  SHARED SEND PIPELINE (v3.18.58, extended v3.18.60 for the kitchen
+    //  alert — see the class docblock's v3.18.60 paragraph)
     // ─────────────────────────────────────────
 
     public function register_whatsapp_retry_interval( array $schedules ): array {
@@ -380,18 +430,62 @@ class DD_WhatsApp_Module extends DD_Module {
      * per the brief ("skip quietly"). Checked both before scheduling and
      * again inside the cron handler itself, in case the setting changes
      * in the few seconds between the two.
+     *
+     * v3.18.60: the credentials half of this check is now the shared
+     * whatsapp_credentials_configured() (also used by the kitchen-alert
+     * counterpart below) — purely an internal extraction, every input and
+     * every logged message stays byte-for-byte identical to v3.18.58.
      */
     private function order_confirmed_feature_ready(): bool {
         if ( '1' !== get_option( 'dd_whatsapp_order_confirmed_enabled', '0' ) ) {
             error_log( 'DD_DIAG: WhatsApp order-confirmed send skipped — reason=disabled' );
             return false;
         }
-        require_once DD_PLUGIN_DIR . 'modules/whatsapp/class-dd-whatsapp-client.php';
-        if ( ! ( new DD_WhatsApp_Client() )->is_configured() ) {
+        if ( ! $this->whatsapp_credentials_configured() ) {
             error_log( 'DD_DIAG: WhatsApp order-confirmed send skipped — reason=not_configured' );
             return false;
         }
         return true;
+    }
+
+    /**
+     * v3.18.60 — kitchen-alert counterpart to order_confirmed_feature_ready(),
+     * same shape, its own independent enabled switch
+     * (dd_whatsapp_kitchen_alert_enabled). Checked both before scheduling and
+     * again inside the cron handler, same reason as the customer path.
+     */
+    private function kitchen_alert_feature_ready(): bool {
+        if ( '1' !== get_option( 'dd_whatsapp_kitchen_alert_enabled', '0' ) ) {
+            error_log( 'DD_DIAG: WhatsApp kitchen-alert send skipped — reason=disabled' );
+            return false;
+        }
+        if ( ! $this->whatsapp_credentials_configured() ) {
+            error_log( 'DD_DIAG: WhatsApp kitchen-alert send skipped — reason=not_configured' );
+            return false;
+        }
+        return true;
+    }
+
+    /** Shared credentials-configured check — see order_confirmed_feature_ready()'s v3.18.60 note. */
+    private function whatsapp_credentials_configured(): bool {
+        require_once DD_PLUGIN_DIR . 'modules/whatsapp/class-dd-whatsapp-client.php';
+        return ( new DD_WhatsApp_Client() )->is_configured();
+    }
+
+    /**
+     * v3.18.60 — hook listener for the kitchen alert, independent of
+     * maybe_schedule_order_confirmed() above (own add_action() registration
+     * in init(), that one untouched). $old_status unused, same reasoning:
+     * any path into 'confirmed' qualifies.
+     */
+    public function maybe_schedule_kitchen_alert( int $order_id, string $old_status, string $new_status ): void {
+        if ( 'confirmed' !== $new_status ) {
+            return;
+        }
+        if ( ! $this->kitchen_alert_feature_ready() ) {
+            return;
+        }
+        wp_schedule_single_event( time(), 'dd_whatsapp_send_kitchen_alert', [ $order_id ] );
     }
 
     /**
@@ -418,7 +512,7 @@ class DD_WhatsApp_Module extends DD_Module {
         }
 
         $template_name = (string) get_option( 'dd_whatsapp_order_confirmed_template', 'dd_order_confirmed_v1' );
-        $existing      = $this->find_order_confirmed_log_row( $order_id, $template_name );
+        $existing      = $this->find_whatsapp_log_row( $order_id, $template_name );
 
         if ( $existing && ! $this->row_is_retryable( $existing ) ) {
             return; // already sent, already delivered/read, or permanently failed/exhausted
@@ -428,12 +522,52 @@ class DD_WhatsApp_Module extends DD_Module {
     }
 
     /**
-     * Idempotency lookup — "an order gets at most one confirmation message,
+     * v3.18.60 — kitchen-alert counterpart to send_order_confirmed(), same
+     * shape. A missing/unnormalizable dd_whatsapp_kitchen number is a
+     * silent skip (one log line, no row, no alert) — there's nothing an
+     * alert could usefully say until a number is configured.
+     */
+    public function send_kitchen_alert( int $order_id ): void {
+        if ( ! $this->kitchen_alert_feature_ready() ) {
+            return;
+        }
+
+        global $wpdb;
+        $order = $wpdb->get_row( $wpdb->prepare(
+            "SELECT id, order_number, order_type, special_instructions
+             FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
+            $order_id
+        ) );
+        if ( ! $order ) {
+            error_log( 'DD_DIAG: WhatsApp kitchen-alert send aborted — order_id=' . $order_id . ' not found' );
+            return;
+        }
+
+        $kitchen_raw = (string) get_option( 'dd_whatsapp_kitchen', '' );
+        if ( '' === $this->normalize_phone( $kitchen_raw ) ) {
+            error_log( 'DD_DIAG: WhatsApp kitchen-alert send skipped — reason=empty_or_invalid_kitchen_number' );
+            return;
+        }
+
+        $template_name = (string) get_option( 'dd_whatsapp_kitchen_alert_template', 'dd_kitchen_new_order_v1' );
+        $existing      = $this->find_whatsapp_log_row( $order_id, $template_name );
+
+        if ( $existing && ! $this->row_is_retryable( $existing ) ) {
+            return;
+        }
+
+        $this->attempt_kitchen_send( $order, $kitchen_raw, $template_name, $existing );
+    }
+
+    /**
+     * Idempotency lookup — "an order gets at most one message per template,
      * even if the hook fires twice" is enforced here, by order_id +
      * template_name, not by wa_message_id (unknown before the first attempt
-     * even starts).
+     * even starts). Generic as of v3.18.60 — shared by the customer and
+     * kitchen sends (was find_order_confirmed_log_row(), renamed, no logic
+     * changed).
      */
-    private function find_order_confirmed_log_row( int $order_id, string $template_name ): ?object {
+    private function find_whatsapp_log_row( int $order_id, string $template_name ): ?object {
         global $wpdb;
         return $wpdb->get_row( $wpdb->prepare(
             "SELECT id, conversation_id, status, retry_count, error_detail
@@ -449,7 +583,9 @@ class DD_WhatsApp_Module extends DD_Module {
      * transiently (error_detail prefixed 'transient:' — see
      * is_transient_failure()) and hasn't yet used all 3 attempts. Already
      * sent/delivered/read, or a permanent/invalid_phone/exhausted failure,
-     * are never retried.
+     * are never retried. (Kitchen alerts additionally stop at a 10-minute
+     * age cutoff — enforced in run_retry_sweep()'s own SQL, not here, since
+     * that comparison must run on the DB server's clock; see that method.)
      */
     private function row_is_retryable( object $row ): bool {
         if ( in_array( $row->status, [ 'sent', 'delivered', 'read' ], true ) ) {
@@ -462,13 +598,70 @@ class DD_WhatsApp_Module extends DD_Module {
     }
 
     /**
-     * One send attempt — shared by the hook-triggered first attempt
-     * (send_order_confirmed(), $existing null) and run_retry_sweep()'s
-     * later attempts against the same existing row ($existing set), so the
-     * actual call + classification + logging logic lives in exactly one
-     * place.
+     * Thin wrapper — unchanged from v3.18.58 except its last line, which now
+     * calls the shared attempt_whatsapp_send() instead of doing the
+     * normalize/send/classify work inline. Still reads customer_phone and
+     * builds the same 4 params in the same order (customer_name, order_
+     * number, restaurant, total); the invalid-phone and empty-required-
+     * parameter checks that used to live here are now done generically
+     * inside attempt_whatsapp_send() with the identical error_detail text,
+     * so behavior is unchanged — see the class docblock's Condition F note.
      */
     private function attempt_order_confirmed_send( object $order, string $template_name, ?object $existing ): void {
+        $customer_name = $this->sanitize_param( (string) $order->customer_name, __( 'Customer', 'dish-dash' ) );
+        $order_number  = $this->sanitize_param( (string) $order->order_number, '' );
+        $restaurant    = $this->sanitize_param( (string) get_option( 'dish_dash_restaurant_name', 'Restaurant' ), 'Restaurant' );
+        $total         = $this->sanitize_param( $this->format_total( (float) $order->total ), '' );
+
+        $params        = [ $customer_name, $order_number, $restaurant, $total ];
+        $language_code = (string) get_option( 'dd_whatsapp_order_confirmed_lang', 'en' );
+
+        $this->attempt_whatsapp_send(
+            $order, $template_name, $language_code, (string) $order->customer_phone,
+            $params, $existing, false, 'customer'
+        );
+    }
+
+    /**
+     * v3.18.60 — kitchen-alert counterpart to attempt_order_confirmed_send().
+     * Builds the 3 template params (order number, order type, items line)
+     * and hands off to the same shared attempt_whatsapp_send(), $is_staff
+     * true and $message_kind 'kitchen'.
+     */
+    private function attempt_kitchen_send( object $order, string $kitchen_raw, string $template_name, ?object $existing ): void {
+        $order_number = $this->sanitize_param( (string) $order->order_number, '' );
+        $order_type   = $this->sanitize_param( $this->format_order_type( (string) $order->order_type ), '' );
+        $items_line   = $this->sanitize_param(
+            $this->build_kitchen_items_line( (int) $order->id, (string) $order->special_instructions ),
+            ''
+        );
+
+        $params        = [ $order_number, $order_type, $items_line ];
+        $language_code = (string) get_option( 'dd_whatsapp_kitchen_alert_lang', 'en' );
+
+        $this->attempt_whatsapp_send(
+            $order, $template_name, $language_code, $kitchen_raw,
+            $params, $existing, true, 'kitchen'
+        );
+    }
+
+    /**
+     * v3.18.60 — the generic send call, shared by the customer and kitchen
+     * paths (was the back half of attempt_order_confirmed_send() in
+     * v3.18.58). $to_raw is normalized here (not by the caller) so both
+     * callers get identical invalid-phone/empty-parameter handling; $params
+     * is the already-built, ordered list of template body parameters.
+     */
+    private function attempt_whatsapp_send(
+        object $order,
+        string $template_name,
+        string $language_code,
+        string $to_raw,
+        array $params,
+        ?object $existing,
+        bool $is_staff,
+        string $message_kind
+    ): void {
         require_once DD_PLUGIN_DIR . 'modules/whatsapp/class-dd-whatsapp-webhook.php';
         $webhook = new DD_WhatsApp_Webhook();
 
@@ -476,36 +669,32 @@ class DD_WhatsApp_Module extends DD_Module {
         // number turns out unusable for sending — mirrors how the webhook's
         // own inbound handler extracts wa_number from Meta's 'from' field
         // (plain digit-strip, no stricter validation applied there either).
-        $wa_number_digits = preg_replace( '/\D/', '', (string) $order->customer_phone );
-        $to               = $this->normalize_phone( (string) $order->customer_phone );
+        $wa_number_digits = preg_replace( '/\D/', '', $to_raw );
+        $to               = $this->normalize_phone( $to_raw );
 
         if ( '' === $to ) {
-            $this->finish_order_confirmed_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
+            $this->finish_whatsapp_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
                 'success'      => false,
                 'permanent'    => true,
                 'error_detail' => 'permanent: invalid_phone',
-            ] );
+            ], $is_staff, $message_kind );
             return;
         }
 
-        $customer_name = $this->sanitize_param( (string) $order->customer_name, __( 'Customer', 'dish-dash' ) );
-        $order_number  = $this->sanitize_param( (string) $order->order_number, '' );
-        $restaurant    = $this->sanitize_param( (string) get_option( 'dish_dash_restaurant_name', 'Restaurant' ), 'Restaurant' );
-        $total         = $this->sanitize_param( $this->format_total( (float) $order->total ), '' );
-
-        if ( '' === $order_number || '' === $total ) {
-            // Shouldn't happen for a real order row — defensive, not expected.
-            $this->finish_order_confirmed_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
-                'success'      => false,
-                'permanent'    => true,
-                'error_detail' => 'permanent: empty required parameter',
-            ] );
-            return;
+        foreach ( $params as $p ) {
+            if ( '' === trim( (string) $p ) ) {
+                // Shouldn't happen for a real order row — defensive, not
+                // expected. Same error_detail text v3.18.58 used for this.
+                $this->finish_whatsapp_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
+                    'success'      => false,
+                    'permanent'    => true,
+                    'error_detail' => 'permanent: empty required parameter',
+                ], $is_staff, $message_kind );
+                return;
+            }
         }
 
-        $params        = [ $customer_name, $order_number, $restaurant, $total ];
-        $language_code = (string) get_option( 'dd_whatsapp_order_confirmed_lang', 'en' );
-        $components    = [ [
+        $components = [ [
             'type'       => 'body',
             'parameters' => array_map( fn( $v ) => [ 'type' => 'text', 'text' => $v ], $params ),
         ] ];
@@ -514,35 +703,41 @@ class DD_WhatsApp_Module extends DD_Module {
         $result = ( new DD_WhatsApp_Client() )->send_template( $to, $template_name, $language_code, $components );
 
         if ( $result['success'] ) {
-            $this->finish_order_confirmed_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
+            $this->finish_whatsapp_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
                 'success'    => true,
                 'message_id' => $result['message_id'],
                 'params'     => $params,
-            ] );
+            ], $is_staff, $message_kind );
             return;
         }
 
         $transient = $this->is_transient_failure( $result );
-        $this->finish_order_confirmed_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
+        $this->finish_whatsapp_attempt( $order, $template_name, $existing, $webhook, $wa_number_digits, [
             'success'      => false,
             'permanent'    => ! $transient,
             'error_detail' => ( $transient ? 'transient: ' : 'permanent: ' ) . ( $result['error'] ?? 'Unknown error' ),
-        ] );
+        ], $is_staff, $message_kind );
     }
 
     /**
      * Writes (inserts or updates) the outbound message_log row for one
      * attempt, applies any parked orphan status update on success, bumps
      * retry_count and queues an alert on failure. Every timestamp here is
-     * current_time('mysql').
+     * current_time('mysql'). v3.18.60: was finish_order_confirmed_attempt();
+     * now generic (gained $is_staff/$message_kind), same logic otherwise.
+     * $is_staff picks the conversation's display name + role; $message_kind
+     * only reaches queue_failure_alert(), to keep the two alert emails'
+     * wording and throttle windows independent.
      */
-    private function finish_order_confirmed_attempt(
+    private function finish_whatsapp_attempt(
         object $order,
         string $template_name,
         ?object $existing,
         DD_WhatsApp_Webhook $webhook,
         string $wa_number_digits,
-        array $outcome
+        array $outcome,
+        bool $is_staff,
+        string $message_kind
     ): void {
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_message_log';
@@ -550,7 +745,11 @@ class DD_WhatsApp_Module extends DD_Module {
 
         $conversation_id = $existing
             ? (int) $existing->conversation_id
-            : $webhook->get_or_create_conversation( $wa_number_digits, (string) $order->customer_name );
+            : $webhook->get_or_create_conversation(
+                  $wa_number_digits,
+                  $is_staff ? 'Kitchen' : (string) $order->customer_name,
+                  $is_staff ? 'staff' : ''
+              );
 
         if ( $outcome['success'] ) {
             if ( $existing ) {
@@ -621,7 +820,7 @@ class DD_WhatsApp_Module extends DD_Module {
             ] );
         }
 
-        $this->queue_failure_alert( $template_name, $now );
+        $this->queue_failure_alert( $template_name, $now, $message_kind );
     }
 
     /**
@@ -742,7 +941,20 @@ class DD_WhatsApp_Module extends DD_Module {
      * batch (LIMIT 20), re-using the exact same attempt/classify/log path
      * as the first attempt. Only ever touches rows this module itself
      * marked 'transient:' — a permanent/invalid_phone/exhausted row is
-     * never picked up here, by construction of that WHERE clause.
+     * never picked up here, by construction of the WHERE clauses below.
+     *
+     * v3.18.60: no longer filters on one hardcoded template. Scans rows
+     * whose template_name matches either of the two configured template-
+     * name options (customer confirmed, kitchen alert) — a row with a null
+     * or unknown template_name is never touched, since neither IN(...)
+     * value can match it. Before anything else, any kitchen-alert row that
+     * has been failing-transiently for more than 10 minutes is pulled out
+     * and force-exhausted (alerted, not retried) — that age comparison runs
+     * entirely inside MySQL via NOW(), never PHP's time()/current_time(),
+     * because this host's PHP clock and DB clock differ by several hours
+     * (Condition A) and a PHP-side comparison would misjudge the age.
+     * Customer-confirmed rows keep their original count-only cap, no age
+     * cutoff.
      */
     public function run_retry_sweep(): void {
         $lock_key = 'dd_whatsapp_retry_lock';
@@ -752,34 +964,84 @@ class DD_WhatsApp_Module extends DD_Module {
         set_transient( $lock_key, time(), 4 * MINUTE_IN_SECONDS );
 
         try {
-            if ( ! $this->order_confirmed_feature_ready() ) {
-                return; // switched off or credentials pulled mid-flight
-            }
-
             global $wpdb;
-            $template_name = (string) get_option( 'dd_whatsapp_order_confirmed_template', 'dd_order_confirmed_v1' );
+            $customer_template = (string) get_option( 'dd_whatsapp_order_confirmed_template', 'dd_order_confirmed_v1' );
+            $kitchen_template  = (string) get_option( 'dd_whatsapp_kitchen_alert_template', 'dd_kitchen_new_order_v1' );
 
-            $rows = $wpdb->get_results( $wpdb->prepare(
-                "SELECT id, order_id, conversation_id, status, retry_count, error_detail
+            // Kitchen rows older than 10 minutes (DB clock) — stop retrying,
+            // alert instead. Runs regardless of the kitchen-alert enabled
+            // switch: this is bookkeeping on already-queued failures, not a
+            // new send attempt.
+            $expired = $wpdb->get_results( $wpdb->prepare(
+                "SELECT id, error_detail
                  FROM {$wpdb->prefix}dishdash_message_log
                  WHERE direction = 'outbound' AND template_name = %s
                    AND status = 'failed' AND retry_count < 3
                    AND error_detail LIKE 'transient:%%'
+                   AND created_at < NOW() - INTERVAL 10 MINUTE",
+                $kitchen_template
+            ) );
+            foreach ( $expired as $row ) {
+                $this->expire_retry_row( (int) $row->id, (string) $row->error_detail, $kitchen_template );
+            }
+
+            if ( ! $this->whatsapp_credentials_configured() ) {
+                return; // credentials pulled mid-flight — nothing can send regardless of template
+            }
+
+            $customer_ready = $this->order_confirmed_feature_ready();
+            $kitchen_ready  = $this->kitchen_alert_feature_ready();
+            if ( ! $customer_ready && ! $kitchen_ready ) {
+                return; // both switched off
+            }
+
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT id, order_id, conversation_id, template_name, status, retry_count, error_detail
+                 FROM {$wpdb->prefix}dishdash_message_log
+                 WHERE direction = 'outbound'
+                   AND template_name IN (%s, %s)
+                   AND status = 'failed' AND retry_count < 3
+                   AND error_detail LIKE 'transient:%%'
+                   AND ( template_name != %s OR created_at >= NOW() - INTERVAL 10 MINUTE )
                  ORDER BY status_at ASC
                  LIMIT 20",
-                $template_name
+                $customer_template, $kitchen_template, $kitchen_template
             ) );
 
             foreach ( $rows as $row ) {
-                $order = $wpdb->get_row( $wpdb->prepare(
-                    "SELECT id, order_number, customer_name, customer_phone, total
-                     FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
-                    (int) $row->order_id
-                ) );
-                if ( ! $order ) {
-                    continue; // order no longer exists — nothing sane to retry
+                $is_kitchen_row = ( $row->template_name === $kitchen_template );
+                if ( $is_kitchen_row && ! $kitchen_ready ) {
+                    continue;
                 }
-                $this->attempt_order_confirmed_send( $order, $template_name, $row );
+                if ( ! $is_kitchen_row && ! $customer_ready ) {
+                    continue;
+                }
+
+                if ( $is_kitchen_row ) {
+                    $order = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT id, order_number, order_type, special_instructions
+                         FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
+                        (int) $row->order_id
+                    ) );
+                    if ( ! $order ) {
+                        continue; // order no longer exists — nothing sane to retry
+                    }
+                    $kitchen_raw = (string) get_option( 'dd_whatsapp_kitchen', '' );
+                    if ( '' === $this->normalize_phone( $kitchen_raw ) ) {
+                        continue; // number was cleared since the first attempt
+                    }
+                    $this->attempt_kitchen_send( $order, $kitchen_raw, $row->template_name, $row );
+                } else {
+                    $order = $wpdb->get_row( $wpdb->prepare(
+                        "SELECT id, order_number, customer_name, customer_phone, total
+                         FROM {$wpdb->prefix}dishdash_orders WHERE id = %d",
+                        (int) $row->order_id
+                    ) );
+                    if ( ! $order ) {
+                        continue;
+                    }
+                    $this->attempt_order_confirmed_send( $order, $row->template_name, $row );
+                }
             }
         } finally {
             delete_transient( $lock_key );
@@ -787,23 +1049,61 @@ class DD_WhatsApp_Module extends DD_Module {
     }
 
     /**
-     * One email per hour, listing every order-confirmed send that failed
-     * since the previous alert — order number, customer phone, reason,
-     * time. Never includes a token or secret: error_detail only ever
-     * contains this module's own 'transient:'/'permanent:' label plus
-     * whatever DD_WhatsApp_Client::send_template() returned, which never
-     * echoes credentials into any error it returns (confirmed by reading
-     * that method — it only ever surfaces Meta's error.message or a
-     * WP_Error message, never $this->token/$this->phone_number_id).
+     * v3.18.60 — forces a stale kitchen-alert row (transient-failed for
+     * more than 10 minutes, per run_retry_sweep()'s own DB-clock check) into
+     * the same 'permanent: exhausted...' shape the 3-attempt cap already
+     * uses elsewhere, then queues the failure alert exactly as a normal
+     * failed attempt would — this path just never calls Meta again first.
      */
-    private function queue_failure_alert( string $template_name, string $now ): void {
-        $throttle_key = 'dd_whatsapp_alert_throttle';
+    private function expire_retry_row( int $row_id, string $error_detail, string $template_name ): void {
+        global $wpdb;
+        $now    = current_time( 'mysql' );
+        $reason = 'permanent: exhausted retries after 10 minutes — ' . substr( $error_detail, strlen( 'transient: ' ) );
+
+        $wpdb->update(
+            $wpdb->prefix . 'dishdash_message_log',
+            [ 'status' => 'failed', 'error_detail' => $reason, 'status_at' => $now ],
+            [ 'id' => $row_id ],
+            [ '%s', '%s', '%s' ],
+            [ '%d' ]
+        );
+
+        $this->queue_failure_alert( $template_name, $now, 'kitchen' );
+    }
+
+    /**
+     * One email per hour, listing every send of this message kind that
+     * failed since that kind's own previous alert — order number, phone on
+     * the order, reason, time. Never includes a token or secret: error_
+     * detail only ever contains this module's own 'transient:'/'permanent:'
+     * label plus whatever DD_WhatsApp_Client::send_template() returned,
+     * which never echoes credentials into any error it returns (confirmed
+     * by reading that method — it only ever surfaces Meta's error.message
+     * or a WP_Error message, never $this->token/$this->phone_number_id).
+     *
+     * v3.18.60: gained $message_kind ('customer'|'kitchen'). Wording is now
+     * generic, built from a label per kind — for 'customer' the label
+     * ('order-confirmed') reproduces v3.18.58's exact subject/body text, so
+     * the customer alert email is unchanged. Customer and kitchen alerts
+     * use separate throttle transients and separate "since" options, so one
+     * kind's alert cadence never suppresses or advances the other's.
+     */
+    private const MESSAGE_KIND_LABELS = [
+        'customer' => 'order-confirmed',
+        'kitchen'  => 'kitchen-alert',
+    ];
+
+    private function queue_failure_alert( string $template_name, string $now, string $message_kind ): void {
+        $label        = self::MESSAGE_KIND_LABELS[ $message_kind ] ?? $message_kind;
+        $throttle_key = 'kitchen' === $message_kind ? 'dd_whatsapp_kitchen_alert_throttle' : 'dd_whatsapp_alert_throttle';
+        $option_key   = 'kitchen' === $message_kind ? 'dd_whatsapp_kitchen_last_alert_at' : 'dd_whatsapp_last_alert_at';
+
         if ( false !== get_transient( $throttle_key ) ) {
-            return; // an alert already went out within the last hour
+            return; // an alert of this kind already went out within the last hour
         }
 
         global $wpdb;
-        $since = (string) get_option( 'dd_whatsapp_last_alert_at', '1970-01-01 00:00:00' );
+        $since = (string) get_option( $option_key, '1970-01-01 00:00:00' );
 
         $failures = $wpdb->get_results( $wpdb->prepare(
             "SELECT ml.error_detail, ml.status_at, o.order_number, o.customer_phone
@@ -833,14 +1133,169 @@ class DD_WhatsApp_Module extends DD_Module {
         wp_mail(
             $to,
             sprintf(
-                /* translators: %d: number of failed sends in this alert */
-                __( '[Dish Dash] %d WhatsApp order-confirmed message(s) failed', 'dish-dash' ),
-                count( $failures )
+                /* translators: 1: number of failed sends in this alert, 2: message kind label */
+                __( '[Dish Dash] %1$d WhatsApp %2$s message(s) failed', 'dish-dash' ),
+                count( $failures ), $label
             ),
-            __( 'The following order-confirmed WhatsApp messages failed to send:', 'dish-dash' ) . "\n\n" . implode( "\n", $lines )
+            sprintf(
+                /* translators: %s: message kind label */
+                __( 'The following %s WhatsApp messages failed to send:', 'dish-dash' ), $label
+            ) . "\n\n" . implode( "\n", $lines )
         );
 
         set_transient( $throttle_key, 1, HOUR_IN_SECONDS );
-        update_option( 'dd_whatsapp_last_alert_at', $now, false );
+        update_option( $option_key, $now, false );
+    }
+
+    /**
+     * v3.18.60 — "dine_in" → "Dine in". Literal per the brief: underscores
+     * to spaces, then ucfirst (not ucwords) — flagged in this release's
+     * report that the live order_type ENUM actually uses hyphens
+     * ('dine-in'), not underscores, so that specific value passes through
+     * with only its first letter capitalized ("Dine-in") rather than being
+     * reworded; worth confirming against the brief's intent before Meta
+     * review if that reads oddly in the approved template.
+     */
+    private function format_order_type( string $raw ): string {
+        return ucfirst( str_replace( '_', ' ', $raw ) );
+    }
+
+    /**
+     * v3.18.60 — builds the kitchen template's 3rd parameter: "{qty}x
+     * {item_name} (variation/addon values)" per item, comma-joined, with
+     * every non-empty note (each item's own special_note, plus the order's
+     * own special_instructions) collected into one trailing "| Note: ..."
+     * segment. Decodes dishdash_order_items.variation/addons JSON locally
+     * (own small decode below) rather than calling into the orders module's
+     * class or DD_Notifications — same cross-module-read-only pattern this
+     * file already uses for dishdash_orders/dishdash_customers, just against
+     * dishdash_order_items this time.
+     */
+    private function build_kitchen_items_line( int $order_id, string $order_instructions ): string {
+        global $wpdb;
+        $rows = $wpdb->get_results( $wpdb->prepare(
+            "SELECT item_name, quantity, variation, addons, special_note
+             FROM {$wpdb->prefix}dishdash_order_items WHERE order_id = %d ORDER BY id ASC",
+            $order_id
+        ) );
+
+        $item_parts = [];
+        $notes      = [];
+
+        foreach ( $rows as $row ) {
+            $name = $this->collapse_whitespace( (string) $row->item_name );
+            $qty  = (int) $row->quantity;
+            $tags = array_merge(
+                $this->decode_variation_values( (string) $row->variation ),
+                $this->decode_addon_values( (string) $row->addons )
+            );
+
+            $part = $qty . 'x ' . $name;
+            if ( $tags ) {
+                $part .= ' (' . implode( ', ', $tags ) . ')';
+            }
+            $item_parts[] = $part;
+
+            $note = $this->collapse_whitespace( stripslashes( (string) $row->special_note ) );
+            if ( '' !== $note ) {
+                $notes[] = $note;
+            }
+        }
+
+        $order_note = $this->collapse_whitespace( stripslashes( $order_instructions ) );
+        if ( '' !== $order_note ) {
+            $notes[] = $order_note;
+        }
+
+        $line = implode( ', ', $item_parts );
+        if ( $notes ) {
+            $line .= ' | Note: ' . implode( '; ', $notes );
+        }
+
+        return $this->truncate_param( $line, 300 );
+    }
+
+    /**
+     * Variation JSON is an attribute-name => value map (e.g.
+     * {"Size":"Large"}) — same shape DD_Notifications::variation_lines()
+     * reads, but that helper returns "key: value" lines; the kitchen
+     * message wants values only (e.g. "Large"), per the brief, so this is
+     * its own small decode rather than reusing/wrapping that other module's
+     * helper.
+     */
+    private function decode_variation_values( string $raw ): array {
+        if ( '' === trim( $raw ) || '{}' === trim( $raw ) ) {
+            return [];
+        }
+        $decoded = json_decode( stripslashes( $raw ), true );
+        if ( ! is_array( $decoded ) || empty( $decoded ) ) {
+            return [];
+        }
+        return array_values( array_map(
+            fn( $v ) => $this->collapse_whitespace( (string) $v ),
+            $decoded
+        ) );
+    }
+
+    /**
+     * Addons JSON shape varies by entry (an array of {name, price} objects
+     * is what insert_order_items() actually writes; some existing readers
+     * in this codebase instead assume a name => value map) — this decode
+     * accepts either: an object/array entry contributes its 'name' (falling
+     * back to its first value if 'name' is absent), a plain scalar entry
+     * keyed by a string contributes that key. Empty/placeholder JSON
+     * ('{}', '[]', blank) returns no tags.
+     */
+    private function decode_addon_values( string $raw ): array {
+        if ( '' === trim( $raw ) || '{}' === trim( $raw ) || '[]' === trim( $raw ) ) {
+            return [];
+        }
+        $decoded = json_decode( stripslashes( $raw ), true );
+        if ( ! is_array( $decoded ) || empty( $decoded ) ) {
+            return [];
+        }
+
+        $values = [];
+        foreach ( $decoded as $key => $entry ) {
+            if ( is_array( $entry ) ) {
+                $values[] = $entry['name'] ?? ( reset( $entry ) ?: '' );
+            } elseif ( is_string( $key ) ) {
+                $values[] = $key;
+            } else {
+                $values[] = $entry;
+            }
+        }
+
+        $values = array_filter( $values, fn( $v ) => '' !== trim( (string) $v ) );
+        return array_values( array_map( fn( $v ) => $this->collapse_whitespace( (string) $v ), $values ) );
+    }
+
+    /**
+     * Condition C: Meta rejects a template parameter containing a line
+     * break, a tab, or a run of more than four consecutive spaces — collapse
+     * all three to single spaces before any truncation, on every piece
+     * (item name, variation value, addon value, note) individually, so a
+     * collapsed boundary between two pieces can never reintroduce a run
+     * long enough to violate that rule once joined.
+     */
+    private function collapse_whitespace( string $s ): string {
+        return trim( (string) preg_replace( '/[\r\n\t ]+/', ' ', $s ) );
+    }
+
+    /**
+     * Truncates to at most $max characters total (ellipsis included), and
+     * never returns an empty string — Meta rejects an empty parameter, so a
+     * line with zero items (shouldn't happen for a real order) falls back
+     * to a visible placeholder instead of sending blank.
+     */
+    private function truncate_param( string $s, int $max ): string {
+        $s = trim( $s );
+        if ( '' === $s ) {
+            return __( '(no items)', 'dish-dash' );
+        }
+        if ( mb_strlen( $s ) <= $max ) {
+            return $s;
+        }
+        return mb_substr( $s, 0, $max - 1 ) . '…';
     }
 }
