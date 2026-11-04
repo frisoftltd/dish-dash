@@ -1214,6 +1214,17 @@
                     // paid:true and double-firing the purchase event below.
                     var pesapalCheckInFlight = false;
 
+                    // FAILED/REVERSED grace window (v3.18.61) — PesaPal can allow
+                    // an immediate retry on the SAME tracking id after a FAILED
+                    // report (confirmed live, DD-00262: FAILED then COMPLETED
+                    // ~2 minutes later on a customer retry). Stopping the poll
+                    // the instant FAILED/REVERSED arrives would strand that
+                    // retry — the drawer would say "payment failed" forever even
+                    // though the order later got paid and promoted server-side.
+                    // Keep polling for a few more minutes before giving up.
+                    var pesapalFailedSince   = null;
+                    var PESAPAL_FAILED_GRACE_MS = 5 * 60 * 1000;
+
                     // success:false (most commonly an expired nonce — see
                     // investigation-nonce-cache-audit.md) fetches a replacement
                     // via dd_get_fresh_nonce (added v3.18.26) and retries exactly
@@ -1296,11 +1307,22 @@
                                     window.ddTrack( 'purchase', { transaction_id: currentOrderNumber, currency: 'RWF', value: data.total } );
                                 }
                             } else if ( pd.status === 'FAILED' || pd.status === 'REVERSED' ) {
-                                // Only these are terminal. INVALID / PENDING mean "not
-                                // finalized yet" — keep polling (do nothing here).
-                                clearInterval( pesapalPollingTimer );
-                                if ( pesapalStatusEl ) {
-                                    pesapalStatusEl.textContent = 'Payment failed. Please try again.';
+                                // Not immediately terminal client-side — PesaPal can
+                                // still allow a retry on this same tracking id for a
+                                // few minutes (see PESAPAL_FAILED_GRACE_MS above).
+                                // INVALID / PENDING mean "not finalized yet" — keep
+                                // polling (do nothing here).
+                                if ( ! pesapalFailedSince ) {
+                                    pesapalFailedSince = Date.now();
+                                }
+                                if ( Date.now() - pesapalFailedSince > PESAPAL_FAILED_GRACE_MS ) {
+                                    clearInterval( pesapalPollingTimer );
+                                    if ( pesapalStatusEl ) {
+                                        pesapalStatusEl.textContent = 'Payment failed. Please try again.';
+                                        pesapalStatusEl.style.color = '#e53935';
+                                    }
+                                } else if ( pesapalStatusEl ) {
+                                    pesapalStatusEl.textContent = 'Payment failed. If you retry on PesaPal now, we’ll detect it automatically…';
                                     pesapalStatusEl.style.color = '#e53935';
                                 }
                             }
