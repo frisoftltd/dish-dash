@@ -11,10 +11,12 @@ class DD_PesaPal {
     private string $consumer_key;
     private string $secret_key;
     private string $base_url;
+    private bool   $test_mode;
 
     public function __construct() {
         $settings           = get_option( 'woocommerce_pesapal_settings', [] );
         $test_mode          = ( $settings['testmode'] ?? 'no' ) === 'yes';
+        $this->test_mode    = $test_mode;
         $this->consumer_key = $test_mode
             ? ( $settings['testconsumerkey'] ?? '' )
             : ( $settings['consumerkey']     ?? '' );
@@ -28,6 +30,21 @@ class DD_PesaPal {
 
     public function is_configured(): bool {
         return ! empty( $this->consumer_key ) && ! empty( $this->secret_key );
+    }
+
+    /**
+     * Explicit auth health check (v3.18.62) — used by the reconciliation
+     * sweep's watchdog to tell "PesaPal has nothing new to report" apart from
+     * "we can't even authenticate," and to name sandbox vs. live mode in the
+     * resulting admin notice so whoever checks credentials knows which set.
+     * Reuses the same private get_access_token() every other call already
+     * goes through — no new HTTP behavior, just a named result.
+     */
+    public function check_auth(): array {
+        return [
+            'ok'   => (bool) $this->get_access_token(),
+            'mode' => $this->test_mode ? 'sandbox' : 'live',
+        ];
     }
 
     private function get_access_token(): string|false {

@@ -21,6 +21,10 @@
  *   - admin_init            → maybe_serve_invoice() (v3.18.1 — intercepts
  *     the Generate Invoice GET link before wp-admin chrome is echoed;
  *     calls dd_invoice_*() helpers in dishdash-core/class-dd-helpers.php)
+ *   - in_admin_header       → render_health_notices() (v3.18.62 — self-healing
+ *     PesaPal reconciliation watchdog: stale-cron / PesaPal-auth-broken /
+ *     order-email-delivery-broken banners on every Dish Dash admin page.
+ *     Deliberately not admin_notices, which DD_Hooks wipes on every screen.)
  *
  * Admin pages owned:
  *   dish-dash (Dashboard), dish-dash-menu (redirect to CPT editor),
@@ -31,7 +35,7 @@
  *   assets/css/admin.css, assets/js/admin.js
  *   Localizes: window.dishDashAdmin (ajaxUrl, nonce, restUrl, version)
  *
- * Last modified: v3.18.1
+ * Last modified: v3.18.62
  */
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -44,6 +48,96 @@ class DD_Admin extends DD_Module {
         add_action( 'admin_menu',            [ $this, 'register_admin_menus' ] );
         add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
         add_action( 'admin_init',            [ $this, 'maybe_serve_invoice' ] );
+
+        // Self-healing PesaPal reconciliation health notices (v3.18.62) —
+        // deliberately NOT a normal add_action('admin_notices', ...): that
+        // hook is wiped on every screen by DD_Hooks::suppress_admin_notices()
+        // at current_screen priority 999 (see class-dd-hooks.php), and this
+        // needs to survive on every Dish Dash page, not just one page's own
+        // late-registered notice (the existing pattern in orders.php works
+        // because it registers from inside that one page's own render call,
+        // after the wipe already ran — doing the same from a shared place for
+        // every page would mean touching every render_*() method here).
+        // in_admin_header is not on DD_Hooks' suppression list and fires on
+        // every wp-admin page load, so registering once here is sufficient
+        // and the output is gated to Dish Dash pages inside the callback.
+        add_action( 'in_admin_header', [ $this, 'render_health_notices' ] );
+    }
+
+    /**
+     * Payment-reconciliation health notices (v3.18.62) — three independent,
+     * self-clearing conditions, each written by the orders/notifications
+     * code that detects it and read here only:
+     *   - dd_pesapal_last_sweep_at stale (>15 min) → the server cron that's
+     *     supposed to hit wp-cron.php every minute has stopped. Also emails
+     *     once per day while this stays true (DD_Notifications has no
+     *     reason to own this — it's purely a cron-liveness fact).
+     *   - dd_pesapal_auth_broken → PesaPal get_access_token() is failing;
+     *     names sandbox or live mode so the right credential set gets
+     *     checked (DD_Orders_Module::run_pesapal_reconcile_sweep() sets/
+     *     clears this every run it manages to start).
+     *   - dd_email_delivery_broken → an order email exhausted all 5 retries
+     *     (DD_Notifications::process_email_retry_queue() sets this; cleared
+     *     by the next successful send, retry or fresh).
+     * Styled as plain div banners, not WordPress's .notice class — Admin UI
+     * Rules forbid WP's default notice chrome (grey/blue) on Dish Dash pages.
+     */
+    public function render_health_notices(): void {
+        $page = $_GET['page'] ?? '';
+        if ( ! is_string( $page ) || ! str_starts_with( $page, 'dish-dash' ) ) {
+            return;
+        }
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $banners = [];
+
+        $last_sweep = get_option( 'dd_pesapal_last_sweep_at', '' );
+        $stale      = ! $last_sweep || ( time() - strtotime( $last_sweep ) ) > 15 * MINUTE_IN_SECONDS;
+        if ( $stale ) {
+            $banners[] = 'Payment reconciliation is not running. Check the server cron.';
+
+            $last_email = get_option( 'dd_pesapal_watchdog_last_email_at', '' );
+            if ( ! $last_email || ( time() - strtotime( $last_email ) ) > DAY_IN_SECONDS ) {
+                $admin_email = get_option( 'dd_admin_email', get_option( 'admin_email' ) );
+                if ( $admin_email ) {
+                    DD_Notifications::send_mail_reliably(
+                        $admin_email,
+                        'Payment reconciliation is not running',
+                        'The PesaPal reconciliation sweep has not run in over 15 minutes. Check that the server cron hitting wp-cron.php every minute is still active.',
+                        [],
+                        [ 'kind' => 'reconcile_cron_stale' ]
+                    );
+                }
+                update_option( 'dd_pesapal_watchdog_last_email_at', current_time( 'mysql' ), false );
+            }
+        }
+
+        $auth_broken = get_option( 'dd_pesapal_auth_broken', '' );
+        if ( is_array( $auth_broken ) && ! empty( $auth_broken['mode'] ) ) {
+            $banners[] = sprintf(
+                'PesaPal authentication is failing (%s mode). Check your PesaPal API credentials.',
+                esc_html( $auth_broken['mode'] )
+            );
+        }
+
+        $email_broken = get_option( 'dd_email_delivery_broken', '' );
+        if ( $email_broken ) {
+            $banners[] = 'Order emails are failing: ' . esc_html( $email_broken );
+        }
+
+        if ( ! $banners ) {
+            return;
+        }
+
+        echo '<div style="margin:16px 24px 0;display:flex;flex-direction:column;gap:8px;">';
+        foreach ( $banners as $text ) {
+            echo '<div style="background:#fdecea;border:1px solid #f5c2bd;border-radius:12px;'
+               . 'padding:12px 16px;color:#8a1f12;font-size:14px;font-family:Inter,sans-serif;">'
+               . '&#9888; ' . esc_html( $text ) . '</div>';
+        }
+        echo '</div>';
     }
 
     /**

@@ -116,6 +116,12 @@ class DD_Install {
         // identically with no attachment, same as before this column existed.
         // Mirrors dishdash_reservations.deposit_proof_attachment_id exactly (same
         // type/default, same soft-fail upload contract).
+        // last_reconciled_at (v3.18.62, self-healing PesaPal reconciliation) —
+        // when run_pesapal_reconcile_sweep() last checked this order's PesaPal
+        // status, regardless of outcome. Drives the sweep's own tiered recheck
+        // frequency (every run under 1h old, every 30min 1-24h old, every 3h
+        // 24-72h old) so the sweep doesn't hammer PesaPal's API on every 1-minute
+        // tick for orders that aren't going to resolve in the next few seconds.
         dbDelta( "
             CREATE TABLE {$wpdb->prefix}dishdash_orders (
                 id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -154,6 +160,7 @@ class DD_Install {
                 momo_proof_attachment_id BIGINT UNSIGNED      DEFAULT NULL,
                 idempotency_key      VARCHAR(36)              DEFAULT NULL,
                 kitchen_notified_at  DATETIME                 DEFAULT NULL,
+                last_reconciled_at   DATETIME                 DEFAULT NULL,
                 PRIMARY KEY  (id),
                 UNIQUE KEY   order_number (order_number),
                 UNIQUE KEY   idempotency_key (idempotency_key),
@@ -164,7 +171,8 @@ class DD_Install {
                 KEY          updated_at (updated_at),
                 KEY          is_test (is_test),
                 KEY          branch_status (branch_id, status),
-                KEY          dd_customer_id (dd_customer_id)
+                KEY          dd_customer_id (dd_customer_id),
+                KEY          last_reconciled_at (last_reconciled_at)
             ) $charset_collate;
         " );
 

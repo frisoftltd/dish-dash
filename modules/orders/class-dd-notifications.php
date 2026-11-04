@@ -260,7 +260,135 @@ class DD_Notifications {
             'From: ' . $restaurant . ' <' . get_option( 'woocommerce_email_from_address', $admin_email ) . '>',
         ];
 
-        wp_mail( $admin_email, $subject, $body, $headers );
+        self::send_mail_reliably( $admin_email, $subject, $body, $headers, [
+            'kind'         => 'new_order_admin',
+            'order_number' => $order['order_number'] ?? '',
+        ] );
+    }
+
+    // ─────────────────────────────────────────
+    //  EMAIL DELIVERY GUARANTEE (v3.18.62)
+    // ─────────────────────────────────────────
+    /** wp_options key for the pending retry queue (array of entries). */
+    private const EMAIL_RETRY_QUEUE_OPTION = 'dd_email_retry_queue';
+
+    /** wp_options key flagging exhausted retries for the "emails are failing" admin notice. */
+    private const EMAIL_BROKEN_OPTION = 'dd_email_delivery_broken';
+
+    /** Backoff schedule (minutes) for each of the 5 retries after the original failed send. */
+    private const EMAIL_RETRY_DELAYS_MIN = [ 1, 5, 15, 30, 60 ];
+
+    /**
+     * Send a plugin email with a delivery guarantee: every result is logged
+     * (DD_DIAG: EMAIL sent/failed, with the real wp_mail_failed error), and a
+     * failure is queued for cron-driven retry with backoff instead of
+     * silently vanishing. Used by every order-related email this module
+     * sends — the one place genuinely new in this feature is
+     * promote_cancelled_but_paid_order()'s alert, where losing the email
+     * would defeat the entire point of "the system tells a human."
+     *
+     * wp_mail() itself only ever returns true/false — the actual SMTP/
+     * PHPMailer error is only available via the 'wp_mail_failed' action,
+     * so a one-shot closure is attached immediately before the call and
+     * detached immediately after, scoped to this single send.
+     */
+    public static function send_mail_reliably( $to, string $subject, string $body, $headers = '', array $context = [] ): bool {
+        $error_message = '';
+        $capture       = function ( $wp_error ) use ( &$error_message ) {
+            $error_message = $wp_error->get_error_message();
+        };
+
+        add_action( 'wp_mail_failed', $capture );
+        $sent = wp_mail( $to, $subject, $body, $headers );
+        remove_action( 'wp_mail_failed', $capture );
+
+        if ( $sent ) {
+            error_log( 'DD_DIAG: EMAIL sent to=' . $to . ' subject=' . $subject );
+            // A fresh send succeeding is the clearest "delivery is healthy
+            // again" signal available — clears any stale broken-notice.
+            delete_option( self::EMAIL_BROKEN_OPTION );
+        } else {
+            error_log( 'DD_DIAG: EMAIL failed to=' . $to . ' subject=' . $subject . ' error=' . $error_message );
+            self::enqueue_email_retry( $to, $subject, $body, $headers, $context, $error_message );
+        }
+
+        return $sent;
+    }
+
+    private static function enqueue_email_retry( $to, string $subject, string $body, $headers, array $context, string $error_message ): void {
+        $queue   = get_option( self::EMAIL_RETRY_QUEUE_OPTION, [] );
+        $queue[] = [
+            'to'            => $to,
+            'subject'       => $subject,
+            'body'          => $body,
+            'headers'       => $headers,
+            'context'       => $context,
+            'attempts'      => 0,
+            'last_error'    => $error_message,
+            'next_retry_at' => gmdate( 'Y-m-d H:i:s', time() + self::EMAIL_RETRY_DELAYS_MIN[0] * 60 ),
+        ];
+        update_option( self::EMAIL_RETRY_QUEUE_OPTION, $queue, false );
+    }
+
+    /**
+     * WP-Cron callback (dd_one_minute, registered from DD_Orders_Module::init()
+     * alongside the PesaPal sweep's own schedule) — processes the retry queue.
+     * Each entry gets up to 5 retries with increasing backoff
+     * (EMAIL_RETRY_DELAYS_MIN); the 5th failure marks delivery broken (read by
+     * DD_Admin::render_health_notices()) instead of retrying forever.
+     */
+    public static function process_email_retry_queue(): void {
+        $queue = get_option( self::EMAIL_RETRY_QUEUE_OPTION, [] );
+        if ( ! $queue ) {
+            return;
+        }
+
+        $now_ts   = time();
+        $still_due = [];
+        $last_error_for_notice = '';
+
+        foreach ( $queue as $entry ) {
+            if ( strtotime( $entry['next_retry_at'] ) > $now_ts ) {
+                $still_due[] = $entry;
+                continue;
+            }
+
+            $error_message = '';
+            $capture       = function ( $wp_error ) use ( &$error_message ) {
+                $error_message = $wp_error->get_error_message();
+            };
+
+            add_action( 'wp_mail_failed', $capture );
+            $sent = wp_mail( $entry['to'], $entry['subject'], $entry['body'], $entry['headers'] );
+            remove_action( 'wp_mail_failed', $capture );
+
+            if ( $sent ) {
+                error_log( 'DD_DIAG: EMAIL retry sent to=' . $entry['to'] . ' subject=' . $entry['subject'] . ' attempt=' . ( $entry['attempts'] + 1 ) );
+                delete_option( self::EMAIL_BROKEN_OPTION );
+                continue; // drop from the queue — delivered.
+            }
+
+            $entry['attempts']++;
+            $entry['last_error'] = $error_message;
+            error_log( 'DD_DIAG: EMAIL retry failed to=' . $entry['to'] . ' subject=' . $entry['subject'] . ' attempt=' . $entry['attempts'] . ' error=' . $error_message );
+
+            if ( $entry['attempts'] >= count( self::EMAIL_RETRY_DELAYS_MIN ) ) {
+                // Exhausted — stop retrying this one, surface it persistently.
+                $last_error_for_notice = $error_message ?: $entry['last_error'];
+                error_log( 'DD_DIAG: EMAIL retry exhausted to=' . $entry['to'] . ' subject=' . $entry['subject'] );
+                continue; // drop from the queue — permanently failed.
+            }
+
+            $delay_min              = self::EMAIL_RETRY_DELAYS_MIN[ $entry['attempts'] ];
+            $entry['next_retry_at'] = gmdate( 'Y-m-d H:i:s', $now_ts + $delay_min * 60 );
+            $still_due[]            = $entry;
+        }
+
+        update_option( self::EMAIL_RETRY_QUEUE_OPTION, $still_due, false );
+
+        if ( $last_error_for_notice ) {
+            update_option( self::EMAIL_BROKEN_OPTION, $last_error_for_notice, false );
+        }
     }
 
     /**

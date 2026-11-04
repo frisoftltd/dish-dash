@@ -1214,16 +1214,17 @@
                     // paid:true and double-firing the purchase event below.
                     var pesapalCheckInFlight = false;
 
-                    // FAILED/REVERSED grace window (v3.18.61) — PesaPal can allow
-                    // an immediate retry on the SAME tracking id after a FAILED
-                    // report (confirmed live, DD-00262: FAILED then COMPLETED
-                    // ~2 minutes later on a customer retry). Stopping the poll
-                    // the instant FAILED/REVERSED arrives would strand that
-                    // retry — the drawer would say "payment failed" forever even
-                    // though the order later got paid and promoted server-side.
-                    // Keep polling for a few more minutes before giving up.
+                    // FAILED/REVERSED grace window (v3.18.61, widened to 10 min
+                    // in v3.18.62) — PesaPal can allow an immediate retry on the
+                    // SAME tracking id after a FAILED report (confirmed live,
+                    // DD-00262: FAILED then COMPLETED ~2 minutes later on a
+                    // customer retry). Stopping the poll the instant FAILED/
+                    // REVERSED arrives would strand that retry — the drawer
+                    // would say "payment failed" forever even though the order
+                    // later got paid and promoted server-side (now by the
+                    // self-healing reconcile sweep too, not just the IPN).
                     var pesapalFailedSince   = null;
-                    var PESAPAL_FAILED_GRACE_MS = 5 * 60 * 1000;
+                    var PESAPAL_FAILED_GRACE_MS = 10 * 60 * 1000;
 
                     // success:false (most commonly an expired nonce — see
                     // investigation-nonce-cache-audit.md) fetches a replacement
@@ -1322,7 +1323,7 @@
                                         pesapalStatusEl.style.color = '#e53935';
                                     }
                                 } else if ( pesapalStatusEl ) {
-                                    pesapalStatusEl.textContent = 'Payment failed. If you retry on PesaPal now, we’ll detect it automatically…';
+                                    pesapalStatusEl.textContent = 'Payment failed. You can retry in the PesaPal window.';
                                     pesapalStatusEl.style.color = '#e53935';
                                 }
                             }

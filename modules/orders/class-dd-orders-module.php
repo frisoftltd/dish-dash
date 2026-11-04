@@ -29,7 +29,13 @@
  *   - dd_pesapal_reconcile_sweep → run_pesapal_reconcile_sweep() (1-min WP-Cron,
  *     v3.18.46 — unpaid-PesaPal-order reconciliation safety net; sped up to
  *     60s + overlap lock in v3.18.47, meant to be driven by a real server
- *     cron hitting wp-cron.php every minute rather than site traffic)
+ *     cron hitting wp-cron.php every minute rather than site traffic;
+ *     v3.18.62 — self-healing: 72h window, tiered recheck frequency via
+ *     last_reconciled_at, cancelled-but-paid handling, sweep heartbeat +
+ *     PesaPal auth watchdog)
+ *   - dd_email_retry_sweep → DD_Notifications::process_email_retry_queue()
+ *     (v3.18.62, same 1-min 'dd_one_minute' schedule as the PesaPal sweep —
+ *     order-email delivery guarantee, see class-dd-notifications.php)
  *   - admin_init → maybe_render_kitchen_screen() (v3.18.54 — intercepts
  *     ?page=dish-dash-kitchen before wp-admin chrome prints, same escape
  *     hatch pattern DD_Admin::maybe_serve_invoice() uses for the invoice page)
@@ -37,7 +43,7 @@
  * WP-CLI: `wp dishdash pesapal recheck-failed` (v3.18.61, see
  *   modules/orders/class-dd-orders-cli.php / DD_PesaPal_CLI) — one-off
  *   historical recovery for failed PesaPal orders outside the reconcile
- *   sweep's 48h window.
+ *   sweep's window (48h as of v3.18.61, 72h as of v3.18.62).
  *
  * AJAX actions registered:
  *   dd_place_order (public), dd_get_order (public),
@@ -163,8 +169,20 @@ class DD_Orders_Module extends DD_Module {
             wp_schedule_event( time(), 'dd_one_minute', 'dd_pesapal_reconcile_sweep' );
         }
 
+        // Order-email delivery guarantee (v3.18.62) — processes
+        // DD_Notifications' retry queue on the same 1-minute schedule the
+        // PesaPal sweep already registers above, so a queued retry (1/5/15/
+        // 30/60 min backoff) is never delayed by more than this cadence.
+        add_action( 'dd_email_retry_sweep', [ 'DD_Notifications', 'process_email_retry_queue' ] );
+        $email_scheduled = wp_get_scheduled_event( 'dd_email_retry_sweep' );
+        if ( ! $email_scheduled || 'dd_one_minute' !== $email_scheduled->schedule ) {
+            wp_clear_scheduled_hook( 'dd_email_retry_sweep' );
+            wp_schedule_event( time(), 'dd_one_minute', 'dd_email_retry_sweep' );
+        }
+
         // WP-CLI — one-off historical recovery for failed PesaPal orders
-        // outside the reconcile sweep's 48h window (v3.18.61).
+        // outside the reconcile sweep's 72h window (v3.18.61, window widened
+        // in v3.18.62).
         if ( defined( 'WP_CLI' ) && WP_CLI ) {
             require_once DD_PLUGIN_DIR . 'modules/orders/class-dd-orders-cli.php';
             WP_CLI::add_command( 'dishdash pesapal', 'DD_PesaPal_CLI' );
@@ -2078,19 +2096,35 @@ class DD_Orders_Module extends DD_Module {
      * Promote a persisted PesaPal order row to paid exactly once.
      *
      * The row is created up front at checkout (pending_payment/unpaid). When PesaPal
-     * confirms payment, either the IPN, the client poll, the reconcile sweep, or the
-     * admin "Recheck Payment" button calls this. 'failed' is also promotable (not
-     * just 'unpaid') — confirmed live on nyarutarama (DD-00262): PesaPal reported
-     * FAILED, then the customer retried the SAME tracking id and PesaPal reported
-     * COMPLETED ~2 minutes later, but the old unpaid-only WHERE clause silently
-     * refused to promote it. 'reversed' is deliberately excluded — a reversal is
-     * terminal and must never be promoted (see the IPN/sweep writers, which store
-     * 'reversed' as its own distinct payment_status rather than lumping it in with
-     * 'failed'). The UPDATE's WHERE still guarantees only the first caller
-     * transitions the row and fires notifications; a racing second caller sees 0
-     * rows affected and skips — guaranteeing on_order_created runs exactly once.
+     * confirms payment, either the IPN, the client poll, the reconcile sweep, the
+     * admin "Recheck Payment" button, or the recheck-failed WP-CLI command calls
+     * this. 'failed' is also promotable (not just 'unpaid') — confirmed live on
+     * nyarutarama (DD-00262): PesaPal reported FAILED, then the customer retried
+     * the SAME tracking id and PesaPal reported COMPLETED ~2 minutes later, but
+     * the old unpaid-only WHERE clause silently refused to promote it. 'reversed'
+     * is deliberately excluded — a reversal is terminal and must never be
+     * promoted (see the IPN/sweep writers, which store 'reversed' as its own
+     * distinct payment_status rather than lumping it in with 'failed').
+     *
+     * v3.18.62 — a 'cancelled' order (staff acted while PesaPal was still
+     * resolving the payment) is NEVER silently reopened: every caller now selects
+     * `status` alongside `payment_status`/`pesapal_tracking_id`, and a cancelled
+     * row is routed to promote_cancelled_but_paid_order() instead of the normal
+     * unpaid/failed→pending transition below — payment_status still moves to
+     * 'paid' (the money really did arrive, PesaPal is the source of truth for
+     * THAT fact), but `status` stays 'cancelled' and a human is alerted by email
+     * to decide refund vs. restore, rather than the system guessing.
+     *
+     * The UPDATE's WHERE still guarantees only the first caller transitions the
+     * row and fires notifications; a racing second caller sees 0 rows affected
+     * and skips — guaranteeing on_order_created (or the cancelled-but-paid alert)
+     * runs exactly once.
      */
     private function promote_pesapal_order( object $order, string $tracking_id ): array {
+        if ( 'cancelled' === ( $order->status ?? null ) ) {
+            return $this->promote_cancelled_but_paid_order( $order, $tracking_id );
+        }
+
         global $wpdb;
         $table = $wpdb->prefix . 'dishdash_orders';
 
@@ -2119,6 +2153,71 @@ class DD_Orders_Module extends DD_Module {
         }
 
         return [ 'order_id' => (int) $order->id, 'order_number' => $order->order_number ];
+    }
+
+    /**
+     * A staff cancellation must never be silently reopened by a late PesaPal
+     * confirmation (v3.18.62). Marks payment_status='paid' only — `status` stays
+     * 'cancelled', no kitchen/customer notification fires, no WhatsApp handoff —
+     * and alerts an admin by email that a human decision (refund or restore) is
+     * needed. Same WHERE-affected-rows=1 idempotency guarantee as
+     * promote_pesapal_order(): a racing second caller (e.g. the sweep and the
+     * admin Recheck Payment button landing in the same second) sees 0 rows
+     * affected and never double-alerts.
+     */
+    private function promote_cancelled_but_paid_order( object $order, string $tracking_id ): array {
+        global $wpdb;
+        $table = $wpdb->prefix . 'dishdash_orders';
+
+        $promoted = $wpdb->query( $wpdb->prepare(
+            "UPDATE {$table} SET payment_status = 'paid'
+             WHERE id = %d AND payment_status IN ( 'unpaid', 'failed' ) AND status = 'cancelled'",
+            (int) $order->id
+        ) );
+
+        if ( $promoted ) {
+            error_log( 'DD_DIAG: PROMOTE cancelled-but-paid tracking=' . $tracking_id . ' order_id=' . $order->id );
+            $this->queue_cancelled_but_paid_alert( (int) $order->id );
+        } else {
+            error_log( 'DD_DIAG: PROMOTE skipped: cancelled order already paid or raced tracking=' . $tracking_id . ' order_id=' . $order->id );
+        }
+
+        return [ 'order_id' => (int) $order->id, 'order_number' => $order->order_number ];
+    }
+
+    /**
+     * Sends the "cancelled but paid" human-decision-needed alert (v3.18.62),
+     * routed through DD_Notifications::send_mail_reliably() so a transient SMTP
+     * failure here lands in the same retry queue as every other order email
+     * instead of silently vanishing — this is the one case this whole feature
+     * explicitly says DOES need a human, so losing the email would defeat it.
+     */
+    private function queue_cancelled_but_paid_alert( int $order_id ): void {
+        $order = $this->get_order( $order_id );
+        if ( ! $order ) {
+            return;
+        }
+
+        $admin_email = get_option( 'dd_admin_email', get_option( 'admin_email' ) );
+        if ( ! $admin_email ) {
+            return;
+        }
+
+        $subject = sprintf( '[Action needed] %s was cancelled but paid', $order->order_number );
+        $body    = sprintf(
+            "%s was cancelled but the customer paid %s RWF via PesaPal.\n\n" .
+            "The order has been marked as paid but is still cancelled — it was NOT automatically restored.\n\n" .
+            'Please refund the customer or restore the order: %s',
+            $order->order_number,
+            number_format( (float) $order->total ),
+            admin_url( 'admin.php?page=dish-dash-orders' )
+        );
+
+        DD_Notifications::send_mail_reliably( $admin_email, $subject, $body, [], [
+            'kind'         => 'cancelled_but_paid',
+            'order_id'     => $order_id,
+            'order_number' => $order->order_number,
+        ] );
     }
 
     /**
@@ -2212,7 +2311,7 @@ class DD_Orders_Module extends DD_Module {
         }
         global $wpdb;
         return $wpdb->get_row( $wpdb->prepare(
-            "SELECT id, order_number, payment_status FROM {$wpdb->prefix}dishdash_orders
+            "SELECT id, order_number, payment_status, status FROM {$wpdb->prefix}dishdash_orders
              WHERE pesapal_tracking_id = %s LIMIT 1",
             $tracking_id
         ) );
@@ -2255,35 +2354,53 @@ class DD_Orders_Module extends DD_Module {
     }
 
     /**
-     * WP-Cron callback (every 1 min, v3.18.47 — was 5 min) — reconciliation
-     * safety net for unpaid/failed PesaPal orders. The IPN is supposed to
-     * promote an order from unpaid → paid the moment PesaPal confirms
-     * payment, but a transient failure (timeout, PesaPal auth hiccup, etc.)
-     * at that moment leaves the order stuck with no further retry —
-     * confirmed live on nyarutarama (DD-00231/00232: paid at PesaPal, IPN
-     * hit 200 four times, order never promoted; DD-00262: IPN reported
-     * FAILED, the customer retried on the same tracking id, PesaPal reported
-     * COMPLETED ~2 minutes later, but the old unpaid-only scope never
-     * re-checked a 'failed' row). This re-checks each candidate against
-     * PesaPal's own API and routes it through the exact same idempotent
-     * paths the IPN and client poll use (promote_pesapal_order() for
-     * COMPLETED, a conditional UPDATE for FAILED/REVERSED), so this can
-     * never double-fire notifications even if it races the IPN or the admin
-     * "Recheck Payment" button.
+     * WP-Cron callback (every 1 min) — self-healing reconciliation safety net
+     * (v3.18.62, extends v3.18.46/47/61). PesaPal is the source of truth: any
+     * order PesaPal reports COMPLETED must end up paid in DishDash, whatever
+     * local state it got stuck in, with no manual action ever needed. The IPN
+     * is supposed to promote an order the moment PesaPal confirms payment, but
+     * a transient failure (timeout, PesaPal auth hiccup, etc.) leaves the order
+     * stuck with no further retry — confirmed live on nyarutarama
+     * (DD-00231/00232: paid at PesaPal, IPN hit 200 four times, order never
+     * promoted; DD-00262: IPN reported FAILED, the customer retried on the
+     * same tracking id, PesaPal reported COMPLETED ~2 minutes later). FAILED
+     * and INVALID are never treated as final inside the window below — a
+     * customer can retry on the same PesaPal transaction, so a 'failed' row
+     * keeps being re-checked, not just a still-'unpaid' one.
      *
-     * Scope: payment_method='pesapal', payment_status IN ('unpaid','failed'),
-     * status != 'cancelled' (a staff cancellation must not be silently
-     * reopened by a late PesaPal confirmation), has a tracking id, created
-     * within the last 48h (older stuck orders need manual review, not an
-     * endless sweep — see the dishdash pesapal recheck-failed WP-CLI command
-     * for historical cases outside this window). Capped at 20 per run.
+     * Routes every candidate through the exact same idempotent
+     * promote_pesapal_order() (now cancelled-aware, see its own docblock) the
+     * IPN/client poll/admin "Recheck Payment"/CLI already use, so this can
+     * never double-fire notifications even if it races one of them.
+     *
+     * Scope (v3.18.62): payment_method='pesapal', payment_status != 'paid'
+     * (unpaid, failed, reversed, or anything else — REVERSED is still only
+     * ever scanned, never promoted, by promote_pesapal_order()'s own WHERE),
+     * has a tracking id, created within the last 72h (older stuck orders need
+     * the dishdash pesapal recheck-failed WP-CLI command instead of an
+     * endless sweep). Capped at 20 per run.
+     *
+     * Smart check frequency, via last_reconciled_at (avoids hammering
+     * PesaPal's API for orders that aren't about to resolve): under 1h old →
+     * every run; 1-24h old → at most every 30 min; 24-72h old → at most every
+     * 3h. last_reconciled_at is stamped on every row actually checked this
+     * run, success or not.
      *
      * Overlap lock: a real server cron fires this every 60s regardless of
      * how long the previous run took (PesaPal API latency, server hiccups),
      * so a ~55s transient lock guards against two runs checking the same
      * orders concurrently and double-promoting.
+     *
+     * Heartbeat + auth watchdog (v3.18.62): records dd_pesapal_last_sweep_at
+     * on every run (even a no-op one) so render_health_notices() can tell a
+     * dead server cron from "nothing to do"; runs one DD_PesaPal::check_auth()
+     * per batch (only when there's a batch to check) and records
+     * dd_pesapal_auth_broken / clears it, so a bad token shows a named
+     * sandbox/live admin notice instead of silently stalling every order.
      */
     public function run_pesapal_reconcile_sweep(): void {
+        update_option( 'dd_pesapal_last_sweep_at', current_time( 'mysql' ), false );
+
         if ( ! $this->has_pesapal_tracking_column() ) {
             error_log( 'DD_DIAG: RECONCILE skipped — no pesapal_tracking_id column' );
             return;
@@ -2301,26 +2418,44 @@ class DD_Orders_Module extends DD_Module {
             $table = $wpdb->prefix . 'dishdash_orders';
 
             $rows = $wpdb->get_results(
-                "SELECT id, order_number, pesapal_tracking_id
+                "SELECT id, order_number, pesapal_tracking_id, status
                  FROM {$table}
                  WHERE payment_method = 'pesapal'
-                   AND payment_status IN ( 'unpaid', 'failed' )
-                   AND status != 'cancelled'
+                   AND payment_status != 'paid'
                    AND pesapal_tracking_id IS NOT NULL
                    AND pesapal_tracking_id != ''
-                   AND created_at >= DATE_SUB( NOW(), INTERVAL 48 HOUR )
+                   AND created_at >= DATE_SUB( NOW(), INTERVAL 72 HOUR )
+                   AND (
+                         created_at >= DATE_SUB( NOW(), INTERVAL 1 HOUR )
+                      OR ( created_at >= DATE_SUB( NOW(), INTERVAL 24 HOUR )
+                           AND ( last_reconciled_at IS NULL OR last_reconciled_at <= DATE_SUB( NOW(), INTERVAL 30 MINUTE ) ) )
+                      OR ( created_at <  DATE_SUB( NOW(), INTERVAL 24 HOUR )
+                           AND ( last_reconciled_at IS NULL OR last_reconciled_at <= DATE_SUB( NOW(), INTERVAL 3 HOUR ) ) )
+                   )
                  ORDER BY created_at ASC
                  LIMIT 20"
             );
 
             if ( ! $rows ) {
-                error_log( 'DD_DIAG: RECONCILE sweep found 0 unpaid/failed pesapal orders' );
+                error_log( 'DD_DIAG: RECONCILE sweep found 0 due pesapal orders' );
                 return;
             }
 
-            error_log( 'DD_DIAG: RECONCILE sweep checking ' . count( $rows ) . ' unpaid/failed pesapal order(s)' );
+            error_log( 'DD_DIAG: RECONCILE sweep checking ' . count( $rows ) . ' pesapal order(s)' );
 
             $pesapal = new DD_PesaPal();
+
+            $auth = $pesapal->check_auth();
+            if ( $auth['ok'] ) {
+                delete_option( 'dd_pesapal_auth_broken' );
+            } else {
+                update_option( 'dd_pesapal_auth_broken', [
+                    'mode' => $auth['mode'],
+                    'at'   => current_time( 'mysql' ),
+                ], false );
+                error_log( 'DD_DIAG: RECONCILE auth check failed, mode=' . $auth['mode'] . ' — skipping this run' );
+                return;
+            }
 
             foreach ( $rows as $row ) {
                 $status = $pesapal->get_transaction_status( $row->pesapal_tracking_id );
@@ -2330,11 +2465,13 @@ class DD_Orders_Module extends DD_Module {
                     $this->promote_pesapal_order( $row, $row->pesapal_tracking_id );
                 } elseif ( in_array( $status, [ 'FAILED', 'REVERSED' ], true ) ) {
                     // Only a still-'unpaid' row transitions here — a row already
-                    // 'failed' from a prior sweep/IPN pass is left alone (it's
-                    // already in the retry-eligible state this sweep itself
-                    // scans for next time). FAILED/REVERSED are split into
-                    // distinct values for the same reason as the IPN writer:
-                    // 'failed' stays promotable, 'reversed' never does.
+                    // 'failed' from a prior sweep/IPN pass is left alone, but
+                    // still gets last_reconciled_at stamped below so the tiered
+                    // backoff applies — "never final inside the window" means
+                    // "keep checking," not "keep writing the same value."
+                    // FAILED/REVERSED are split into distinct values for the
+                    // same reason as the IPN writer: 'failed' stays promotable,
+                    // 'reversed' never does.
                     $new_payment_status = ( 'REVERSED' === $status ) ? 'reversed' : 'failed';
                     $wpdb->update(
                         $table,
@@ -2345,7 +2482,15 @@ class DD_Orders_Module extends DD_Module {
                     );
                     error_log( 'DD_DIAG: RECONCILE order_id=' . $row->id . ' marked ' . $new_payment_status . ' (' . $status . ')' );
                 }
-                // PENDING / INVALID / UNKNOWN → leave as-is; next sweep re-checks.
+                // PENDING / INVALID / UNKNOWN → leave as-is; next eligible run re-checks.
+
+                $wpdb->update(
+                    $table,
+                    [ 'last_reconciled_at' => current_time( 'mysql' ) ],
+                    [ 'id' => (int) $row->id ],
+                    [ '%s' ],
+                    [ '%d' ]
+                );
             }
         } finally {
             delete_transient( $lock_key );
@@ -2372,7 +2517,7 @@ class DD_Orders_Module extends DD_Module {
         $table = $wpdb->prefix . 'dishdash_orders';
 
         $rows = $wpdb->get_results(
-            "SELECT id, order_number, pesapal_tracking_id
+            "SELECT id, order_number, pesapal_tracking_id, status
              FROM {$table}
              WHERE payment_method = 'pesapal'
                AND payment_status = 'failed'
